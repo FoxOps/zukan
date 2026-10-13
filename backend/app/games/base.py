@@ -143,6 +143,8 @@ class GameProvider(Protocol):
       of only owned ones (small catalogs).
     - `cardmarket_path`: the game's Cardmarket URL segment ("Magic"); printings with a
       `cardmarket_id` attribute then link to their Cardmarket page.
+    - `short_names`: words that select the game in a catalog search ("mtg j25 158").
+    - `set_aliases`: other codes people use for a set, by set code ({"001": ["ALP"]}).
     - `catalog_version` (default 1): bump it when `fetch_catalog` output changes in a way
       stored data must catch up with; the worker then syncs the catalog without waiting
       for `TCG_CATALOG_INTERVAL_HOURS`."""

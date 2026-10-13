@@ -41,7 +41,7 @@ class Identification:
     candidates: list[Candidate]
 
 
-def _number_matches(column, number: str):
+def number_matches(column, number: str):
     """Compare collector numbers ignoring zero padding ("007" == "7")."""
     return func.ltrim(column, "0") == (number.lstrip("0") or "0")
 
@@ -57,7 +57,7 @@ async def _exact(session: AsyncSession, game_id: str, hints: OcrHints) -> list[P
             .where(
                 CardSet.game_id == game_id,
                 or_(func.lower(CardSet.code) == code, func.lower(CardSet.external_id) == code),
-                _number_matches(Printing.collector_number, hints.collector_number),
+                number_matches(Printing.collector_number, hints.collector_number),
             )
         )
     )
@@ -68,7 +68,7 @@ async def _by_number(session: AsyncSession, game_id: str, number: str) -> list[P
         await session.scalars(
             select(Printing)
             .join(CardSet)
-            .where(CardSet.game_id == game_id, _number_matches(Printing.collector_number, number))
+            .where(CardSet.game_id == game_id, number_matches(Printing.collector_number, number))
             .limit(2000)
         )
     )

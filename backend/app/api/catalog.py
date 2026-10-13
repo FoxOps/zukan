@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Annotated, Any
@@ -5,11 +6,12 @@ from typing import Annotated, Any
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from sqlalchemy import ColumnElement, case, exists, func, select
+from sqlalchemy import ColumnElement, case, exists, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, SessionDep
 from app.core.http import http_client
+from app.games.base import registry
 from app.models import (
     Card,
     CardName,
@@ -20,6 +22,7 @@ from app.models import (
     User,
 )
 from app.services import collection, images
+from app.services.identify import number_matches
 from app.services.names import display_name
 
 router = APIRouter(tags=["catalog"])
@@ -111,6 +114,51 @@ def name_matches(q: str) -> ColumnElement[bool]:
     return CardName.search_name.like("%" + _search_text(q) + "%")
 
 
+@dataclass
+class CodeQuery:
+    """`q` read as "[game] set [number]", e.g. "pkm ssp 181", "j25 158", "sorcery ALP"."""
+
+    game: str | None
+    set_ids: list[int]
+    number: str | None
+
+
+async def parse_code_query(session: SessionDep, q: str, game: str | None) -> CodeQuery | None:
+    """None when `q` is a plain name. `set_ids` is empty when only a game was named."""
+    tokens = q.split()
+    named_game = None
+    if len(tokens) > 1 and game is None:
+        named_game = next(
+            (gid for gid, p in registry().items() if tokens[0].casefold() in _short_names(p)),
+            None,
+        )
+        if named_game is not None:
+            tokens = tokens[1:]
+    game = game or named_game
+    plain = CodeQuery(named_game, [], None) if named_game else None
+    number = tokens[1].split("/")[0] if len(tokens) == 2 else None
+    if len(tokens) > 2 or (number is not None and not any(ch.isdigit() for ch in number)):
+        return plain
+    code = tokens[0].casefold()
+    codes = {code}
+    for gid, provider in registry().items():
+        if game is None or gid == game:
+            for set_code, aliases in getattr(provider, "set_aliases", {}).items():
+                if code in {a.casefold() for a in aliases}:
+                    codes.add(set_code.casefold())
+    query = select(CardSet.id).where(
+        or_(func.lower(CardSet.code).in_(codes), func.lower(CardSet.external_id).in_(codes))
+    )
+    if game:
+        query = query.where(CardSet.game_id == game)
+    set_ids = list(await session.scalars(query))
+    return CodeQuery(named_game, set_ids, number) if set_ids else plain
+
+
+def _short_names(provider: Any) -> set[str]:
+    return {provider.id, *(n.casefold() for n in getattr(provider, "short_names", []))}
+
+
 def image_link(printing: Printing, lang: str) -> str | None:
     """Image URL in the user's language (with fallbacks, see `images`)."""
     if images.has_image(printing):
@@ -161,7 +209,26 @@ async def search_cards(
         query = query.where(Card.game_id == game)
     elif user.catalog_games is not None:
         query = query.where(Card.game_id.in_(user.catalog_games))
-    if q:
+    code = await parse_code_query(session, q, game) if q else None
+    if code is not None and code.game and not game:
+        # "pkm lugia": the first word chose the game, the rest is a name.
+        game = code.game
+        query = query.where(Card.game_id == game)
+        q = q.split(maxsplit=1)[1]
+    if code is not None and code.set_ids:
+        # Printings of that set (and number), or names matching the words anyway.
+        in_set = exists().where(Printing.card_id == Card.id, Printing.set_id.in_(code.set_ids))
+        if code.number:
+            in_set = exists().where(
+                Printing.card_id == Card.id,
+                Printing.set_id.in_(code.set_ids),
+                number_matches(Printing.collector_number, code.number),
+            )
+        query = query.where(
+            or_(in_set, exists().where(CardName.card_id == Card.id, name_matches(q)))
+        )
+        order.insert(0, case((in_set, 0), else_=1))
+    elif q:
         query = query.where(exists().where(CardName.card_id == Card.id, name_matches(q)))
         text = _search_text(q)
         rank = (

@@ -291,6 +291,7 @@ class PokemonProvider:
     languages = list(LANGUAGES.values())
     price_source = "tcgdex-cardmarket"
     cardmarket_path = "Pokemon"
+    short_names = ["pkm", "pokemon", "poke", "ptcg"]
     # 2: one set per set id across Asian languages, names from species names.
     catalog_version = 2
 

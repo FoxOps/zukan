@@ -165,6 +165,14 @@ async def test_sync_merges_languages(client, session, scryfall):
     for query in ("Elfes", "llanowarelfen", "llanowar"):
         page = (await client.get("/api/cards", params={"q": query}, headers=headers)).json()
         assert [c["name"] for c in page["items"]] == ["Llanowar Elves"], query
+    # Set code and collector number, with or without the game.
+    for query in ("mtg dom 168", "DOM 168", "magic dom"):
+        page = (await client.get("/api/cards", params={"q": query}, headers=headers)).json()
+        assert [c["name"] for c in page["items"]] == ["Llanowar Elves"], query
+    page = (await client.get("/api/cards", params={"q": "mtg isd 51"}, headers=headers)).json()
+    assert [c["name"] for c in page["items"]] == ["Delver of Secrets // Insectile Aberration"]
+    page = (await client.get("/api/cards", params={"q": "pkm dom 168"}, headers=headers)).json()
+    assert page["items"] == []
 
 
 async def test_language_order_does_not_matter(session, scryfall):

@@ -361,3 +361,14 @@ async def test_catalog_sync_prunes_cards_without_printings(session, synced):
     await session.commit()
     assert (await sync_sorcery(session)).pruned_cards == 1
     assert await session.scalar(select(Card).where(Card.external_id == "orphan")) is None
+
+
+async def test_search_by_set_abbreviation(client, session, synced):
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    by_set = {}
+    for query in ("sorcery ALP", "alp", "sorcery 001"):
+        page = (await client.get("/api/cards", params={"q": query}, headers=headers)).json()
+        by_set[query] = {c["name"] for c in page["items"]}
+        assert by_set[query], query
+    assert by_set["sorcery ALP"] == by_set["alp"] == by_set["sorcery 001"]

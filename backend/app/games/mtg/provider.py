@@ -297,6 +297,7 @@ class MtgProvider:
     languages = list(LANGUAGES.values())
     price_source = "scryfall-cardmarket"
     cardmarket_path = "Magic"
+    short_names = ["mtg", "magic"]
 
     async def _bulk(self, http: httpx.AsyncClient, kind: str) -> AsyncIterator[dict[str, Any]]:
         meta = (await get_with_retry(http, f"{API_URL}/bulk-data/{kind}")).json()
