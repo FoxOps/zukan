@@ -1,0 +1,427 @@
+from datetime import date, datetime, timedelta
+from decimal import Decimal
+from typing import Annotated, Literal
+
+from fastapi import APIRouter, File, HTTPException, Query, Response, UploadFile, status
+from pydantic import BaseModel, Field
+from sqlalchemy import exists, func, select
+from sqlalchemy.orm import selectinload
+
+from app.api.catalog import image_link, like_pattern
+from app.api.deps import CurrentUser, SessionDep
+from app.models import (
+    Card,
+    CardName,
+    CardSet,
+    CollectionItem,
+    Condition,
+    Printing,
+    StockTransaction,
+)
+from app.services import collection, csv_io
+from app.services.collection import StockError, Variant
+
+router = APIRouter(prefix="/collection", tags=["collection"])
+
+Source = Literal["web", "scan"]
+MAX_CSV_BYTES = 5 * 1024 * 1024
+
+
+class ItemSetOut(BaseModel):
+    id: int
+    code: str
+    name: str
+
+
+class ItemOut(BaseModel):
+    id: int
+    printing_id: int
+    card_id: int
+    game_id: str
+    name: str
+    colors: list[str]
+    set: ItemSetOut
+    collector_number: str | None
+    rarity: str | None
+    image: str | None
+    finish: str
+    condition: str
+    language: str
+    quantity: int
+    manual_price: Decimal | None
+    market_price: Decimal | None
+    price_date: date | None
+    unit_price: Decimal | None
+    total: Decimal | None
+    notes: str | None
+    updated_at: datetime
+
+
+class ItemPageOut(BaseModel):
+    items: list[ItemOut]
+    total: int
+    page: int
+    page_size: int
+
+
+class AdjustIn(BaseModel):
+    printing_id: int
+    finish: str
+    condition: Condition = Condition.NM
+    language: str
+    delta: int = Field(ge=-1000, le=1000)
+    source: Source = "web"
+
+
+class AdjustOut(BaseModel):
+    item: ItemOut
+    transaction_id: int
+
+
+class ItemUpdateIn(BaseModel):
+    quantity: int | None = Field(default=None, ge=0, le=100_000)
+    manual_price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class TransactionOut(BaseModel):
+    id: int
+    item_id: int
+    delta: int
+    source: str
+    undone: bool
+    created_at: datetime
+    name: str
+    set_code: str
+    finish: str
+    condition: str
+    language: str
+
+
+class GameValueOut(BaseModel):
+    game_id: str
+    total: Decimal
+    quantity: int
+    priced: int
+    unpriced: int
+
+
+class ValueOut(BaseModel):
+    currency: str = "EUR"
+    total: Decimal
+    quantity: int
+    games: list[GameValueOut]
+
+
+class ValuePointOut(BaseModel):
+    date: date
+    value: Decimal
+
+
+class ImportErrorOut(BaseModel):
+    line: int
+    message: str
+
+
+class ImportOut(BaseModel):
+    rows: int
+    imported: int
+    dry_run: bool
+    errors: list[ImportErrorOut]
+
+
+def _item_query():
+    return select(CollectionItem).options(
+        selectinload(CollectionItem.printing).selectinload(Printing.card),
+        selectinload(CollectionItem.printing).selectinload(Printing.set),
+    )
+
+
+async def _items_out(session: SessionDep, items: list[CollectionItem]) -> list[ItemOut]:
+    prices = await collection.latest_prices(session, (i.printing_id for i in items))
+    out = []
+    for item in items:
+        printing = item.printing
+        point = prices.get((item.printing_id, item.finish))
+        unit = collection.unit_price(item, prices)
+        out.append(
+            ItemOut(
+                id=item.id,
+                printing_id=printing.id,
+                card_id=printing.card_id,
+                game_id=printing.set.game_id,
+                name=printing.card.name,
+                colors=printing.card.colors,
+                set=ItemSetOut(id=printing.set.id, code=printing.set.code, name=printing.set.name),
+                collector_number=printing.collector_number,
+                rarity=printing.rarity,
+                image=image_link(printing),
+                finish=item.finish,
+                condition=item.condition,
+                language=item.language,
+                quantity=item.quantity,
+                manual_price=item.manual_price,
+                market_price=point.trend if point else None,
+                price_date=point.date if point else None,
+                unit_price=unit,
+                total=None if unit is None else unit * item.quantity,
+                notes=item.notes,
+                updated_at=item.updated_at,
+            )
+        )
+    return out
+
+
+async def _item_out(session: SessionDep, item_id: int) -> ItemOut:
+    session.expire_all()
+    item = await session.scalar(_item_query().where(CollectionItem.id == item_id))
+    return (await _items_out(session, [item]))[0]
+
+
+async def _own_item(session: SessionDep, user_id: int, item_id: int) -> CollectionItem:
+    item = await session.scalar(
+        select(CollectionItem).where(
+            CollectionItem.id == item_id, CollectionItem.user_id == user_id
+        )
+    )
+    if item is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Item not found")
+    return item
+
+
+def _conflict(exc: StockError) -> HTTPException:
+    return HTTPException(status.HTTP_409_CONFLICT, str(exc))
+
+
+@router.get("")
+async def list_items(
+    user: CurrentUser,
+    session: SessionDep,
+    game: str | None = None,
+    q: Annotated[str | None, Query(max_length=200)] = None,
+    set_id: int | None = None,
+    color: Annotated[list[str] | None, Query()] = None,
+    finish: str | None = None,
+    condition: Condition | None = None,
+    language: str | None = None,
+    include_empty: bool = False,
+    sort: Literal["name", "set", "updated", "quantity"] = "name",
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=500)] = 50,
+) -> ItemPageOut:
+    """The current user's items with resolved prices."""
+    query = (
+        _item_query()
+        .join(Printing, CollectionItem.printing_id == Printing.id)
+        .join(Card, Printing.card_id == Card.id)
+        .join(CardSet, Printing.set_id == CardSet.id)
+        .where(CollectionItem.user_id == user.id)
+    )
+    if not include_empty:
+        query = query.where(CollectionItem.quantity > 0)
+    if game:
+        query = query.where(CardSet.game_id == game)
+    if q:
+        query = query.where(
+            exists().where(CardName.card_id == Card.id, CardName.name.ilike(like_pattern(q)))
+        )
+    if set_id is not None:
+        query = query.where(Printing.set_id == set_id)
+    if color:
+        query = query.where(Card.colors.contains(color))
+    if finish:
+        query = query.where(CollectionItem.finish == finish)
+    if condition:
+        query = query.where(CollectionItem.condition == condition)
+    if language:
+        query = query.where(CollectionItem.language == language)
+
+    total = await session.scalar(select(func.count()).select_from(query.subquery()))
+    order = {
+        "name": (Card.name, CardSet.code, Printing.collector_number),
+        "set": (CardSet.release_date.desc().nulls_last(), CardSet.code, Printing.collector_number),
+        "updated": (CollectionItem.updated_at.desc(),),
+        "quantity": (CollectionItem.quantity.desc(), Card.name),
+    }[sort]
+    items = (
+        await session.scalars(
+            query.order_by(*order, CollectionItem.id)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    ).all()
+    return ItemPageOut(
+        items=await _items_out(session, list(items)),
+        total=total or 0,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.post("/adjust")
+async def adjust(body: AdjustIn, user: CurrentUser, session: SessionDep) -> AdjustOut:
+    """Add (positive delta) or remove (negative delta) copies of a printing variant."""
+    printing = await session.get(Printing, body.printing_id)
+    if printing is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Printing not found")
+    variant = Variant(body.finish, body.condition, body.language)
+    try:
+        item, transaction = await collection.adjust(
+            session, user.id, printing, variant, body.delta, body.source
+        )
+    except StockError as exc:
+        await session.rollback()
+        raise _conflict(exc) from exc
+    item_id, transaction_id = item.id, transaction.id
+    await session.commit()
+    return AdjustOut(item=await _item_out(session, item_id), transaction_id=transaction_id)
+
+
+@router.get("/items/{item_id}")
+async def get_item(item_id: int, user: CurrentUser, session: SessionDep) -> ItemOut:
+    await _own_item(session, user.id, item_id)
+    return await _item_out(session, item_id)
+
+
+@router.patch("/items/{item_id}")
+async def update_item(
+    item_id: int, body: ItemUpdateIn, user: CurrentUser, session: SessionDep
+) -> ItemOut:
+    """Set quantity (recorded as a stock change), manual price or notes.
+    Send `manual_price: null` to go back to API prices."""
+    item = await _own_item(session, user.id, item_id)
+    fields = body.model_fields_set
+    if "manual_price" in fields:
+        item.manual_price = body.manual_price
+    if "notes" in fields:
+        item.notes = body.notes or None
+    if body.quantity is not None:
+        try:
+            await collection.set_quantity(session, item, body.quantity, "web")
+        except StockError as exc:
+            await session.rollback()
+            raise _conflict(exc) from exc
+    await session.commit()
+    return await _item_out(session, item_id)
+
+
+@router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_item(item_id: int, user: CurrentUser, session: SessionDep) -> None:
+    """Forget an item and its stock history."""
+    item = await _own_item(session, user.id, item_id)
+    await session.delete(item)
+    await session.commit()
+
+
+@router.get("/transactions")
+async def list_transactions(
+    user: CurrentUser,
+    session: SessionDep,
+    item_id: int | None = None,
+    limit: Annotated[int, Query(ge=1, le=500)] = 50,
+) -> list[TransactionOut]:
+    query = (
+        select(StockTransaction, CollectionItem, Card.name, CardSet.code)
+        .join(CollectionItem, StockTransaction.item_id == CollectionItem.id)
+        .join(Printing, CollectionItem.printing_id == Printing.id)
+        .join(Card, Printing.card_id == Card.id)
+        .join(CardSet, Printing.set_id == CardSet.id)
+        .where(StockTransaction.user_id == user.id)
+        .order_by(StockTransaction.id.desc())
+        .limit(limit)
+    )
+    if item_id is not None:
+        query = query.where(StockTransaction.item_id == item_id)
+    return [
+        TransactionOut(
+            id=t.id,
+            item_id=t.item_id,
+            delta=t.delta,
+            source=t.source,
+            undone=t.undone,
+            created_at=t.created_at,
+            name=name,
+            set_code=code,
+            finish=item.finish,
+            condition=item.condition,
+            language=item.language,
+        )
+        for t, item, name, code in await session.execute(query)
+    ]
+
+
+@router.post("/transactions/{transaction_id}/undo")
+async def undo_transaction(transaction_id: int, user: CurrentUser, session: SessionDep) -> ItemOut:
+    try:
+        item = await collection.undo(session, user.id, transaction_id)
+    except LookupError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+    except StockError as exc:
+        await session.rollback()
+        raise _conflict(exc) from exc
+    item_id = item.id
+    await session.commit()
+    return await _item_out(session, item_id)
+
+
+@router.get("/value")
+async def value(user: CurrentUser, session: SessionDep) -> ValueOut:
+    """Current collection value, per game and overall."""
+    games = await collection.value_by_game(session, user.id)
+    return ValueOut(
+        total=sum((g.total for g in games), Decimal(0)),
+        quantity=sum(g.quantity for g in games),
+        games=[GameValueOut.model_validate(g, from_attributes=True) for g in games],
+    )
+
+
+@router.get("/value/history")
+async def value_history(
+    user: CurrentUser,
+    session: SessionDep,
+    game: str | None = None,
+    days: Annotated[int, Query(ge=1, le=3650)] = 90,
+) -> list[ValuePointOut]:
+    """Daily value of current holdings over the last `days` days."""
+    end = date.today()
+    history = await collection.value_history(
+        session, user.id, game, end - timedelta(days=days - 1), end
+    )
+    return [ValuePointOut(date=d, value=v) for d, v in history]
+
+
+@router.get("/export.csv")
+async def export_csv(user: CurrentUser, session: SessionDep, game: str | None = None) -> Response:
+    content = await csv_io.export_csv(session, user.id, game)
+    filename = f"collection-{game or 'all'}-{date.today().isoformat()}.csv"
+    return Response(
+        content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/import")
+async def import_csv(
+    user: CurrentUser,
+    session: SessionDep,
+    file: Annotated[UploadFile, File()],
+    mode: Literal["add", "set"] = "add",
+    dry_run: bool = False,
+) -> ImportOut:
+    """Import a CSV (see export format). Nothing is imported if any row is invalid.
+    `add` adds quantities; `set` makes stored quantities equal to the file's."""
+    data = await file.read(MAX_CSV_BYTES + 1)
+    if len(data) > MAX_CSV_BYTES:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "File larger than 5 MB")
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "File must be UTF-8 text") from exc
+    report = await csv_io.import_csv(session, user.id, text, mode == "set", dry_run)
+    return ImportOut(
+        rows=report.rows,
+        imported=report.imported,
+        dry_run=dry_run,
+        errors=[ImportErrorOut(line=e.line, message=e.message) for e in report.errors[:200]],
+    )

@@ -1,0 +1,752 @@
+[
+ {
+  "id": "cmt865vva04mqnwcyrl8c2h8l",
+  "name": "13 Treasures of Britain",
+  "slug": "13_treasures_of_britain",
+  "engine": {
+   "type": "Artifact",
+   "category": "Spell",
+   "rarity": "Unique",
+   "slot": "Unique",
+   "rules": "When picked up, bearer's controller draws a card. Teleport the Treasures to the top of a random site or void.",
+   "cost": 4,
+   "attack": null,
+   "defense": null,
+   "life": null,
+   "air": 0,
+   "earth": 0,
+   "fire": 0,
+   "water": 0,
+   "elements": [
+    "None"
+   ],
+   "subtypes": [
+    "Relic"
+   ],
+   "keywords": [],
+   "umbrellas": [],
+   "back": null
+  },
+  "printings": [
+   {
+    "id": "cmt865x7l04ninwcyyju3668s",
+    "slug": "004-13_treasures_of_britain-b-s",
+    "printedAt": "2024-10-04T07:00:00.000Z",
+    "set": {
+     "name": "Arthurian Legends",
+     "code": "004",
+     "releasedAt": "2026-08-25T04:32:18.603Z"
+    },
+    "meta": {
+     "finish": "Standard",
+     "product": "Booster",
+     "typeline": "A Unique collection of priceless Relics",
+     "flavor": null,
+     "artist": {
+      "name": "Jeff A. Menges",
+      "slug": "jeff_a_menges"
+     },
+     "back": null
+    }
+   },
+   {
+    "id": "cmt865wcd04n1nwcy6l8uye2o",
+    "slug": "004-13_treasures_of_britain-b-f",
+    "printedAt": "2024-10-04T07:00:00.000Z",
+    "set": {
+     "name": "Arthurian Legends",
+     "code": "004",
+     "releasedAt": "2026-08-25T04:32:18.603Z"
+    },
+    "meta": {
+     "finish": "Foil",
+     "product": "Booster",
+     "typeline": "A Unique collection of priceless Relics",
+     "flavor": null,
+     "artist": {
+      "name": "Jeff A. Menges",
+      "slug": "jeff_a_menges"
+     },
+     "back": null
+    }
+   }
+  ]
+ },
+ {
+  "id": "cmt85wzur0000nwcyylmcamal",
+  "name": "Abundance",
+  "slug": "abundance",
+  "engine": {
+   "type": "Aura",
+   "category": "Spell",
+   "rarity": "Elite",
+   "slot": "Elite",
+   "rules": "Each affected site provides one additional mana.",
+   "cost": 5,
+   "attack": null,
+   "defense": null,
+   "life": null,
+   "air": 0,
+   "earth": 0,
+   "fire": 0,
+   "water": 2,
+   "elements": [
+    "Water"
+   ],
+   "subtypes": [],
+   "keywords": [],
+   "umbrellas": [],
+   "back": null
+  },
+  "printings": [
+   {
+    "id": "cmt86122s0298nwcy0p9cp3z4",
+    "slug": "002-abundance-b-s",
+    "printedAt": "2023-10-06T07:00:00.000Z",
+    "set": {
+     "name": "Beta",
+     "code": "002",
+     "releasedAt": "2026-08-25T04:29:12.082Z"
+    },
+    "meta": {
+     "finish": "Standard",
+     "product": "Booster",
+     "typeline": "An Elite Aura of milk and honey",
+     "flavor": null,
+     "artist": {
+      "name": "Vincent Pompetti",
+      "slug": "vincent_pompetti"
+     },
+     "back": null
+    }
+   },
+   {
+    "id": "cmt86116x028tnwcy8mnhq389",
+    "slug": "002-abundance-b-f",
+    "printedAt": "2023-10-06T07:00:00.000Z",
+    "set": {
+     "name": "Beta",
+     "code": "002",
+     "releasedAt": "2026-08-25T04:29:12.082Z"
+    },
+    "meta": {
+     "finish": "Foil",
+     "product": "Booster",
+     "typeline": "An Elite Aura of milk and honey",
+     "flavor": null,
+     "artist": {
+      "name": "Vincent Pompetti",
+      "slug": "vincent_pompetti"
+     },
+     "back": null
+    }
+   },
+   {
+    "id": "cmt85x17y000unwcyufkld6yg",
+    "slug": "001-abundance-b-s",
+    "printedAt": "2023-06-22T07:00:00.000Z",
+    "set": {
+     "name": "Alpha",
+     "code": "001",
+     "releasedAt": "2026-08-25T04:21:27.405Z"
+    },
+    "meta": {
+     "finish": "Standard",
+     "product": "Booster",
+     "typeline": "An Elite Aura of milk and honey",
+     "flavor": null,
+     "artist": {
+      "name": "Vincent Pompetti",
+      "slug": "vincent_pompetti"
+     },
+     "back": null
+    }
+   },
+   {
+    "id": "cmt85x0cp000anwcycor58s7i",
+    "slug": "001-abundance-b-f",
+    "printedAt": "2023-06-22T07:00:00.000Z",
+    "set": {
+     "name": "Alpha",
+     "code": "001",
+     "releasedAt": "2026-08-25T04:21:27.405Z"
+    },
+    "meta": {
+     "finish": "Foil",
+     "product": "Booster",
+     "typeline": "An Elite Aura of milk and honey",
+     "flavor": null,
+     "artist": {
+      "name": "Vincent Pompetti",
+      "slug": "vincent_pompetti"
+     },
+     "back": null
+    }
+   }
+  ]
+ },
+ {
+  "id": "cmt866dcj04whnwcy8zkk792t",
+  "name": "Archimago",
+  "slug": "archimago",
+  "engine": {
+   "type": "Avatar",
+   "category": "Avatar",
+   "rarity": null,
+   "slot": "Unique",
+   "rules": "Tap → Play or draw a site.\r\n\r\nBanish three magic spells in your cemetery → Cast a copy of one of them.",
+   "cost": null,
+   "attack": 1,
+   "defense": 1,
+   "life": 20,
+   "air": 0,
+   "earth": 0,
+   "fire": 0,
+   "water": 0,
+   "elements": [
+    "None"
+   ],
+   "subtypes": [],
+   "keywords": [],
+   "umbrellas": [],
+   "back": null
+  },
+  "printings": [
+   {
+    "id": "cmt86e6tm083anwcyvovk68nr",
+    "slug": "999-archimago-op-rf",
+    "printedAt": "2025-08-01T07:00:00.000Z",
+    "set": {
+     "name": "Promo",
+     "code": "999",
+     "releasedAt": "2026-08-25T04:39:08.860Z"
+    },
+    "meta": {
+     "finish": "Rainbow",
+     "product": "OrganizedPlay",
+     "typeline": "Your Avatar performed a smackdown of magic",
+     "flavor": null,
+     "artist": {
+      "name": "Rodney Matthews",
+      "slug": "rodney_matthews"
+     },
+     "back": null
+    }
+   },
+   {
+    "id": "cmt866epg04xbnwcyqhdp0w5q",
+    "slug": "004-archimago-b-s",
+    "printedAt": "2024-10-04T07:00:00.000Z",
+    "set": {
+     "name": "Arthurian Legends",
+     "code": "004",
+     "releasedAt": "2026-08-25T04:32:18.603Z"
+    },
+    "meta": {
+     "finish": "Standard",
+     "product": "Booster",
+     "typeline": "Your Avatar performs a smackdown of magic",
+     "flavor": null,
+     "artist": {
+      "name": "Rodney Matthews",
+      "slug": "rodney_matthews"
+     },
+     "back": null
+    }
+   },
+   {
+    "id": "cmt866dtw04wvnwcywoz6ebzi",
+    "slug": "004-archimago-b-f",
+    "printedAt": "2024-10-04T07:00:00.000Z",
+    "set": {
+     "name": "Arthurian Legends",
+     "code": "004",
+     "releasedAt": "2026-08-25T04:32:18.603Z"
+    },
+    "meta": {
+     "finish": "Foil",
+     "product": "Booster",
+     "typeline": "Your Avatar performs a smackdown of magic",
+     "flavor": null,
+     "artist": {
+      "name": "Rodney Matthews",
+      "slug": "rodney_matthews"
+     },
+     "back": null
+    }
+   }
+  ]
+ },
+ {
+  "id": "cmt865x2n04ngnwcyg8b8ajuk",
+  "name": "Druid",
+  "slug": "druid",
+  "engine": {
+   "type": "Avatar",
+   "category": "Avatar",
+   "rarity": null,
+   "slot": "Unique",
+   "rules": "Tap → Play or draw a site.\r\n\r\nNearby allied sites have \"Whenever an enemy enters here, it takes 1 damage.\"",
+   "cost": null,
+   "attack": 1,
+   "defense": 1,
+   "life": 20,
+   "air": 0,
+   "earth": 0,
+   "fire": 0,
+   "water": 0,
+   "elements": [
+    "None"
+   ],
+   "subtypes": [],
+   "keywords": [],
+   "umbrellas": [],
+   "back": {
+    "type": "Avatar",
+    "category": "Avatar",
+    "rarity": null,
+    "slot": "Ordinary",
+    "rules": "Tap → Play or draw a site.\r\n\r\nWhenever an enemy enters a nearby site, it takes 1 damage.",
+    "cost": null,
+    "attack": 1,
+    "defense": 1,
+    "life": 20,
+    "air": 0,
+    "earth": 0,
+    "fire": 0,
+    "water": 0,
+    "elements": [
+     "None"
+    ],
+    "subtypes": [],
+    "keywords": [],
+    "umbrellas": []
+   }
+  },
+  "printings": [
+   {
+    "id": "cmt86dzjy07zbnwcyusxil7nn",
+    "slug": "999-druid-d-f",
+    "printedAt": "2025-06-06T07:00:00.000Z",
+    "set": {
+     "name": "Promo",
+     "code": "999",
+     "releasedAt": "2026-08-25T04:39:08.860Z"
+    },
+    "meta": {
+     "finish": "Foil",
+     "product": "Dust",
+     "typeline": "Your Avatar watches over this domain",
+     "flavor": null,
+     "artist": {
+      "name": "Bryon Wackwitz",
+      "slug": "bryon_wackwitz"
+     },
+     "back": {
+      "finish": "Foil",
+      "product": "Dust",
+      "typeline": "Your Avatar is a force of nature!",
+      "flavor": null,
+      "artist": {
+       "name": "Bryon Wackwitz",
+       "slug": "bryon_wackwitz"
+      }
+     }
+    }
+   },
+   {
+    "id": "cmt86e0pc0801nwcyqhc61940",
+    "slug": "999-druid-op-rf",
+    "printedAt": "2025-08-01T07:00:00.000Z",
+    "set": {
+     "name": "Promo",
+     "code": "999",
+     "releasedAt": "2026-08-25T04:39:08.860Z"
+    },
+    "meta": {
+     "finish": "Rainbow",
+     "product": "OrganizedPlay",
+     "typeline": "Your Avatar was a force of nature",
+     "flavor": null,
+     "artist": {
+      "name": "Bryon Wackwitz",
+      "slug": "bryon_wackwitz"
+     },
+     "back": null
+    }
+   },
+   {
+    "id": "cmt865xrx04nvnwcyivux9u06",
+    "slug": "004-druid-bt-s",
+    "printedAt": "2024-10-04T07:00:00.000Z",
+    "set": {
+     "name": "Arthurian Legends",
+     "code": "004",
+     "releasedAt": "2026-08-25T04:32:18.603Z"
+    },
+    "meta": {
+     "finish": "Standard",
+     "product": "BoxTopper",
+     "typeline": "Your Avatar watches over this domain",
+     "flavor": null,
+     "artist": {
+      "name": "Bryon Wackwitz",
+      "slug": "bryon_wackwitz"
+     },
+     "back": {
+      "finish": "Standard",
+      "product": "BoxTopper",
+      "typeline": "Your Avatar is a force of nature!",
+      "flavor": null,
+      "artist": {
+       "name": "Bryon Wackwitz",
+       "slug": "bryon_wackwitz"
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "id": "cmt85y9rv00pjnwcyprlwu3ym",
+  "name": "Aqueduct",
+  "slug": "aqueduct",
+  "engine": {
+   "type": "Site",
+   "category": "Site",
+   "rarity": "Exceptional",
+   "slot": "Exceptional",
+   "rules": "",
+   "cost": null,
+   "attack": null,
+   "defense": null,
+   "life": null,
+   "air": 0,
+   "earth": 1,
+   "fire": 0,
+   "water": 1,
+   "elements": [
+    "Earth",
+    "Water"
+   ],
+   "subtypes": [],
+   "keywords": [],
+   "umbrellas": [],
+   "back": null
+  },
+  "printings": [
+   {
+    "id": "cmt862b8j02urnwcytxoa6c8c",
+    "slug": "002-aqueduct-b-s",
+    "printedAt": "2023-10-06T07:00:00.000Z",
+    "set": {
+     "name": "Beta",
+     "code": "002",
+     "releasedAt": "2026-08-25T04:29:12.082Z"
+    },
+    "meta": {
+     "finish": "Standard",
+     "product": "Booster",
+     "typeline": "An Exceptional Site of Earth and Water",
+     "flavor": null,
+     "artist": {
+      "name": "Jeff A. Menges",
+      "slug": "jeff_a_menges"
+     },
+     "back": null
+    }
+   },
+   {
+    "id": "cmt862add02ubnwcyhx4z4dtv",
+    "slug": "002-aqueduct-b-f",
+    "printedAt": "2023-10-06T07:00:00.000Z",
+    "set": {
+     "name": "Beta",
+     "code": "002",
+     "releasedAt": "2026-08-25T04:29:12.082Z"
+    },
+    "meta": {
+     "finish": "Foil",
+     "product": "Booster",
+     "typeline": "An Exceptional Site of Earth and Water",
+     "flavor": null,
+     "artist": {
+      "name": "Jeff A. Menges",
+      "slug": "jeff_a_menges"
+     },
+     "back": null
+    }
+   },
+   {
+    "id": "cmt85yb4n00qcnwcy0m50s7d1",
+    "slug": "001-aqueduct-b-s",
+    "printedAt": "2023-06-22T07:00:00.000Z",
+    "set": {
+     "name": "Alpha",
+     "code": "001",
+     "releasedAt": "2026-08-25T04:21:27.405Z"
+    },
+    "meta": {
+     "finish": "Standard",
+     "product": "Booster",
+     "typeline": "An Exceptional Site of Earth and Water",
+     "flavor": null,
+     "artist": {
+      "name": "Jeff A. Menges",
+      "slug": "jeff_a_menges"
+     },
+     "back": null
+    }
+   },
+   {
+    "id": "cmt85ya9700punwcy3abdmtqk",
+    "slug": "001-aqueduct-b-f",
+    "printedAt": "2023-06-22T07:00:00.000Z",
+    "set": {
+     "name": "Alpha",
+     "code": "001",
+     "releasedAt": "2026-08-25T04:21:27.405Z"
+    },
+    "meta": {
+     "finish": "Foil",
+     "product": "Booster",
+     "typeline": "An Exceptional Site of Earth and Water",
+     "flavor": null,
+     "artist": {
+      "name": "Jeff A. Menges",
+      "slug": "jeff_a_menges"
+     },
+     "back": null
+    }
+   }
+  ]
+ },
+ {
+  "id": "cmt85zrpv01jlnwcyyj174ju7",
+  "name": "Avatar of Air",
+  "slug": "avatar_of_air",
+  "engine": {
+   "type": "Avatar",
+   "category": "Avatar",
+   "rarity": null,
+   "slot": "Unique",
+   "rules": "Tap → Play or draw a site.\r\n\r\nOnce on your turn, if you occupy an Air site, you may fly a unit atop it to a nearby site.",
+   "cost": null,
+   "attack": 1,
+   "defense": 1,
+   "life": 20,
+   "air": 0,
+   "earth": 0,
+   "fire": 0,
+   "water": 0,
+   "elements": [
+    "None"
+   ],
+   "subtypes": [],
+   "keywords": [],
+   "umbrellas": [],
+   "back": null
+  },
+  "printings": [
+   {
+    "id": "cmt86dtn407w4nwcykfdbs3t4",
+    "slug": "999-avatar_of_air-op-rf",
+    "printedAt": "2025-08-01T07:00:00.000Z",
+    "set": {
+     "name": "Promo",
+     "code": "999",
+     "releasedAt": "2026-08-25T04:39:08.860Z"
+    },
+    "meta": {
+     "finish": "Rainbow",
+     "product": "OrganizedPlay",
+     "typeline": "Your Avatar soared as high as its ambitions",
+     "flavor": null,
+     "artist": {
+      "name": "Séverine Pineaux",
+      "slug": "severine_pineaux"
+     },
+     "back": null
+    }
+   },
+   {
+    "id": "cmt85zt1n01kcnwcyjlum9izn",
+    "slug": "001-avatar_of_air-pd-s",
+    "printedAt": "2023-06-22T07:00:00.000Z",
+    "set": {
+     "name": "Alpha",
+     "code": "001",
+     "releasedAt": "2026-08-25T04:21:27.405Z"
+    },
+    "meta": {
+     "finish": "Standard",
+     "product": "PreconstructedDeck",
+     "typeline": "Your Avatar of soaring ambition",
+     "flavor": null,
+     "artist": {
+      "name": "Séverine Pineaux",
+      "slug": "severine_pineaux"
+     },
+     "back": null
+    }
+   },
+   {
+    "id": "cmt85zs5s01jvnwcyjx3lx5bq",
+    "slug": "001-avatar_of_air-b-f",
+    "printedAt": "2023-06-22T07:00:00.000Z",
+    "set": {
+     "name": "Alpha",
+     "code": "001",
+     "releasedAt": "2026-08-25T04:21:27.405Z"
+    },
+    "meta": {
+     "finish": "Foil",
+     "product": "Booster",
+     "typeline": "Your Avatar of soaring ambition",
+     "flavor": null,
+     "artist": {
+      "name": "Séverine Pineaux",
+      "slug": "severine_pineaux"
+     },
+     "back": null
+    }
+   }
+  ]
+ },
+ {
+  "id": "cmt85x1xv0018nwcyiqskwodh",
+  "name": "Amazon Warriors",
+  "slug": "amazon_warriors",
+  "engine": {
+   "type": "Minion",
+   "category": "Spell",
+   "rarity": "Ordinary",
+   "slot": "Ordinary",
+   "rules": "",
+   "cost": 5,
+   "attack": 5,
+   "defense": 5,
+   "life": null,
+   "air": 0,
+   "earth": 1,
+   "fire": 0,
+   "water": 0,
+   "elements": [
+    "Earth"
+   ],
+   "subtypes": [
+    "Mortal"
+   ],
+   "keywords": [],
+   "umbrellas": [],
+   "back": null
+  },
+  "printings": [
+   {
+    "id": "cmt86e5iy082lnwcya7fal11b",
+    "slug": "999-amazon_warriors-ai-f",
+    "printedAt": "2024-05-10T07:00:00.000Z",
+    "set": {
+     "name": "Promo",
+     "code": "999",
+     "releasedAt": "2026-08-25T04:39:08.860Z"
+    },
+    "meta": {
+     "finish": "Foil",
+     "product": "AlphaInvestments",
+     "typeline": "Ordinary Mortals of magnificent stature",
+     "flavor": null,
+     "artist": {
+      "name": "Boris Vallejo",
+      "slug": "boris_vallejo"
+     },
+     "back": null
+    }
+   },
+   {
+    "id": "cmt8613st02a0nwcyaogxesfo",
+    "slug": "002-amazon_warriors-b-s",
+    "printedAt": "2023-10-06T07:00:00.000Z",
+    "set": {
+     "name": "Beta",
+     "code": "002",
+     "releasedAt": "2026-08-25T04:29:12.082Z"
+    },
+    "meta": {
+     "finish": "Standard",
+     "product": "Booster",
+     "typeline": "Ordinary Mortals of magnificent stature",
+     "flavor": null,
+     "artist": {
+      "name": "Elvira Shakirova",
+      "slug": "elvira_shakirova"
+     },
+     "back": null
+    }
+   },
+   {
+    "id": "cmt8612xb029knwcyyosnw10k",
+    "slug": "002-amazon_warriors-b-f",
+    "printedAt": "2023-10-06T07:00:00.000Z",
+    "set": {
+     "name": "Beta",
+     "code": "002",
+     "releasedAt": "2026-08-25T04:29:12.082Z"
+    },
+    "meta": {
+     "finish": "Foil",
+     "product": "Booster",
+     "typeline": "Ordinary Mortals of magnificent stature",
+     "flavor": null,
+     "artist": {
+      "name": "Elvira Shakirova",
+      "slug": "elvira_shakirova"
+     },
+     "back": null
+    }
+   },
+   {
+    "id": "cmt85x39l001xnwcynvywe33c",
+    "slug": "001-amazon_warriors-b-s",
+    "printedAt": "2023-06-22T07:00:00.000Z",
+    "set": {
+     "name": "Alpha",
+     "code": "001",
+     "releasedAt": "2026-08-25T04:21:27.405Z"
+    },
+    "meta": {
+     "finish": "Standard",
+     "product": "Booster",
+     "typeline": "Ordinary Mortals of magnificent stature",
+     "flavor": null,
+     "artist": {
+      "name": "Elvira Shakirova",
+      "slug": "elvira_shakirova"
+     },
+     "back": null
+    }
+   },
+   {
+    "id": "cmt85x2ds001inwcyu25z2gg9",
+    "slug": "001-amazon_warriors-b-f",
+    "printedAt": "2023-06-22T07:00:00.000Z",
+    "set": {
+     "name": "Alpha",
+     "code": "001",
+     "releasedAt": "2026-08-25T04:21:27.405Z"
+    },
+    "meta": {
+     "finish": "Foil",
+     "product": "Booster",
+     "typeline": "Ordinary Mortals of magnificent stature",
+     "flavor": null,
+     "artist": {
+      "name": "Elvira Shakirova",
+      "slug": "elvira_shakirova"
+     },
+     "back": null
+    }
+   }
+  ]
+ }
+]

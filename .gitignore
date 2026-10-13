@@ -1,0 +1,72 @@
+# --- Secrets and local configuration (copy the *.example files) ---
+.env
+.env.*
+!.env.example
+auth.yaml
+*.pem
+*.key
+*.p12
+*.keystore
+*.jks
+keystore.properties
+
+# --- Runtime data ---
+data/
+backend/data/
+import/
+
+# --- Python (backend) ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# --- Node (web) ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+web/openapi.json
+*.tsbuildinfo
+npm-debug.log*
+
+# --- Android ---
+# The SDK, JDK, Gradle distribution and emulator live outside the repository (~/Android).
+.gradle/
+.kotlin/
+build/
+local.properties
+captures/
+.cxx/
+.externalNativeBuild/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.hprof
+.android/
+*.avd/
+Android/
+
+# --- Editors, OS, tools ---
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.sw?
+*~
+.DS_Store
+Thumbs.db
+*.log
+.playwright-mcp/
+.claude/settings.local.json
+
+# --- Personal notes ---
+Nouveau document

@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@plugin "daisyui" {
+  themes: light --default, dark --prefersdark;
+}
+@plugin "@tailwindcss/typography";
+/* Class strategy: only `form-*` classes reset inputs, so daisyUI inputs stay untouched. */
+@plugin "@tailwindcss/forms" {
+  strategy: "class";
+}
+@plugin "tailwindcss-animate";

@@ -1,0 +1,4 @@
+<resources>
+    <!-- Compose draws the UI; this only themes the window before it starts. -->
+    <style name="Theme.Fudabako" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

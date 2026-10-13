@@ -1,0 +1,66 @@
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tcg
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: tcg
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tcg"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      TCG_DATABASE_URL: postgresql+asyncpg://tcg:${POSTGRES_PASSWORD}@db:5432/tcg
+      TCG_AUTH_CONFIG_PATH: /config/auth.yaml
+    volumes:
+      - ./auth.yaml:/config/auth.yaml:ro
+      - images:/data/images
+      # Put downloaded image folders here (e.g. Sorcery Google Drive) to import them.
+      - ./import:/data/import:ro
+    ports:
+      - "8000:8000"
+
+  # Refreshes catalogs, prices and owned card images (TCG_SYNC_INTERVAL_HOURS).
+  worker:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+    env_file: .env
+    environment:
+      TCG_DATABASE_URL: postgresql+asyncpg://tcg:${POSTGRES_PASSWORD}@db:5432/tcg
+    volumes:
+      - images:/data/images
+    command: ["python", "-m", "app.worker"]
+
+  # Development only: `docker compose --profile sso-dev up keycloak`
+  # Realm "tcg" with clients tcg-web / tcg-android and users admin/user (password: password).
+  keycloak:
+    profiles: [sso-dev]
+    image: quay.io/keycloak/keycloak:26.4
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    volumes:
+      - ./deploy/keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:
+  images:

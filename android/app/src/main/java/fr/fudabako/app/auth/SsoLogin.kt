@@ -1,0 +1,79 @@
+package fr.fudabako.app.auth
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.core.net.toUri
+import fr.fudabako.app.data.ProviderOut
+import kotlinx.coroutines.suspendCancellableCoroutine
+import net.openid.appauth.AppAuthConfiguration
+import net.openid.appauth.AuthorizationException
+import net.openid.appauth.AuthorizationRequest
+import net.openid.appauth.AuthorizationResponse
+import net.openid.appauth.AuthorizationService
+import net.openid.appauth.AuthorizationServiceConfiguration
+import net.openid.appauth.ResponseTypeValues
+import net.openid.appauth.connectivity.ConnectionBuilder
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+
+const val REDIRECT_URI = "fr.fudabako.app:/oauth2redirect"
+
+/** What the server needs to log in with an identity provider's ID token. */
+data class SsoResult(val idToken: String, val nonce: String, val accessToken: String?)
+
+/**
+ * OpenID Connect login with AppAuth: authorization code + PKCE in a browser tab, as a
+ * public client (`mobile_client_id`). The app never sees a client secret.
+ */
+class SsoLogin(context: Context) {
+    // AppAuth only allows HTTPS by default; home identity providers may be plain HTTP.
+    private val connections = ConnectionBuilder { uri: Uri ->
+        (URL(uri.toString()).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 15_000
+            readTimeout = 15_000
+            instanceFollowRedirects = false
+        }
+    }
+    private val service = AuthorizationService(
+        context,
+        AppAuthConfiguration.Builder().setConnectionBuilder(connections).build(),
+    )
+
+    suspend fun authorizationIntent(provider: ProviderOut): Pair<Intent, AuthorizationRequest> {
+        val clientId = provider.mobileClientId ?: error("${provider.displayName} has no mobile client configured")
+        val configuration = suspendCancellableCoroutine { cont ->
+            AuthorizationServiceConfiguration.fetchFromIssuer(provider.issuer.toUri(), { config, error ->
+                if (config != null) cont.resume(config) else cont.resumeWithException(error ?: IllegalStateException("Discovery failed"))
+            }, connections)
+        }
+        val request = AuthorizationRequest.Builder(
+            configuration,
+            clientId,
+            ResponseTypeValues.CODE,
+            REDIRECT_URI.toUri(),
+        ).setScopes(provider.scopes).build()
+        return service.getAuthorizationRequestIntent(request) to request
+    }
+
+    /** Exchange the authorization code returned to the app for the ID token. */
+    suspend fun complete(data: Intent?): SsoResult {
+        val response = data?.let { AuthorizationResponse.fromIntent(it) }
+        if (response == null) {
+            val error = data?.let { AuthorizationException.fromIntent(it) }
+            throw IllegalStateException(error?.errorDescription ?: error?.error ?: "Login cancelled")
+        }
+        val tokens = suspendCancellableCoroutine { cont ->
+            service.performTokenRequest(response.createTokenExchangeRequest()) { token, error ->
+                if (token != null) cont.resume(token) else cont.resumeWithException(error ?: IllegalStateException("Token request failed"))
+            }
+        }
+        val idToken = tokens.idToken ?: error("The identity provider returned no ID token")
+        val nonce = response.request.nonce ?: error("Missing nonce")
+        return SsoResult(idToken, nonce, tokens.accessToken)
+    }
+
+    fun dispose() = service.dispose()
+}

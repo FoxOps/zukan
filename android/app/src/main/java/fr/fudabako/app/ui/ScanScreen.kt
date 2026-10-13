@@ -1,0 +1,131 @@
+package fr.fudabako.app.ui
+
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import coil3.ImageLoader
+import fr.fudabako.app.data.GameOut
+import fr.fudabako.app.data.Settings
+
+@Composable
+fun ScanScreen(
+    scan: ScanViewModel,
+    state: ScanState,
+    games: List<GameOut>,
+    settings: Settings,
+    imageUrl: (String?) -> String?,
+    imageLoader: ImageLoader,
+    onGame: (String?) -> Unit,
+) {
+    val context = LocalContext.current
+    var granted by remember {
+        mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
+    }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
+    LaunchedEffect(Unit) { if (!granted) permission.launch(Manifest.permission.CAMERA) }
+    LaunchedEffect(settings.game) { scan.game = settings.game }
+
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        if (granted) {
+            CameraPreview(settings.script, paused = state.phase != Phase.SCANNING, onLines = scan::onLines, modifier = Modifier.fillMaxSize())
+        } else {
+            Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("The camera is needed to read cards.", color = Color.White)
+                Button(onClick = { permission.launch(Manifest.permission.CAMERA) }) { Text("Allow camera") }
+            }
+        }
+
+        // Game filter: faster and more accurate than trying every game.
+        Row(
+            Modifier.align(Alignment.TopCenter).padding(8.dp).horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            // Solid chips: readable over any camera image.
+            val chipColors = FilterChipDefaults.filterChipColors(
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+            )
+            FilterChip(selected = settings.game == null, onClick = { onGame(null) }, label = { Text("Any game") }, colors = chipColors)
+            games.forEach { g ->
+                FilterChip(selected = settings.game == g.id, onClick = { onGame(g.id) }, label = { Text(g.name) }, colors = chipColors)
+            }
+        }
+
+        val status = when (state.phase) {
+            Phase.SCANNING -> "Point at a card"
+            Phase.IDENTIFYING -> "Identifying…"
+            Phase.NOT_FOUND -> "No match"
+            Phase.RESULT -> null
+        }
+        if (status != null) {
+            Surface(
+                Modifier.align(Alignment.BottomCenter).padding(24.dp),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+            ) {
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (state.phase == Phase.IDENTIFYING) CircularProgressIndicator(Modifier.padding(end = 8.dp).size(18.dp), strokeWidth = 2.dp)
+                    Text(status)
+                    if (state.phase == Phase.NOT_FOUND) {
+                        TextButton(onClick = { scan.resume(forgetCard = true) }) { Text("Try again") }
+                    }
+                }
+            }
+        }
+
+        if (state.phase == Phase.RESULT) {
+            Surface(
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.72f),
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                tonalElevation = 4.dp,
+            ) {
+                ResultPanel(
+                    state = state,
+                    games = games,
+                    settings = settings,
+                    imageUrl = imageUrl,
+                    imageLoader = imageLoader,
+                    onCandidate = scan::selectCandidate,
+                    onPrinting = scan::selectPrinting,
+                    onAdjust = scan::adjust,
+                    onClose = { scan.resume() },
+                )
+            }
+        }
+    }
+}

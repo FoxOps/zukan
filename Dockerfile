@@ -1,0 +1,28 @@
+# Web UI build
+FROM node:24-slim AS web
+WORKDIR /web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ ./
+RUN npm run build
+
+# API + worker, serving the built web UI on the same origin
+FROM python:3.13-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+WORKDIR /app
+
+COPY backend/pyproject.toml ./
+COPY backend/app ./app
+RUN pip install --no-cache-dir .
+
+COPY backend/alembic.ini ./
+COPY backend/alembic ./alembic
+COPY --from=web /web/dist ./web
+
+RUN useradd --create-home tcg && mkdir -p /data/images && chown tcg /data/images
+USER tcg
+ENV TCG_IMAGE_DIR=/data/images TCG_IMPORT_DIR=/data/import TCG_WEB_DIR=/app/web
+
+EXPOSE 8000
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]

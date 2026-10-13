@@ -1,0 +1,130 @@
+package fr.fudabako.app
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.ImageLoader
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import fr.fudabako.app.ui.FudabakoTheme
+import fr.fudabako.app.ui.LoginScreen
+import fr.fudabako.app.ui.ScanScreen
+import fr.fudabako.app.ui.ScanViewModel
+import fr.fudabako.app.ui.SearchScreen
+import fr.fudabako.app.ui.SessionViewModel
+import fr.fudabako.app.ui.SettingsScreen
+
+class MainActivity : ComponentActivity() {
+    private val session: SessionViewModel by viewModels()
+    private val scan: ScanViewModel by viewModels()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent { FudabakoTheme { App(session, scan, application as FudabakoApp) } }
+    }
+}
+
+private enum class Tab(val label: String) { SCAN("Scan"), SEARCH("Search"), SETTINGS("Settings") }
+
+@Composable
+private fun App(session: SessionViewModel, scan: ScanViewModel, app: FudabakoApp) {
+    val state by session.state.collectAsStateWithLifecycle()
+    val settings by session.settings.collectAsStateWithLifecycle()
+    val scanState by scan.state.collectAsStateWithLifecycle()
+    val client by app.client.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    // Card images go through the authenticated HTTP client.
+    val imageLoader = remember(client) {
+        ImageLoader.Builder(context)
+            .components { client?.let { c -> add(OkHttpNetworkFetcherFactory(callFactory = { c.http })) } }
+            .build()
+    }
+    val imageUrl = { path: String? -> client?.imageUrl(path) }
+
+    when {
+        state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        !state.loggedIn -> Scaffold { padding -> Box(Modifier.padding(padding)) { LoginScreen(session, state) } }
+        else -> {
+            var tab by rememberSaveable { mutableStateOf(Tab.SCAN) }
+            val snackbar = remember { SnackbarHostState() }
+            LaunchedEffect(scanState.undo) {
+                val undo = scanState.undo ?: return@LaunchedEffect
+                val result = snackbar.showSnackbar(undo.text, actionLabel = "Undo", duration = SnackbarDuration.Long)
+                if (result == SnackbarResult.ActionPerformed) scan.undo() else scan.consumeUndo()
+            }
+            LaunchedEffect(scanState.message, state.error) {
+                val message = scanState.message ?: state.error ?: return@LaunchedEffect
+                snackbar.showSnackbar(message)
+                scan.consumeMessage()
+                session.clearError()
+            }
+            Scaffold(
+                snackbarHost = { SnackbarHost(snackbar) },
+                bottomBar = {
+                    NavigationBar {
+                        Tab.entries.forEach { t ->
+                            NavigationBarItem(
+                                selected = tab == t,
+                                onClick = { tab = t },
+                                icon = {
+                                    Icon(
+                                        when (t) {
+                                            Tab.SCAN -> Icons.Default.CameraAlt
+                                            Tab.SEARCH -> Icons.Default.Search
+                                            Tab.SETTINGS -> Icons.Default.Settings
+                                        },
+                                        contentDescription = null,
+                                    )
+                                },
+                                label = { Text(t.label) },
+                            )
+                        }
+                    }
+                },
+            ) { padding ->
+                Box(Modifier.padding(padding)) {
+                    when (tab) {
+                        Tab.SCAN -> ScanScreen(scan, scanState, state.games, settings, imageUrl, imageLoader) { game ->
+                            session.updateSettings { it.copy(game = game) }
+                        }
+                        Tab.SEARCH -> SearchScreen(client?.api, settings.game, state.games, imageUrl, imageLoader) { card ->
+                            scan.showCard(card)
+                            tab = Tab.SCAN
+                        }
+                        Tab.SETTINGS -> SettingsScreen(session, state, settings)
+                    }
+                }
+            }
+        }
+    }
+}

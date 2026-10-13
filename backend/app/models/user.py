@@ -1,0 +1,68 @@
+import enum
+import uuid
+from datetime import datetime
+
+from sqlalchemy import DateTime, Enum, ForeignKey, String, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.models.base import Base, TimestampMixin
+
+
+class Role(enum.StrEnum):
+    admin = "admin"
+    user = "user"
+
+
+class User(TimestampMixin, Base):
+    __tablename__ = "user"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(150), unique=True)
+    email: Mapped[str | None] = mapped_column(String(320))
+    # Null for SSO-only accounts.
+    password_hash: Mapped[str | None] = mapped_column(String(255))
+    role: Mapped[Role] = mapped_column(
+        Enum(Role, name="user_role", native_enum=False), default=Role.user
+    )
+    disabled: Mapped[bool] = mapped_column(default=False)
+
+    identities: Mapped[list["UserIdentity"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+    @property
+    def has_password(self) -> bool:
+        return self.password_hash is not None
+
+
+class UserIdentity(TimestampMixin, Base):
+    """Link between a local user and an OIDC subject."""
+
+    __tablename__ = "user_identity"
+    __table_args__ = (UniqueConstraint("issuer", "subject"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    provider: Mapped[str] = mapped_column(String(64))
+    issuer: Mapped[str] = mapped_column(String(512))
+    subject: Mapped[str] = mapped_column(String(255))
+    email: Mapped[str | None] = mapped_column(String(320))
+
+    user: Mapped[User] = relationship(back_populates="identities")
+
+
+class RefreshToken(TimestampMixin, Base):
+    """Opaque rotating refresh token. Only the SHA-256 hash is stored.
+
+    Tokens issued from one login share a family; reuse of a rotated token revokes the
+    whole family (stolen token detection).
+    """
+
+    __tablename__ = "refresh_token"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    family_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

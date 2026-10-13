@@ -1,0 +1,720 @@
+{
+ "/en/sets": [
+  {
+   "id": "hgss1",
+   "name": "HeartGold SoulSilver",
+   "logo": "https://assets.tcgdex.net/en/hgss/hgss1/logo",
+   "symbol": "https://assets.tcgdex.net/univ/hgss/hgss1/symbol",
+   "cardCount": {
+    "total": 124,
+    "official": 123
+   }
+  },
+  {
+   "id": "swsh3",
+   "name": "Darkness Ablaze",
+   "logo": "https://assets.tcgdex.net/en/swsh/swsh3/logo",
+   "symbol": "https://assets.tcgdex.net/univ/swsh/swsh3/symbol",
+   "cardCount": {
+    "total": 201,
+    "official": 189
+   }
+  },
+  {
+   "id": "A4",
+   "name": "Wisdom of Sea and Sky",
+   "cardCount": {
+    "total": 1,
+    "official": 1
+   }
+  }
+ ],
+ "/en/sets/swsh3": {
+  "cardCount": {
+   "firstEd": 0,
+   "holo": 69,
+   "normal": 138,
+   "official": 189,
+   "reverse": 157,
+   "total": 201
+  },
+  "cards": [
+   {
+    "id": "swsh3-25",
+    "image": "https://assets.tcgdex.net/en/swsh/swsh3/25",
+    "localId": "25",
+    "name": "Heatran"
+   },
+   {
+    "id": "swsh3-136",
+    "image": "https://assets.tcgdex.net/en/swsh/swsh3/136",
+    "localId": "136",
+    "name": "Furret"
+   },
+   {
+    "id": "swsh3-170",
+    "image": "https://assets.tcgdex.net/en/swsh/swsh3/170",
+    "localId": "170",
+    "name": "Spikemuth"
+   }
+  ],
+  "id": "swsh3",
+  "legal": {
+   "expanded": true,
+   "standard": false
+  },
+  "logo": "https://assets.tcgdex.net/en/swsh/swsh3/logo",
+  "name": "Darkness Ablaze",
+  "releaseDate": "2020-08-14",
+  "serie": {
+   "id": "swsh",
+   "name": "Sword & Shield"
+  },
+  "symbol": "https://assets.tcgdex.net/univ/swsh/swsh3/symbol",
+  "tcgOnline": "DAA",
+  "abbreviation": {
+   "official": "DAA"
+  }
+ },
+ "/en/sets/hgss1": {
+  "cardCount": {
+   "firstEd": 0,
+   "holo": 38,
+   "normal": 156,
+   "official": 123,
+   "reverse": 113,
+   "total": 124
+  },
+  "cards": [
+   {
+    "id": "hgss1-21",
+    "image": "https://assets.tcgdex.net/en/hgss/hgss1/21",
+    "localId": "21",
+    "name": "Furret"
+   }
+  ],
+  "id": "hgss1",
+  "legal": {
+   "expanded": false,
+   "standard": false
+  },
+  "logo": "https://assets.tcgdex.net/en/hgss/hgss1/logo",
+  "name": "HeartGold SoulSilver",
+  "releaseDate": "2010-02-10",
+  "serie": {
+   "id": "hgss",
+   "name": "HeartGold & SoulSilver"
+  },
+  "symbol": "https://assets.tcgdex.net/univ/hgss/hgss1/symbol",
+  "tcgOnline": "HS",
+  "abbreviation": {
+   "official": "HS"
+  }
+ },
+ "/en/cards/swsh3-136": {
+  "category": "Pokemon",
+  "id": "swsh3-136",
+  "illustrator": "tetsuya koizumi",
+  "image": "https://assets.tcgdex.net/en/swsh/swsh3/136",
+  "localId": "136",
+  "name": "Furret",
+  "rarity": "Uncommon",
+  "set": {
+   "cardCount": {
+    "official": 189,
+    "total": 201
+   },
+   "id": "swsh3",
+   "logo": "https://assets.tcgdex.net/en/swsh/swsh3/logo",
+   "name": "Darkness Ablaze",
+   "symbol": "https://assets.tcgdex.net/univ/swsh/swsh3/symbol"
+  },
+  "variants": {
+   "firstEdition": false,
+   "holo": false,
+   "normal": true,
+   "reverse": true,
+   "wPromo": false
+  },
+  "dexId": [
+   162
+  ],
+  "hp": 110,
+  "types": [
+   "Colorless"
+  ],
+  "evolveFrom": "Sentret",
+  "stage": "Stage1",
+  "attacks": [
+   {
+    "cost": [
+     "Colorless"
+    ],
+    "name": "Feelin' Fine",
+    "effect": "Draw 3 cards."
+   },
+   {
+    "cost": [
+     "Colorless"
+    ],
+    "name": "Tail Smash",
+    "effect": "Flip a coin. If tails, this attack does nothing.",
+    "damage": 90
+   }
+  ],
+  "weaknesses": [
+   {
+    "type": "Fighting",
+    "value": "×2"
+   }
+  ],
+  "retreat": 1,
+  "regulationMark": "D",
+  "legal": {
+   "standard": false,
+   "expanded": true
+  },
+  "updated": "2026-07-01T21:27:44+01:00",
+  "pricing": {
+   "cardmarket": {
+    "updated": "2026-10-12T08:50:43.142Z",
+    "unit": "EUR",
+    "idProduct": 483559,
+    "avg": 0.07,
+    "low": 0.02,
+    "trend": 0.05,
+    "avg1": 0.02,
+    "avg7": 0.04,
+    "avg30": 0.07,
+    "avg-holo": 0.28,
+    "low-holo": 0.08,
+    "trend-holo": 0.24,
+    "avg1-holo": 0.25,
+    "avg7-holo": 0.25,
+    "avg30-holo": 0.27
+   }
+  }
+ },
+ "/en/cards/swsh3-25": {
+  "category": "Pokemon",
+  "id": "swsh3-25",
+  "illustrator": "Anesaki Dynamic",
+  "image": "https://assets.tcgdex.net/en/swsh/swsh3/25",
+  "localId": "25",
+  "name": "Heatran",
+  "rarity": "Holo Rare",
+  "set": {
+   "cardCount": {
+    "official": 189,
+    "total": 201
+   },
+   "id": "swsh3",
+   "logo": "https://assets.tcgdex.net/en/swsh/swsh3/logo",
+   "name": "Darkness Ablaze",
+   "symbol": "https://assets.tcgdex.net/univ/swsh/swsh3/symbol"
+  },
+  "variants": {
+   "firstEdition": false,
+   "holo": true,
+   "normal": false,
+   "reverse": true,
+   "wPromo": false
+  },
+  "dexId": [
+   485
+  ],
+  "hp": 130,
+  "types": [
+   "Fire"
+  ],
+  "stage": "Basic",
+  "attacks": [
+   {
+    "cost": [
+     "Fire",
+     "Colorless"
+    ],
+    "name": "Fire Fang",
+    "effect": "Your opponent's Active Pokémon is now Burned.",
+    "damage": 30
+   },
+   {
+    "cost": [
+     "Fire",
+     "Fire",
+     "Colorless"
+    ],
+    "name": "Raging Flare",
+    "effect": "This attack does 10 more damage for each damage counter on this Pokémon.",
+    "damage": "80+"
+   }
+  ],
+  "weaknesses": [
+   {
+    "type": "Water",
+    "value": "×2"
+   }
+  ],
+  "retreat": 4,
+  "regulationMark": "D",
+  "legal": {
+   "standard": false,
+   "expanded": true
+  },
+  "updated": "2026-07-01T21:27:44+01:00",
+  "pricing": {
+   "cardmarket": {
+    "updated": "2026-10-12T09:52:39.814Z",
+    "unit": "EUR",
+    "idProduct": 482999,
+    "avg": 0.33,
+    "low": 0.08,
+    "trend": 0.29,
+    "avg1": 0.1,
+    "avg7": 0.27,
+    "avg30": 0.35,
+    "avg-holo": 0.65,
+    "low-holo": 0.09,
+    "trend-holo": 0.77,
+    "avg1-holo": 0.34,
+    "avg7-holo": 0.61,
+    "avg30-holo": 0.65
+   }
+  }
+ },
+ "/en/cards/swsh3-170": {
+  "category": "Trainer",
+  "id": "swsh3-170",
+  "illustrator": "5ban Graphics",
+  "image": "https://assets.tcgdex.net/en/swsh/swsh3/170",
+  "localId": "170",
+  "name": "Spikemuth",
+  "rarity": "Uncommon",
+  "set": {
+   "cardCount": {
+    "official": 189,
+    "total": 201
+   },
+   "id": "swsh3",
+   "logo": "https://assets.tcgdex.net/en/swsh/swsh3/logo",
+   "name": "Darkness Ablaze",
+   "symbol": "https://assets.tcgdex.net/univ/swsh/swsh3/symbol"
+  },
+  "variants": {
+   "firstEdition": false,
+   "holo": false,
+   "normal": true,
+   "reverse": true,
+   "wPromo": false
+  },
+  "effect": "Whenever a player's Active Pokémon moves to the Bench during their turn, put 2 damage counters on that Pokémon.",
+  "trainerType": "Stadium",
+  "regulationMark": "D",
+  "legal": {
+   "standard": false,
+   "expanded": true
+  },
+  "updated": "2026-07-01T21:27:44+01:00",
+  "pricing": {
+   "cardmarket": {
+    "updated": "2026-10-12T08:50:43.211Z",
+    "unit": "EUR",
+    "idProduct": 483729,
+    "avg": 0.05,
+    "low": 0.02,
+    "trend": 0.03,
+    "avg1": 0.02,
+    "avg7": 0.03,
+    "avg30": 0.06,
+    "avg-holo": 0.32,
+    "low-holo": 0.1,
+    "trend-holo": 0.37,
+    "avg1-holo": 0.49,
+    "avg7-holo": 0.35,
+    "avg30-holo": 0.36
+   }
+  }
+ },
+ "/en/cards/hgss1-21": {
+  "category": "Pokemon",
+  "id": "hgss1-21",
+  "illustrator": "MAHOU",
+  "image": "https://assets.tcgdex.net/en/hgss/hgss1/21",
+  "localId": "21",
+  "name": "Furret",
+  "rarity": "Rare",
+  "set": {
+   "cardCount": {
+    "official": 123,
+    "total": 124
+   },
+   "id": "hgss1",
+   "logo": "https://assets.tcgdex.net/en/hgss/hgss1/logo",
+   "name": "HeartGold SoulSilver",
+   "symbol": "https://assets.tcgdex.net/univ/hgss/hgss1/symbol"
+  },
+  "variants": {
+   "firstEdition": false,
+   "holo": false,
+   "normal": true,
+   "reverse": true,
+   "wPromo": false
+  },
+  "dexId": [
+   162
+  ],
+  "hp": 80,
+  "types": [
+   "Colorless"
+  ],
+  "evolveFrom": "Sentret",
+  "stage": "Stage1",
+  "attacks": [
+   {
+    "cost": [
+     "Colorless"
+    ],
+    "name": "Find a Friend",
+    "effect": "Search your deck for a Pokémon, show it to your opponent, and put it into your hand. Shuffle your deck afterward."
+   },
+   {
+    "cost": [
+     "Colorless",
+     "Colorless"
+    ],
+    "name": "Quick Blow",
+    "effect": "Flip a coin. If heads, this attack does 20 damage plus 20 more damage.",
+    "damage": "20+"
+   }
+  ],
+  "weaknesses": [
+   {
+    "type": "Fighting",
+    "value": "×2"
+   }
+  ],
+  "retreat": 1,
+  "legal": {
+   "standard": false,
+   "expanded": false
+  },
+  "updated": "2026-08-15T22:57:06+01:00",
+  "pricing": {
+   "cardmarket": {
+    "updated": "2026-10-12T09:52:39.812Z",
+    "unit": "EUR",
+    "idProduct": 278993,
+    "avg": 2.94,
+    "low": 0.1,
+    "trend": 3.4,
+    "avg1": 2.5,
+    "avg7": 2.07,
+    "avg30": 2.36,
+    "avg-holo": 7.94,
+    "low-holo": 0.42,
+    "trend-holo": 6.51,
+    "avg1-holo": 8,
+    "avg7-holo": 6.15,
+    "avg30-holo": 4.58
+   }
+  }
+ },
+ "/fr/sets": [
+  {
+   "id": "swsh3",
+   "name": "Ténèbres Embrasées",
+   "logo": "https://assets.tcgdex.net/fr/swsh/swsh3/logo",
+   "symbol": "https://assets.tcgdex.net/univ/swsh/swsh3/symbol",
+   "cardCount": {
+    "total": 201,
+    "official": 189
+   }
+  }
+ ],
+ "/fr/sets/swsh3": {
+  "cardCount": {
+   "firstEd": 0,
+   "holo": 69,
+   "normal": 138,
+   "official": 189,
+   "reverse": 157,
+   "total": 201
+  },
+  "cards": [
+   {
+    "id": "swsh3-19",
+    "image": "https://assets.tcgdex.net/fr/swsh/swsh3/19",
+    "localId": "19",
+    "name": "Dracaufeu V"
+   },
+   {
+    "id": "swsh3-25",
+    "image": "https://assets.tcgdex.net/fr/swsh/swsh3/25",
+    "localId": "25",
+    "name": "Heatran"
+   },
+   {
+    "id": "swsh3-136",
+    "image": "https://assets.tcgdex.net/fr/swsh/swsh3/136",
+    "localId": "136",
+    "name": "Fouinar"
+   },
+   {
+    "id": "swsh3-170",
+    "image": "https://assets.tcgdex.net/fr/swsh/swsh3/170",
+    "localId": "170",
+    "name": "Smashings"
+   }
+  ],
+  "id": "swsh3",
+  "legal": {
+   "expanded": true,
+   "standard": false
+  },
+  "logo": "https://assets.tcgdex.net/fr/swsh/swsh3/logo",
+  "name": "Ténèbres Embrasées",
+  "releaseDate": "2020-08-14",
+  "serie": {
+   "id": "swsh",
+   "name": "Épée et Bouclier"
+  },
+  "symbol": "https://assets.tcgdex.net/univ/swsh/swsh3/symbol",
+  "tcgOnline": "DAA",
+  "abbreviation": {
+   "official": "DAA",
+   "localized": "TEM"
+  }
+ },
+ "/fr/cards/swsh3-19": {
+  "category": "Pokémon",
+  "id": "swsh3-19",
+  "illustrator": "aky CG Works",
+  "image": "https://assets.tcgdex.net/fr/swsh/swsh3/19",
+  "localId": "19",
+  "name": "Dracaufeu V",
+  "rarity": "Holo Rare V",
+  "set": {
+   "cardCount": {
+    "official": 189,
+    "total": 201
+   },
+   "id": "swsh3",
+   "logo": "https://assets.tcgdex.net/fr/swsh/swsh3/logo",
+   "name": "Ténèbres Embrasées",
+   "symbol": "https://assets.tcgdex.net/univ/swsh/swsh3/symbol"
+  },
+  "variants": {
+   "firstEdition": false,
+   "holo": true,
+   "normal": false,
+   "reverse": false,
+   "wPromo": false
+  },
+  "dexId": [
+   6
+  ],
+  "hp": 220,
+  "types": [
+   "Feu"
+  ],
+  "stage": "Base",
+  "suffix": "V",
+  "attacks": [
+   {
+    "cost": [
+     "Incolore",
+     "Incolore",
+     "Incolore"
+    ],
+    "name": "Tranch'Griffe",
+    "damage": 80
+   },
+   {
+    "cost": [
+     "Feu",
+     "Feu",
+     "Incolore",
+     "Incolore"
+    ],
+    "name": "Danse Flammes",
+    "effect": "Défaussez 2 Énergies de ce Pokémon.",
+    "damage": 220
+   }
+  ],
+  "weaknesses": [
+   {
+    "type": "Eau",
+    "value": "×2"
+   }
+  ],
+  "retreat": 3,
+  "regulationMark": "D",
+  "legal": {
+   "standard": false,
+   "expanded": true
+  },
+  "updated": "2026-07-01T21:27:44+01:00",
+  "pricing": {
+   "cardmarket": {
+    "updated": "2026-10-12T09:52:39.807Z",
+    "unit": "EUR",
+    "idProduct": 482969,
+    "avg": 9.28,
+    "low": 4,
+    "trend": 6.77,
+    "avg1": 6.95,
+    "avg7": 7.03,
+    "avg30": 7.7,
+    "avg-holo": null,
+    "low-holo": null,
+    "trend-holo": 12.36,
+    "avg1-holo": 11.47,
+    "avg7-holo": 12.29,
+    "avg30-holo": 12.73
+   }
+  }
+ },
+ "/ja/sets": [
+  {
+   "id": "SV1a",
+   "name": "トリプレットビート",
+   "cardCount": {
+    "total": 103,
+    "official": 73
+   }
+  }
+ ],
+ "/ja/sets/SV1a": {
+  "cardCount": {
+   "firstEd": 0,
+   "holo": 44,
+   "normal": 59,
+   "official": 73,
+   "reverse": 0,
+   "total": 103
+  },
+  "cards": [
+   {
+    "id": "SV1a-001",
+    "image": "https://assets.tcgdex.net/ja/SV/SV1a/001",
+    "localId": "001",
+    "name": "トロピウス"
+   }
+  ],
+  "id": "SV1a",
+  "legal": {
+   "expanded": false,
+   "standard": false
+  },
+  "name": "トリプレットビート",
+  "releaseDate": "2023-03-10",
+  "serie": {
+   "id": "SV",
+   "name": "ポケモンカードゲーム スカーレット&バイオレット"
+  }
+ },
+ "/ja/cards/SV1a-001": {
+  "category": "Pokemon",
+  "id": "SV1a-001",
+  "illustrator": "Taira Akitsu",
+  "image": "https://assets.tcgdex.net/ja/SV/SV1a/001",
+  "localId": "001",
+  "name": "トロピウス",
+  "rarity": "Common",
+  "set": {
+   "cardCount": {
+    "official": 73,
+    "total": 103
+   },
+   "id": "SV1a",
+   "name": "トリプレットビート"
+  },
+  "variants": {
+   "firstEdition": false,
+   "holo": false,
+   "normal": true,
+   "reverse": false,
+   "wPromo": false
+  },
+  "dexId": [
+   357
+  ],
+  "hp": 110,
+  "types": [
+   "Grass"
+  ],
+  "stage": "Basic",
+  "attacks": [
+   {
+    "cost": [
+     "Grass"
+    ],
+    "name": "リーフドレイン",
+    "effect": "このポケモンのHPを「20」回復する。",
+    "damage": 20
+   },
+   {
+    "cost": [
+     "Grass",
+     "Grass",
+     "Colorless"
+    ],
+    "name": "なんごくのかぜ",
+    "effect": "このポケモンについているエネルギーをすべて、ベンチポケモン1匹につけ替える。",
+    "damage": 130
+   }
+  ],
+  "weaknesses": [
+   {
+    "type": "Fire",
+    "value": "×2"
+   }
+  ],
+  "retreat": 1,
+  "regulationMark": "G",
+  "legal": {
+   "standard": false,
+   "expanded": false
+  },
+  "updated": "2026-09-25T23:45:16.355Z",
+  "pricing": {
+   "cardmarket": {
+    "updated": "2026-10-12T08:50:43.168Z",
+    "unit": "EUR",
+    "idProduct": 701036,
+    "avg": 0.04,
+    "low": 0.02,
+    "trend": 0.04,
+    "avg1": 0.02,
+    "avg7": 0.03,
+    "avg30": 0.04,
+    "avg-holo": null,
+    "low-holo": null,
+    "trend-holo": 0,
+    "avg1-holo": null,
+    "avg7-holo": null,
+    "avg30-holo": null
+   }
+  }
+ },
+ "/en/sets/A4": {
+  "id": "A4",
+  "name": "Wisdom of Sea and Sky",
+  "serie": {
+   "id": "tcgp",
+   "name": "Pokémon TCG Pocket"
+  },
+  "cardCount": {
+   "total": 1,
+   "official": 1
+  },
+  "cards": [
+   {
+    "id": "A4-139",
+    "localId": "139",
+    "name": "Furret",
+    "image": "https://assets.tcgdex.net/en/tcgp/A4/139"
+   }
+  ]
+ }
+}
