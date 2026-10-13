@@ -197,6 +197,7 @@ async def search_cards(
     q: Annotated[str | None, Query(max_length=200)] = None,
     set_id: int | None = None,
     color: Annotated[list[str] | None, Query()] = None,
+    lang: Annotated[str | None, Query(max_length=8)] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> CardPageOut:
@@ -251,6 +252,11 @@ async def search_cards(
         query = query.where(exists().where(Printing.card_id == Card.id, Printing.set_id == set_id))
     if color:
         query = query.where(Card.colors.contains(color))
+    if lang:
+        # Printed in that language.
+        query = query.where(
+            exists().where(Printing.card_id == Card.id, Printing.languages.contains([lang]))
+        )
 
     total = await session.scalar(select(func.count()).select_from(query.subquery()))
     # Sorting by the shown name costs a name lookup per card: whole catalogs (tens of

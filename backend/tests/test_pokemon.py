@@ -199,3 +199,18 @@ async def test_search_by_set_code_and_number(client, session, tcgdex):
     for query in ("pkm daa 136", "DAA 136/189", "pokemon swsh3 136", "pkm furret"):
         page = (await client.get("/api/cards", params={"q": query}, headers=headers)).json()
         assert [c["name"] for c in page["items"]] == ["Furret"], query
+
+
+async def test_search_by_printed_language(client, session, tcgdex):
+    await sync_pokemon(session)
+    await make_user(session)
+    headers = await bearer(client, "alice")
+
+    async def names(lang):
+        params = {"game": "pokemon", "lang": lang}
+        page = (await client.get("/api/cards", params=params, headers=headers)).json()
+        return {c["name"] for c in page["items"]}
+
+    assert "Furret" in await names("fr")
+    assert "Tropius" not in await names("fr")
+    assert {"Furret", "Tropius"} <= await names("ja")
