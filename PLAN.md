@@ -269,7 +269,7 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
     collection list.
   - Pokémon: TCGdex set ids are URL-encoded (`SM1+` returned 404).
 - [ ] Feedback batch 2 (2026-10-14), branch `feedback-batch-2`. Phase A (server 0.4.0) done:
-  93 backend tests pass; checked in a browser on a live Sorcery sync.
+  92 backend tests pass; checked in a browser on a live Sorcery sync.
   - Sorcery images missing after the 0.3 upgrade: the image job only picks printings with
     an image URL, which came with the next (weekly) catalog sync. Providers now have a
     `catalog_version`; the worker syncs a catalog at once when the stored one is older,
