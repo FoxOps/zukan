@@ -69,7 +69,7 @@ def _dedupe_cards(cards: list[CardData]) -> list[_Card]:
     when every source was partial."""
     merged: dict[str, _Card] = {}
     for card in cards:
-        printings = [(p, card.partial) for p in card.printings]
+        printings = [(p, card.partial if p.partial is None else p.partial) for p in card.printings]
         existing = merged.get(card.external_id)
         if existing is None:
             data = replace(card, colors=list(card.colors), names=dict(card.names), printings=[])

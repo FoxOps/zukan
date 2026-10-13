@@ -607,6 +607,12 @@
     "image": "https://assets.tcgdex.net/ja/SV/SV1a/001",
     "localId": "001",
     "name": "トロピウス"
+   },
+   {
+    "id": "SV1a-002",
+    "image": "https://assets.tcgdex.net/ja/SV/SV1a/002",
+    "localId": "002",
+    "name": "オオタチ"
    }
   ],
   "id": "SV1a",
@@ -746,5 +752,106 @@
    "id": "SM",
    "name": "サン＆ムーン"
   }
+ },
+ "/ja/cards/SV1a-002": {
+  "category": "Pokemon",
+  "id": "SV1a-002",
+  "illustrator": "Taira Akitsu",
+  "image": "https://assets.tcgdex.net/ja/SV/SV1a/002",
+  "localId": "002",
+  "name": "オオタチ",
+  "rarity": "Common",
+  "set": {
+   "cardCount": {
+    "official": 73,
+    "total": 103
+   },
+   "id": "SV1a",
+   "name": "トリプレットビート"
+  },
+  "variants": {
+   "firstEdition": false,
+   "holo": false,
+   "normal": true,
+   "reverse": false,
+   "wPromo": false
+  },
+  "dexId": [
+   162
+  ],
+  "hp": 110,
+  "types": [
+   "Colorless"
+  ],
+  "stage": "Basic",
+  "attacks": [
+   {
+    "cost": [
+     "Grass"
+    ],
+    "name": "リーフドレイン",
+    "effect": "このポケモンのHPを「20」回復する。",
+    "damage": 20
+   },
+   {
+    "cost": [
+     "Grass",
+     "Grass",
+     "Colorless"
+    ],
+    "name": "なんごくのかぜ",
+    "effect": "このポケモンについているエネルギーをすべて、ベンチポケモン1匹につけ替える。",
+    "damage": 130
+   }
+  ],
+  "weaknesses": [
+   {
+    "type": "Fire",
+    "value": "×2"
+   }
+  ],
+  "retreat": 1,
+  "regulationMark": "G",
+  "legal": {
+   "standard": false,
+   "expanded": false
+  },
+  "updated": "2026-09-25T23:45:16.355Z"
+ },
+ "/ko/sets": [
+  {
+   "id": "SV1a",
+   "name": "트리플렛비트",
+   "cardCount": {
+    "total": 103,
+    "official": 73
+   }
+  }
+ ],
+ "/ko/sets/SV1a": {
+  "cardCount": {
+   "official": 73,
+   "total": 103
+  },
+  "id": "SV1a",
+  "name": "트리플렛비트",
+  "releaseDate": "2023-03-10",
+  "serie": {
+   "id": "SV",
+   "name": "스칼렛&바이올렛"
+  },
+  "cards": [
+   {
+    "id": "SV1a-001",
+    "image": "https://assets.tcgdex.net/ko/SV/SV1a/001",
+    "localId": "001",
+    "name": "트로피우스"
+   },
+   {
+    "id": "SV1a-002",
+    "localId": "002",
+    "name": "다꼬리"
+   }
+  ]
  }
 }

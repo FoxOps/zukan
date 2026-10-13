@@ -60,6 +60,9 @@ class PrintingData:
     attributes: dict[str, Any] = field(default_factory=dict)
     # Printed names by language, when they differ per printing (e.g. MTG localized cards).
     names: dict[str, str] = field(default_factory=dict)
+    # None: partial like its card. False: full printing data under a partial card (a
+    # printing from another source added to an existing card).
+    partial: bool | None = None
 
 
 @dataclass
