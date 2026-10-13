@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { api, call } from '../api/client'
 import { useGames } from '../api/queries'
+import { ConditionBadge, FinishBadge, LangFlag } from '../components/Badges'
 import { useInvalidateStock } from '../api/stock'
 import { PriceChart } from '../components/PriceChart'
 import { useToast } from '../components/toast'
@@ -109,8 +110,14 @@ export default function Dashboard() {
                 </span>
                 <div className="flex-1">
                   <div className="font-medium">{tr.name}</div>
-                  <div className="text-xs text-base-content/60">
-                    {tr.set_code} · {tr.finish} · {tr.condition} · {tr.language} · {t(tr.source)} · {formatDateTime(tr.created_at)}
+                  <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/60">
+                    <span>{tr.set_code}</span>
+                    <FinishBadge game={games.find((g) => g.id === tr.game_id)} finish={tr.finish} size="badge-xs" />
+                    <ConditionBadge condition={tr.condition} size="badge-xs" />
+                    <LangFlag lang={tr.language} className="h-3" />
+                    <span>
+                      · {t(tr.source)} · {formatDateTime(tr.created_at)}
+                    </span>
                   </div>
                 </div>
                 {!tr.undone && (

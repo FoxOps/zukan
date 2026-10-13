@@ -5,7 +5,7 @@ import { Link } from 'react-router'
 import { api, call, type Schemas } from '../api/client'
 import { useGame, useGames } from '../api/queries'
 import { useAdjust } from '../api/stock'
-import { ConditionBadge, FinishBadge } from '../components/Badges'
+import { ConditionBadge, FinishBadge, LangFlag } from '../components/Badges'
 import { ColorFilter, GameTabs, SearchInput, SetSelect } from '../components/Filters'
 import { ItemDialog } from '../components/ItemDialog'
 import { Pagination } from '../components/Pagination'
@@ -14,7 +14,14 @@ import { useUrlState } from '../lib/hooks'
 
 type Item = Schemas['ItemOut']
 const PAGE_SIZE = 50
-const SORTS = { name: 'Name', set: 'Newest sets', updated: 'Recently changed', quantity: 'Quantity' } as const
+const SORTS = {
+  name: 'Name',
+  set: 'Newest sets',
+  updated: 'Recently changed',
+  quantity: 'Quantity',
+  price_asc: 'Price: low to high',
+  price_desc: 'Price: high to low',
+} as const
 
 export default function Collection() {
   const { t } = useTranslation()
@@ -135,7 +142,7 @@ export default function Collection() {
                         <div className="flex items-center gap-1">
                           <FinishBadge game={g} finish={item.finish} />
                           <ConditionBadge condition={item.condition} />
-                          <span className="badge badge-ghost badge-sm" title={languageName(item.language)}>{item.language}</span>
+                          <LangFlag lang={item.language} />
                         </div>
                       </td>
                       <td>

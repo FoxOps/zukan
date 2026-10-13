@@ -67,3 +67,18 @@ export function conditionName(code: string): string {
   const condition = CONDITIONS.find((c) => c.code === code)
   return condition ? i18n.t(condition.name) : code
 }
+
+/** Country whose flag stands for a card language. */
+export const LANGUAGE_FLAGS: Record<string, string> = {
+  en: 'gb',
+  fr: 'fr',
+  de: 'de',
+  it: 'it',
+  es: 'es',
+  pt: 'pt',
+  ja: 'jp',
+  ko: 'kr',
+  'zh-hans': 'cn',
+  'zh-hant': 'tw',
+  ru: 'ru',
+}

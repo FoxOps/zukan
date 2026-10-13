@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useGames, useSets, type Game } from '../api/queries'
+import { languageName } from '../lib/format'
 import { ColorSymbol } from './ColorBadges'
 
 type GameTabsProps = {
@@ -57,7 +58,7 @@ export function SetSelect({ game, value, onChange }: { game: string; value: stri
       {sets.map((s) => (
         <option key={s.id} value={s.id}>
           {s.code} - {s.name}
-          {s.lang ? ` (${s.lang})` : ''}
+          {s.lang ? ` (${languageName(s.lang)})` : ''}
         </option>
       ))}
     </select>

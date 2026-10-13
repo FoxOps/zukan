@@ -93,6 +93,7 @@ class TransactionOut(BaseModel):
     source: str
     undone: bool
     created_at: datetime
+    game_id: str
     name: str
     set_code: str
     finish: str
@@ -341,7 +342,13 @@ async def list_transactions(
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> list[TransactionOut]:
     query = (
-        select(StockTransaction, CollectionItem, display_name(user.language), CardSet.code)
+        select(
+            StockTransaction,
+            CollectionItem,
+            display_name(user.language),
+            CardSet.code,
+            CardSet.game_id,
+        )
         .join(CollectionItem, StockTransaction.item_id == CollectionItem.id)
         .join(Printing, CollectionItem.printing_id == Printing.id)
         .join(Card, Printing.card_id == Card.id)
@@ -360,13 +367,14 @@ async def list_transactions(
             source=t.source,
             undone=t.undone,
             created_at=t.created_at,
+            game_id=game_id,
             name=name,
             set_code=code,
             finish=item.finish,
             condition=item.condition,
             language=item.language,
         )
-        for t, item, name, code in await session.execute(query)
+        for t, item, name, code, game_id in await session.execute(query)
     ]
 
 

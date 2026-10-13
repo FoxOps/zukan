@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, call, type Schemas } from '../api/client'
 import { useInvalidateStock } from '../api/stock'
+import { useGame } from '../api/queries'
 import { formatMoney } from '../lib/format'
+import { ConditionBadge, FinishBadge, LangFlag } from './Badges'
 import { useToast } from './toast'
 
 type Item = Schemas['ItemOut']
@@ -17,7 +19,7 @@ export function ItemDialog({ item, onClose }: { item: Item | null; onClose: () =
   }, [item])
   return (
     <dialog ref={dialog} className="modal" onClose={onClose}>
-      {item && <ItemForm key={item.id} item={item} close={() => close()} />}
+      {item && <ItemForm key={item.id} item={item} close={() => dialog.current?.close()} />}
       <form method="dialog" className="modal-backdrop">
         <button>{t('close')}</button>
       </form>
@@ -29,6 +31,7 @@ function ItemForm({ item, close }: { item: Item; close: () => void }) {
   const { t } = useTranslation()
   const toast = useToast()
   const invalidate = useInvalidateStock()
+  const game = useGame(item.game_id)
   const [quantity, setQuantity] = useState(item.quantity)
   const [price, setPrice] = useState(item.manual_price ?? '')
   const [notes, setNotes] = useState(item.notes ?? '')
@@ -67,8 +70,11 @@ function ItemForm({ item, close }: { item: Item; close: () => void }) {
   return (
     <div className="modal-box animate-in fade-in zoom-in-95 duration-200">
         <h3 className="text-lg font-bold">{item.name}</h3>
-        <p className="text-sm text-base-content/60">
-          {item.set.name} {item.collector_number} · {item.finish} · {item.condition} · {item.language}
+        <p className="flex flex-wrap items-center gap-1 text-sm text-base-content/60">
+          {item.set.name} {item.collector_number}
+          <FinishBadge game={game} finish={item.finish} />
+          <ConditionBadge condition={item.condition} />
+          <LangFlag lang={item.language} />
         </p>
         <div className="mt-4 flex flex-col gap-2">
           <label className="fieldset">
