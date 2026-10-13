@@ -1840,6 +1840,7 @@ export interface operations {
                 q?: string | null;
                 set_id?: number | null;
                 color?: string[] | null;
+                lang?: string | null;
                 page?: number;
                 page_size?: number;
             };

@@ -3,6 +3,7 @@ package fr.fudabako.app.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -12,15 +13,18 @@ import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore("fudabako")
 
-/** Text recognition model to run: Latin also reads EU languages; the others add a script. */
-enum class OcrScript { LATIN, JAPANESE, CHINESE, KOREAN }
+/** Text recognition model to run: Latin also reads EU languages; the others add a script.
+ * AUTO reads with Latin, then tries every script on the frame sent to the server. */
+enum class OcrScript { AUTO, LATIN, JAPANESE, CHINESE, KOREAN }
 
 data class Settings(
     val serverUrl: String = "",
     val game: String? = null,
     val condition: String = "NM",
     val language: String? = null,
-    val script: OcrScript = OcrScript.LATIN,
+    val script: OcrScript = OcrScript.AUTO,
+    // After adding copies: go back to the camera for the next card.
+    val autoNext: Boolean = false,
 )
 
 data class Tokens(val access: String, val refresh: String)
@@ -40,7 +44,9 @@ class SessionStore(private val context: Context) : TokenStore {
         val game = stringPreferencesKey("game")
         val condition = stringPreferencesKey("condition")
         val language = stringPreferencesKey("language")
-        val script = stringPreferencesKey("script")
+        // New key in 0.3: everyone starts on AUTO (the old "script" was LATIN for most).
+        val script = stringPreferencesKey("ocr_script")
+        val autoNext = booleanPreferencesKey("auto_next")
     }
 
     // Read by OkHttp threads on every request; kept in memory to avoid blocking reads.
@@ -54,7 +60,8 @@ class SessionStore(private val context: Context) : TokenStore {
             game = p[Keys.game],
             condition = p[Keys.condition] ?: "NM",
             language = p[Keys.language],
-            script = p[Keys.script]?.let { runCatching { OcrScript.valueOf(it) }.getOrNull() } ?: OcrScript.LATIN,
+            script = p[Keys.script]?.let { runCatching { OcrScript.valueOf(it) }.getOrNull() } ?: OcrScript.AUTO,
+            autoNext = p[Keys.autoNext] ?: false,
         )
     }
 
@@ -88,6 +95,7 @@ class SessionStore(private val context: Context) : TokenStore {
             p[Keys.condition] = next.condition
             if (next.language == null) p.remove(Keys.language) else p[Keys.language] = next.language
             p[Keys.script] = next.script.name
+            p[Keys.autoNext] = next.autoNext
         }
     }
 }
