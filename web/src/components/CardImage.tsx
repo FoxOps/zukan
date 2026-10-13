@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { t } from '../i18n'
+import { useTranslation } from 'react-i18next'
 
 type Props = { src: string | null | undefined; back?: string | null; alt: string; className?: string }
 
 /** Card picture at card proportions. Double-faced cards flip in 3D when clicked. */
 export function CardImage({ src, back, alt, className = '' }: Props) {
+  const { t } = useTranslation()
   const [flipped, setFlipped] = useState(false)
   const [failed, setFailed] = useState(false)
   const face = (url: string | null | undefined, label: string, extra = '') =>

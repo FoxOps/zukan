@@ -1,15 +1,16 @@
 import { useMutation } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api, call, type Schemas } from '../api/client'
 import { useInvalidateStock } from '../api/stock'
 import { formatMoney } from '../lib/format'
 import { useToast } from './toast'
-import { t } from '../i18n'
 
 type Item = Schemas['ItemOut']
 
 /** Edit quantity, manual price and notes of an item, or delete it. */
 export function ItemDialog({ item, onClose }: { item: Item | null; onClose: () => void }) {
+  const { t } = useTranslation()
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     if (item) dialog.current?.showModal()
@@ -25,6 +26,7 @@ export function ItemDialog({ item, onClose }: { item: Item | null; onClose: () =
 }
 
 function ItemForm({ item, close }: { item: Item; close: () => void }) {
+  const { t } = useTranslation()
   const toast = useToast()
   const invalidate = useInvalidateStock()
   const [quantity, setQuantity] = useState(item.quantity)
@@ -75,7 +77,7 @@ function ItemForm({ item, close }: { item: Item; close: () => void }) {
           </label>
           <label className="fieldset">
             <span className="fieldset-legend">{t('Manual price (€)')}</span>
-            <input inputMode="decimal" className="input w-40" placeholder={item.market_price ? t('Market {price}', { price: formatMoney(item.market_price) }) : t('No market price')} value={price} onChange={(e) => setPrice(e.target.value)} />
+            <input inputMode="decimal" className="input w-40" placeholder={item.market_price ? t('Market {{price}}', { price: formatMoney(item.market_price) }) : t('No market price')} value={price} onChange={(e) => setPrice(e.target.value)} />
             <span className="label">{t('Empty = use the market price')}</span>
           </label>
           <label className="fieldset">

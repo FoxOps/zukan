@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { useToast } from '../components/toast'
 import { api, call, type Schemas } from './client'
-import { t } from '../i18n'
 
 export type AdjustIn = Schemas['AdjustIn']
 
@@ -18,6 +18,7 @@ export function useInvalidateStock() {
 
 /** Add/remove copies, with a toast offering to undo the change. */
 export function useAdjust() {
+  const { t } = useTranslation()
   const toast = useToast()
   const invalidate = useInvalidateStock()
   const undo = useMutation({
@@ -37,7 +38,7 @@ export function useAdjust() {
     mutationFn: (body: AdjustIn) => call(api.POST('/api/collection/adjust', { body })),
     onSuccess: (result, body) => {
       const vars = { n: Math.abs(body.delta), name: result.item.name, total: result.item.quantity }
-      const text = body.delta > 0 ? t('Added {n} × {name} (now {total})', vars) : t('Removed {n} × {name} (now {total})', vars)
+      const text = body.delta > 0 ? t('Added {{n}} × {{name}} (now {{total}})', vars) : t('Removed {{n}} × {{name}} (now {{total}})', vars)
       toast(text, 'success', {
         label: t('Undo'),
         run: () => undo.mutate(result.transaction_id),

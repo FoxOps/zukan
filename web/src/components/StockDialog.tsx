@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Game } from '../api/queries'
 import { useAdjust } from '../api/stock'
-import { t } from '../i18n'
 import { CONDITIONS, conditionName, finishName, languageName } from '../lib/format'
 
 export type StockTarget = {
@@ -15,6 +15,7 @@ type Props = { game?: Game; target: StockTarget | null; onClose: () => void }
 
 /** Pick finish, condition, language and quantity, then add or remove copies. */
 export function StockDialog({ game, target, onClose }: Props) {
+  const { t } = useTranslation()
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     if (target) dialog.current?.showModal()
@@ -33,6 +34,7 @@ export function StockDialog({ game, target, onClose }: Props) {
 }
 
 function StockForm({ game, target, close }: { game: Game; target: StockTarget; close: () => void }) {
+  const { t } = useTranslation()
   const adjust = useAdjust()
   const finishes = target.finishes.length ? target.finishes : game.finishes.map((f) => f.code)
   const [finish, setFinish] = useState(finishes[0] ?? '')

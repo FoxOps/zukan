@@ -1,9 +1,9 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { upload, type Schemas } from '../api/client'
 import { useGames } from '../api/queries'
 import { useInvalidateStock } from '../api/stock'
 import { useToast } from '../components/toast'
-import { t, tn } from '../i18n'
 
 type Report = Schemas['ImportOut']
 
@@ -12,6 +12,7 @@ mtg,DOM,168,Llanowar Elves,fr,foil,NM,2,,
 sorcery,001,abundance-b,Abundance,en,standard,EX,1,4.50,binder 2`
 
 export default function ImportExport() {
+  const { t } = useTranslation()
   const { data: games = [] } = useGames()
   const toast = useToast()
   const invalidate = useInvalidateStock()
@@ -28,7 +29,7 @@ export default function ImportExport() {
       const result = await upload<Report>(`/api/collection/import?mode=${mode}&dry_run=${dryRun}`, file)
       setReport(result)
       if (!dryRun && result.errors.length === 0) {
-        toast(tn('{n} row imported', '{n} rows imported', result.imported))
+        toast(t('{{count}} rows imported', { count: result.imported }))
         await invalidate()
       }
     } catch (e) {
@@ -111,15 +112,13 @@ export default function ImportExport() {
               {report.errors.length === 0 ? (
                 <div role="alert" className="alert alert-success alert-soft">
                   {report.dry_run
-                    ? tn('{n} row is valid. Ready to import.', '{n} rows are valid. Ready to import.', report.rows)
-                    : t('{imported} of {rows} rows imported.', { imported: report.imported, rows: report.rows })}
+                    ? t('{{count}} rows are valid. Ready to import.', { count: report.rows })
+                    : t('{{imported}} of {{rows}} rows imported.', { imported: report.imported, rows: report.rows })}
                 </div>
               ) : (
                 <>
                   <div role="alert" className="alert alert-error alert-soft">
-                    {tn('{n} problem found in {rows} rows.', '{n} problems found in {rows} rows.', report.errors.length, {
-                      rows: report.rows,
-                    })}{' '}
+                    {t('{{count}} problems found in {{rows}} rows.', { count: report.errors.length, rows: report.rows })}{' '}
                     {t('Nothing was imported.')}
                   </div>
                   <div className="mt-2 max-h-80 overflow-auto">

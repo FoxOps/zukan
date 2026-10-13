@@ -729,6 +729,10 @@ export interface components {
             printing_count: number;
             /** Image */
             image: string | null;
+            /** Price Min */
+            price_min: string | null;
+            /** Price Max */
+            price_max: string | null;
         };
         /** ColorOut */
         ColorOut: {
@@ -768,6 +772,8 @@ export interface components {
             languages: string[];
             /** Has Prices */
             has_prices: boolean;
+            /** Cardmarket */
+            cardmarket: string | null;
         };
         /** GameValueOut */
         GameValueOut: {
@@ -1064,6 +1070,8 @@ export interface components {
             finish: string;
             /** Trend */
             trend: string;
+            /** Low */
+            low: string | null;
             /**
              * Date
              * Format: date
@@ -1095,6 +1103,8 @@ export interface components {
             attributes: {
                 [key: string]: unknown;
             };
+            /** Cardmarket Id */
+            cardmarket_id: number | null;
             /** Prices */
             prices: components["schemas"]["PriceOut"][];
             /** Owned */

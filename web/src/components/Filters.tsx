@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useGames, useSets, type Game } from '../api/queries'
-import { t } from '../i18n'
 import { ColorSymbol } from './ColorBadges'
 
 type GameTabsProps = {
@@ -12,6 +12,7 @@ type GameTabsProps = {
 }
 
 export function GameTabs({ value, onChange, allowAll = true, only }: GameTabsProps) {
+  const { t } = useTranslation()
   const { data: games = [] } = useGames()
   const shown = only ? games.filter((g) => only.includes(g.id)) : games
   return (
@@ -47,6 +48,7 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
 }
 
 export function SetSelect({ game, value, onChange }: { game: string; value: string; onChange: (id: string) => void }) {
+  const { t } = useTranslation()
   const { data: sets = [] } = useSets(game || null)
   if (!game) return null
   return (
@@ -63,6 +65,7 @@ export function SetSelect({ game, value, onChange }: { game: string; value: stri
 }
 
 export function ColorFilter({ game, value, onChange }: { game?: Game; value: string[]; onChange: (colors: string[]) => void }) {
+  const { t } = useTranslation()
   if (!game) return null
   const toggle = (code: string) =>
     onChange(value.includes(code) ? value.filter((c) => c !== code) : [...value, code])

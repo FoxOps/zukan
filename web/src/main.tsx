@@ -5,7 +5,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router'
 import { ApiError } from './api/client'
 import { Layout } from './components/Layout'
 import { ToastProvider } from './components/Toasts'
-import { I18nProvider } from './components/I18n'
+import './i18n'
 import './index.css'
 import Login from './pages/Login'
 import NotFound from './pages/NotFound'
@@ -47,11 +47,11 @@ const router = createBrowserRouter([
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <I18nProvider>
+
         <ToastProvider>
           <RouterProvider router={router} />
         </ToastProvider>
-      </I18nProvider>
+
     </QueryClientProvider>
   </StrictMode>,
 )

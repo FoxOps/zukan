@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { api, call } from '../api/client'
 import { useGames } from '../api/queries'
@@ -7,11 +8,11 @@ import { useInvalidateStock } from '../api/stock'
 import { PriceChart } from '../components/PriceChart'
 import { useToast } from '../components/toast'
 import { formatDateTime, formatMoney } from '../lib/format'
-import { t, tn } from '../i18n'
 
 const RANGES = [30, 90, 365]
 
 export default function Dashboard() {
+  const { t } = useTranslation()
   const { data: games = [] } = useGames()
   const [days, setDays] = useState(90)
   const [game, setGame] = useState('')
@@ -47,15 +48,15 @@ export default function Dashboard() {
         <div className="stat">
           <div className="stat-title">{t('Collection value')}</div>
           <div className="stat-value text-primary">{formatMoney(value.data?.total ?? 0)}</div>
-          <div className="stat-desc">{tn('{n} card', '{n} cards', value.data?.quantity ?? 0)}</div>
+          <div className="stat-desc">{t('{{count}} cards', { count: value.data?.quantity ?? 0 })}</div>
         </div>
         {value.data?.games.map((g) => (
           <div key={g.game_id} className="stat">
             <div className="stat-title">{gameName(g.game_id)}</div>
             <div className="stat-value text-2xl">{formatMoney(g.total)}</div>
             <div className="stat-desc">
-              {tn('{n} card', '{n} cards', g.quantity)}
-              {g.unpriced > 0 && ` · ${tn('{n} without price', '{n} without price', g.unpriced)}`}
+              {t('{{count}} cards', { count: g.quantity })}
+              {g.unpriced > 0 && ` · ${t('{{count}} without price', { count: g.unpriced })}`}
             </div>
           </div>
         ))}
@@ -73,7 +74,7 @@ export default function Dashboard() {
               <div className="join">
                 {RANGES.map((r) => (
                   <button key={r} className={`join-item btn btn-sm ${days === r ? 'btn-active' : ''}`} onClick={() => setDays(r)}>
-                    {t('{n} d', { n: r })}
+                    {t('{{n}} d', { n: r })}
                   </button>
                 ))}
               </div>

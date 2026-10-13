@@ -1,10 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router'
 import { api, call } from '../api/client'
 import { useProviders } from '../api/queries'
 import { LanguageMenu } from '../components/I18n'
-import { t } from '../i18n'
 
 /** Only same-site paths, never `//host` (open redirect). */
 function safeNext(next: string | null): string {
@@ -12,6 +12,7 @@ function safeNext(next: string | null): string {
 }
 
 export default function Login() {
+  const { t } = useTranslation()
   const [params] = useSearchParams()
   const next = safeNext(params.get('next'))
   const providers = useProviders()
@@ -74,7 +75,7 @@ export default function Login() {
               className="btn btn-outline"
               href={`/api/auth/oidc/${encodeURIComponent(p.name)}/login?next=${encodeURIComponent(next)}`}
             >
-              {t('Sign in with {provider}', { provider: p.display_name })}
+              {t('Sign in with {{provider}}', { provider: p.display_name })}
             </a>
           ))}
         </div>

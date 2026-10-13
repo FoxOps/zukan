@@ -7,14 +7,18 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "check:i18n": "node scripts/check-i18n.mjs",
     "preview": "vite preview",
     "gen:api": "cd ../backend && .venv/bin/python -c \"import json; from app.main import create_app; print(json.dumps(create_app().openapi()))\" > ../web/openapi.json && cd ../web && openapi-typescript openapi.json -o src/api/schema.d.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.2",
+    "i18next": "^26.4.4",
+    "i18next-browser-languagedetector": "^8.2.1",
     "openapi-fetch": "^0.17.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-i18next": "^17.0.16",
     "react-router": "^7.18.4",
     "recharts": "^3.10.1"
   },

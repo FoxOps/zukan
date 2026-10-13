@@ -1,14 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api, call, type Schemas } from '../api/client'
 import { useGames, useMe, useProviders } from '../api/queries'
 import { useToast } from '../components/toast'
-import { LANGUAGES, t, useI18n } from '../i18n'
+import { LANGUAGES, useChangeLanguage } from '../i18n'
 
 type SettingsIn = Schemas['SettingsIn']
 
 function Preferences({ me }: { me: Schemas['MeOut'] }) {
-  const { lang, setLang } = useI18n()
+  const { t, i18n } = useTranslation()
+  const changeLanguage = useChangeLanguage()
   const { data: games = [] } = useGames()
   const toast = useToast()
   const client = useQueryClient()
@@ -34,7 +36,11 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
         <h2 className="card-title">{t('Preferences')}</h2>
         <label className="fieldset">
           <span className="fieldset-legend">{t('Language')}</span>
-          <select className="select w-56" value={lang} onChange={(e) => setLang(e.target.value as typeof lang)}>
+          <select
+            className="select w-56"
+            value={i18n.resolvedLanguage}
+            onChange={(e) => changeLanguage(e.target.value as (typeof LANGUAGES)[number]['code'])}
+          >
             {LANGUAGES.map((l) => (
               <option key={l.code} value={l.code} lang={l.code}>
                 {l.label}
@@ -66,6 +72,7 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
 }
 
 export default function Settings() {
+  const { t } = useTranslation()
   const me = useMe()
   const providers = useProviders()
   const toast = useToast()
@@ -181,7 +188,7 @@ export default function Settings() {
                     className="btn btn-outline btn-sm"
                     href={`/api/auth/oidc/${encodeURIComponent(p.name)}/login?link=true&next=/settings`}
                   >
-                    {t('Link {provider}', { provider: p.display_name })}
+                    {t('Link {{provider}}', { provider: p.display_name })}
                   </a>
                 ))}
             </div>

@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router'
 import { api, call } from '../../api/client'
 import { useGames, useMe } from '../../api/queries'
 import { useToast } from '../../components/toast'
 import { formatDateTime } from '../../lib/format'
-import { t } from '../../i18n'
 
 const KINDS = ['catalog', 'prices', 'images'] as const
 const STATUS: Record<string, string> = {
@@ -20,6 +20,7 @@ function duration(start: string, end: string | null): string {
 }
 
 export default function Jobs() {
+  const { t } = useTranslation()
   const me = useMe()
   const { data: games = [] } = useGames()
   const toast = useToast()
@@ -44,7 +45,7 @@ export default function Jobs() {
     mutationFn: ({ game, kind }: { game: string; kind: (typeof KINDS)[number] }) =>
       call(api.POST('/api/admin/jobs/{game_id}/{kind}', { params: { path: { game_id: game, kind } } })),
     onSuccess: (_, { game, kind }) => {
-      toast(t('{kind} job started for {game}', { kind: t(kind), game }), 'info')
+      toast(t('{{kind}} job started for {{game}}', { kind: t(kind), game }), 'info')
       return client.invalidateQueries({ queryKey: ['jobs'] })
     },
     onError: (e) => toast(e.message, 'error'),
@@ -52,7 +53,7 @@ export default function Jobs() {
   const importImages = useMutation({
     mutationFn: () =>
       call(api.POST('/api/admin/images/{game_id}/import', { params: { path: { game_id: imageGame } }, body: { folder } })),
-    onSuccess: (r) => toast(t('{stored} images imported, {missing} printings without image', { stored: r.stored, missing: r.missing })),
+    onSuccess: (r) => toast(t('{{stored}} images imported, {{missing}} printings without image', { stored: r.stored, missing: r.missing })),
     onError: (e) => toast(e.message, 'error'),
   })
 

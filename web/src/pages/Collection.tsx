@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { api, call, type Schemas } from '../api/client'
 import { useGame, useGames } from '../api/queries'
@@ -8,7 +9,6 @@ import { ConditionBadge, FinishBadge } from '../components/Badges'
 import { ColorFilter, GameTabs, SearchInput, SetSelect } from '../components/Filters'
 import { ItemDialog } from '../components/ItemDialog'
 import { Pagination } from '../components/Pagination'
-import { t, tn } from '../i18n'
 import { CONDITIONS, finishName, formatMoney, languageName } from '../lib/format'
 import { useUrlState } from '../lib/hooks'
 
@@ -17,6 +17,7 @@ const PAGE_SIZE = 50
 const SORTS = { name: 'Name', set: 'Newest sets', updated: 'Recently changed', quantity: 'Quantity' } as const
 
 export default function Collection() {
+  const { t } = useTranslation()
   const url = useUrlState()
   const game = url.get('game')
   const gameInfo = useGame(game)
@@ -103,7 +104,7 @@ export default function Collection() {
       {items.data && items.data.total > 0 && (
         <>
           <div className="text-sm text-base-content/60">
-            {tn('{n} item', '{n} items', items.data.total)} · {t('this page {value}', { value: formatMoney(pageValue) })}
+            {t('{{count}} items', { count: items.data.total })} · {t('this page {{value}}', { value: formatMoney(pageValue) })}
           </div>
           <div className={`overflow-x-auto rounded-box border border-base-300 ${items.isPlaceholderData ? 'opacity-60' : ''}`}>
             <table className="table table-sm">

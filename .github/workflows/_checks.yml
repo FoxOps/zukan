@@ -71,6 +71,9 @@ jobs:
       - name: Type check
         working-directory: web
         run: npx tsc -b
+      - name: Translations
+        working-directory: web
+        run: npm run check:i18n
       - name: Lint, build and API types
         if: inputs.full
         working-directory: web

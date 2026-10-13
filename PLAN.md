@@ -231,11 +231,12 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
   come from `TCG_OIDC_PROVIDERS` + `TCG_OIDC_<NAME>_*`, host port from `FUDABAKO_PORT`.
   `.env.example` documents every variable; only `POSTGRES_PASSWORD` and `TCG_SECRET_KEY`
   are left uncommented.
-- [x] Languages and UX batch (2026-10-13). 84 backend tests pass; checked in a browser on a
+- [x] Languages and UX batch (2026-10-13). 86 backend tests pass; checked in a browser on a
   live Sorcery sync (1601 printings, 2710 Cardmarket price snapshots).
-  - Web UI in English (default) and French: in-house `t('English text')` with a French
-    dictionary (`web/src/i18n`), language menu in the header and on the login page, saved
-    on the user (`PATCH /api/auth/me`), dates/money/language names follow it.
+  - Web UI in English (default) and French with i18next + react-i18next (natural
+    language keys, `web/src/locales/*.json`, browser language detector, `check:i18n`
+    script in CI), language menu in the header and on the login page, saved on the user
+    (`PATCH /api/auth/me`), dates/money/language names follow it.
   - Images per language: `printing.image_urls` / `image_paths` (JSONB, lang -> url/path),
     replacing `image_url` / `image_path`. Shown in the user's language, else English, else
     Japanese, else any. Scryfall placeholder scans skipped; TCGdex translated listings add
@@ -252,10 +253,17 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
     `price_guide_25.json` (game 25); matched by expansion (known ids, unknown ones by
     shared names) and normalized card name; trend falls back to avg7/avg30/avg/low.
     ~97 % of printings priced (tokens and box toppers named differently are not).
-  - Color symbols (`ColorDef.icon_url` / `icon_box` / `icon_svg`), downloaded once on API
-    start to `images/symbols/`: Scryfall mana SVGs, pokemon.com energy sprite (cut with
-    Pillow), Sorcery alchemical triangles (no official files exist).
-    `GET /api/games/{game}/colors/{code}/icon`.
+  - Color symbols (`ColorDef.icon_url` / `icon_box`), downloaded once on API start to
+    `images/symbols/`: Scryfall mana SVGs, pokemon.com energy sprite (cut with Pillow),
+    Sorcery element PNGs of the sorcerytcg.com gallery (build-hashed names: on a 404 the
+    UI shows badges and the next start retries). `GET /api/games/{game}/colors/{code}/icon`.
+  - Cardmarket everywhere (`app/games/cardmarket.py`): lowest offer (`low`) shown next to
+    the trend; MTG gets low/avg from Cardmarket's `price_guide_1.json` by Scryfall's
+    `cardmarket_id`. Card summaries carry `price_min` / `price_max`, card detail shows the
+    cheapest / most expensive version and lowest offer. Printings expose `cardmarket_id`
+    (Sorcery: from the product match), games `cardmarket` (URL segment): links go to
+    `cardmarket.com/{lang}/{game}/Products?idProduct=`, which redirects to the product.
+  - Scan name matching uses `search_name` too (accent and case free).
   - Conditions use Cardmarket's badge colors; special finishes (foil, holo, reverse,
     etched, rainbow, 1st edition) get their own badge styles; no images in the
     collection list.

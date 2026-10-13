@@ -1,15 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router'
 import { api, call, type Schemas } from '../../api/client'
 import { useMe } from '../../api/queries'
 import { useToast } from '../../components/toast'
-import { t } from '../../i18n'
 
 type User = Schemas['UserOut']
 type Update = Schemas['UserUpdateIn']
 
 export default function Users() {
+  const { t } = useTranslation()
   const me = useMe()
   const toast = useToast()
   const client = useQueryClient()
@@ -32,7 +33,7 @@ export default function Users() {
         }),
       ),
     onSuccess: () => {
-      toast(t('User {name} created', { name: username }))
+      toast(t('User {{name}} created', { name: username }))
       setUsername('')
       setPassword('')
       setEmail('')
@@ -66,7 +67,7 @@ export default function Users() {
     create.mutate()
   }
   const resetPassword = (user: User) => {
-    const value = window.prompt(t('New password for {name} (8+ characters)', { name: user.username }))
+    const value = window.prompt(t('New password for {{name}} (8+ characters)', { name: user.username }))
     if (value) update.mutate({ id: user.id, body: { password: value } })
   }
 

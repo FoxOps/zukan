@@ -1,7 +1,7 @@
 import type { Game } from '../api/queries'
-import { currentLanguage, t } from '../i18n'
+import i18n, { currentLanguage } from '../i18n'
 
-// Formatters follow the interface language (the page remounts when it changes).
+// Formatters follow the interface language.
 function formatters() {
   const locale = currentLanguage()
   return {
@@ -51,12 +51,19 @@ export const CONDITIONS = [
   { code: 'PO', name: 'Poor', color: '#dc3545' },
 ] as const
 
+/** Cardmarket page of a product, in the interface language (Cardmarket redirects the
+ * product id to the product page). */
+export function cardmarketUrl(game: Game | undefined, productId: number | null | undefined): string | null {
+  if (!game?.cardmarket || !productId) return null
+  return `https://www.cardmarket.com/${currentLanguage()}/${game.cardmarket}/Products?idProduct=${productId}`
+}
+
 /** Finish name from the game plugin, translated when the dictionary knows it. */
 export function finishName(game: Game | undefined, code: string): string {
-  return t(game?.finishes.find((f) => f.code === code)?.name ?? code)
+  return i18n.t(game?.finishes.find((f) => f.code === code)?.name ?? code)
 }
 
 export function conditionName(code: string): string {
   const condition = CONDITIONS.find((c) => c.code === code)
-  return condition ? t(condition.name) : code
+  return condition ? i18n.t(condition.name) : code
 }

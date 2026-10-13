@@ -1,4 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { api, call } from '../api/client'
 import { useGame, useGames, useMe } from '../api/queries'
@@ -6,12 +7,13 @@ import { CardImage } from '../components/CardImage'
 import { ColorBadges } from '../components/ColorBadges'
 import { ColorFilter, GameTabs, SearchInput, SetSelect } from '../components/Filters'
 import { Pagination } from '../components/Pagination'
-import { t, tn } from '../i18n'
+import { formatMoney } from '../lib/format'
 import { useUrlState } from '../lib/hooks'
 
 const PAGE_SIZE = 48
 
 export default function Catalog() {
+  const { t } = useTranslation()
   const url = useUrlState()
   const me = useMe()
   // Games chosen in the settings; a single one is selected right away.
@@ -62,7 +64,7 @@ export default function Catalog() {
       {cards.isError && <div className="alert alert-error">{cards.error.message}</div>}
       {cards.data && (
         <>
-          <div className="text-sm text-base-content/60">{tn('{n} card', '{n} cards', cards.data.total)}</div>
+          <div className="text-sm text-base-content/60">{t('{{count}} cards', { count: cards.data.total })}</div>
           <div className={`grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 ${cards.isPlaceholderData ? 'opacity-60' : ''}`}>
             {cards.data.items.map((card) => (
               <Link
@@ -75,8 +77,15 @@ export default function Catalog() {
                   <span className="truncate font-medium group-hover:text-primary">{card.name}</span>
                   <span className="text-xs text-base-content/60">
                     {!game && `${games.find((g) => g.id === card.game_id)?.name ?? card.game_id} · `}
-                    {tn('{n} printing', '{n} printings', card.printing_count)}
+                    {t('{{count}} printings', { count: card.printing_count })}
                   </span>
+                  {card.price_min !== null && (
+                    <span className="text-xs font-medium">
+                      {card.price_min === card.price_max
+                        ? formatMoney(card.price_min)
+                        : `${formatMoney(card.price_min)} - ${formatMoney(card.price_max)}`}
+                    </span>
+                  )}
                   <ColorBadges game={games.find((g) => g.id === card.game_id)} colors={card.colors} />
                 </div>
               </Link>

@@ -1,0 +1,18 @@
+{
+  "{{count}} cards_one": "{{count}} card",
+  "{{count}} cards_other": "{{count}} cards",
+  "{{count}} items_one": "{{count}} item",
+  "{{count}} items_other": "{{count}} items",
+  "{{count}} owned_one": "{{count}} owned",
+  "{{count}} owned_other": "{{count}} owned",
+  "{{count}} printings_one": "{{count}} printing",
+  "{{count}} printings_other": "{{count}} printings",
+  "{{count}} problems found in {{rows}} rows._one": "{{count}} problem found in {{rows}} rows.",
+  "{{count}} problems found in {{rows}} rows._other": "{{count}} problems found in {{rows}} rows.",
+  "{{count}} rows are valid. Ready to import._one": "{{count}} row is valid. Ready to import.",
+  "{{count}} rows are valid. Ready to import._other": "{{count}} rows are valid. Ready to import.",
+  "{{count}} rows imported_one": "{{count}} row imported",
+  "{{count}} rows imported_other": "{{count}} rows imported",
+  "{{count}} without price_one": "{{count}} without price",
+  "{{count}} without price_other": "{{count}} without price"
+}

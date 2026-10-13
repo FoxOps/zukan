@@ -1,9 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { api, onSessionExpired } from '../api/client'
 import { useMe } from '../api/queries'
-import { t, useServerLanguage } from '../i18n'
+import { useServerLanguage } from '../i18n'
 import { LanguageMenu } from './I18n'
 
 const NAV = [
@@ -31,6 +32,7 @@ function useTheme() {
 }
 
 export function Layout() {
+  const { t } = useTranslation()
   const me = useMe()
   const location = useLocation()
   const navigate = useNavigate()

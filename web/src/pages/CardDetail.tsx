@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
 import { api, call, type Schemas } from '../api/client'
 import { useGame } from '../api/queries'
@@ -9,9 +10,8 @@ import { CardImage } from '../components/CardImage'
 import { ColorBadges } from '../components/ColorBadges'
 import { PriceChart } from '../components/PriceChart'
 import { StockDialog, type StockTarget } from '../components/StockDialog'
-import { t, tn } from '../i18n'
 import { hasVisibleAttributes } from '../lib/attributes'
-import { finishName, formatDate, formatMoney, languageName } from '../lib/format'
+import { cardmarketUrl, finishName, formatDate, formatMoney, languageName } from '../lib/format'
 
 type PrintingOut = Schemas['PrintingOut']
 
@@ -42,6 +42,7 @@ function normalize(text: string): string {
 }
 
 export default function CardDetail() {
+  const { t } = useTranslation()
   const { cardId } = useParams()
   const card = useQuery({
     queryKey: ['card', Number(cardId)],
@@ -60,6 +61,14 @@ export default function CardDetail() {
   const selected = c.printings.find((p) => p.id === selectedId) ?? c.printings[0]
   const localNames = Object.entries(selected?.names ?? {}).filter(([, n]) => n !== c.name)
   const owned = c.printings.reduce((sum, p) => sum + p.owned.reduce((s, o) => s + o.quantity, 0), 0)
+  // Cheapest and most expensive version of the card, over every printing and finish.
+  const offers = c.printings.flatMap((p) => p.prices.map((price) => ({ printing: p, price, trend: Number(price.trend) })))
+  const cheapest = offers.length ? offers.reduce((a, b) => (b.trend < a.trend ? b : a)) : null
+  const dearest = offers.length ? offers.reduce((a, b) => (b.trend > a.trend ? b : a)) : null
+  const lowestOffer = offers
+    .filter((o) => o.price.low !== null)
+    .reduce<(typeof offers)[number] | null>((a, b) => (a && Number(a.price.low) <= Number(b.price.low) ? a : b), null)
+  const offerLabel = (o: (typeof offers)[number]) => `${o.printing.set.name} · ${finishLabel(o.price.finish)}`
   const openStock = (p: PrintingOut) =>
     setTarget({
       printingId: p.id,
@@ -118,9 +127,30 @@ export default function CardDetail() {
             )}
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <ColorBadges game={game} colors={c.colors} />
-              {owned > 0 && <span className="badge badge-success">{tn('{n} owned', '{n} owned', owned)}</span>}
+              {owned > 0 && <span className="badge badge-success">{t('{{count}} owned', { count: owned })}</span>}
             </div>
           </div>
+          {cheapest && dearest && (
+            <div className="stats stats-vertical bg-base-200 sm:stats-horizontal">
+              <div className="stat py-3">
+                <div className="stat-title">{t('Cheapest version')}</div>
+                <div className="stat-value text-xl">{formatMoney(cheapest.trend)}</div>
+                <div className="stat-desc">{offerLabel(cheapest)}</div>
+              </div>
+              <div className="stat py-3">
+                <div className="stat-title">{t('Most expensive version')}</div>
+                <div className="stat-value text-xl">{formatMoney(dearest.trend)}</div>
+                <div className="stat-desc">{offerLabel(dearest)}</div>
+              </div>
+              {lowestOffer && (
+                <div className="stat py-3">
+                  <div className="stat-title">{t('Lowest offer')}</div>
+                  <div className="stat-value text-xl">{formatMoney(lowestOffer.price.low)}</div>
+                  <div className="stat-desc">{offerLabel(lowestOffer)}</div>
+                </div>
+              )}
+            </div>
+          )}
           <div className="card bg-base-200">
             <div className="card-body p-4">
               <Attributes data={c.attributes} />
@@ -147,7 +177,7 @@ export default function CardDetail() {
 
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">{tn('{n} printing', '{n} printings', c.printings.length)}</h2>
+          <h2 className="text-lg font-semibold">{t('{{count}} printings', { count: c.printings.length })}</h2>
           {c.printings.length > 1 && (
             <label className="input input-sm w-full sm:w-72">
               <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2 opacity-60"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
@@ -176,7 +206,7 @@ export default function CardDetail() {
             <tbody>
               {printings.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-6 text-center text-base-content/60">{t('No set matches “{q}”.', { q: setFilter })}</td>
+                  <td colSpan={7} className="py-6 text-center text-base-content/60">{t('No set matches “{{q}}”.', { q: setFilter })}</td>
                 </tr>
               )}
               {printings.map((p) => (
@@ -204,9 +234,26 @@ export default function CardDetail() {
                     {p.prices.map((price) => (
                       <div key={price.finish} className="text-xs">
                         <span className="text-base-content/60">{finishLabel(price.finish)}</span>{' '}
-                        <span className="font-medium">{formatMoney(price.trend)}</span>
+                        <span className="font-medium" title={t('Cardmarket trend price')}>{formatMoney(price.trend)}</span>
+                        {price.low !== null && (
+                          <span className="text-base-content/60" title={t('Lowest offer on Cardmarket')}>
+                            {' '}
+                            ({t('from {{price}}', { price: formatMoney(price.low) })})
+                          </span>
+                        )}
                       </div>
                     ))}
+                    {cardmarketUrl(game, p.cardmarket_id) && (
+                      <a
+                        className="link link-primary text-xs"
+                        href={cardmarketUrl(game, p.cardmarket_id)!}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Cardmarket ↗
+                      </a>
+                    )}
                   </td>
                   <td>
                     {p.owned.map((o) => (
