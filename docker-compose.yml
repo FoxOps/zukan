@@ -3,6 +3,9 @@
 #   docker compose pull && docker compose up -d
 # FUDABAKO_TAG in .env pins a version (e.g. 0.1.0) or tests a dev build (dev-<branch>).
 # To build from source instead, use docker-compose-dev.yml.
+# Data lives next to this file: ./data/postgres (database) and ./data/images (card images).
+# First start creates the administrator admin / changeme: change its password.
+# All settings come from .env (documented in .env.example).
 name: fudabako
 
 services:
@@ -14,7 +17,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
       POSTGRES_DB: tcg
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tcg"]
       interval: 5s
@@ -29,14 +32,12 @@ services:
     env_file: .env
     environment:
       TCG_DATABASE_URL: postgresql+asyncpg://tcg:${POSTGRES_PASSWORD}@db:5432/tcg
-      TCG_AUTH_CONFIG_PATH: /config/auth.yaml
     volumes:
-      - ./auth.yaml:/config/auth.yaml:ro
-      - images:/data/images
+      - ./data/images:/data/images
       # Put downloaded image folders here (e.g. Sorcery Google Drive) to import them.
       - ./import:/data/import:ro
     ports:
-      - "8000:8000"
+      - "${FUDABAKO_PORT:-8000}:8000"
 
   # Refreshes catalogs, prices and owned card images (TCG_SYNC_INTERVAL_HOURS).
   worker:
@@ -51,9 +52,5 @@ services:
     environment:
       TCG_DATABASE_URL: postgresql+asyncpg://tcg:${POSTGRES_PASSWORD}@db:5432/tcg
     volumes:
-      - images:/data/images
+      - ./data/images:/data/images
     command: ["python", "-m", "app.worker"]
-
-volumes:
-  pgdata:
-  images:

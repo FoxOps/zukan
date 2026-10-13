@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -5,14 +6,18 @@ from pathlib import Path
 from fastapi import APIRouter, FastAPI, HTTPException, Response, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import exists, select
 from sqlalchemy.dialects.postgresql import insert
 from starlette.types import Scope
 
 from app.api import admin, auth, catalog, collection, games, scan, users
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
+from app.core.security import hash_password
 from app.games.base import registry
-from app.models import Game
+from app.models import Game, Role, User
+
+logger = logging.getLogger(__name__)
 
 
 async def register_games() -> None:
@@ -26,11 +31,34 @@ async def register_games() -> None:
         await session.commit()
 
 
+async def create_default_admin() -> None:
+    """First start: create the default administrator so somebody can sign in."""
+    settings = get_settings()
+    if not settings.default_admin_password:
+        return
+    async with get_sessionmaker()() as session:
+        if await session.scalar(select(exists().select_from(User))):
+            return
+        session.add(
+            User(
+                username=settings.default_admin_username,
+                role=Role.admin,
+                password_hash=hash_password(settings.default_admin_password),
+            )
+        )
+        await session.commit()
+    logger.warning(
+        "Created default administrator %r: sign in and change its password",
+        settings.default_admin_username,
+    )
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     if len(get_settings().secret_key) < 32:
         raise RuntimeError("Set TCG_SECRET_KEY to a random value of at least 32 characters")
     await register_games()
+    await create_default_admin()
     yield
 
 

@@ -22,8 +22,10 @@ COPY backend/alembic ./alembic
 COPY --from=web /web/dist ./web
 
 RUN useradd --create-home tcg && mkdir -p /data/images && chown tcg /data/images
-USER tcg
+COPY deploy/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 ENV TCG_IMAGE_DIR=/data/images TCG_IMPORT_DIR=/data/import TCG_WEB_DIR=/app/web
 
 EXPOSE 8000
+# Starts as root to fix data folder ownership, then runs as `tcg`.
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]

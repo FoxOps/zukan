@@ -1,5 +1,6 @@
 import json
 import time
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -8,7 +9,7 @@ import pytest
 import respx
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.oidc import get_auth_config
 from tests.conftest import CSRF, bearer, make_user
 
@@ -70,28 +71,27 @@ class FakeIdp:
         return jwt.encode(claims, self.key, algorithm="RS256", headers={"kid": self.kid})
 
 
-def configure(tmp_path, **provider_overrides) -> None:
+def configure(monkeypatch, **provider_overrides) -> None:
     provider = {
-        "name": "home",
         "display_name": "Home SSO",
         "issuer": ISSUER,
         "client_id": WEB_CLIENT,
-        "client_secret": "${TEST_OIDC_SECRET}",
+        "client_secret": "s3cret",
         "mobile_client_id": MOBILE_CLIENT,
         "scopes": ["openid", "profile", "email", "groups"],
         "admin_groups": ["tcg-admins"],
         **provider_overrides,
     }
-    path = tmp_path / "auth.yaml"
-    path.write_text(json.dumps({"providers": [provider]}))  # JSON is valid YAML
-    get_settings().auth_config_path = path
+    for key, value in provider.items():
+        value = value if isinstance(value, str) else json.dumps(value)
+        monkeypatch.setenv(f"TCG_OIDC_HOME_{key.upper()}", value)
+    monkeypatch.setattr(get_settings(), "oidc_providers", ["home"])
     get_auth_config.cache_clear()
 
 
 @pytest.fixture
-def idp(tmp_path, monkeypatch):
-    monkeypatch.setenv("TEST_OIDC_SECRET", "s3cret")
-    configure(tmp_path)
+def idp(monkeypatch):
+    configure(monkeypatch)
     with respx.mock(assert_all_called=False) as router:
         yield FakeIdp(router)
 
@@ -240,13 +240,13 @@ async def test_idp_error_and_open_redirect(client, idp):
     assert response.headers["location"] == "/"
 
 
-async def test_allowed_groups_and_auto_create(client, idp, tmp_path):
-    configure(tmp_path, allowed_groups=["tcg-users"])
+async def test_allowed_groups_and_auto_create(client, idp, monkeypatch):
+    configure(monkeypatch, allowed_groups=["tcg-users"])
     query = await start_login(client)
     response = await finish_login(client, idp, query, groups=["other"])
     assert "not%20allowed" in response.headers["location"]
 
-    configure(tmp_path, auto_create_users=False)
+    configure(monkeypatch, auto_create_users=False)
     query = await start_login(client)
     response = await finish_login(client, idp, query)
     assert "No%20account" in response.headers["location"]
@@ -350,3 +350,32 @@ async def test_bearer_still_works_alongside_sso(client, session, idp):
     await make_user(session)
     headers = await bearer(client, "alice")
     assert (await client.get("/api/auth/me", headers=headers)).status_code == 200
+
+
+def test_provider_settings_errors_and_defaults(monkeypatch):
+    monkeypatch.setattr(get_settings(), "oidc_providers", ["my-idp"])
+    monkeypatch.setenv("TCG_OIDC_MY_IDP_ISSUER", ISSUER)
+    with pytest.raises(ValueError, match="TCG_OIDC_MY_IDP_CLIENT_ID"):
+        get_auth_config()
+
+    monkeypatch.setenv("TCG_OIDC_MY_IDP_CLIENT_ID", WEB_CLIENT)
+    get_auth_config.cache_clear()
+    (provider,) = get_auth_config().providers
+    assert provider.name == "my-idp"
+    assert provider.display_name == "my-idp"
+    assert provider.scopes == ["openid", "profile", "email"]
+    assert provider.auto_create_users is True
+
+
+def test_env_example_sso_section_is_valid(monkeypatch):
+    # Uncommenting the SSO example of .env.example gives a working configuration.
+    example = (Path(__file__).parents[2] / ".env.example").read_text()
+    for line in example.splitlines():
+        if line.startswith("# TCG_OIDC_"):
+            key, _, value = line.removeprefix("# ").partition("=")
+            monkeypatch.setenv(key, value)
+    providers = Settings().oidc_providers
+    monkeypatch.setattr(get_settings(), "oidc_providers", providers)
+    (provider,) = get_auth_config().providers
+    assert provider.name == "home"
+    assert provider.mobile_client_id == "tcg-android"

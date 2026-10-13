@@ -1,7 +1,9 @@
 import pytest
+from sqlalchemy import func, select
 
 from app.core.config import get_settings
-from app.models import Role
+from app.main import create_default_admin
+from app.models import Role, User
 from tests.conftest import CSRF, bearer, make_user
 
 
@@ -15,6 +17,44 @@ async def test_login_token_mode_and_me(client, session):
     assert body["username"] == "alice"
     assert body["has_password"] is True
     assert body["identities"] == []
+
+
+@pytest.mark.smoke
+async def test_default_admin_created_on_empty_database(client, session):
+    await create_default_admin()
+    await create_default_admin()  # idempotent across restarts
+    assert await session.scalar(select(func.count()).select_from(User)) == 1
+    headers = await bearer(client, "admin", "changeme")
+    me = (await client.get("/api/auth/me", headers=headers)).json()
+    assert me["role"] == "admin"
+    # The default password can be changed like any other.
+    response = await client.post(
+        "/api/auth/password",
+        json={"current_password": "changeme", "new_password": "a-better-password"},
+        headers=headers,
+    )
+    assert response.status_code == 204
+    await create_default_admin()
+    await bearer(client, "admin", "a-better-password")
+
+
+async def test_default_admin_not_created_when_users_exist(session):
+    await make_user(session)
+    await create_default_admin()
+    usernames = await session.scalars(select(User.username))
+    assert list(usernames) == ["alice"]
+
+
+async def test_default_admin_settings(client, session, monkeypatch):
+    settings = get_settings()
+    monkeypatch.setattr(settings, "default_admin_password", "")
+    await create_default_admin()
+    assert await session.scalar(select(func.count()).select_from(User)) == 0
+
+    monkeypatch.setattr(settings, "default_admin_username", "root")
+    monkeypatch.setattr(settings, "default_admin_password", "custom-password")
+    await create_default_admin()
+    await bearer(client, "root", "custom-password")
 
 
 async def test_login_rejects_bad_password_unknown_and_disabled(client, session):

@@ -19,10 +19,14 @@ class Settings(BaseSettings):
     # Secure cookies need HTTPS; disable only for local development.
     cookie_secure: bool = True
 
-    # Optional YAML file describing OIDC providers (see auth.example.yaml).
-    auth_config_path: Path | None = None
-    # Overridden by `local_login_enabled` in the auth YAML file when present.
+    # SSO providers (JSON list of names); each one is configured by TCG_OIDC_<NAME>_*
+    # variables (see .env.example and app.core.oidc).
+    oidc_providers: list[str] = []
     local_login_enabled: bool = True
+    # Administrator created on start when the database has no user yet, so the first
+    # login works. Change the password after signing in. Empty password: not created.
+    default_admin_username: str = "admin"
+    default_admin_password: str = "changeme"
 
     # Built web UI (`npm run build` in web/), served at `/` when present.
     web_dir: Path = Path("../web/dist")

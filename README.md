@@ -13,11 +13,23 @@ package is private: log in once with a GitHub token that has `read:packages`.
 
 ```sh
 cp .env.example .env          # set POSTGRES_PASSWORD and TCG_SECRET_KEY
-cp auth.example.yaml auth.yaml  # SSO providers, may be left with `providers: []`
 echo "$GITHUB_TOKEN" | docker login ghcr.io -u <github-user> --password-stdin
 docker compose pull && docker compose up -d
-docker compose exec -e TCG_ADMIN_PASSWORD=... api fudabako create-admin admin
 ```
+
+First start creates the administrator **`admin`** / **`changeme`**
+(`TCG_DEFAULT_ADMIN_USERNAME` / `TCG_DEFAULT_ADMIN_PASSWORD` in `.env`). Sign in and change
+the password from the account page. The account is only created while the database has no
+user. Reset or add an administrator any time:
+`docker compose exec -e TCG_ADMIN_PASSWORD=... api fudabako create-admin NAME`.
+
+Data is stored next to the compose file, not in Docker volumes: `./data/postgres`
+(database) and `./data/images` (card image cache); the dev compose uses `./data-dev`.
+Back up these folders.
+
+All configuration lives in `.env`: `.env.example` documents every variable (only the
+two above are mandatory; the rest is commented out with its default). Serving the web
+UI over plain HTTP (no TLS)? Set `TCG_COOKIE_SECURE=false` or web sign-in will not stick.
 
 Update: `docker compose pull && docker compose up -d` (migrations run on start).
 `FUDABAKO_TAG` in `.env` pins a version (`0.1.0`) or tries a dev build (`dev-<branch>`).
@@ -41,7 +53,7 @@ kept for cards somebody owns; other cards only keep their latest price.
 
 ### Card images
 
-Images are cached under the `images` volume: downloaded on first view, and pre-fetched
+Images are cached under `./data/images`: downloaded on first view, and pre-fetched
 for cards somebody owns. Sorcery images are not downloadable from its API; download the
 [public image folder](https://drive.google.com/drive/folders/17IrJkRGmIU9fDSTU2JQEU9JlFzb5liLJ)
 from Google Drive, unzip it into `./import/sorcery`, then run

@@ -31,7 +31,7 @@ Decisions from Q&A:
   - Plugins `tailwindcss-animate` and `tailwindcss-3d` are Tailwind v3 JS plugins; load via v4 `@plugin` compat. If one breaks on v4, swap to `tw-animate-css` (drop-in v4 replacement) or a few `@utility` rules for 3D — check at phase 5 start.
   - Game colors (MTG WUBRG, Pokémon energies, Sorcery elements) defined once as theme tokens (`@theme`) and rendered as daisyUI badges.
 - **Android**: Kotlin, Jetpack Compose, CameraX, ML Kit Text Recognition v2 (Latin, Japanese, Chinese, Korean models), Retrofit + kotlinx.serialization, DataStore for token/server URL.
-- **Deploy**: `docker compose` (postgres, api, worker, web served by Caddy). Images volume. Remote access via Tailscale/VPN, not public exposure.
+- **Deploy**: `docker compose` (postgres, api, worker, web served by Caddy). Data in bind mounts next to the compose file (`./data/postgres`, `./data/images`; dev: `./data-dev`). Remote access via Tailscale/VPN, not public exposure.
 
 ## Repo layout
 ```
@@ -86,7 +86,7 @@ Price resolution for an item: manual_price > latest snapshot for (printing, fini
 
 ## Authentication (local + SSO)
 Standard OpenID Connect only, so Keycloak, Authentik, Authelia, Zitadel, Google etc. all work with no IdP-specific code.
-- **Config** (env / `auth.yaml`): `LOCAL_LOGIN_ENABLED`, list of OIDC providers, each: `name`, `display_name`, `issuer` (discovery via `/.well-known/openid-configuration`), `client_id`, `client_secret`, `scopes` (`openid profile email groups`), `groups_claim`, `admin_groups`, `allowed_groups`, `auto_create_users`.
+- **Config** (`.env` only): `TCG_LOCAL_LOGIN_ENABLED`, `TCG_OIDC_PROVIDERS` (JSON list of names), each provider set by `TCG_OIDC_<NAME>_*`: `name`, `display_name`, `issuer` (discovery via `/.well-known/openid-configuration`), `client_id`, `client_secret`, `scopes` (`openid profile email groups`), `groups_claim`, `admin_groups`, `allowed_groups`, `auto_create_users`.
 - **Web flow**: backend is confidential client. `GET /auth/oidc/{provider}/login` → IdP (authorization code + PKCE + state + nonce) → `GET /auth/oidc/{provider}/callback` → validate ID token (JWKS, iss, aud, nonce, exp) → find/create user by (issuer, sub) → issue app session (httpOnly secure cookie with short-lived access JWT + rotating refresh token).
 - **Android flow**: AppAuth-Android, public client, authorization code + PKCE, redirect via app custom scheme / app link. App sends IdP ID token to `POST /auth/oidc/{provider}/exchange`; backend validates same way and returns app access + refresh token. App never holds client secret. `GET /auth/providers` tells app/web which login buttons to show.
 - **Provisioning**: first SSO login auto-creates user if allowed (username from `preferred_username`, email). Role from group claim on each login (admin group → admin). Not in `allowed_groups` → refused. Existing local user can link SSO identity from settings (no auto-link by email — avoids account takeover).
@@ -221,6 +221,16 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
   `pytest -m smoke` marks 15 critical-path tests. Dev Android build = separate app
   `fr.fudabako.app.dev` (own SSO redirect). Release keystore kept outside the repo,
   stored in `ANDROID_KEYSTORE_*` secrets.
+- [x] First start (2026-10-13): nobody could sign in on a fresh deployment. The API now
+  creates the administrator `admin` / `changeme` on start while the user table is empty
+  (`TCG_DEFAULT_ADMIN_USERNAME` / `TCG_DEFAULT_ADMIN_PASSWORD`, empty password disables).
+  Compose data moved from named volumes to `./data` (dev `./data-dev`); the image
+  entrypoint starts as root, chowns `/data/images` (Docker creates missing bind mount
+  folders as root) and drops to `tcg` with `setpriv`.
+  `.env` is now the only configuration entry point: `auth.yaml` dropped, SSO providers
+  come from `TCG_OIDC_PROVIDERS` + `TCG_OIDC_<NAME>_*`, host port from `FUDABAKO_PORT`.
+  `.env.example` documents every variable; only `POSTGRES_PASSWORD` and `TCG_SECRET_KEY`
+  are left uncommented.
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.

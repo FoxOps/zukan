@@ -2,7 +2,6 @@
 .env
 .env.*
 !.env.example
-auth.yaml
 *.pem
 *.key
 *.p12
@@ -12,6 +11,7 @@ keystore.properties
 
 # --- Runtime data (repository root only: source folders may be named data/) ---
 /data/
+/data-dev/
 /backend/data/
 /import/
 

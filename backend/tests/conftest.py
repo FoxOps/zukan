@@ -71,7 +71,7 @@ def no_network(monkeypatch) -> None:
 @pytest.fixture(autouse=True)
 def reset_auth_config() -> None:
     settings = get_settings()
-    settings.auth_config_path = None
+    settings.oidc_providers = []
     settings.local_login_enabled = True
     oidc.get_auth_config.cache_clear()
     oidc._clients.clear()

@@ -42,6 +42,10 @@ curl -sf "$base/collection" | grep -q "<title>Fudabako</title>"
 asset=$(curl -sf "$base/" | grep -o '/assets/index-[^"]*\.js' | head -1)
 curl -sf -o /dev/null "$base$asset"
 
+echo "Default administrator can sign in"
+curl -sf "$base/api/auth/login" -H 'Content-Type: application/json' \
+    -d '{"username":"admin","password":"changeme"}' | grep -q access_token
+
 echo "Admin bootstrap and login"
 docker exec -e TCG_ADMIN_PASSWORD=smoke-password "$name" fudabako create-admin smoke >/dev/null
 token=$(curl -sf "$base/api/auth/login" -H 'Content-Type: application/json' \

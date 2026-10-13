@@ -5,8 +5,8 @@
 **/.ruff_cache
 **/*.egg-info
 .env
-auth.yaml
 data
+data-dev
 import
 backend/tests
 web/dist

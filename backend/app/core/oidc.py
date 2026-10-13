@@ -6,8 +6,6 @@ IdP works: Keycloak, Authentik, Authelia, Zitadel, Google...
 
 import base64
 import hashlib
-import os
-import re
 import secrets
 import time
 from functools import lru_cache
@@ -16,8 +14,8 @@ from urllib.parse import urlencode
 
 import httpx
 import jwt
-import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.config import get_settings
 
@@ -61,36 +59,50 @@ class OidcProviderConfig(BaseModel):
     auto_create_users: bool = True
 
 
+class _ProviderSettings(BaseSettings):
+    """One provider's TCG_OIDC_<NAME>_* variables (prefix given on instantiation)."""
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    display_name: str | None = None
+    issuer: str
+    client_id: str
+    client_secret: str | None = None
+    mobile_client_id: str | None = None
+    scopes: list[str] = ["openid", "profile", "email"]
+    username_claim: str = "preferred_username"
+    groups_claim: str = "groups"
+    admin_groups: list[str] = []
+    allowed_groups: list[str] = []
+    auto_create_users: bool = True
+
+
+def env_prefix(name: str) -> str:
+    return f"TCG_OIDC_{name.upper().replace('-', '_')}_"
+
+
 class AuthConfig(BaseModel):
-    local_login_enabled: bool | None = None
     providers: list[OidcProviderConfig] = []
-
-
-_ENV_VAR = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
-
-
-def _expand_env(text: str) -> str:
-    def replace(match: re.Match[str]) -> str:
-        name = match.group(1)
-        if name not in os.environ:
-            raise ValueError(f"auth config references unset environment variable {name}")
-        return os.environ[name]
-
-    return _ENV_VAR.sub(replace, text)
 
 
 @lru_cache
 def get_auth_config() -> AuthConfig:
-    path = get_settings().auth_config_path
-    if path is None:
-        return AuthConfig()
-    data = yaml.safe_load(_expand_env(path.read_text())) or {}
-    return AuthConfig.model_validate(data)
+    """Providers listed in TCG_OIDC_PROVIDERS, each configured by TCG_OIDC_<NAME>_*."""
+    providers = []
+    for name in get_settings().oidc_providers:
+        try:
+            values = _ProviderSettings(_env_prefix=env_prefix(name))
+        except ValidationError as exc:
+            missing = ", ".join(env_prefix(name) + str(e["loc"][0]).upper() for e in exc.errors())
+            raise ValueError(f"SSO provider {name!r}: invalid or missing {missing}") from exc
+        data = values.model_dump()
+        data["display_name"] = data["display_name"] or name
+        providers.append(OidcProviderConfig(name=name, **data))
+    return AuthConfig(providers=providers)
 
 
 def local_login_enabled() -> bool:
-    configured = get_auth_config().local_login_enabled
-    return get_settings().local_login_enabled if configured is None else configured
+    return get_settings().local_login_enabled
 
 
 def get_provider(name: str) -> OidcProviderConfig:
