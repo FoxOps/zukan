@@ -37,10 +37,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
+import fr.fudabako.app.R
 import fr.fudabako.app.data.GameOut
 import fr.fudabako.app.data.Settings
 import java.util.Locale
@@ -92,7 +94,7 @@ fun ResultPanel(
             Box(Modifier.width(120.dp).aspectRatio(63f / 88f).clip(RoundedCornerShape(6.dp))) {
                 if (printing.image == null) {
                     Box(Modifier.matchParentSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-                        Text("No picture", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.no_picture), style = MaterialTheme.typography.bodySmall)
                     }
                 } else {
                     AsyncImage(model = imageUrl(printing.image), contentDescription = candidate.card.name, imageLoader = imageLoader)
@@ -105,10 +107,10 @@ fun ResultPanel(
                 }
                 Text("${printing.set.name} · ${printing.set.code} ${printing.collectorNumber ?: ""}", style = MaterialTheme.typography.bodySmall)
                 printing.rarity?.let { Text(it.replaceFirstChar(Char::uppercase), style = MaterialTheme.typography.bodySmall) }
-                printing.prices.forEach { Text("${finishName(it.finish)}: ${it.trend} €", style = MaterialTheme.typography.bodyMedium) }
+                printing.prices.forEach { Text(stringResource(R.string.price, finishName(it.finish), it.trend), style = MaterialTheme.typography.bodyMedium) }
                 printing.owned.forEach {
                     Text(
-                        "Owned ${it.quantity}× ${finishName(it.finish)} ${it.condition} ${it.language}",
+                        stringResource(R.string.owned, it.quantity, finishName(it.finish), it.condition, it.language),
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -117,10 +119,10 @@ fun ResultPanel(
         }
         if (candidate.printings.size > 1) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { onPrinting(state.printing - 1) }, enabled = state.printing > 0) { Icon(Icons.Default.ChevronLeft, "Previous printing") }
-                Text("Printing ${state.printing + 1} / ${candidate.printings.size}", Modifier.weight(1f))
+                IconButton(onClick = { onPrinting(state.printing - 1) }, enabled = state.printing > 0) { Icon(Icons.Default.ChevronLeft, stringResource(R.string.previous_printing)) }
+                Text(stringResource(R.string.printing_position, state.printing + 1, candidate.printings.size), Modifier.weight(1f))
                 IconButton(onClick = { onPrinting(state.printing + 1) }, enabled = state.printing < candidate.printings.size - 1) {
-                    Icon(Icons.Default.ChevronRight, "Next printing")
+                    Icon(Icons.Default.ChevronRight, stringResource(R.string.next_printing))
                 }
             }
         }
@@ -128,18 +130,18 @@ fun ResultPanel(
             finishes.forEach { f -> FilterChip(selected = f == finish, onClick = { finish = f }, label = { Text(finishName(f)) }) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Picker("Condition", condition, CONDITIONS, { it }) { condition = it }
-            Picker("Language", language, languages, ::languageName) { language = it }
+            Picker(stringResource(R.string.condition), condition, CONDITIONS, { it }) { condition = it }
+            Picker(stringResource(R.string.language), language, languages, ::languageName) { language = it }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            IconButton(onClick = { if (quantity > 1) quantity-- }) { Icon(Icons.Default.Remove, "Less") }
+            IconButton(onClick = { if (quantity > 1) quantity-- }) { Icon(Icons.Default.Remove, stringResource(R.string.less)) }
             Text("$quantity", style = MaterialTheme.typography.titleLarge)
-            IconButton(onClick = { if (quantity < 99) quantity++ }) { Icon(Icons.Default.Add, "More") }
+            IconButton(onClick = { if (quantity < 99) quantity++ }) { Icon(Icons.Default.Add, stringResource(R.string.more)) }
             Spacer(Modifier.weight(1f))
-            OutlinedButton(onClick = { onAdjust(finish, condition, language, -quantity) }, enabled = !state.busy) { Text("Remove") }
-            Button(onClick = { onAdjust(finish, condition, language, quantity) }, enabled = !state.busy && finish.isNotEmpty()) { Text("Add") }
+            OutlinedButton(onClick = { onAdjust(finish, condition, language, -quantity) }, enabled = !state.busy) { Text(stringResource(R.string.remove)) }
+            Button(onClick = { onAdjust(finish, condition, language, quantity) }, enabled = !state.busy && finish.isNotEmpty()) { Text(stringResource(R.string.add)) }
         }
-        TextButton(onClick = onClose, modifier = Modifier.align(Alignment.End)) { Text("Scan next card") }
+        TextButton(onClick = onClose, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.scan_next)) }
     }
 }
 
@@ -147,7 +149,7 @@ fun ResultPanel(
 private fun Picker(label: String, value: String, options: List<String>, display: (String) -> String, onPick: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(onClick = { open = true }) { Text("$label: ${display(value)}", maxLines = 1) }
+        OutlinedButton(onClick = { open = true }) { Text(stringResource(R.string.picker_value, label, display(value)), maxLines = 1) }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             options.forEach { option ->
                 DropdownMenuItem(text = { Text(display(option)) }, onClick = {

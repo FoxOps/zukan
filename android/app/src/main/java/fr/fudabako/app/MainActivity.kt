@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -32,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
@@ -54,7 +56,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(val label: String) { SCAN("Scan"), SEARCH("Search"), SETTINGS("Settings") }
+private enum class Tab(@StringRes val label: Int) { SCAN(R.string.tab_scan), SEARCH(R.string.tab_search), SETTINGS(R.string.tab_settings) }
 
 @Composable
 private fun App(session: SessionViewModel, scan: ScanViewModel, app: FudabakoApp) {
@@ -63,6 +65,7 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, app: FudabakoApp
     val scanState by scan.state.collectAsStateWithLifecycle()
     val client by app.client.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val undoLabel = stringResource(R.string.undo)
     // Card images go through the authenticated HTTP client.
     val imageLoader = remember(client) {
         ImageLoader.Builder(context)
@@ -79,7 +82,7 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, app: FudabakoApp
             val snackbar = remember { SnackbarHostState() }
             LaunchedEffect(scanState.undo) {
                 val undo = scanState.undo ?: return@LaunchedEffect
-                val result = snackbar.showSnackbar(undo.text, actionLabel = "Undo", duration = SnackbarDuration.Long)
+                val result = snackbar.showSnackbar(undo.text, actionLabel = undoLabel, duration = SnackbarDuration.Long)
                 if (result == SnackbarResult.ActionPerformed) scan.undo() else scan.consumeUndo()
             }
             LaunchedEffect(scanState.message, state.error) {
@@ -106,7 +109,7 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, app: FudabakoApp
                                         contentDescription = null,
                                     )
                                 },
-                                label = { Text(t.label) },
+                                label = { Text(stringResource(t.label)) },
                             )
                         }
                     }

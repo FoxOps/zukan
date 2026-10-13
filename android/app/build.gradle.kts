@@ -51,6 +51,12 @@ android {
             signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
+    // English (default, res/values) and French (res/values-fr). The generated locale config
+    // lists them in the system's per-app language settings (Android 13+).
+    androidResources {
+        generateLocaleConfig = true
+        localeFilters += listOf("en", "fr")
+    }
     buildFeatures {
         compose = true
         buildConfig = true

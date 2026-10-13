@@ -35,9 +35,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import coil3.ImageLoader
+import fr.fudabako.app.R
 import fr.fudabako.app.data.GameOut
 import fr.fudabako.app.data.Settings
 
@@ -64,8 +66,8 @@ fun ScanScreen(
             CameraPreview(settings.script, paused = state.phase != Phase.SCANNING, onLines = scan::onLines, modifier = Modifier.fillMaxSize())
         } else {
             Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("The camera is needed to read cards.", color = Color.White)
-                Button(onClick = { permission.launch(Manifest.permission.CAMERA) }) { Text("Allow camera") }
+                Text(stringResource(R.string.camera_needed), color = Color.White)
+                Button(onClick = { permission.launch(Manifest.permission.CAMERA) }) { Text(stringResource(R.string.allow_camera)) }
             }
         }
 
@@ -80,16 +82,16 @@ fun ScanScreen(
                 selectedContainerColor = MaterialTheme.colorScheme.primary,
                 selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
             )
-            FilterChip(selected = settings.game == null, onClick = { onGame(null) }, label = { Text("Any game") }, colors = chipColors)
+            FilterChip(selected = settings.game == null, onClick = { onGame(null) }, label = { Text(stringResource(R.string.any_game)) }, colors = chipColors)
             games.forEach { g ->
                 FilterChip(selected = settings.game == g.id, onClick = { onGame(g.id) }, label = { Text(g.name) }, colors = chipColors)
             }
         }
 
         val status = when (state.phase) {
-            Phase.SCANNING -> "Point at a card"
-            Phase.IDENTIFYING -> "Identifying…"
-            Phase.NOT_FOUND -> "No match"
+            Phase.SCANNING -> stringResource(R.string.point_at_card)
+            Phase.IDENTIFYING -> stringResource(R.string.identifying)
+            Phase.NOT_FOUND -> stringResource(R.string.no_match)
             Phase.RESULT -> null
         }
         if (status != null) {
@@ -102,7 +104,7 @@ fun ScanScreen(
                     if (state.phase == Phase.IDENTIFYING) CircularProgressIndicator(Modifier.padding(end = 8.dp).size(18.dp), strokeWidth = 2.dp)
                     Text(status)
                     if (state.phase == Phase.NOT_FOUND) {
-                        TextButton(onClick = { scan.resume(forgetCard = true) }) { Text("Try again") }
+                        TextButton(onClick = { scan.resume(forgetCard = true) }) { Text(stringResource(R.string.try_again)) }
                     }
                 }
             }

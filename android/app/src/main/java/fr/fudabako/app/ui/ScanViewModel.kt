@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import fr.fudabako.app.FudabakoApp
+import fr.fudabako.app.R
 import fr.fudabako.app.data.AdjustIn
 import fr.fudabako.app.data.CandidateOut
 import fr.fudabako.app.data.CardRef
@@ -66,7 +67,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                 }
-                .onFailure { e -> _state.update { it.copy(phase = Phase.SCANNING, message = e.userMessage()) } }
+                .onFailure { e -> _state.update { it.copy(phase = Phase.SCANNING, message = e.userMessage(app)) } }
         }
     }
 
@@ -81,7 +82,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                         ScanState(phase = Phase.RESULT, result = IdentifyOut(card.gameId, HintsOut(), listOf(candidate)), undo = it.undo)
                     }
                 }
-                .onFailure { e -> _state.update { it.copy(message = e.userMessage()) } }
+                .onFailure { e -> _state.update { it.copy(message = e.userMessage(app)) } }
         }
     }
 
@@ -98,13 +99,15 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val out = client.api.adjust(AdjustIn(printing.id, finish, condition, language, delta))
-                val verb = if (delta > 0) "Added $delta" else "Removed ${-delta}"
-                _state.update {
-                    it.copy(busy = false, undo = Undoable(out.transactionId, "$verb × ${out.item.name} (now ${out.item.quantity})"))
+                val text = if (delta > 0) {
+                    app.getString(R.string.added, delta, out.item.name, out.item.quantity)
+                } else {
+                    app.getString(R.string.removed, -delta, out.item.name, out.item.quantity)
                 }
+                _state.update { it.copy(busy = false, undo = Undoable(out.transactionId, text)) }
                 refreshCurrent()
             } catch (e: Exception) {
-                _state.update { it.copy(busy = false, message = e.userMessage()) }
+                _state.update { it.copy(busy = false, message = e.userMessage(app)) }
             }
         }
     }
@@ -116,10 +119,10 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             runCatching { client.api.undo(undo.transactionId) }
                 .onSuccess { item ->
-                    _state.update { it.copy(message = "Undone: ${item.name} (now ${item.quantity})") }
+                    _state.update { it.copy(message = app.getString(R.string.undone, item.name, item.quantity)) }
                     refreshCurrent()
                 }
-                .onFailure { e -> _state.update { it.copy(message = e.userMessage()) } }
+                .onFailure { e -> _state.update { it.copy(message = e.userMessage(app)) } }
         }
     }
 

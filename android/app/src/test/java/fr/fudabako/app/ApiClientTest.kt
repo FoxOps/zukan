@@ -3,7 +3,7 @@ package fr.fudabako.app
 import fr.fudabako.app.data.ApiClient
 import fr.fudabako.app.data.TokenStore
 import fr.fudabako.app.data.Tokens
-import fr.fudabako.app.data.userMessage
+import fr.fudabako.app.data.serverDetail
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -61,6 +61,6 @@ class ApiClientTest {
 
         assertNull(store.tokens)
         assertTrue(expired)
-        assertEquals("expired", error.userMessage())
+        assertEquals("expired", error.serverDetail())
     }
 }
