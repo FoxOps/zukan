@@ -1,26 +1,29 @@
 package fr.fudabako.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,15 +48,26 @@ import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import fr.fudabako.app.R
 import fr.fudabako.app.data.GameOut
+import fr.fudabako.app.data.PrintingOut
 import fr.fudabako.app.data.Settings
 import java.util.Locale
-
-val CONDITIONS = listOf("MT", "NM", "EX", "GD", "LP", "PL", "PO")
 
 fun languageName(code: String): String =
     Locale.forLanguageTag(code).getDisplayName(Locale.getDefault()).ifEmpty { code }
 
-/** The identified card: printings to swipe through, variant to pick, add or remove. */
+/** Cardmarket page of a printing, in the app language (Cardmarket redirects the product
+ * id to the product page). */
+fun cardmarketUrl(game: GameOut?, printing: PrintingOut): String? {
+    val segment = game?.cardmarket ?: return null
+    val product = printing.cardmarketId ?: return null
+    val lang = if (Locale.getDefault().language == "fr") "fr" else "en"
+    return "https://www.cardmarket.com/$lang/$segment/Products?idProduct=$product"
+}
+
+/**
+ * The identified card: what was read, the card and its price, the copies owned, then
+ * the printing, variant and quantity to add or remove.
+ */
 @Composable
 fun ResultPanel(
     state: ScanState,
@@ -71,18 +86,21 @@ fun ResultPanel(
     val printing = candidate.printings.getOrNull(state.printing) ?: return
     val game = games.firstOrNull { it.id == candidate.card.gameId }
     val finishes = printing.finishes.ifEmpty { game?.finishes?.map { it.code } ?: emptyList() }
-    val languages = game?.languages ?: printing.languages
+    // Languages the printing exists in (all of the game's when the catalog does not say).
+    val languages = printing.languages.ifEmpty { game?.languages ?: listOf("en") }
     // Defaults: detected language, else preferred, else the printing's first language.
-    val defaultLanguage = listOfNotNull(result.detected.lang, settings.language, printing.languages.firstOrNull())
-        .firstOrNull { it in languages } ?: "en"
+    val defaultLanguage = listOfNotNull(result.detected.lang, settings.language).firstOrNull { it in languages } ?: languages.first()
 
     var finish by remember(printing.id) { mutableStateOf(finishes.firstOrNull() ?: "") }
     var condition by remember(printing.id) { mutableStateOf(settings.condition) }
     var language by remember(printing.id) { mutableStateOf(defaultLanguage) }
     var quantity by remember(printing.id) { mutableIntStateOf(1) }
+    var pickPrinting by remember { mutableStateOf(false) }
     val finishName = { code: String -> game?.finishes?.firstOrNull { it.code == code }?.name ?: code }
+    val uriHandler = LocalUriHandler.current
 
-    Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        DetectedRow(result.detected.name, result.detected.lang, result.detected.setCode, result.detected.collectorNumber)
         if (result.candidates.size > 1) {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 result.candidates.forEachIndexed { index, c ->
@@ -102,36 +120,62 @@ fun ResultPanel(
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(candidate.card.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                printing.names.filterValues { it != candidate.card.name }.entries.firstOrNull { it.key == language }?.let {
-                    Text(it.value, style = MaterialTheme.typography.bodyMedium)
+                printing.names[language]?.takeIf { it != candidate.card.name }?.let {
+                    Text(it, style = MaterialTheme.typography.bodyMedium)
                 }
-                Text("${printing.set.name} · ${printing.set.code} ${printing.collectorNumber ?: ""}", style = MaterialTheme.typography.bodySmall)
                 printing.rarity?.let { Text(it.replaceFirstChar(Char::uppercase), style = MaterialTheme.typography.bodySmall) }
-                printing.prices.forEach { Text(stringResource(R.string.price, finishName(it.finish), it.trend), style = MaterialTheme.typography.bodyMedium) }
-                printing.owned.forEach {
-                    Text(
-                        stringResource(R.string.owned, it.quantity, finishName(it.finish), it.condition, it.language),
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                printing.prices.forEach { price ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FinishBadge(game, price.finish)
+                        Text(stringResource(R.string.price_value, price.trend), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                        price.low?.let { Text(stringResource(R.string.price_from, it), style = MaterialTheme.typography.bodySmall) }
+                    }
+                }
+                cardmarketUrl(game, printing)?.let { url ->
+                    TextButton(onClick = { uriHandler.openUri(url) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                        Text(stringResource(R.string.cardmarket))
+                        Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.padding(start = 4.dp).size(16.dp))
+                    }
                 }
             }
         }
-        if (candidate.printings.size > 1) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { onPrinting(state.printing - 1) }, enabled = state.printing > 0) { Icon(Icons.Default.ChevronLeft, stringResource(R.string.previous_printing)) }
-                Text(stringResource(R.string.printing_position, state.printing + 1, candidate.printings.size), Modifier.weight(1f))
-                IconButton(onClick = { onPrinting(state.printing + 1) }, enabled = state.printing < candidate.printings.size - 1) {
-                    Icon(Icons.Default.ChevronRight, stringResource(R.string.next_printing))
-                }
+        OwnedSummary(game, printing)
+
+        // Printing: tap to choose among all printings of the card.
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+                .clickable(enabled = candidate.printings.size > 1) { pickPrinting = true }
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(printing.set.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
+                Text(
+                    listOfNotNull(printing.set.code, printing.collectorNumber).joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            printing.set.lang?.let { LangFlag(it) }
+            if (candidate.printings.size > 1) {
+                Text(stringResource(R.string.printing_position, state.printing + 1, candidate.printings.size), style = MaterialTheme.typography.bodySmall)
+                Icon(Icons.Default.ArrowDropDown, stringResource(R.string.choose_printing))
             }
         }
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             finishes.forEach { f -> FilterChip(selected = f == finish, onClick = { finish = f }, label = { Text(finishName(f)) }) }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Picker(stringResource(R.string.condition), condition, CONDITIONS, { it }) { condition = it }
-            Picker(stringResource(R.string.language), language, languages, ::languageName) { language = it }
+        Text("${stringResource(R.string.condition)}: ${condition}", style = MaterialTheme.typography.labelLarge)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            CONDITIONS.forEach { c -> ConditionChoice(c, selected = c == condition) { condition = c } }
+        }
+        if (languages.size > 1) {
+            Text("${stringResource(R.string.language)}: ${languageName(language)}", style = MaterialTheme.typography.labelLarge)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                languages.forEach { l -> FilterChip(selected = l == language, onClick = { language = l }, label = { LangFlag(l, size = 20) }) }
+            }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             IconButton(onClick = { if (quantity > 1) quantity-- }) { Icon(Icons.Default.Remove, stringResource(R.string.less)) }
@@ -143,20 +187,59 @@ fun ResultPanel(
         }
         TextButton(onClick = onClose, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.scan_next)) }
     }
+
+    if (pickPrinting) {
+        PrintingPicker(
+            printings = candidate.printings,
+            selected = state.printing,
+            imageUrl = imageUrl,
+            imageLoader = imageLoader,
+            onPick = { onPrinting(it); pickPrinting = false },
+            onDismiss = { pickPrinting = false },
+        )
+    }
+}
+
+/** What the camera read: name always, language and set when found. */
+@Composable
+private fun DetectedRow(name: String?, lang: String?, setCode: String?, number: String?) {
+    if (name == null && lang == null && setCode == null) return
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(stringResource(R.string.detected), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        name?.let { Text(it, style = MaterialTheme.typography.labelMedium, maxLines = 1, modifier = Modifier.weight(1f, fill = false)) }
+        lang?.let { LangFlag(it, size = 14) }
+        listOfNotNull(setCode, number).takeIf { it.isNotEmpty() }?.let {
+            Text(it.joinToString(" "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }
 
 @Composable
-private fun Picker(label: String, value: String, options: List<String>, display: (String) -> String, onPick: (String) -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        OutlinedButton(onClick = { open = true }) { Text(stringResource(R.string.picker_value, label, display(value)), maxLines = 1) }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            options.forEach { option ->
-                DropdownMenuItem(text = { Text(display(option)) }, onClick = {
-                    onPick(option)
-                    open = false
-                })
+private fun OwnedSummary(game: GameOut?, printing: PrintingOut) {
+    if (printing.owned.isEmpty()) {
+        Text(stringResource(R.string.not_owned), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        printing.owned.forEach {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(stringResource(R.string.owned_quantity, it.quantity), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                FinishBadge(game, it.finish)
+                ConditionBadge(it.condition)
+                LangFlag(it.language)
             }
         }
     }
+}
+
+@Composable
+fun ConditionChoice(code: String, selected: Boolean, onClick: () -> Unit) {
+    val color = CONDITION_COLORS[code] ?: MaterialTheme.colorScheme.secondary
+    Box(
+        Modifier.clip(RoundedCornerShape(8.dp))
+            .background(if (selected) color else color.copy(alpha = 0.45f))
+            .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(8.dp)) else Modifier)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) { Text(code, color = conditionTextColor(code), fontWeight = FontWeight.Bold) }
 }

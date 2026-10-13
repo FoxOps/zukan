@@ -18,17 +18,22 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import fr.fudabako.app.data.OcrScript
 import fr.fudabako.app.data.OcrLineIn
 import fr.fudabako.app.scan.TextAnalyzer
-import fr.fudabako.app.scan.recognizer
 import java.util.concurrent.Executors
 
 /** Back camera preview with on-device text recognition feeding [onLines]. */
 @Composable
-fun CameraPreview(script: OcrScript, paused: Boolean, onLines: (List<OcrLineIn>) -> Unit, modifier: Modifier = Modifier) {
+fun CameraPreview(
+    script: OcrScript,
+    paused: Boolean,
+    onFrame: (List<OcrLineIn>) -> Boolean,
+    onIdentify: (List<OcrLineIn>) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     // TextureView mode: composes correctly under the overlays drawn on top of the preview.
     val previewView = remember { PreviewView(context).apply { implementationMode = PreviewView.ImplementationMode.COMPATIBLE } }
-    val analyzer = remember(script) { TextAnalyzer(recognizer(script), onLines) }
+    val analyzer = remember(script) { TextAnalyzer(script, onFrame, onIdentify) }
     analyzer.paused = paused
 
     DisposableEffect(lifecycleOwner, analyzer) {
@@ -53,6 +58,7 @@ fun CameraPreview(script: OcrScript, paused: Boolean, onLines: (List<OcrLineIn>)
         onDispose {
             runCatching { future.get().unbindAll() }
             executor.shutdown()
+            analyzer.close()
         }
     }
     AndroidView(factory = { previewView }, modifier = modifier)

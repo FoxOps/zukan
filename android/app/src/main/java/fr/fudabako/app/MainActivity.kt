@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
@@ -37,6 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import fr.fudabako.app.ui.CollectionScreen
 import fr.fudabako.app.ui.FudabakoTheme
 import fr.fudabako.app.ui.LoginScreen
 import fr.fudabako.app.ui.ScanScreen
@@ -56,7 +58,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(@StringRes val label: Int) { SCAN(R.string.tab_scan), SEARCH(R.string.tab_search), SETTINGS(R.string.tab_settings) }
+private enum class Tab(@StringRes val label: Int) {
+    SCAN(R.string.tab_scan),
+    COLLECTION(R.string.tab_collection),
+    SEARCH(R.string.tab_search),
+    SETTINGS(R.string.tab_settings),
+}
 
 @Composable
 private fun App(session: SessionViewModel, scan: ScanViewModel, app: FudabakoApp) {
@@ -103,6 +110,7 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, app: FudabakoApp
                                     Icon(
                                         when (t) {
                                             Tab.SCAN -> Icons.Default.CameraAlt
+                                            Tab.COLLECTION -> Icons.Default.CollectionsBookmark
                                             Tab.SEARCH -> Icons.Default.Search
                                             Tab.SETTINGS -> Icons.Default.Settings
                                         },
@@ -120,6 +128,18 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, app: FudabakoApp
                         Tab.SCAN -> ScanScreen(scan, scanState, state.games, settings, imageUrl, imageLoader) { game ->
                             session.updateSettings { it.copy(game = game) }
                         }
+                        Tab.COLLECTION -> CollectionScreen(
+                            client?.api,
+                            state.games,
+                            scanState.stockVersion,
+                            imageUrl,
+                            imageLoader,
+                            onAdjust = { item, delta -> scan.adjustItem(item.printingId, item.finish, item.condition, item.language, delta) },
+                            onOpen = { item ->
+                                scan.showCard(item.cardId, item.printingId)
+                                tab = Tab.SCAN
+                            },
+                        )
                         Tab.SEARCH -> SearchScreen(client?.api, settings.game, state.games, imageUrl, imageLoader) { card ->
                             scan.showCard(card)
                             tab = Tab.SCAN

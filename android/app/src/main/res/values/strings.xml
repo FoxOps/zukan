@@ -31,14 +31,9 @@
 
     <!-- Result panel -->
     <string name="no_picture">No picture</string>
-    <string name="price">%1$s: %2$s €</string>
-    <string name="owned">Owned %1$d× %2$s %3$s %4$s</string>
-    <string name="previous_printing">Previous printing</string>
-    <string name="next_printing">Next printing</string>
     <string name="printing_position">Printing %1$d / %2$d</string>
     <string name="condition">Condition</string>
     <string name="language">Language</string>
-    <string name="picker_value">%1$s: %2$s</string>
     <string name="less">Less</string>
     <string name="more">More</string>
     <string name="remove">Remove</string>
@@ -59,7 +54,7 @@
     <string name="settings">Settings</string>
     <string name="signed_in_as">Signed in as %1$s on %2$s</string>
     <string name="text_recognition">Text recognition</string>
-    <string name="text_recognition_help">Choose the script printed on the cards you scan. Each also reads Latin text.</string>
+    <string name="text_recognition_help">Automatic reads every script and keeps the one printed on the card. Choose one to force it; each also reads Latin text.</string>
     <string name="script_latin">Latin</string>
     <string name="script_japanese">Japanese</string>
     <string name="script_chinese">Chinese</string>
@@ -84,4 +79,37 @@
     <string name="error_sso_token">Token request failed</string>
     <string name="error_sso_no_id_token">The identity provider returned no ID token</string>
     <string name="error_sso_no_nonce">Missing nonce</string>
+
+    <!-- Collection, search filters, printing picker -->
+    <string name="tab_collection">Collection</string>
+    <string name="price_value">%1$s €</string>
+    <string name="price_from">from %1$s €</string>
+    <string name="cardmarket">Cardmarket</string>
+    <string name="choose_printing">Choose printing</string>
+    <string name="filter_printings">Set name, code or number</string>
+    <string name="detected">Read:</string>
+    <string name="not_owned">Not in your collection</string>
+    <string name="owned_quantity">%1$d× owned</string>
+    <string name="script_auto">Automatic</string>
+    <string name="after_add">After adding copies</string>
+    <string name="after_add_stay">Stay on the card</string>
+    <string name="after_add_next">Scan the next card</string>
+    <string name="filters">Filters</string>
+    <string name="any_set">All sets</string>
+    <string name="any_language">All languages</string>
+    <string name="filter_sets">Set name or code</string>
+    <string name="load_more">Load more (%1$d)</string>
+    <string name="search_collection">Search your cards</string>
+    <plurals name="collection_value">
+        <item quantity="one">%1$s € · %2$d card</item>
+        <item quantity="other">%1$s € · %2$d cards</item>
+    </plurals>
+    <string name="collection_empty">No cards here yet</string>
+    <string name="sort">Sort</string>
+    <string name="sort_name">Name</string>
+    <string name="sort_set">Newest sets</string>
+    <string name="sort_updated">Recently changed</string>
+    <string name="sort_quantity">Quantity</string>
+    <string name="sort_price_asc">Price: low to high</string>
+    <string name="sort_price_desc">Price: high to low</string>
 </resources>
