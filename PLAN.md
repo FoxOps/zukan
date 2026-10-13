@@ -268,8 +268,10 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
     etched, rainbow, 1st edition) get their own badge styles; no images in the
     collection list.
   - Pokémon: TCGdex set ids are URL-encoded (`SM1+` returned 404).
-- [ ] Feedback batch 2 (2026-10-14), branch `feedback-batch-2`. Phase A (server 0.4.0) done:
-  92 backend tests pass; checked in a browser on a live Sorcery sync.
+- [x] Feedback batch 2 (2026-10-14), branch `feedback-batch-2`: server 0.4.0, Android 0.3.0.
+  93 backend tests, 15 Android JVM tests; checked in a browser on a live Sorcery sync and
+  a live Pokémon ja + ko sync (SV4K 078 = ドゴーム, one Japanese set, Korean name and
+  languages added, 0 cards without printings); Android driven on the API 36 emulator.
   - Sorcery images missing after the 0.3 upgrade: the image job only picks printings with
     an image URL, which came with the next (weekly) catalog sync. Providers now have a
     `catalog_version`; the worker syncs a catalog at once when the stored one is older,
@@ -292,14 +294,23 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
     latest trend).
   - Web: flag icons (`flag-icons`, 11 SVGs bundled) for languages; add dialog offers the
     printing's languages only; pagination with page numbers and go-to-page.
+  - Catalog search by printed language (`lang`). Code search uses card id subqueries
+    (an OR of correlated EXISTS took 43 s on 50k Pokémon cards; now ~35 ms).
   - OCR: MTG old frames (number at the end of the copyright line or on the right, years
     ignored), Pokémon labels touching Japanese names, set code box on its own line,
     number matches ordered by detected language.
   - Dropped: condition of the lowest offer (Cardmarket's public price guide has a single
     `low` per product, no condition, seller or country).
-  - Phase B (Android) to do: collection screen, advanced search, condition colors and
-    flags, swipe-to-close sheet with Cardmarket link, automatic next card option, set
-    picker, automatic OCR script with detected name/language/set.
+  - Android: Collection tab (value, search, game/condition/language filters, sorts incl.
+    price, quick +1/-1 with undo); search with game chips, set picker, color and
+    printed-language filters, load more; card sheet is a `ModalBottomSheet` (swipe
+    down to just look) with OCR reading (name, flag, set/number), prices + lowest offer,
+    Cardmarket link, owned badges, searchable printing picker; Cardmarket condition colors
+    and emoji flags (same maps as the web); "After adding copies: stay / scan next".
+  - Android OCR "Automatic" (new default, new DataStore key `ocr_script`): Latin reads
+    every frame; the frame sent is also read by the Japanese, Korean and Chinese models
+    and the one that found its own script wins (`ScriptPicker`). Needs a real phone
+    check with Japanese and old-frame cards.
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
