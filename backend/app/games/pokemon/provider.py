@@ -213,14 +213,18 @@ _SET_LANG = re.compile(r"\b([A-Z][A-Z0-9]{1,4})\s+(" + "|".join(PRINTED_LANGUAGE
 # Asian cards print the set code right before the number: "SV1a 001/073".
 _SET_BEFORE_NUMBER = re.compile(r"\b([A-Za-z]{1,4}\d{1,2}[a-zA-Z+]?)\s+[A-Z]{0,4}\d{1,3}\s*/")
 # Labels around the name: stage, HP, trainer kinds, in several languages.
+# Asian labels are written without a space before the name: no word boundary there.
 _STAGE = re.compile(
-    r"^(basic|stage ?\d|base|niveau ?\d|basis|phase ?\d|fase ?\d|livello ?\d|básico|"
-    r"たね|\d進化|기본|\d진화|基础|基礎|\d阶|\d階)\b[\s:.-]*",
+    r"^((basic|stage ?\d|base|niveau ?\d|basis|phase ?\d|fase ?\d|livello ?\d|básico)\b|"
+    r"たね|\d進化|기본|\d진화|基础|基礎|\d阶|\d階)[\s:.-]*",
     re.IGNORECASE,
 )
 _HP = re.compile(
-    r"\s*(\b(HP|PV|KP|PS|PE)\s*\d{2,3}|\d{2,3}\s*(HP|PV|KP|PS|PE)\b)\s*", re.IGNORECASE
+    r"\s*((?<![A-Za-z])(HP|PV|KP|PS|PE)\s*\d{2,3}|\d{2,3}\s*(HP|PV|KP|PS|PE)\b)\s*",
+    re.IGNORECASE,
 )
+# The set code box ("SV4K", "G SV1a") read as a line of its own.
+_SET_ALONE = re.compile(r"^(?:[A-Z]\s+)?([A-Za-z]{1,4}\d{1,2}[a-zA-Z+]?)$")
 _MARKERS = re.compile(
     r"Pokémon|Pokemon|Nintendo|GAME ?FREAK|Creatures|\b(HP|PV|KP)\s*\d|\d\s*(HP|PV|KP)\b|"
     r"ポケモン|포켓몬|宝可梦|寶可夢"
@@ -246,6 +250,8 @@ def parse_ocr(lines: list[OcrLine]) -> OcrHints:
         if hints.set_code is None and (match := _SET_LANG.search(line.text)):
             hints.set_code, hints.lang = match.group(1), PRINTED_LANGUAGES[match.group(2)]
         elif hints.set_code is None and (match := _SET_BEFORE_NUMBER.search(line.text)):
+            hints.set_code = match.group(1)
+        elif hints.set_code is None and (match := _SET_ALONE.match(line.text.strip())):
             hints.set_code = match.group(1)
     names = []
     for line in ordered:

@@ -63,13 +63,21 @@ async def _exact(session: AsyncSession, game_id: str, hints: OcrHints) -> list[P
     )
 
 
-async def _by_number(session: AsyncSession, game_id: str, number: str) -> list[Printing]:
+async def _by_number(
+    session: AsyncSession, game_id: str, number: str, lang: str | None
+) -> list[Printing]:
+    """Printings with that number; common numbers ("001") exist in hundreds of sets, so
+    the detected language and newer sets come first when there are too many."""
+    query = (
+        select(Printing)
+        .join(CardSet)
+        .where(CardSet.game_id == game_id, number_matches(Printing.collector_number, number))
+    )
+    if lang:
+        query = query.order_by(Printing.languages.contains([lang]).desc())
     return list(
         await session.scalars(
-            select(Printing)
-            .join(CardSet)
-            .where(CardSet.game_id == game_id, number_matches(Printing.collector_number, number))
-            .limit(2000)
+            query.order_by(CardSet.release_date.desc().nulls_last(), Printing.id).limit(2000)
         )
     )
 
@@ -127,7 +135,7 @@ async def _identify_game(
             score = 1.0 + similarity.get(printing.card_id, 0) / 10
             add(printing.card_id, score, "set_number", [printing.id])
     elif hints.collector_number and names:
-        numbered = await _by_number(session, provider.id, hints.collector_number)
+        numbered = await _by_number(session, provider.id, hints.collector_number, hints.lang)
         cards = {p.card_id for p in numbered}
         similarity = await _name_similarity(session, provider.id, names, cards) if cards else {}
         for printing in numbered:

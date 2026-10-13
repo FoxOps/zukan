@@ -249,16 +249,20 @@ def parse_ocr(lines: list[OcrLine]) -> OcrHints:
             if not match.group(1).isdigit():
                 hints.set_code = match.group(1)
                 hints.lang = PRINTED_LANGUAGES[match.group(2)]
-        # Power/toughness sits bottom right, collector info bottom left.
-        on_left = line.left is None or line.left < 0.6
+    # Power/toughness sits bottom right, collector info bottom left; old frames end the
+    # copyright line with it, which ML Kit may return as a block of its own on the right.
+    on_left = [line for line in bottom if line.left is None or line.left < 0.6]
+    for line in on_left + [line for line in bottom if line not in on_left]:
         match = _NUMBER_TOTAL.search(line.text)
-        if hints.collector_number is None and on_left and match:
-            if int(match.group(2)) >= MIN_SET_SIZE:
-                hints.collector_number = match.group(1)
+        if match and int(match.group(2)) >= MIN_SET_SIZE:
+            hints.collector_number = match.group(1)
+            break
     if hints.collector_number is None:
         for line in bottom:
             if hints.set_code and hints.set_code in line.text:
                 continue
+            if _MARKERS.search(line.text) or "©" in line.text:
+                continue  # copyright years are not collector numbers
             if match := _NUMBER_RARITY.search(line.text):
                 hints.collector_number = match.group(1)
                 break
