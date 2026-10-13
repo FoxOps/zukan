@@ -9,6 +9,7 @@ from app.games.base import OcrLine, get_provider
 from app.games.mtg.provider import API_URL as SCRYFALL
 from app.games.pokemon.provider import API_URL as TCGDEX
 from app.games.sorcery.provider import API_URL as SORCERY
+from app.games.sorcery.provider import CARDMARKET_URL
 from app.main import register_games
 from app.services.catalog import sync_catalog
 from tests.conftest import SORCERY_CARDS, bearer, make_user
@@ -118,7 +119,13 @@ async def catalogs(session, monkeypatch):
         )
 
     for game, routes in (
-        ("sorcery", lambda r: r.get(SORCERY).respond(json=SORCERY_CARDS)),
+        (
+            "sorcery",
+            lambda r: (
+                r.get(SORCERY).respond(json=SORCERY_CARDS),
+                r.get(url__startswith=CARDMARKET_URL).respond(404),
+            ),
+        ),
         ("pokemon", lambda r: r.get(url__startswith=TCGDEX).mock(side_effect=tcgdex)),
         (
             "mtg",

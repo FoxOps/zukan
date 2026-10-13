@@ -23,6 +23,11 @@ class ColorDef:
     code: str  # stored in Card.colors
     name: str
     hex: str  # UI badge color
+    # Official symbol, downloaded once on first start: an image URL, optionally a
+    # (left, top, width, height) box to cut it out of a sprite sheet, or inline SVG.
+    icon_url: str | None = None
+    icon_box: tuple[int, int, int, int] | None = None
+    icon_svg: str | None = None
 
 
 @dataclass(frozen=True)
@@ -51,7 +56,8 @@ class PrintingData:
     artist: str | None = None
     finishes: list[str] = field(default_factory=list)
     languages: list[str] = field(default_factory=list)
-    image_url: str | None = None
+    # Image URL per language of the printed card.
+    images: dict[str, str] = field(default_factory=dict)
     attributes: dict[str, Any] = field(default_factory=dict)
     # Printed names by language, when they differ per printing (e.g. MTG localized cards).
     names: dict[str, str] = field(default_factory=dict)
@@ -130,6 +136,9 @@ class OcrHints:
 
 @runtime_checkable
 class GameProvider(Protocol):
+    """Optional attribute: `cache_all_images = True` makes the image job download every
+    printing's image instead of only owned ones (small catalogs)."""
+
     id: str
     name: str
     colors: list[ColorDef]
@@ -151,7 +160,7 @@ class GameProvider(Protocol):
 
     def image_file_stems(self, printing: Printing) -> list[str]:
         """File names (without extension) matching this printing in a manually downloaded
-        image folder. Empty when images are downloaded from `Printing.image_url`."""
+        image folder. Empty when images are downloaded from `Printing.image_urls`."""
         ...
 
     def parse_ocr(self, lines: list[OcrLine]) -> OcrHints:

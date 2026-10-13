@@ -24,6 +24,7 @@ from app.api.schemas import (
     ProviderOut,
     ProvidersOut,
     RefreshIn,
+    SettingsIn,
     TokenOut,
     UserOut,
 )
@@ -39,6 +40,7 @@ from app.core.security import (
     unsign,
     verify_password,
 )
+from app.games.base import registry
 from app.models import User, UserIdentity
 from app.services.sso import resolve_sso_user
 
@@ -183,6 +185,25 @@ async def _load_me(session: SessionDep, user_id: int) -> MeOut:
 
 @router.get("/me")
 async def me(user: CurrentUser, session: SessionDep) -> MeOut:
+    return await _load_me(session, user.id)
+
+
+@router.patch("/me")
+async def update_settings(body: SettingsIn, user: CurrentUser, session: SessionDep) -> MeOut:
+    fields = body.model_dump(exclude_unset=True)
+    if fields.get("language") is not None:
+        user.language = fields["language"]
+    if "catalog_games" in fields:
+        games = fields["catalog_games"]
+        if games is not None:
+            unknown = set(games) - set(registry())
+            if unknown:
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown games: {sorted(unknown)}"
+                )
+            games = [g for g in registry() if g in games]
+        user.catalog_games = games
+    await session.commit()
     return await _load_me(session, user.id)
 
 

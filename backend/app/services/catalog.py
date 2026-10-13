@@ -83,7 +83,7 @@ def _merge_printing(first: PrintingData, second: PrintingData) -> PrintingData:
         artist=first.artist or second.artist,
         finishes=_merge_unique(first.finishes, second.finishes),
         languages=_merge_unique(first.languages, second.languages),
-        image_url=first.image_url or second.image_url,
+        images={**second.images, **first.images},
         attributes={**second.attributes, **first.attributes},
         names={**second.names, **first.names},
     )
@@ -112,14 +112,14 @@ _PRINTING_FULL = {
     "collector_number": "excluded.collector_number",
     "rarity": "excluded.rarity",
     "artist": "excluded.artist",
-    "image_url": "coalesce(excluded.image_url, printing.image_url)",
+    "image_urls": "printing.image_urls || excluded.image_urls",
     "attributes": "printing.attributes || excluded.attributes",
 }
 _PRINTING_PARTIAL = {
     "collector_number": "coalesce(printing.collector_number, excluded.collector_number)",
     "rarity": "coalesce(printing.rarity, excluded.rarity)",
     "artist": "coalesce(printing.artist, excluded.artist)",
-    "image_url": "coalesce(printing.image_url, excluded.image_url)",
+    "image_urls": "excluded.image_urls || printing.image_urls",
     "attributes": "excluded.attributes || printing.attributes",
 }
 
@@ -256,7 +256,7 @@ class CatalogWriter:
                         "artist": p.artist,
                         "finishes": p.finishes,
                         "languages": p.languages,
-                        "image_url": p.image_url,
+                        "image_urls": p.images,
                         "attributes": p.attributes,
                     }
                 )

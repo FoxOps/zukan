@@ -5,12 +5,20 @@ from typing import Annotated, Any
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from sqlalchemy import case, exists, func, select
+from sqlalchemy import ColumnElement, case, exists, func, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, SessionDep
 from app.core.http import http_client
-from app.models import Card, CardName, CardSet, CollectionItem, PriceSnapshot, Printing
+from app.models import (
+    Card,
+    CardName,
+    CardSet,
+    CollectionItem,
+    PriceSnapshot,
+    Printing,
+    User,
+)
 from app.services import collection, images
 
 router = APIRouter(tags=["catalog"])
@@ -81,14 +89,24 @@ class CardPageOut(BaseModel):
     page_size: int
 
 
-def like_pattern(q: str) -> str:
-    """Case-insensitive substring pattern with LIKE wildcards escaped."""
-    return "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+def _escape_like(q: str) -> str:
+    return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-def image_link(printing: Printing) -> str | None:
-    if printing.image_path or printing.image_url:
-        return f"/api/printings/{printing.id}/image"
+def _search_text(q: str) -> ColumnElement[str]:
+    """`q` normalized like `CardName.search_name` (lower case, no accents)."""
+    return func.lower(func.f_unaccent(_escape_like(q)))
+
+
+def name_matches(q: str) -> ColumnElement[bool]:
+    """Card name contains `q`, ignoring case and accents ("foret" finds "Forêt")."""
+    return CardName.search_name.like("%" + _search_text(q) + "%")
+
+
+def image_link(printing: Printing, lang: str) -> str | None:
+    """Image URL in the user's language (with fallbacks, see `images`)."""
+    if images.has_image(printing):
+        return f"/api/printings/{printing.id}/image?lang={lang}"
     return None
 
 
@@ -108,7 +126,7 @@ async def list_sets(game_id: str, _: CurrentUser, session: SessionDep) -> list[S
 
 @router.get("/cards")
 async def search_cards(
-    _: CurrentUser,
+    user: CurrentUser,
     session: SessionDep,
     game: str | None = None,
     q: Annotated[str | None, Query(max_length=200)] = None,
@@ -117,23 +135,24 @@ async def search_cards(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> CardPageOut:
-    """Search cards by name in any language (substring match), set and colors.
-    Exact name matches come first, then names starting with `q`."""
+    """Search cards by name in any language (substring match, case and accents
+    ignored), set and colors. Exact name matches come first, then names starting with
+    `q`. Without `game`, only the games chosen in the user's settings are searched."""
     query = select(Card)
     order: list[Any] = [Card.name, Card.id]
     if game:
         query = query.where(Card.game_id == game)
+    elif user.catalog_games is not None:
+        query = query.where(Card.game_id.in_(user.catalog_games))
     if q:
-        query = query.where(
-            exists().where(CardName.card_id == Card.id, CardName.name.ilike(like_pattern(q)))
-        )
-        escaped = like_pattern(q)[1:-1]
+        query = query.where(exists().where(CardName.card_id == Card.id, name_matches(q)))
+        text = _search_text(q)
         rank = (
             select(
                 func.min(
                     case(
-                        (func.lower(CardName.name) == q.lower(), 0),
-                        (CardName.name.ilike(escaped + "%"), 1),
+                        (CardName.search_name == func.lower(func.f_unaccent(q)), 0),
+                        (CardName.search_name.like(text + "%"), 1),
                         else_=2,
                     )
                 )
@@ -158,7 +177,11 @@ async def search_cards(
     ).all()
     items = []
     for card in cards:
-        printings = sorted(card.printings, key=lambda p: p.image_path is None)
+        # A printing that has the user's language, then one already cached.
+        printings = sorted(
+            card.printings,
+            key=lambda p: (user.language not in p.image_urls, not any(p.image_paths.values())),
+        )
         items.append(
             CardSummaryOut(
                 id=card.id,
@@ -166,7 +189,9 @@ async def search_cards(
                 name=card.name,
                 colors=card.colors,
                 printing_count=len(printings),
-                image=next((image_link(p) for p in printings if image_link(p)), None),
+                image=next(
+                    (link for p in printings if (link := image_link(p, user.language))), None
+                ),
             )
         )
     return CardPageOut(items=items, total=total or 0, page=page, page_size=page_size)
@@ -186,21 +211,25 @@ async def get_card(card_id: int, user: CurrentUser, session: SessionDep) -> Card
         key=lambda p: (p.set.release_date or date.min, p.collector_number or ""),
         reverse=True,
     )
+    described = await describe_printings(session, user, printings)
+    # Printings the user owns first, newest first within each group (stable sort).
+    described.sort(key=lambda p: not p.owned)
     return CardOut(
         id=card.id,
         game_id=card.game_id,
         name=card.name,
         colors=card.colors,
         attributes=card.attributes,
-        printings=await describe_printings(session, user.id, printings),
+        printings=described,
     )
 
 
 async def describe_printings(
-    session: SessionDep, user_id: int, printings: list[Printing]
+    session: SessionDep, user: User, printings: list[Printing]
 ) -> list[PrintingOut]:
     """Printings (with `set` loaded) with localized names, latest prices and the user's
-    copies, in the given order."""
+    copies, in the given order. Images are in the user's language when available."""
+    user_id = user.id
     printing_ids = [p.id for p in printings]
     card_ids = {p.card_id for p in printings}
     rows = await session.execute(
@@ -250,7 +279,7 @@ async def describe_printings(
             artist=p.artist,
             finishes=p.finishes,
             languages=p.languages,
-            image=image_link(p),
+            image=image_link(p, user.language),
             names={**card_names.get(p.card_id, {}), **printing_names.get(p.id, {})},
             attributes=p.attributes,
             prices=prices.get(p.id, []),
@@ -292,14 +321,25 @@ async def price_history(
 
 
 @router.get("/printings/{printing_id}/image")
-async def printing_image(printing_id: int, _: CurrentUser, session: SessionDep) -> FileResponse:
+async def printing_image(
+    printing_id: int,
+    user: CurrentUser,
+    session: SessionDep,
+    lang: Annotated[str | None, Query(max_length=8)] = None,
+) -> FileResponse:
+    """Card image in `lang` (default: the user's language), else English, else
+    Japanese, else any language there is."""
     printing = await session.get(Printing, printing_id)
     if printing is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Printing not found")
-    path = images.cached_file(printing)
+    wanted = lang or user.language
+    languages = images.image_languages(printing, wanted)
+    # Fast path: the best language is cached. Otherwise try to download it (or the next
+    # best one), keeping cached fallbacks for when downloads fail.
+    path = images.cached_file(printing, languages[0]) if languages else None
     if path is None:
         async with http_client(timeout=20) as http:
-            path = await images.get_or_fetch(session, http, printing)
+            path = await images.get_or_fetch(session, http, printing, wanted)
     if path is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No image for this printing")
     return FileResponse(path, headers={"Cache-Control": "private, max-age=604800"})

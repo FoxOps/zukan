@@ -104,7 +104,10 @@ async def test_sync_sets_translations_and_exclusive_sets(client, session, tcgdex
     furret = await session.get(Printing, await printing_id(session, "swsh3", "136"))
     assert furret.languages == ["en", "fr"]
     assert furret.finishes == ["normal", "reverse"]
-    assert furret.image_url == "https://assets.tcgdex.net/en/swsh/swsh3/136/high.webp"
+    assert furret.image_urls == {
+        "en": "https://assets.tcgdex.net/en/swsh/swsh3/136/high.webp",
+        "fr": "https://assets.tcgdex.net/fr/swsh/swsh3/136/high.webp",
+    }
     assert furret.rarity == "Uncommon"  # translation did not clear details
     assert (
         len([p for p in await session.scalars(select(Printing)) if p.card_id == furret.card_id])

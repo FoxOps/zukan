@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -16,6 +17,7 @@ from app.core.db import get_sessionmaker
 from app.core.security import hash_password
 from app.games.base import registry
 from app.models import Game, Role, User
+from app.services.symbols import ensure_symbols
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +61,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         raise RuntimeError("Set TCG_SECRET_KEY to a random value of at least 32 characters")
     await register_games()
     await create_default_admin()
+    # Game symbols are downloaded once; the API serves requests meanwhile.
+    symbols = asyncio.create_task(ensure_symbols())
     yield
+    symbols.cancel()
 
 
 def create_app() -> FastAPI:

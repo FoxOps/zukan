@@ -4,7 +4,7 @@ The catalog comes from the `all_cards` bulk file (every printing in every langua
 about 400 MB gzipped, streamed line by line). Scryfall stores one object per printing
 and language; they are merged here into one printing per set and collector number.
 English objects carry the full data, other languages are partial: they add a printed
-name and a language, and only provide the image when no English scan exists.
+name, a language and the scan of the card in that language.
 
 Prices are Scryfall's Cardmarket EUR prices from the smaller `default_cards` file.
 """
@@ -64,6 +64,8 @@ LANGUAGES = {
     "ru": "ru",
 }
 PRICE_FIELDS = {"nonfoil": "eur", "foil": "eur_foil"}
+# Mana symbols, as served by Scryfall's symbology API.
+SYMBOLS_URL = "https://svgs.scryfall.io/card-symbols"
 
 
 class MtgSettings(BaseSettings):
@@ -107,6 +109,9 @@ def _colors(raw: dict[str, Any]) -> list[str]:
 
 
 def _face_images(raw: dict[str, Any]) -> list[str]:
+    # Scryfall shows the English scan (or nothing) when it has no scan in this language.
+    if raw.get("image_status") in ("missing", "placeholder"):
+        return []
     if raw.get("image_uris"):
         return [raw["image_uris"]["normal"]]
     return [f["image_uris"]["normal"] for f in raw.get("card_faces", []) if f.get("image_uris")]
@@ -160,7 +165,7 @@ def parse_card(raw: dict[str, Any]) -> CardData | None:
         artist=raw.get("artist"),
         finishes=list(raw.get("finishes", [])),
         languages=[lang],
-        image_url=images[0] if images else None,
+        images={lang: images[0]} if images else {},
         attributes=printing_attributes,
         names={lang: printed} if printed and printed != raw["name"] else {},
     )
@@ -259,12 +264,12 @@ class MtgProvider:
     id = "mtg"
     name = "Magic: The Gathering"
     colors = [
-        ColorDef("W", "White", "#F8E7B9"),
-        ColorDef("U", "Blue", "#0E68AB"),
-        ColorDef("B", "Black", "#150B00"),
-        ColorDef("R", "Red", "#D3202A"),
-        ColorDef("G", "Green", "#00733E"),
-        ColorDef("C", "Colorless", "#A9A9A9"),
+        ColorDef("W", "White", "#F8E7B9", icon_url=f"{SYMBOLS_URL}/W.svg"),
+        ColorDef("U", "Blue", "#0E68AB", icon_url=f"{SYMBOLS_URL}/U.svg"),
+        ColorDef("B", "Black", "#150B00", icon_url=f"{SYMBOLS_URL}/B.svg"),
+        ColorDef("R", "Red", "#D3202A", icon_url=f"{SYMBOLS_URL}/R.svg"),
+        ColorDef("G", "Green", "#00733E", icon_url=f"{SYMBOLS_URL}/G.svg"),
+        ColorDef("C", "Colorless", "#A9A9A9", icon_url=f"{SYMBOLS_URL}/C.svg"),
     ]
     finishes = [
         FinishDef("nonfoil", "Non-foil"),

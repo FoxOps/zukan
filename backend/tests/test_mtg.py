@@ -95,7 +95,7 @@ def test_parse_card():
         "Insectile Aberration",
     ]
     assert delver.colors == ["U"]
-    assert delver.printings[0].image_url.startswith("https://cards.scryfall.io/normal/front/")
+    assert delver.printings[0].images["en"].startswith("https://cards.scryfall.io/normal/front/")
     assert "/back/" in delver.printings[0].attributes["back_image_url"]
     assert parse_card(raw("fr", "isd")).printings[0].names["fr"].startswith("Sondeur de secrets")
 
@@ -123,13 +123,15 @@ async def test_sync_merges_languages(client, session, scryfall):
     elves = await printing(session, "dom", "168")
     elves_id = elves.id
     assert set(elves.languages) == {"en", "fr", "de"}
-    # The French object came first, the English scan still wins.
-    assert elves.image_url == raw("en", "dom")["image_uris"]["normal"]
+    # One scan per language, whatever the order of the objects.
+    assert elves.image_urls == {
+        lang: raw(lang, "dom")["image_uris"]["normal"] for lang in ("en", "fr", "de")
+    }
     assert elves.attributes["scryfall_id"] == raw("en", "dom")["id"]
 
     ajani = await printing(session, "war", "184★")
     assert ajani.languages == ["ja"]
-    assert ajani.image_url == raw("ja", "war")["image_uris"]["normal"]
+    assert ajani.image_urls == {"ja": raw("ja", "war")["image_uris"]["normal"]}
 
     names = set(await session.scalars(select(CardName.name).where(CardName.lang == "fr")))
     assert {"Elfes de Llanowar", "Sondeur de secrets // Aberration insectoïde"} <= names
@@ -163,7 +165,7 @@ async def test_language_order_does_not_matter(session, scryfall):
     scryfall.get(ALL_URL).respond(content=gz(list(reversed(LINES))))
     await sync_mtg(session)
     elves = await printing(session, "dom", "168")
-    assert elves.image_url == raw("en", "dom")["image_uris"]["normal"]
+    assert elves.image_urls["en"] == raw("en", "dom")["image_uris"]["normal"]
     assert set(elves.languages) == {"en", "fr", "de"}
 
 

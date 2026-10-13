@@ -1,14 +1,26 @@
-"""Sorcery: Contested Realm, data from https://api.sorcerytcg.com (no prices).
+"""Sorcery: Contested Realm, data from https://api.sorcerytcg.com.
 
 The API lists one printing per finish; slugs look like `{set}-{card}-{product}-{finish}`,
 e.g. `001-abundance-b-f`. Printings are grouped per set, card and product so finishes
-become a list. Card images are not served by the API (its CDN must not be used); they
-are imported from the public Google Drive folder, whose files are named after the
-printing slug (`fudabako import-images sorcery DIR`).
+become a list.
+
+Images: the API has none and asks that its CDN is not used to *serve* them. The card
+pages of sorcerytcg.com show `{IMAGE_URL}/{slug}.png`; the image job downloads each one
+once into the local cache (`cache_all_images`), and clients are only ever served the
+local copy. The public Google Drive folder, whose files are named after the printing
+slug, can still be imported instead (`fudabako import-images sorcery DIR`).
+
+Prices: Cardmarket publishes daily product and price guide files per game
+(Sorcery = game 25) on a public download bucket: two small files a day, no scraping.
 """
 
+import logging
+import re
+import unicodedata
+from collections import defaultdict
 from collections.abc import AsyncIterator
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any
 
 import httpx
@@ -29,7 +41,22 @@ from app.games.base import (
 from app.games.ocr import by_position, clean, letter_ratio
 from app.models import Printing
 
+log = logging.getLogger(__name__)
+
 API_URL = "https://api.sorcerytcg.com/api/cards"
+IMAGE_URL = "https://d27a44hjr9gen3.cloudfront.net/cards"
+CARDMARKET_URL = "https://downloads.s3.cardmarket.com/productCatalog"
+CARDMARKET_GAME = 25
+# Cardmarket expansion id -> Sorcery set code. Expansions missing here (new sets) are
+# matched to the set sharing the most card names.
+CARDMARKET_EXPANSIONS = {
+    6771: "001",  # Alpha
+    6775: "002",  # Beta
+    6778: "004",  # Arthurian Legends
+    6781: "005",  # Dragonlord
+    6779: "006",  # Gothic
+    6780: "999",  # Promo
+}
 
 _FINISHES = {"Standard": "standard", "Foil": "foil", "Rainbow": "rainbow"}
 _ELEMENTS = ("air", "earth", "fire", "water")
@@ -45,6 +72,12 @@ def _printing_key(slug: str) -> tuple[str, str]:
     """`001-abundance-b-f` -> set code `001`, printing id `abundance-b` (finish dropped)."""
     set_code, card_slug, product, _finish = slug.split("-")
     return set_code, f"{card_slug}-{product}"
+
+
+def _preferred_slugs(slugs: dict[str, str]) -> list[str]:
+    """Slugs of one printing, standard finish first (foil scans look the same, shinier)."""
+    order = ["standard", "foil", "rainbow"]
+    return [slugs[f] for f in sorted(slugs, key=lambda f: order.index(f) if f in order else 9)]
 
 
 def _card_attributes(engine: dict[str, Any]) -> dict[str, Any]:
@@ -113,19 +146,117 @@ def parse_cards(raw: list[dict[str, Any]]) -> CatalogBatch:
                 printing.finishes.append(finish)
             printing.attributes["slugs"][finish] = raw_printing["slug"]
         card.printings = list(printings.values())
+        for printing in card.printings:
+            slug = _preferred_slugs(printing.attributes["slugs"])[0]
+            printing.images = {"en": f"{IMAGE_URL}/{slug}.png"}
         batch.cards.append(card)
     batch.sets = list(sets.values())
     return batch
+
+
+def _name_key(name: str) -> str:
+    """Card name for matching across sources: no accents, case or punctuation."""
+    stripped = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", " ", stripped.casefold()).strip()
+
+
+def _first_decimal(*values: Any) -> Decimal | None:
+    """First given price; 0 means no data in the price guide."""
+    return next((Decimal(str(v)) for v in values if v), None)
+
+
+def _guide_quote(set_code: str, printing_id: str, finish: str, guide: dict) -> PriceQuote:
+    suffix = "" if finish == "standard" else "-foil"
+    # Many Sorcery products are too new on Cardmarket to have a trend: fall back to the
+    # recent averages, then to the lowest offer.
+    return PriceQuote(
+        set_code,
+        printing_id,
+        finish,
+        trend=_first_decimal(
+            guide.get(f"trend{suffix}"),
+            guide.get(f"avg7{suffix}"),
+            guide.get(f"avg30{suffix}"),
+            guide.get(f"avg{suffix}"),
+            guide.get(f"low{suffix}"),
+        ),
+        low=_first_decimal(guide.get(f"low{suffix}")),
+        avg=_first_decimal(guide.get(f"avg{suffix}")),
+    )
+
+
+def match_cardmarket(
+    catalog: CatalogBatch, products: list[dict[str, Any]], guides: list[dict[str, Any]]
+) -> list[PriceQuote]:
+    """Price quotes for catalog printings from Cardmarket's product list and price guide.
+
+    Products are matched by expansion and card name. When one name has several products
+    in an expansion (box toppers, preconstructed decks), they are paired in order with
+    the printings of that name, booster printing first."""
+    ours: dict[tuple[str, str], list[PrintingData]] = defaultdict(list)
+    for card in catalog.cards:
+        for printing in card.printings:
+            ours[(printing.set_external_id, _name_key(card.name))].append(printing)
+    for printings in ours.values():
+        printings.sort(key=lambda p: (p.attributes.get("product") != "Booster", p.external_id))
+
+    by_expansion: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    for product in sorted(products, key=lambda p: p["idProduct"]):
+        by_expansion[product["idExpansion"]].append(product)
+
+    expansions = dict(CARDMARKET_EXPANSIONS)
+    set_names: dict[str, set[str]] = defaultdict(set)
+    for set_code, key in ours:
+        set_names[set_code].add(key)
+    for expansion, items in sorted(by_expansion.items()):
+        if expansion in expansions:
+            continue
+        names = {_name_key(p["name"]) for p in items}
+        free = [code for code in set_names if code not in expansions.values()]
+        best = max(free, key=lambda code: len(names & set_names[code]), default=None)
+        if best is not None and names & set_names[best]:
+            expansions[expansion] = best
+
+    prices = {g["idProduct"]: g for g in guides}
+    quotes = []
+    for expansion, items in by_expansion.items():
+        set_code = expansions.get(expansion)
+        if set_code is None:
+            continue
+        same_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for product in items:
+            same_name[_name_key(product["name"])].append(product)
+        for key, matches in same_name.items():
+            for product, printing in zip(matches, ours.get((set_code, key), []), strict=False):
+                guide = prices.get(product["idProduct"])
+                if guide is not None:
+                    quotes += [
+                        _guide_quote(set_code, printing.external_id, finish, guide)
+                        for finish in printing.finishes
+                    ]
+    return quotes
+
+
+def _element_icon(color: str, down: bool, bar: bool) -> str:
+    """Alchemical element triangle, the symbol of Sorcery threshold costs (the publisher
+    offers no icon files)."""
+    triangle = "M4 5 12 20 20 5Z" if down else "M4 19 12 4 20 19Z"
+    line = f'<path d="M6 {9.5 if down else 14.5}h12"/>' if bar else ""
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" '
+        f'stroke="{color}" stroke-width="2.6" stroke-linejoin="round">'
+        f'<path d="{triangle}"/>{line}</svg>'
+    )
 
 
 class SorceryProvider:
     id = "sorcery"
     name = "Sorcery: Contested Realm"
     colors = [
-        ColorDef("air", "Air", "#A7C7E7"),
-        ColorDef("earth", "Earth", "#8B7355"),
-        ColorDef("fire", "Fire", "#D9534F"),
-        ColorDef("water", "Water", "#3B7DD8"),
+        ColorDef("air", "Air", "#A7C7E7", icon_svg=_element_icon("#7FA6CF", False, True)),
+        ColorDef("earth", "Earth", "#8B7355", icon_svg=_element_icon("#8B7355", True, True)),
+        ColorDef("fire", "Fire", "#D9534F", icon_svg=_element_icon("#D9534F", False, False)),
+        ColorDef("water", "Water", "#3B7DD8", icon_svg=_element_icon("#3B7DD8", True, False)),
     ]
     finishes = [
         FinishDef("standard", "Standard"),
@@ -133,24 +264,41 @@ class SorceryProvider:
         FinishDef("rainbow", "Rainbow foil"),
     ]
     languages = ["en"]
-    price_source = None
+    price_source = "cardmarket"
+    # About 1600 printings: every image is cached, not only those of owned cards.
+    cache_all_images = True
+
+    async def _catalog(self, http: httpx.AsyncClient) -> CatalogBatch:
+        # Whole catalog in one call (API limit: 30 requests/minute).
+        return parse_cards((await get_with_retry(http, API_URL)).json())
+
+    async def _cardmarket_quotes(
+        self, http: httpx.AsyncClient, catalog: CatalogBatch
+    ) -> list[PriceQuote]:
+        products = await get_with_retry(
+            http, f"{CARDMARKET_URL}/productList/products_singles_{CARDMARKET_GAME}.json"
+        )
+        guides = await get_with_retry(
+            http, f"{CARDMARKET_URL}/priceGuide/price_guide_{CARDMARKET_GAME}.json"
+        )
+        return match_cardmarket(catalog, products.json()["products"], guides.json()["priceGuides"])
 
     async def fetch_catalog(self, http: httpx.AsyncClient) -> AsyncIterator[CatalogBatch]:
-        # Whole catalog in one call (API limit: 30 requests/minute).
-        response = await get_with_retry(http, API_URL)
-        yield parse_cards(response.json())
+        batch = await self._catalog(http)
+        try:
+            batch.prices = await self._cardmarket_quotes(http, batch)
+        except httpx.HTTPError as exc:
+            # The daily price job tries again.
+            log.warning("Cardmarket price guide unavailable: %s", exc)
+        yield batch
 
     async def fetch_prices(
         self, http: httpx.AsyncClient, owned: list[PriceTarget]
     ) -> AsyncIterator[list[PriceQuote]]:
-        return
-        yield
+        yield await self._cardmarket_quotes(http, await self._catalog(http))
 
     def image_file_stems(self, printing: Printing) -> list[str]:
-        slugs: dict[str, str] = printing.attributes.get("slugs", {})
-        # Prefer the standard finish image; foil scans look the same but shinier.
-        order = ["standard", "foil", "rainbow"]
-        return [slugs[f] for f in sorted(slugs, key=lambda f: order.index(f) if f in order else 9)]
+        return _preferred_slugs(printing.attributes.get("slugs", {}))
 
     def parse_ocr(self, lines: list[OcrLine]) -> OcrHints:
         # No collector number or set code on the cards: the name (top line) is all.
