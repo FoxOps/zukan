@@ -3,9 +3,14 @@ package fr.fudabako.app.auth
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import fr.fudabako.app.BuildConfig
 import androidx.core.net.toUri
+import fr.fudabako.app.BuildConfig
+import fr.fudabako.app.R
 import fr.fudabako.app.data.ProviderOut
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import net.openid.appauth.AppAuthConfiguration
 import net.openid.appauth.AuthorizationException
@@ -15,10 +20,6 @@ import net.openid.appauth.AuthorizationService
 import net.openid.appauth.AuthorizationServiceConfiguration
 import net.openid.appauth.ResponseTypeValues
 import net.openid.appauth.connectivity.ConnectionBuilder
-import java.net.HttpURLConnection
-import java.net.URL
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /** fr.fudabako.app:/oauth2redirect, or fr.fudabako.app.dev:/oauth2redirect for dev builds. */
 const val REDIRECT_URI = "${BuildConfig.REDIRECT_SCHEME}:/oauth2redirect"
@@ -30,7 +31,7 @@ data class SsoResult(val idToken: String, val nonce: String, val accessToken: St
  * OpenID Connect login with AppAuth: authorization code + PKCE in a browser tab, as a
  * public client (`mobile_client_id`). The app never sees a client secret.
  */
-class SsoLogin(context: Context) {
+class SsoLogin(private val context: Context) {
     // AppAuth only allows HTTPS by default; home identity providers may be plain HTTP.
     private val connections = ConnectionBuilder { uri: Uri ->
         (URL(uri.toString()).openConnection() as HttpURLConnection).apply {
@@ -45,10 +46,10 @@ class SsoLogin(context: Context) {
     )
 
     suspend fun authorizationIntent(provider: ProviderOut): Pair<Intent, AuthorizationRequest> {
-        val clientId = provider.mobileClientId ?: error("${provider.displayName} has no mobile client configured")
+        val clientId = provider.mobileClientId ?: error(context.getString(R.string.error_sso_no_client, provider.displayName))
         val configuration = suspendCancellableCoroutine { cont ->
             AuthorizationServiceConfiguration.fetchFromIssuer(provider.issuer.toUri(), { config, error ->
-                if (config != null) cont.resume(config) else cont.resumeWithException(error ?: IllegalStateException("Discovery failed"))
+                if (config != null) cont.resume(config) else cont.resumeWithException(error ?: IllegalStateException(context.getString(R.string.error_sso_discovery)))
             }, connections)
         }
         val request = AuthorizationRequest.Builder(
@@ -65,15 +66,15 @@ class SsoLogin(context: Context) {
         val response = data?.let { AuthorizationResponse.fromIntent(it) }
         if (response == null) {
             val error = data?.let { AuthorizationException.fromIntent(it) }
-            throw IllegalStateException(error?.errorDescription ?: error?.error ?: "Login cancelled")
+            throw IllegalStateException(error?.errorDescription ?: error?.error ?: context.getString(R.string.error_sso_cancelled))
         }
         val tokens = suspendCancellableCoroutine { cont ->
             service.performTokenRequest(response.createTokenExchangeRequest()) { token, error ->
-                if (token != null) cont.resume(token) else cont.resumeWithException(error ?: IllegalStateException("Token request failed"))
+                if (token != null) cont.resume(token) else cont.resumeWithException(error ?: IllegalStateException(context.getString(R.string.error_sso_token)))
             }
         }
-        val idToken = tokens.idToken ?: error("The identity provider returned no ID token")
-        val nonce = response.request.nonce ?: error("Missing nonce")
+        val idToken = tokens.idToken ?: error(context.getString(R.string.error_sso_no_id_token))
+        val nonce = response.request.nonce ?: error(context.getString(R.string.error_sso_no_nonce))
         return SsoResult(idToken, nonce, tokens.accessToken)
     }
 

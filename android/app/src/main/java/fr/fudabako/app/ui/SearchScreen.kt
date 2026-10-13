@@ -23,9 +23,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
+import fr.fudabako.app.R
 import fr.fudabako.app.data.CardSummaryOut
 import fr.fudabako.app.data.FudabakoApi
 import fr.fudabako.app.data.GameOut
@@ -45,6 +49,7 @@ fun SearchScreen(
     var query by rememberSaveable { mutableStateOf("") }
     var results by remember { mutableStateOf<List<CardSummaryOut>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
 
     LaunchedEffect(query, game) {
         if (api == null || query.trim().length < 2) {
@@ -54,14 +59,14 @@ fun SearchScreen(
         delay(300) // typing debounce
         runCatching { api.searchCards(query.trim(), game) }
             .onSuccess { results = it.items; error = null }
-            .onFailure { error = it.userMessage() }
+            .onFailure { error = it.userMessage(context) }
     }
 
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
-            label = { Text("Card name, any language") },
+            label = { Text(stringResource(R.string.search_hint)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -82,7 +87,12 @@ fun SearchScreen(
                     Column {
                         Text(card.name, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "${games.firstOrNull { it.id == card.gameId }?.name ?: card.gameId} · ${card.printingCount} printings",
+                            pluralStringResource(
+                                R.plurals.printing_count,
+                                card.printingCount,
+                                games.firstOrNull { it.id == card.gameId }?.name ?: card.gameId,
+                                card.printingCount,
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }

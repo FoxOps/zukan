@@ -18,7 +18,7 @@ android {
         targetSdk = 37
         // CI passes -PversionCode / -PversionName (prod: from the release version).
         versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
-        versionName = providers.gradleProperty("versionName").orNull ?: "0.1.1"
+        versionName = providers.gradleProperty("versionName").orNull ?: "0.2.0"
         resValue("string", "app_name", "Fudabako")
         redirectScheme("fr.fudabako.app")
     }
@@ -50,6 +50,12 @@ android {
             // Same key as releases in CI, so successive dev builds update each other.
             signingConfigs.findByName("release")?.let { signingConfig = it }
         }
+    }
+    // English (default, res/values) and French (res/values-fr). The generated locale config
+    // lists them in the system's per-app language settings (Android 13+).
+    androidResources {
+        generateLocaleConfig = true
+        localeFilters += listOf("en", "fr")
     }
     buildFeatures {
         compose = true

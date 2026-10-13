@@ -28,10 +28,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import fr.fudabako.app.R
 import fr.fudabako.app.data.ServerUrl
 import kotlinx.coroutines.launch
 
@@ -52,40 +54,40 @@ fun LoginScreen(session: SessionViewModel, state: SessionState) {
     ) {
         Spacer(Modifier.height(32.dp))
         Text("Fudabako", style = MaterialTheme.typography.displaySmall)
-        Text("札箱 · card box", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
+        Text(stringResource(R.string.tagline), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
         Spacer(Modifier.height(16.dp))
 
         if (!connected) {
             OutlinedTextField(
                 value = server,
                 onValueChange = { server = it },
-                label = { Text("Server address") },
-                placeholder = { Text("cards.example.org or 192.168.1.10:8000") },
+                label = { Text(stringResource(R.string.server_address)) },
+                placeholder = { Text(stringResource(R.string.server_address_hint)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
                 modifier = Modifier.fillMaxWidth(),
             )
             Button(onClick = { session.connect(server) }, enabled = server.isNotBlank() && !state.busy, modifier = Modifier.fillMaxWidth()) {
-                Text("Connect")
+                Text(stringResource(R.string.connect))
             }
         } else {
             Text(state.serverUrl, style = MaterialTheme.typography.bodyMedium)
             if (!ServerUrl.isSecure(state.serverUrl)) {
                 Text(
-                    "Not encrypted (HTTP): use only on your home network or a VPN.",
+                    stringResource(R.string.not_encrypted),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
-            TextButton(onClick = session::disconnect) { Text("Change server") }
+            TextButton(onClick = session::disconnect) { Text(stringResource(R.string.change_server)) }
 
             if (state.providers.localLoginEnabled) {
                 OutlinedTextField(
-                    value = username, onValueChange = { username = it }, label = { Text("User") },
+                    value = username, onValueChange = { username = it }, label = { Text(stringResource(R.string.user)) },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
-                    value = password, onValueChange = { password = it }, label = { Text("Password") },
+                    value = password, onValueChange = { password = it }, label = { Text(stringResource(R.string.password)) },
                     singleLine = true, visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth(),
@@ -94,7 +96,7 @@ fun LoginScreen(session: SessionViewModel, state: SessionState) {
                     onClick = { session.login(username, password) },
                     enabled = username.isNotBlank() && password.isNotEmpty() && !state.busy,
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Log in") }
+                ) { Text(stringResource(R.string.log_in)) }
             }
             val sso = state.providers.providers.filter { it.mobileClientId != null }
             if (sso.isNotEmpty() && state.providers.localLoginEnabled) HorizontalDivider(Modifier.padding(vertical = 8.dp))
@@ -103,7 +105,7 @@ fun LoginScreen(session: SessionViewModel, state: SessionState) {
                     onClick = { scope.launch { session.ssoIntent(provider)?.let(ssoLauncher::launch) } },
                     enabled = !state.busy,
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Sign in with ${provider.displayName}") }
+                ) { Text(stringResource(R.string.sign_in_with, provider.displayName)) }
             }
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }

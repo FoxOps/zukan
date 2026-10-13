@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tagline">札箱 · boîte à cartes</string>
+
+    <!-- Onglets -->
+    <string name="tab_scan">Scanner</string>
+    <string name="tab_search">Rechercher</string>
+    <string name="tab_settings">Réglages</string>
+    <string name="undo">Annuler</string>
+
+    <!-- Connexion -->
+    <string name="server_address">Adresse du serveur</string>
+    <string name="server_address_hint">cartes.exemple.fr ou 192.168.1.10:8000</string>
+    <string name="connect">Se connecter</string>
+    <string name="not_encrypted">Non chiffré (HTTP) : à utiliser uniquement sur votre réseau local ou via un VPN.</string>
+    <string name="change_server">Changer de serveur</string>
+    <string name="user">Utilisateur</string>
+    <string name="password">Mot de passe</string>
+    <string name="log_in">Connexion</string>
+    <string name="sign_in_with">Se connecter avec %1$s</string>
+
+    <!-- Scan -->
+    <string name="camera_needed">L\'appareil photo est nécessaire pour lire les cartes.</string>
+    <string name="allow_camera">Autoriser l\'appareil photo</string>
+    <string name="any_game">Tous les jeux</string>
+    <string name="point_at_card">Visez une carte</string>
+    <string name="identifying">Identification…</string>
+    <string name="no_match">Aucune correspondance</string>
+    <string name="try_again">Réessayer</string>
+
+    <!-- Résultat -->
+    <string name="no_picture">Pas d\'image</string>
+    <string name="price">%1$s : %2$s €</string>
+    <string name="owned">Possédé %1$d× %2$s %3$s %4$s</string>
+    <string name="previous_printing">Impression précédente</string>
+    <string name="next_printing">Impression suivante</string>
+    <string name="printing_position">Impression %1$d / %2$d</string>
+    <string name="condition">État</string>
+    <string name="language">Langue</string>
+    <string name="picker_value">%1$s : %2$s</string>
+    <string name="less">Moins</string>
+    <string name="more">Plus</string>
+    <string name="remove">Retirer</string>
+    <string name="add">Ajouter</string>
+    <string name="scan_next">Carte suivante</string>
+    <string name="added">%1$d × %2$s ajouté (total %3$d)</string>
+    <string name="removed">%1$d × %2$s retiré (total %3$d)</string>
+    <string name="undone">Annulé : %1$s (total %2$d)</string>
+
+    <!-- Recherche -->
+    <string name="search_hint">Nom de la carte, toute langue</string>
+    <plurals name="printing_count">
+        <item quantity="one">%1$s · %2$d impression</item>
+        <item quantity="many">%1$s · %2$d impressions</item>
+        <item quantity="other">%1$s · %2$d impressions</item>
+    </plurals>
+
+    <!-- Réglages -->
+    <string name="settings">Réglages</string>
+    <string name="signed_in_as">Connecté en tant que %1$s sur %2$s</string>
+    <string name="text_recognition">Reconnaissance de texte</string>
+    <string name="text_recognition_help">Choisissez l\'écriture imprimée sur les cartes scannées. Chacune lit aussi l\'alphabet latin.</string>
+    <string name="script_latin">Latin</string>
+    <string name="script_japanese">Japonais</string>
+    <string name="script_chinese">Chinois</string>
+    <string name="script_korean">Coréen</string>
+    <string name="default_condition">État par défaut</string>
+    <string name="default_language">Langue par défaut (si la carte ne l\'indique pas)</string>
+    <string name="printing_language">Celle de l\'impression</string>
+    <string name="log_out">Se déconnecter</string>
+
+    <!-- Erreurs -->
+    <string name="error_session_expired">Session expirée, veuillez vous reconnecter</string>
+    <string name="error_no_login">Aucune connexion en cours</string>
+    <string name="error_not_connected">Connectez-vous d\'abord à un serveur</string>
+    <string name="error_server">Erreur du serveur %1$d</string>
+    <string name="error_unknown_host">Serveur introuvable</string>
+    <string name="error_connect">Impossible de joindre le serveur</string>
+    <string name="error_timeout">Le serveur n\'a pas répondu</string>
+    <string name="error_ssl">Échec de la connexion sécurisée (certificat ?)</string>
+    <string name="error_sso_no_client">%1$s n\'a pas de client mobile configuré</string>
+    <string name="error_sso_discovery">Échec de la découverte</string>
+    <string name="error_sso_cancelled">Connexion annulée</string>
+    <string name="error_sso_token">Échec de la demande de jeton</string>
+    <string name="error_sso_no_id_token">Le fournisseur d\'identité n\'a renvoyé aucun jeton d\'identité</string>
+    <string name="error_sso_no_nonce">Nonce manquant</string>
+</resources>

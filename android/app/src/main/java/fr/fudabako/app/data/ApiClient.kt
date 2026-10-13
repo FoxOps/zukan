@@ -1,5 +1,8 @@
 package fr.fudabako.app.data
 
+import android.content.Context
+import fr.fudabako.app.R
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -16,7 +19,6 @@ import okhttp3.Route
 import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
-import java.util.concurrent.TimeUnit
 
 private val NO_REFRESH = listOf("/api/auth/login", "/api/auth/refresh", "/exchange")
 
@@ -95,22 +97,25 @@ class ApiClient(
     private fun Request.withToken(token: String) = newBuilder().header("Authorization", "Bearer $token").build()
 }
 
-/** Human-readable message from a failed call (FastAPI puts it in `detail`). */
-fun Throwable.userMessage(): String {
-    if (this is HttpException) {
-        val body = response()?.errorBody()?.string().orEmpty()
-        val detail = runCatching { json.parseToJsonElement(body).jsonObject["detail"] }.getOrNull()
-        return when (detail) {
-            is JsonPrimitive -> detail.content
-            is JsonArray -> detail.joinToString { runCatching { it.jsonObject["msg"]!!.jsonPrimitive.content }.getOrDefault("") }
-            else -> "Server error ${code()}"
-        }
-    }
+/** Human-readable message from a failed call, in the app's language except for server details. */
+fun Throwable.userMessage(context: Context): String {
+    if (this is HttpException) return serverDetail() ?: context.getString(R.string.error_server, code())
     return when (this) {
-        is java.net.UnknownHostException -> "Server not found"
-        is java.net.ConnectException -> "Cannot reach the server"
-        is java.net.SocketTimeoutException -> "The server did not answer"
-        is javax.net.ssl.SSLException -> "Secure connection failed (certificate?)"
+        is java.net.UnknownHostException -> context.getString(R.string.error_unknown_host)
+        is java.net.ConnectException -> context.getString(R.string.error_connect)
+        is java.net.SocketTimeoutException -> context.getString(R.string.error_timeout)
+        is javax.net.ssl.SSLException -> context.getString(R.string.error_ssl)
         else -> message ?: toString()
+    }
+}
+
+/** The message of a failed HTTP call, as written by the server (FastAPI puts it in `detail`). */
+fun Throwable.serverDetail(): String? {
+    if (this !is HttpException) return null
+    val body = response()?.errorBody()?.string().orEmpty()
+    return when (val detail = runCatching { json.parseToJsonElement(body).jsonObject["detail"] }.getOrNull()) {
+        is JsonPrimitive -> detail.content
+        is JsonArray -> detail.joinToString { runCatching { it.jsonObject["msg"]!!.jsonPrimitive.content }.getOrDefault("") }
+        else -> null
     }
 }

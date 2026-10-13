@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import fr.fudabako.app.FudabakoApp
+import fr.fudabako.app.R
 import fr.fudabako.app.auth.SsoLogin
 import fr.fudabako.app.data.ApiClient
 import fr.fudabako.app.data.GameOut
@@ -60,7 +61,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             app.sessionExpired.collect { expired ->
                 if (expired) {
-                    _state.update { it.copy(username = null, error = "Session expired, please log in again") }
+                    _state.update { it.copy(username = null, error = app.getString(R.string.error_session_expired)) }
                     app.sessionExpired.value = false
                 }
             }
@@ -88,12 +89,12 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         pendingProvider = provider
         sso.authorizationIntent(provider).first
     } catch (e: Exception) {
-        _state.update { it.copy(error = e.userMessage()) }
+        _state.update { it.copy(error = e.userMessage(app)) }
         null
     }
 
     fun ssoResult(data: Intent?) = work {
-        val provider = pendingProvider ?: error("No login in progress")
+        val provider = pendingProvider ?: error(app.getString(R.string.error_no_login))
         val result = sso.complete(data)
         val client = requireClient()
         signIn(client, client.api.exchange(provider.name, OidcExchangeIn(result.idToken, result.nonce, result.accessToken)))
@@ -127,10 +128,10 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
             val me = client.api.me()
             val games = client.api.games()
             _state.update { it.copy(username = me.username, games = games, error = null) }
-        }.onFailure { e -> _state.update { it.copy(username = null, error = e.userMessage()) } }
+        }.onFailure { e -> _state.update { it.copy(username = null, error = e.userMessage(app)) } }
     }
 
-    private fun requireClient(): ApiClient = app.client.value ?: error("Connect to a server first")
+    private fun requireClient(): ApiClient = app.client.value ?: error(app.getString(R.string.error_not_connected))
 
     private fun work(block: suspend () -> Unit) {
         viewModelScope.launch {
@@ -138,7 +139,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
             try {
                 block()
             } catch (e: Exception) {
-                _state.update { it.copy(error = e.userMessage()) }
+                _state.update { it.copy(error = e.userMessage(app)) }
             } finally {
                 _state.update { it.copy(busy = false) }
             }
