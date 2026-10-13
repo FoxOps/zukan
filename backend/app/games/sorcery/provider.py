@@ -20,12 +20,12 @@ import unicodedata
 from collections import defaultdict
 from collections.abc import AsyncIterator
 from datetime import date, datetime
-from decimal import Decimal
 from typing import Any
 
 import httpx
 
 from app.core.http import get_with_retry
+from app.games import cardmarket
 from app.games.base import (
     CardData,
     CatalogBatch,
@@ -38,6 +38,7 @@ from app.games.base import (
     PrintingData,
     SetData,
 )
+from app.games.cardmarket import Guide
 from app.games.ocr import by_position, clean, letter_ratio
 from app.models import Printing
 
@@ -45,8 +46,11 @@ log = logging.getLogger(__name__)
 
 API_URL = "https://api.sorcerytcg.com/api/cards"
 IMAGE_URL = "https://d27a44hjr9gen3.cloudfront.net/cards"
-CARDMARKET_URL = "https://downloads.s3.cardmarket.com/productCatalog"
 CARDMARKET_GAME = 25
+# Element symbols of the sorcerytcg.com card gallery. The names carry a build hash: when
+# the site changes them, the download fails, the UI shows colored badges and the next
+# start tries again (update the names here).
+SYMBOLS_URL = "https://sorcerytcg.com/_next/static/media"
 # Cardmarket expansion id -> Sorcery set code. Expansions missing here (new sets) are
 # matched to the set sharing the most card names.
 CARDMARKET_EXPANSIONS = {
@@ -160,35 +164,16 @@ def _name_key(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", stripped.casefold()).strip()
 
 
-def _first_decimal(*values: Any) -> Decimal | None:
-    """First given price; 0 means no data in the price guide."""
-    return next((Decimal(str(v)) for v in values if v), None)
-
-
-def _guide_quote(set_code: str, printing_id: str, finish: str, guide: dict) -> PriceQuote:
-    suffix = "" if finish == "standard" else "-foil"
-    # Many Sorcery products are too new on Cardmarket to have a trend: fall back to the
-    # recent averages, then to the lowest offer.
-    return PriceQuote(
-        set_code,
-        printing_id,
-        finish,
-        trend=_first_decimal(
-            guide.get(f"trend{suffix}"),
-            guide.get(f"avg7{suffix}"),
-            guide.get(f"avg30{suffix}"),
-            guide.get(f"avg{suffix}"),
-            guide.get(f"low{suffix}"),
-        ),
-        low=_first_decimal(guide.get(f"low{suffix}")),
-        avg=_first_decimal(guide.get(f"avg{suffix}")),
-    )
+def _guide_quote(set_code: str, printing_id: str, finish: str, guide: Guide) -> PriceQuote:
+    trend, low, avg = cardmarket.prices(guide, "" if finish == "standard" else "-foil")
+    return PriceQuote(set_code, printing_id, finish, trend=trend, low=low, avg=avg)
 
 
 def match_cardmarket(
-    catalog: CatalogBatch, products: list[dict[str, Any]], guides: list[dict[str, Any]]
+    catalog: CatalogBatch, products: list[dict[str, Any]], guides: dict[int, Guide]
 ) -> list[PriceQuote]:
     """Price quotes for catalog printings from Cardmarket's product list and price guide.
+    Matched printings also get their `cardmarket_id` attribute (product page link).
 
     Products are matched by expansion and card name. When one name has several products
     in an expansion (box toppers, preconstructed decks), they are paired in order with
@@ -217,7 +202,6 @@ def match_cardmarket(
         if best is not None and names & set_names[best]:
             expansions[expansion] = best
 
-    prices = {g["idProduct"]: g for g in guides}
     quotes = []
     for expansion, items in by_expansion.items():
         set_code = expansions.get(expansion)
@@ -228,7 +212,8 @@ def match_cardmarket(
             same_name[_name_key(product["name"])].append(product)
         for key, matches in same_name.items():
             for product, printing in zip(matches, ours.get((set_code, key), []), strict=False):
-                guide = prices.get(product["idProduct"])
+                printing.attributes["cardmarket_id"] = product["idProduct"]
+                guide = guides.get(product["idProduct"])
                 if guide is not None:
                     quotes += [
                         _guide_quote(set_code, printing.external_id, finish, guide)
@@ -237,26 +222,14 @@ def match_cardmarket(
     return quotes
 
 
-def _element_icon(color: str, down: bool, bar: bool) -> str:
-    """Alchemical element triangle, the symbol of Sorcery threshold costs (the publisher
-    offers no icon files)."""
-    triangle = "M4 5 12 20 20 5Z" if down else "M4 19 12 4 20 19Z"
-    line = f'<path d="M6 {9.5 if down else 14.5}h12"/>' if bar else ""
-    return (
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" '
-        f'stroke="{color}" stroke-width="2.6" stroke-linejoin="round">'
-        f'<path d="{triangle}"/>{line}</svg>'
-    )
-
-
 class SorceryProvider:
     id = "sorcery"
     name = "Sorcery: Contested Realm"
     colors = [
-        ColorDef("air", "Air", "#A7C7E7", icon_svg=_element_icon("#7FA6CF", False, True)),
-        ColorDef("earth", "Earth", "#8B7355", icon_svg=_element_icon("#8B7355", True, True)),
-        ColorDef("fire", "Fire", "#D9534F", icon_svg=_element_icon("#D9534F", False, False)),
-        ColorDef("water", "Water", "#3B7DD8", icon_svg=_element_icon("#3B7DD8", True, False)),
+        ColorDef("air", "Air", "#A7C7E7", f"{SYMBOLS_URL}/wind.3clc3r7aw-53b.png"),
+        ColorDef("earth", "Earth", "#8B7355", f"{SYMBOLS_URL}/earth.1ecox-b66v_sg.png"),
+        ColorDef("fire", "Fire", "#D9534F", f"{SYMBOLS_URL}/fire.1-a6d1dh1sjri.png"),
+        ColorDef("water", "Water", "#3B7DD8", f"{SYMBOLS_URL}/water.1t_7z-bl67xy7.png"),
     ]
     finishes = [
         FinishDef("standard", "Standard"),
@@ -265,6 +238,7 @@ class SorceryProvider:
     ]
     languages = ["en"]
     price_source = "cardmarket"
+    cardmarket_path = "Sorcery"
     # About 1600 printings: every image is cached, not only those of owned cards.
     cache_all_images = True
 
@@ -275,13 +249,9 @@ class SorceryProvider:
     async def _cardmarket_quotes(
         self, http: httpx.AsyncClient, catalog: CatalogBatch
     ) -> list[PriceQuote]:
-        products = await get_with_retry(
-            http, f"{CARDMARKET_URL}/productList/products_singles_{CARDMARKET_GAME}.json"
-        )
-        guides = await get_with_retry(
-            http, f"{CARDMARKET_URL}/priceGuide/price_guide_{CARDMARKET_GAME}.json"
-        )
-        return match_cardmarket(catalog, products.json()["products"], guides.json()["priceGuides"])
+        products = await cardmarket.products(http, CARDMARKET_GAME)
+        guides = await cardmarket.price_guide(http, CARDMARKET_GAME)
+        return match_cardmarket(catalog, products, guides)
 
     async def fetch_catalog(self, http: httpx.AsyncClient) -> AsyncIterator[CatalogBatch]:
         batch = await self._catalog(http)

@@ -29,6 +29,8 @@ class GameOut(BaseModel):
     finishes: list[FinishOut]
     languages: list[str]
     has_prices: bool
+    # Cardmarket URL segment: https://www.cardmarket.com/{lang}/{cardmarket}/Products?idProduct=
+    cardmarket: str | None
 
 
 @router.get("")
@@ -51,6 +53,7 @@ async def list_games(_: CurrentUser) -> list[GameOut]:
             finishes=[FinishOut(code=f.code, name=f.name) for f in p.finishes],
             languages=p.languages,
             has_prices=p.price_source is not None,
+            cardmarket=getattr(p, "cardmarket_path", None),
         )
         for p in registry().values()
     ]

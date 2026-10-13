@@ -266,6 +266,7 @@ class PokemonProvider:
     ]
     languages = list(LANGUAGES.values())
     price_source = "tcgdex-cardmarket"
+    cardmarket_path = "Pokemon"
 
     async def _get(self, http: httpx.AsyncClient, path: str) -> Any:
         return (await get_with_retry(http, f"{API_URL}{path}")).json()

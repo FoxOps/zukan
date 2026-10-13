@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 
 from app.core.http import http_client
 from app.games.base import get_provider
+from app.games.cardmarket import DOWNLOAD_URL as CARDMARKET_URL
 from app.games.mtg.provider import API_URL, iter_jsonl_gz, parse_card
 from app.main import register_games
 from app.models import (
@@ -57,6 +58,11 @@ def scryfall():
         router.get(ALL_URL).respond(content=gz(LINES))
         english = [line for line, c in zip(LINES, RAW, strict=True) if c["lang"] == "en"]
         router.get(DEFAULT_URL).respond(content=gz(english + [LINES[6]]))  # + JA-only Ajani
+        # Cardmarket price guide: Llanowar Elves (319744); trend 0 = none, foil has no trend.
+        guide = {"idProduct": 319744, "trend": 0, "low": 0.1, "avg": 0.45, "low-foil": 1.2}
+        router.get(f"{CARDMARKET_URL}/priceGuide/price_guide_1.json").respond(
+            json={"version": 1, "priceGuides": [guide]}
+        )
         yield router
 
 
@@ -193,6 +199,19 @@ async def test_price_job_keeps_history_of_owned_cards(session, scryfall):
     run = await session.get(SyncRun, await jobs.run_job("mtg", JobKind.prices))
     assert run.report["stored"] == 6
     assert run.report["pruned"] == 1
+    # Scryfall's trend, Cardmarket's lowest offer and average.
+    latest = {
+        s.finish: (s.trend, s.low, s.avg)
+        for s in await session.scalars(
+            select(PriceSnapshot).where(
+                PriceSnapshot.printing_id == elves, PriceSnapshot.date == today()
+            )
+        )
+    }
+    assert latest == {
+        "nonfoil": (Decimal("0.39"), Decimal("0.10"), Decimal("0.45")),
+        "foil": (Decimal("1.69"), Decimal("1.20"), None),
+    }
 
     old = await session.scalars(
         select(PriceSnapshot.printing_id).where(PriceSnapshot.date == yesterday)

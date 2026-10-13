@@ -24,8 +24,8 @@ from app.core.db import get_engine, get_sessionmaker  # noqa: E402
 from app.core.http import http_client  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.games.base import get_provider  # noqa: E402
+from app.games.cardmarket import DOWNLOAD_URL as CARDMARKET_URL  # noqa: E402
 from app.games.sorcery.provider import API_URL as SORCERY_URL  # noqa: E402
-from app.games.sorcery.provider import CARDMARKET_URL  # noqa: E402
 from app.main import create_app, register_games  # noqa: E402
 from app.models import Base, Role, User  # noqa: E402
 from app.services.catalog import sync_catalog  # noqa: E402

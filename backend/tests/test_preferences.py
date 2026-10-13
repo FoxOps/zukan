@@ -189,13 +189,14 @@ CM_GUIDES = [
     {"idProduct": 5, "trend": 7},
     {"idProduct": 6, "trend": 12},
 ]
+CM_GUIDE = {g["idProduct"]: g for g in CM_GUIDES}
 
 
 def test_cardmarket_matching(monkeypatch):
     monkeypatch.delitem(CARDMARKET_EXPANSIONS, 6778)  # Arthurian Legends
     quotes = {
         (q.set_external_id, q.printing_external_id, q.finish): q
-        for q in match_cardmarket(parse_cards(SORCERY_CARDS), CM_PRODUCTS, CM_GUIDES)
+        for q in match_cardmarket(parse_cards(SORCERY_CARDS), CM_PRODUCTS, CM_GUIDE)
     }
     alpha = quotes[("001", "abundance-b", "standard")]
     assert (alpha.trend, alpha.low, alpha.avg) == (Decimal("2.5"), Decimal("1"), Decimal("2"))
@@ -228,6 +229,40 @@ async def test_sorcery_price_job(session, alice, sorcery_router):
     assert snapshot.trend == Decimal("2.50") and snapshot.source == "cardmarket"
 
 
+async def test_cardmarket_links_and_price_range(client, session, sorcery_router):
+    from app.main import register_games
+
+    files = {
+        "/productCatalog/productList/products_singles_25.json": {"products": CM_PRODUCTS},
+        "/productCatalog/priceGuide/price_guide_25.json": {"priceGuides": CM_GUIDES},
+    }
+    sorcery_router["cardmarket"].mock(
+        side_effect=lambda request: httpx.Response(200, json=files[request.url.path])
+    )
+    await register_games()
+    await sync_sorcery(session)  # prices and product ids come with the catalog
+    await make_user(session)
+    headers = await bearer(client, "alice")
+
+    games = {g["id"]: g for g in (await client.get("/api/games", headers=headers)).json()}
+    assert games["sorcery"]["cardmarket"] == "Sorcery"
+    assert games["mtg"]["cardmarket"] == "Magic"
+
+    page = (await client.get("/api/cards", params={"q": "abundance"}, headers=headers)).json()
+    # Beta standard 0.80 ... Alpha foil 30.
+    summary = page["items"][0]
+    assert (summary["price_min"], summary["price_max"]) == ("0.80", "30.00")
+    card = (await client.get(f"/api/cards/{summary['id']}", headers=headers)).json()
+    alpha = next(p for p in card["printings"] if p["set"]["code"] == "001")
+    assert alpha["cardmarket_id"] == 1
+    assert {(p["finish"], p["trend"], p["low"]) for p in alpha["prices"]} == {
+        ("standard", "2.50", "1.00"),
+        ("foil", "30.00", "20.00"),
+    }
+    unmatched = await client.get("/api/cards", params={"q": "aqueduct"}, headers=headers)
+    assert unmatched.json()["items"][0]["price_min"] is None
+
+
 async def test_symbols_downloaded_once(client, alice):
     games = {g["id"]: g for g in (await client.get("/api/games", headers=alice)).json()}
     assert games["mtg"]["colors"][0]["icon"] is None
@@ -243,9 +278,12 @@ async def test_symbols_downloaded_once(client, alice):
         sprite = router.get(ENERGY_SPRITE).respond(
             content=out.getvalue(), headers={"content-type": "image/png"}
         )
+        elements = router.get(url__startswith="https://sorcerytcg.com/").respond(
+            content=png(), headers={"content-type": "image/png"}
+        )
         stored = await symbols.ensure_symbols()
         assert stored == sum(len(get_provider(g).colors) for g in ("mtg", "pokemon", "sorcery"))
-        assert sprite.call_count == 1 and svg.call_count == 6
+        assert (sprite.call_count, svg.call_count, elements.call_count) == (1, 6, 4)
         assert await symbols.ensure_symbols() == 0
 
     games = {g["id"]: g for g in (await client.get("/api/games", headers=alice)).json()}
@@ -255,7 +293,7 @@ async def test_symbols_downloaded_once(client, alice):
     image = Image.open(io.BytesIO(icon.content))
     assert image.size == (25, 25) and image.getpixel((5, 5)) == (0, 255, 0, 255)
     fire = next(c for c in games["sorcery"]["colors"] if c["code"] == "fire")
-    assert b"<svg" in (await client.get(fire["icon"], headers=alice)).content
+    assert (await client.get(fire["icon"], headers=alice)).headers["content-type"] == "image/png"
     assert (
         await client.get("/api/games/mtg/colors/..%2F..%2Fx/icon", headers=alice)
     ).status_code == 404

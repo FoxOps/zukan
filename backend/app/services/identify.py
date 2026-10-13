@@ -78,15 +78,16 @@ async def _name_similarity(
     session: AsyncSession, game_id: str, names: list[str], card_ids: set[int] | None = None
 ) -> dict[int, float]:
     """Best similarity per card between any of `names` and the card's names (each face of
-    double-faced names counts on its own)."""
+    double-faced names counts on its own). Case and accents are ignored."""
     if not names:
         return {}
+    texts = [func.lower(func.f_unaccent(name)) for name in names]
     scores = [
         func.greatest(
-            func.similarity(CardName.name, name),
-            func.similarity(func.split_part(CardName.name, " // ", 1), name),
+            func.similarity(CardName.search_name, text),
+            func.similarity(func.split_part(CardName.search_name, " // ", 1), text),
         )
-        for name in names
+        for text in texts
     ]
     best = func.max(func.greatest(*scores) if len(scores) > 1 else scores[0])
     query = (
@@ -101,7 +102,7 @@ async def _name_similarity(
         query = query.where(CardName.card_id.in_(card_ids))
     else:
         # Trigram index lookup (similarity above pg_trgm.similarity_threshold, 0.3).
-        query = query.where(or_(*(CardName.name.op("%")(name) for name in names)))
+        query = query.where(or_(*(CardName.search_name.op("%")(text) for text in texts)))
     return {card_id: float(score) for card_id, score in await session.execute(query)}
 
 

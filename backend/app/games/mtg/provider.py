@@ -6,7 +6,9 @@ and language; they are merged here into one printing per set and collector numbe
 English objects carry the full data, other languages are partial: they add a printed
 name, a language and the scan of the card in that language.
 
-Prices are Scryfall's Cardmarket EUR prices from the smaller `default_cards` file.
+Prices are Scryfall's Cardmarket EUR prices from the smaller `default_cards` file. The
+daily price job adds Cardmarket's own price guide (lowest offer, average), matched by
+the Cardmarket product id Scryfall gives.
 """
 
 import json
@@ -22,6 +24,7 @@ import httpx
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.http import get_with_retry
+from app.games import cardmarket
 from app.games.base import (
     CardData,
     CatalogBatch,
@@ -64,6 +67,9 @@ LANGUAGES = {
     "ru": "ru",
 }
 PRICE_FIELDS = {"nonfoil": "eur", "foil": "eur_foil"}
+# Price guide field suffix per finish.
+GUIDE_SUFFIXES = {"nonfoil": "", "foil": "-foil"}
+CARDMARKET_GAME = 1
 # Mana symbols, as served by Scryfall's symbology API.
 SYMBOLS_URL = "https://svgs.scryfall.io/card-symbols"
 
@@ -180,13 +186,25 @@ def parse_card(raw: dict[str, Any]) -> CardData | None:
     )
 
 
-def parse_prices(raw: dict[str, Any]) -> list[PriceQuote]:
+def parse_prices(
+    raw: dict[str, Any], guides: dict[int, cardmarket.Guide] | None = None
+) -> list[PriceQuote]:
+    """Scryfall's trend price, with lowest offer and average from Cardmarket's price
+    guide when given."""
     prices = raw.get("prices") or {}
+    guide = (guides or {}).get(raw.get("cardmarket_id") or 0)
     quotes = []
     for finish, field in PRICE_FIELDS.items():
-        trend = _decimal(prices.get(field))
-        if trend is not None and finish in raw.get("finishes", []):
-            quotes.append(PriceQuote(raw["set"], raw["collector_number"], finish, trend))
+        if finish not in raw.get("finishes", []):
+            continue
+        trend, low, avg = _decimal(prices.get(field)), None, None
+        if guide is not None:
+            guide_trend, low, avg = cardmarket.prices(guide, GUIDE_SUFFIXES[finish])
+            trend = trend or guide_trend
+        if trend is not None:
+            quotes.append(
+                PriceQuote(raw["set"], raw["collector_number"], finish, trend, low=low, avg=avg)
+            )
     return quotes
 
 
@@ -278,6 +296,7 @@ class MtgProvider:
     ]
     languages = list(LANGUAGES.values())
     price_source = "scryfall-cardmarket"
+    cardmarket_path = "Magic"
 
     async def _bulk(self, http: httpx.AsyncClient, kind: str) -> AsyncIterator[dict[str, Any]]:
         meta = (await get_with_retry(http, f"{API_URL}/bulk-data/{kind}")).json()
@@ -312,11 +331,16 @@ class MtgProvider:
         self, http: httpx.AsyncClient, owned: list[PriceTarget]
     ) -> AsyncIterator[list[PriceQuote]]:
         # The bulk file has every price, cheaper than looking up owned cards one by one.
+        try:
+            guides = await cardmarket.price_guide(http, CARDMARKET_GAME)
+        except httpx.HTTPError as exc:
+            log.warning("Cardmarket price guide unavailable, trend prices only: %s", exc)
+            guides = {}
         quotes: list[PriceQuote] = []
         async for raw in self._bulk(http, "default_cards"):
             if raw.get("digital"):
                 continue
-            quotes += parse_prices(raw)
+            quotes += parse_prices(raw, guides)
             if len(quotes) >= BATCH_SIZE:
                 yield quotes
                 quotes = []

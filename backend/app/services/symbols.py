@@ -55,21 +55,18 @@ def _to_png(data: bytes, box: tuple[int, int, int, int] | None) -> bytes:
 async def _store(
     http: httpx.AsyncClient, game_id: str, color: ColorDef, downloads: dict[str, httpx.Response]
 ) -> None:
-    if color.icon_svg:
-        data, suffix = color.icon_svg.encode(), ".svg"
+    assert color.icon_url
+    # Sprite sheets are shared by several colors: download each once.
+    if color.icon_url not in downloads:
+        response = await http.get(color.icon_url)
+        response.raise_for_status()
+        downloads[color.icon_url] = response
+    response = downloads[color.icon_url]
+    if response.headers.get("content-type", "").startswith("image/svg"):
+        data, suffix = response.content, ".svg"
     else:
-        assert color.icon_url
-        # Sprite sheets are shared by several colors: download each once.
-        if color.icon_url not in downloads:
-            response = await http.get(color.icon_url)
-            response.raise_for_status()
-            downloads[color.icon_url] = response
-        response = downloads[color.icon_url]
-        if response.headers.get("content-type", "").startswith("image/svg"):
-            data, suffix = response.content, ".svg"
-        else:
-            data = await asyncio.to_thread(_to_png, response.content, color.icon_box)
-            suffix = ".png"
+        data = await asyncio.to_thread(_to_png, response.content, color.icon_box)
+        suffix = ".png"
     await asyncio.to_thread(_write, _folder(game_id) / f"{color.code}{suffix}", data)
 
 
@@ -79,7 +76,7 @@ async def ensure_symbols() -> int:
         (provider.id, color)
         for provider in registry().values()
         for color in provider.colors
-        if (color.icon_url or color.icon_svg) and symbol_file(provider.id, color.code) is None
+        if color.icon_url and symbol_file(provider.id, color.code) is None
     ]
     if not missing:
         return 0

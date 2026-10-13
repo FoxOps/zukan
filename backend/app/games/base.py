@@ -23,11 +23,10 @@ class ColorDef:
     code: str  # stored in Card.colors
     name: str
     hex: str  # UI badge color
-    # Official symbol, downloaded once on first start: an image URL, optionally a
-    # (left, top, width, height) box to cut it out of a sprite sheet, or inline SVG.
+    # Official symbol, downloaded once on first start: an image URL, optionally with a
+    # (left, top, width, height) box to cut it out of a sprite sheet.
     icon_url: str | None = None
     icon_box: tuple[int, int, int, int] | None = None
-    icon_svg: str | None = None
 
 
 @dataclass(frozen=True)
@@ -136,8 +135,11 @@ class OcrHints:
 
 @runtime_checkable
 class GameProvider(Protocol):
-    """Optional attribute: `cache_all_images = True` makes the image job download every
-    printing's image instead of only owned ones (small catalogs)."""
+    """Optional attributes:
+    - `cache_all_images = True`: the image job downloads every printing's image instead
+      of only owned ones (small catalogs).
+    - `cardmarket_path`: the game's Cardmarket URL segment ("Magic"); printings with a
+      `cardmarket_id` attribute then link to their Cardmarket page."""
 
     id: str
     name: str
