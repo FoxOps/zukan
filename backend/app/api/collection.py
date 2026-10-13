@@ -15,6 +15,7 @@ from app.models import (
     CardSet,
     CollectionItem,
     Condition,
+    PriceSnapshot,
     Printing,
     StockTransaction,
 )
@@ -207,7 +208,7 @@ async def list_items(
     condition: Condition | None = None,
     language: str | None = None,
     include_empty: bool = False,
-    sort: Literal["name", "set", "updated", "quantity"] = "name",
+    sort: Literal["name", "set", "updated", "quantity", "price_asc", "price_desc"] = "name",
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> ItemPageOut:
@@ -238,7 +239,23 @@ async def list_items(
 
     total = await session.scalar(select(func.count()).select_from(query.subquery()))
     name = display_name(user.language)
+    # Unit price as shown: manual price, else latest market price of that finish.
+    market = (
+        select(PriceSnapshot.trend)
+        .where(
+            PriceSnapshot.printing_id == CollectionItem.printing_id,
+            PriceSnapshot.finish == CollectionItem.finish,
+            PriceSnapshot.trend.is_not(None),
+        )
+        .order_by(PriceSnapshot.date.desc())
+        .limit(1)
+        .correlate(CollectionItem)
+        .scalar_subquery()
+    )
+    price = func.coalesce(CollectionItem.manual_price, market)
     order = {
+        "price_asc": (price.asc().nulls_last(), name),
+        "price_desc": (price.desc().nulls_last(), name),
         "name": (name, CardSet.code, Printing.collector_number),
         "set": (CardSet.release_date.desc().nulls_last(), CardSet.code, Printing.collector_number),
         "updated": (CollectionItem.updated_at.desc(),),

@@ -283,7 +283,7 @@ class PokemonProvider:
         ColorDef("colorless", "Colorless", "#A8A878", ENERGY_SPRITE, (25, 0, 25, 25)),
     ]
     finishes = [
-        FinishDef("normal", "Normal"),
+        FinishDef("normal", "Standard"),
         FinishDef("holo", "Holo"),
         FinishDef("reverse", "Reverse holo"),
         FinishDef("first_edition", "1st edition"),

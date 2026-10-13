@@ -290,7 +290,7 @@ class MtgProvider:
         ColorDef("C", "Colorless", "#A9A9A9", icon_url=f"{SYMBOLS_URL}/C.svg"),
     ]
     finishes = [
-        FinishDef("nonfoil", "Non-foil"),
+        FinishDef("nonfoil", "Standard"),
         FinishDef("foil", "Foil"),
         FinishDef("etched", "Etched foil"),
     ]

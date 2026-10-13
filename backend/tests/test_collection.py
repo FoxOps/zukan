@@ -290,3 +290,21 @@ async def test_csv_import_rejects_invalid_files(client, session, alice):
     assert "Missing columns" in missing["errors"][0]["message"]
     binary = await import_file(client, alice, b"\xff\xfe\x00game")
     assert binary.status_code == 400
+
+
+async def test_sort_by_price(client, session, alice):
+    abundance = await printing_id(session, "001", "abundance-b")
+    beta = await printing_id(session, "002", "abundance-b")
+    await add_price(session, abundance, "standard", date.today(), Decimal("2.00"))
+    await adjust(client, alice, abundance, 1)
+    item = (await adjust(client, alice, beta, 1)).json()["item"]
+    await client.patch(
+        f"/api/collection/items/{item['id']}", json={"manual_price": "5.00"}, headers=alice
+    )
+
+    async def codes(sort):
+        page = (await client.get("/api/collection", params={"sort": sort}, headers=alice)).json()
+        return [i["set"]["code"] for i in page["items"]]
+
+    assert await codes("price_asc") == ["001", "002"]
+    assert await codes("price_desc") == ["002", "001"]
