@@ -152,8 +152,9 @@ async def test_sync_sets_translations_and_exclusive_sets(client, session, tcgdex
     for query in ("オオタチ", "Wiesenior"):
         page = (await client.get("/api/cards", params={"q": query}, headers=headers)).json()
         assert [c["name"] for c in page["items"]] == ["Furret"], query
-    page = (await client.get("/api/cards", params={"q": "Tropius"}, headers=headers)).json()
-    assert [c["name"] for c in page["items"]] == ["トロピウス"]
+    # Shown in the interface language (English here) when the name is known in it.
+    page = (await client.get("/api/cards", params={"q": "トロピウス"}, headers=headers)).json()
+    assert [c["name"] for c in page["items"]] == ["Tropius"]
 
 
 async def test_price_job_fetches_owned_cards_only(session, tcgdex):
@@ -177,3 +178,15 @@ async def test_price_job_fetches_owned_cards_only(session, tcgdex):
     assert paths == ["/v2/en/cards/swsh3-136", "/v2/ja/cards/SV1a-001"]
     report = (await session.get(SyncRun, run_id)).report
     assert report["stored"] >= 2
+
+
+async def test_card_names_follow_interface_language(client, session, tcgdex):
+    await sync_pokemon(session)
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    response = await client.patch("/api/auth/me", json={"language": "fr"}, headers=headers)
+    assert response.status_code == 200, response.text
+    page = (await client.get("/api/cards", params={"q": "furret"}, headers=headers)).json()
+    assert [c["name"] for c in page["items"]] == ["Fouinar"]
+    detail = (await client.get(f"/api/cards/{page['items'][0]['id']}", headers=headers)).json()
+    assert detail["name"] == "Fouinar"

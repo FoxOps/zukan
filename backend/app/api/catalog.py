@@ -20,6 +20,7 @@ from app.models import (
     User,
 )
 from app.services import collection, images
+from app.services.names import display_name
 
 router = APIRouter(tags=["catalog"])
 
@@ -153,8 +154,9 @@ async def search_cards(
     ignored), set and colors. Exact name matches come first, then names starting with
     `q`. Without `game`, only the games chosen in the user's settings are searched."""
     # Cards without printings cannot be collected (left over by older catalog syncs).
+    name = display_name(user.language)
     query = select(Card).where(exists().where(Printing.card_id == Card.id))
-    order: list[Any] = [Card.name, Card.id]
+    order: list[Any] = [name, Card.id]
     if game:
         query = query.where(Card.game_id == game)
     elif user.catalog_games is not None:
@@ -182,14 +184,17 @@ async def search_cards(
         query = query.where(Card.colors.contains(color))
 
     total = await session.scalar(select(func.count()).select_from(query.subquery()))
-    cards = (
-        await session.scalars(
-            query.order_by(*order)
+    rows = (
+        await session.execute(
+            query.add_columns(name)
+            .order_by(*order)
             .offset((page - 1) * page_size)
             .limit(page_size)
             .options(selectinload(Card.printings))
         )
     ).all()
+    cards = [card for card, _ in rows]
+    names = {card.id: card_name for card, card_name in rows}
     latest = await collection.latest_prices(session, (p.id for c in cards for p in c.printings))
     card_prices: dict[int, list[Decimal]] = {}
     by_printing = {p.id: c.id for c in cards for p in c.printings}
@@ -206,7 +211,7 @@ async def search_cards(
             CardSummaryOut(
                 id=card.id,
                 game_id=card.game_id,
-                name=card.name,
+                name=names[card.id],
                 colors=card.colors,
                 printing_count=len(printings),
                 image=next(
@@ -221,13 +226,16 @@ async def search_cards(
 
 @router.get("/cards/{card_id}")
 async def get_card(card_id: int, user: CurrentUser, session: SessionDep) -> CardOut:
-    card = await session.scalar(
-        select(Card)
-        .where(Card.id == card_id)
-        .options(selectinload(Card.printings).selectinload(Printing.set))
-    )
-    if card is None:
+    row = (
+        await session.execute(
+            select(Card, display_name(user.language))
+            .where(Card.id == card_id)
+            .options(selectinload(Card.printings).selectinload(Printing.set))
+        )
+    ).first()
+    if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Card not found")
+    card, name = row
     printings = sorted(
         card.printings,
         key=lambda p: (p.set.release_date or date.min, p.collector_number or ""),
@@ -239,7 +247,7 @@ async def get_card(card_id: int, user: CurrentUser, session: SessionDep) -> Card
     return CardOut(
         id=card.id,
         game_id=card.game_id,
-        name=card.name,
+        name=name,
         colors=card.colors,
         attributes=card.attributes,
         printings=described,

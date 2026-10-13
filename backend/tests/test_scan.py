@@ -188,7 +188,7 @@ async def test_identify_number_and_name(client, alice):
 
     tropius = (await scan(client, alice, TROPIUS_JA))["candidates"][0]
     assert tropius["match"] == "set_number"
-    assert tropius["card"]["name"] == "トロピウス"
+    assert tropius["card"]["name"] == "Tropius"  # interface language (English)
 
 
 async def test_identify_ignores_accents_and_case(client, alice):

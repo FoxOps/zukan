@@ -20,6 +20,7 @@ from app.models import (
 )
 from app.services import collection, csv_io
 from app.services.collection import StockError, Variant
+from app.services.names import display_name, display_names
 
 router = APIRouter(prefix="/collection", tags=["collection"])
 
@@ -139,6 +140,7 @@ def _item_query():
 
 async def _items_out(session: SessionDep, items: list[CollectionItem], lang: str) -> list[ItemOut]:
     prices = await collection.latest_prices(session, (i.printing_id for i in items))
+    names = await display_names(session, (i.printing.card_id for i in items), lang)
     out = []
     for item in items:
         printing = item.printing
@@ -150,7 +152,7 @@ async def _items_out(session: SessionDep, items: list[CollectionItem], lang: str
                 printing_id=printing.id,
                 card_id=printing.card_id,
                 game_id=printing.set.game_id,
-                name=printing.card.name,
+                name=names[printing.card_id],
                 colors=printing.card.colors,
                 set=ItemSetOut(id=printing.set.id, code=printing.set.code, name=printing.set.name),
                 collector_number=printing.collector_number,
@@ -235,11 +237,12 @@ async def list_items(
         query = query.where(CollectionItem.language == language)
 
     total = await session.scalar(select(func.count()).select_from(query.subquery()))
+    name = display_name(user.language)
     order = {
-        "name": (Card.name, CardSet.code, Printing.collector_number),
+        "name": (name, CardSet.code, Printing.collector_number),
         "set": (CardSet.release_date.desc().nulls_last(), CardSet.code, Printing.collector_number),
         "updated": (CollectionItem.updated_at.desc(),),
-        "quantity": (CollectionItem.quantity.desc(), Card.name),
+        "quantity": (CollectionItem.quantity.desc(), name),
     }[sort]
     items = (
         await session.scalars(
@@ -321,7 +324,7 @@ async def list_transactions(
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> list[TransactionOut]:
     query = (
-        select(StockTransaction, CollectionItem, Card.name, CardSet.code)
+        select(StockTransaction, CollectionItem, display_name(user.language), CardSet.code)
         .join(CollectionItem, StockTransaction.item_id == CollectionItem.id)
         .join(Printing, CollectionItem.printing_id == Printing.id)
         .join(Card, Printing.card_id == Card.id)

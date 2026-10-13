@@ -8,6 +8,7 @@ from app.api.deps import CurrentUser, SessionDep
 from app.games.base import OcrLine, registry
 from app.models import Printing
 from app.services import identify
+from app.services.names import display_names
 
 router = APIRouter(prefix="/scan", tags=["scan"])
 
@@ -65,6 +66,9 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unknown game {body.game!r}")
     lines = [OcrLine(**line.model_dump()) for line in body.lines if line.text.strip()]
     result = await identify.identify(session, lines, body.game)
+    names = await display_names(
+        session, (c.card.id for c in result.candidates if c.card), user.language
+    )
     candidates = []
     for candidate in result.candidates:
         card = candidate.card
@@ -76,7 +80,7 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
                 score=round(candidate.score, 3),
                 match=candidate.match,
                 card=CandidateCardOut(
-                    id=card.id, game_id=card.game_id, name=card.name, colors=card.colors
+                    id=card.id, game_id=card.game_id, name=names[card.id], colors=card.colors
                 ),
                 printings=await describe_printings(session, user, printings),
             )
