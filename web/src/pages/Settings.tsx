@@ -1,8 +1,69 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
-import { api, call } from '../api/client'
-import { useMe, useProviders } from '../api/queries'
+import { api, call, type Schemas } from '../api/client'
+import { useGames, useMe, useProviders } from '../api/queries'
 import { useToast } from '../components/toast'
+import { LANGUAGES, t, useI18n } from '../i18n'
+
+type SettingsIn = Schemas['SettingsIn']
+
+function Preferences({ me }: { me: Schemas['MeOut'] }) {
+  const { lang, setLang } = useI18n()
+  const { data: games = [] } = useGames()
+  const toast = useToast()
+  const client = useQueryClient()
+  const shown = me.catalog_games ?? games.map((g) => g.id)
+
+  const save = useMutation({
+    mutationFn: (body: SettingsIn) => call(api.PATCH('/api/auth/me', { body })),
+    onSuccess: (data) => {
+      client.setQueryData(['me'], data)
+      return client.invalidateQueries({ queryKey: ['cards'] })
+    },
+    onError: (e) => toast(e.message, 'error'),
+  })
+  const toggleGame = (id: string, on: boolean) => {
+    const next = on ? [...shown, id] : shown.filter((g) => g !== id)
+    // Every game ticked: also show games installed later.
+    save.mutate({ catalog_games: next.length === games.length ? null : next })
+  }
+
+  return (
+    <div className="card bg-base-200">
+      <div className="card-body gap-4">
+        <h2 className="card-title">{t('Preferences')}</h2>
+        <label className="fieldset">
+          <span className="fieldset-legend">{t('Language')}</span>
+          <select className="select w-56" value={lang} onChange={(e) => setLang(e.target.value as typeof lang)}>
+            {LANGUAGES.map((l) => (
+              <option key={l.code} value={l.code} lang={l.code}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+          <span className="label whitespace-normal">
+            {t('Card images are shown in this language when available, else in English, else in Japanese.')}
+          </span>
+        </label>
+        <fieldset className="fieldset">
+          <legend className="fieldset-legend">{t('Games shown in the catalog')}</legend>
+          {games.map((g) => (
+            <label key={g.id} className="label cursor-pointer gap-2 text-base-content">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-sm"
+                checked={shown.includes(g.id)}
+                disabled={save.isPending}
+                onChange={(e) => toggleGame(g.id, e.target.checked)}
+              />
+              {g.name}
+            </label>
+          ))}
+        </fieldset>
+      </div>
+    </div>
+  )
+}
 
 export default function Settings() {
   const me = useMe()
@@ -16,7 +77,7 @@ export default function Settings() {
     mutationFn: () =>
       call(api.POST('/api/auth/password', { body: { current_password: current || null, new_password: next } })),
     onSuccess: () => {
-      toast('Password changed')
+      toast(t('Password changed'))
       setCurrent('')
       setNext('')
       return client.invalidateQueries({ queryKey: ['me'] })
@@ -27,7 +88,7 @@ export default function Settings() {
     mutationFn: (id: number) =>
       call(api.DELETE('/api/auth/identities/{identity_id}', { params: { path: { identity_id: id } } })),
     onSuccess: () => {
-      toast('SSO account unlinked', 'info')
+      toast(t('SSO account unlinked'), 'info')
       return client.invalidateQueries({ queryKey: ['me'] })
     },
     onError: (e) => toast(e.message, 'error'),
@@ -44,23 +105,25 @@ export default function Settings() {
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
-      <h1 className="text-2xl font-bold">Account</h1>
+      <h1 className="text-2xl font-bold">{t('Settings')}</h1>
 
       <div className="card bg-base-200">
         <div className="card-body">
           <h2 className="card-title">{user.username}</h2>
           <p className="text-sm text-base-content/70">
-            {user.email ?? 'No email'} · <span className="badge badge-sm">{user.role}</span>
+            {user.email ?? t('No email')} · <span className="badge badge-sm">{t(user.role)}</span>
           </p>
         </div>
       </div>
 
+      <Preferences me={user} />
+
       <div className="card bg-base-200">
         <form className="card-body" onSubmit={submit}>
-          <h2 className="card-title">{user.has_password ? 'Change password' : 'Set a password'}</h2>
+          <h2 className="card-title">{user.has_password ? t('Change password') : t('Set a password')}</h2>
           {user.has_password && (
             <label className="fieldset">
-              <span className="fieldset-legend">Current password</span>
+              <span className="fieldset-legend">{t('Current password')}</span>
               <input
                 type="password"
                 autoComplete="current-password"
@@ -72,7 +135,7 @@ export default function Settings() {
             </label>
           )}
           <label className="fieldset">
-            <span className="fieldset-legend">New password</span>
+            <span className="fieldset-legend">{t('New password')}</span>
             <input
               type="password"
               autoComplete="new-password"
@@ -82,11 +145,11 @@ export default function Settings() {
               value={next}
               onChange={(e) => setNext(e.target.value)}
             />
-            <span className="label">At least 8 characters</span>
+            <span className="label">{t('At least 8 characters')}</span>
           </label>
           <div className="card-actions">
             <button className="btn btn-primary" disabled={password.isPending}>
-              Save password
+              {t('Save password')}
             </button>
           </div>
         </form>
@@ -95,7 +158,7 @@ export default function Settings() {
       {sso.length > 0 && (
         <div className="card bg-base-200">
           <div className="card-body">
-            <h2 className="card-title">Single sign-on</h2>
+            <h2 className="card-title">{t('Single sign-on')}</h2>
             <ul className="divide-y divide-base-300">
               {user.identities.map((i) => (
                 <li key={i.id} className="flex items-center justify-between py-2">
@@ -104,7 +167,7 @@ export default function Settings() {
                     {i.email && <span className="text-sm text-base-content/60"> · {i.email}</span>}
                   </span>
                   <button className="btn btn-ghost btn-sm" disabled={unlink.isPending} onClick={() => unlink.mutate(i.id)}>
-                    Unlink
+                    {t('Unlink')}
                   </button>
                 </li>
               ))}
@@ -118,7 +181,7 @@ export default function Settings() {
                     className="btn btn-outline btn-sm"
                     href={`/api/auth/oidc/${encodeURIComponent(p.name)}/login?link=true&next=/settings`}
                   >
-                    Link {p.display_name}
+                    {t('Link {provider}', { provider: p.display_name })}
                   </a>
                 ))}
             </div>

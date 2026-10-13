@@ -1,39 +1,62 @@
-const locale = navigator.language || 'en'
+import type { Game } from '../api/queries'
+import { currentLanguage, t } from '../i18n'
 
-const money = new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' })
-const day = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
-const moment = new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' })
+// Formatters follow the interface language (the page remounts when it changes).
+function formatters() {
+  const locale = currentLanguage()
+  return {
+    money: new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }),
+    day: new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }),
+    moment: new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' }),
+    languages: new Intl.DisplayNames([locale], { type: 'language' }),
+  }
+}
+let cache: { lang: string; value: ReturnType<typeof formatters> } | null = null
+function format() {
+  if (cache?.lang !== currentLanguage()) cache = { lang: currentLanguage(), value: formatters() }
+  return cache.value
+}
 
 /** API decimals arrive as strings ("12.50"). */
 export function formatMoney(value: string | number | null | undefined): string {
   if (value === null || value === undefined || value === '') return '—'
-  return money.format(Number(value))
+  return format().money.format(Number(value))
 }
 
 export function formatDate(value: string | null | undefined): string {
-  return value ? day.format(new Date(value)) : '—'
+  return value ? format().day.format(new Date(value)) : '—'
 }
 
 export function formatDateTime(value: string | null | undefined): string {
-  return value ? moment.format(new Date(value)) : '—'
+  return value ? format().moment.format(new Date(value)) : '—'
 }
-
-const languageNames = new Intl.DisplayNames([locale], { type: 'language' })
 
 export function languageName(code: string): string {
   try {
-    return languageNames.of(code) ?? code
+    const name = format().languages.of(code) ?? code
+    return name.charAt(0).toLocaleUpperCase(currentLanguage()) + name.slice(1)
   } catch {
     return code
   }
 }
 
+/** Cardmarket grading scale, with Cardmarket's badge colors. */
 export const CONDITIONS = [
-  { code: 'MT', name: 'Mint' },
-  { code: 'NM', name: 'Near Mint' },
-  { code: 'EX', name: 'Excellent' },
-  { code: 'GD', name: 'Good' },
-  { code: 'LP', name: 'Light Played' },
-  { code: 'PL', name: 'Played' },
-  { code: 'PO', name: 'Poor' },
+  { code: 'MT', name: 'Mint', color: '#17a2b8' },
+  { code: 'NM', name: 'Near Mint', color: '#3caf56' },
+  { code: 'EX', name: 'Excellent', color: '#82891e' },
+  { code: 'GD', name: 'Good', color: '#ffc107' },
+  { code: 'LP', name: 'Light Played', color: '#fd8b2b' },
+  { code: 'PL', name: 'Played', color: '#e56874' },
+  { code: 'PO', name: 'Poor', color: '#dc3545' },
 ] as const
+
+/** Finish name from the game plugin, translated when the dictionary knows it. */
+export function finishName(game: Game | undefined, code: string): string {
+  return t(game?.finishes.find((f) => f.code === code)?.name ?? code)
+}
+
+export function conditionName(code: string): string {
+  const condition = CONDITIONS.find((c) => c.code === code)
+  return condition ? t(condition.name) : code
+}

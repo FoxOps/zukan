@@ -137,9 +137,7 @@ def _item_query():
     )
 
 
-async def _items_out(
-    session: SessionDep, items: list[CollectionItem], lang: str
-) -> list[ItemOut]:
+async def _items_out(session: SessionDep, items: list[CollectionItem], lang: str) -> list[ItemOut]:
     prices = await collection.latest_prices(session, (i.printing_id for i in items))
     out = []
     for item in items:
@@ -274,7 +272,9 @@ async def adjust(body: AdjustIn, user: CurrentUser, session: SessionDep) -> Adju
         raise _conflict(exc) from exc
     item_id, transaction_id = item.id, transaction.id
     await session.commit()
-    return AdjustOut(item=await _item_out(session, item_id, user.language), transaction_id=transaction_id)
+    return AdjustOut(
+        item=await _item_out(session, item_id, user.language), transaction_id=transaction_id
+    )
 
 
 @router.get("/items/{item_id}")

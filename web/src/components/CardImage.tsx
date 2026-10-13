@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { t } from '../i18n'
 
 type Props = { src: string | null | undefined; back?: string | null; alt: string; className?: string }
 
@@ -28,7 +29,7 @@ export function CardImage({ src, back, alt, className = '' }: Props) {
       <div
         className={`relative h-full w-full transition-transform duration-500 transform-3d ${flipped ? 'rotate-y-180' : ''} ${back ? 'cursor-pointer' : ''}`}
         onClick={() => back && setFlipped((f) => !f)}
-        title={back ? 'Click to flip' : undefined}
+        title={back ? t('Click to flip') : undefined}
       >
         {face(src, alt)}
         {back && face(back, `${alt} (back)`, 'rotate-y-180')}

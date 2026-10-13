@@ -48,17 +48,29 @@ file, Pokémon fetches every card from TCGdex one by one.
 
 Cardmarket has no public API, so prices come from the card data APIs: Scryfall for MTG
 (Cardmarket trend price) and TCGdex for Pokémon (Cardmarket trend, low and average).
-Sorcery has no price source: set prices by hand on collection items. Price history is
-kept for cards somebody owns; other cards only keep their latest price.
+Sorcery prices come from the daily price guide files Cardmarket publishes for download
+(two small files a day, no scraping); products are matched to printings by set and card
+name. Cards too new for a Cardmarket trend use the 7 or 30 day average, then the lowest
+offer. A manual price on a collection item always wins. Price history is kept for cards
+somebody owns; other cards only keep their latest price.
 
 ### Card images
 
 Images are cached under `./data/images`: downloaded on first view, and pre-fetched
-for cards somebody owns. Sorcery images are not downloadable from its API; download the
+for cards somebody owns. Cards are shown in the user's interface language when that scan
+exists, else in English, else in Japanese, else in the language there is.
+
+Sorcery images are downloaded once each (about 1600, at most 2 at a time) from the
+addresses the [sorcerytcg.com card gallery](https://sorcerytcg.com/cards) uses, and served
+from the local cache only. Large scans are stored as WebP. The
 [public image folder](https://drive.google.com/drive/folders/17IrJkRGmIU9fDSTU2JQEU9JlFzb5liLJ)
-from Google Drive, unzip it into `./import/sorcery`, then run
+can be imported instead: unzip it into `./import/sorcery`, then run
 `docker compose exec api fudabako import-images sorcery /data/import/sorcery`
 (or use the admin import endpoint `POST /api/admin/images/sorcery/import`).
+
+Game color symbols (Scryfall mana symbols, the energy types of pokemon.com's card
+database, Sorcery element triangles) are downloaded once when the API starts, into
+`./data/images/symbols`.
 
 ### Collection and CSV
 

@@ -7,6 +7,7 @@ import { useInvalidateStock } from '../api/stock'
 import { PriceChart } from '../components/PriceChart'
 import { useToast } from '../components/toast'
 import { formatDateTime, formatMoney } from '../lib/format'
+import { t, tn } from '../i18n'
 
 const RANGES = [30, 90, 365]
 
@@ -30,7 +31,7 @@ export default function Dashboard() {
     mutationFn: (id: number) =>
       call(api.POST('/api/collection/transactions/{transaction_id}/undo', { params: { path: { transaction_id: id } } })),
     onSuccess: () => {
-      toast('Change undone', 'info')
+      toast(t('Change undone'), 'info')
       return invalidate()
     },
     onError: (e) => toast(e.message, 'error'),
@@ -40,20 +41,21 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+      <h1 className="text-2xl font-bold">{t('Dashboard')}</h1>
 
       <div className="stats stats-vertical w-full bg-base-200 shadow sm:stats-horizontal">
         <div className="stat">
-          <div className="stat-title">Collection value</div>
+          <div className="stat-title">{t('Collection value')}</div>
           <div className="stat-value text-primary">{formatMoney(value.data?.total ?? 0)}</div>
-          <div className="stat-desc">{value.data?.quantity ?? 0} cards</div>
+          <div className="stat-desc">{tn('{n} card', '{n} cards', value.data?.quantity ?? 0)}</div>
         </div>
         {value.data?.games.map((g) => (
           <div key={g.game_id} className="stat">
             <div className="stat-title">{gameName(g.game_id)}</div>
             <div className="stat-value text-2xl">{formatMoney(g.total)}</div>
             <div className="stat-desc">
-              {g.quantity} cards{g.unpriced > 0 && ` · ${g.unpriced} without price`}
+              {tn('{n} card', '{n} cards', g.quantity)}
+              {g.unpriced > 0 && ` · ${tn('{n} without price', '{n} without price', g.unpriced)}`}
             </div>
           </div>
         ))}
@@ -62,16 +64,16 @@ export default function Dashboard() {
       <div className="card bg-base-200">
         <div className="card-body">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="card-title">Value over time</h2>
+            <h2 className="card-title">{t('Value over time')}</h2>
             <div className="flex flex-wrap gap-2">
               <select className="select select-sm w-40" value={game} onChange={(e) => setGame(e.target.value)}>
-                <option value="">All games</option>
+                <option value="">{t('All games')}</option>
                 {games.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
               <div className="join">
                 {RANGES.map((r) => (
                   <button key={r} className={`join-item btn btn-sm ${days === r ? 'btn-active' : ''}`} onClick={() => setDays(r)}>
-                    {r} d
+                    {t('{n} d', { n: r })}
                   </button>
                 ))}
               </div>
@@ -81,37 +83,38 @@ export default function Dashboard() {
             data={(history.data ?? [])
               // Days before the first known value carry no information.
               .slice(Math.max(0, (history.data ?? []).findIndex((p) => Number(p.value) > 0)))
-              .map((p) => ({ date: p.date, Value: Number(p.value) }))}
-            series={['Value']}
+              .map((p) => ({ date: p.date, [t('Value')]: Number(p.value) }))}
+            series={[t('Value')]}
             height={260}
           />
-          <p className="text-xs text-base-content/60">Current holdings priced with each day's market prices.</p>
+          <p className="text-xs text-base-content/60">{t("Current holdings priced with each day's market prices.")}</p>
         </div>
       </div>
 
       <div className="card bg-base-200">
         <div className="card-body">
-          <h2 className="card-title">Recent changes</h2>
+          <h2 className="card-title">{t('Recent changes')}</h2>
           {transactions.data?.length === 0 && (
             <p className="text-base-content/60">
-              Nothing yet. <Link className="link" to="/catalog">Add cards from the catalog</Link> or import a CSV.
+              {t('Nothing yet.')} <Link className="link" to="/catalog">{t('Add cards from the catalog')}</Link>{' '}
+              {t('or import a CSV.')}
             </p>
           )}
           <ul className="divide-y divide-base-300">
-            {transactions.data?.map((t) => (
-              <li key={t.id} className={`flex items-center gap-3 py-2 ${t.undone ? 'opacity-50 line-through' : ''}`}>
-                <span className={`badge w-12 justify-center ${t.delta > 0 ? 'badge-success' : 'badge-error'}`}>
-                  {t.delta > 0 ? `+${t.delta}` : t.delta}
+            {transactions.data?.map((tr) => (
+              <li key={tr.id} className={`flex items-center gap-3 py-2 ${tr.undone ? 'opacity-50 line-through' : ''}`}>
+                <span className={`badge w-12 justify-center ${tr.delta > 0 ? 'badge-success' : 'badge-error'}`}>
+                  {tr.delta > 0 ? `+${tr.delta}` : tr.delta}
                 </span>
                 <div className="flex-1">
-                  <div className="font-medium">{t.name}</div>
+                  <div className="font-medium">{tr.name}</div>
                   <div className="text-xs text-base-content/60">
-                    {t.set_code} · {t.finish} · {t.condition} · {t.language} · {t.source} · {formatDateTime(t.created_at)}
+                    {tr.set_code} · {tr.finish} · {tr.condition} · {tr.language} · {t(tr.source)} · {formatDateTime(tr.created_at)}
                   </div>
                 </div>
-                {!t.undone && (
-                  <button className="btn btn-ghost btn-xs" disabled={undo.isPending} onClick={() => undo.mutate(t.id)}>
-                    Undo
+                {!tr.undone && (
+                  <button className="btn btn-ghost btn-xs" disabled={undo.isPending} onClick={() => undo.mutate(tr.id)}>
+                    {t('Undo')}
                   </button>
                 )}
               </li>
