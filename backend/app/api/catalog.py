@@ -219,18 +219,14 @@ async def search_cards(
         query = query.where(Card.game_id == game)
         q = q.split(maxsplit=1)[1]
     if code is not None and code.set_ids:
-        # Printings of that set (and number), or names matching the words anyway.
-        in_set = exists().where(Printing.card_id == Card.id, Printing.set_id.in_(code.set_ids))
+        # Printings of that set (and number), or names matching the words anyway. Card id
+        # sets (not correlated EXISTS under OR) keep the name and set indexes usable.
+        in_set = select(Printing.card_id).where(Printing.set_id.in_(code.set_ids))
         if code.number:
-            in_set = exists().where(
-                Printing.card_id == Card.id,
-                Printing.set_id.in_(code.set_ids),
-                number_matches(Printing.collector_number, code.number),
-            )
-        query = query.where(
-            or_(in_set, exists().where(CardName.card_id == Card.id, name_matches(q)))
-        )
-        order.insert(0, case((in_set, 0), else_=1))
+            in_set = in_set.where(number_matches(Printing.collector_number, code.number))
+        named = select(CardName.card_id).where(name_matches(q))
+        query = query.where(or_(Card.id.in_(in_set), Card.id.in_(named)))
+        order.insert(0, case((Card.id.in_(in_set), 0), else_=1))
     elif q:
         query = query.where(exists().where(CardName.card_id == Card.id, name_matches(q)))
         text = _search_text(q)
