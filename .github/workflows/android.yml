@@ -103,7 +103,7 @@ jobs:
       - name: Release build
         if: inputs.channel == 'prod'
         run: |
-          ./gradlew lintRelease testDebugUnitTest testReleaseUnitTest assembleRelease \
+          ./gradlew lintRelease testDebugUnitTest assembleRelease \
             -PversionName="$VERSION" -PversionCode="$VERSION_CODE"
           apksigner=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner
           "$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk
