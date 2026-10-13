@@ -268,6 +268,38 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
     etched, rainbow, 1st edition) get their own badge styles; no images in the
     collection list.
   - Pokémon: TCGdex set ids are URL-encoded (`SM1+` returned 404).
+- [ ] Feedback batch 2 (2026-10-14), branch `feedback-batch-2`. Phase A (server 0.4.0) done:
+  93 backend tests pass; checked in a browser on a live Sorcery sync.
+  - Sorcery images missing after the 0.3 upgrade: the image job only picks printings with
+    an image URL, which came with the next (weekly) catalog sync. Providers now have a
+    `catalog_version`; the worker syncs a catalog at once when the stored one is older,
+    and images when the catalog is newer than the last image run. Printings without
+    any image source are reported as `missing`.
+  - Catalog syncs delete cards left without printings; search skips them.
+  - Pokémon: TCGdex lists the same set ids in Japanese, Korean and Chinese. Each was
+    fetched in full and the last language took the printings (mixed image/title/text,
+    1163 empty cards). Now one base language per set id (en, eu languages, ja, ko,
+    zh-tw, zh-cn); other listings add names and images only.
+  - Pokémon species names (PokeAPI, bundled `species_names.json`, regenerate with
+    `scripts/pokemon_species.py`) name cards made of species names + suffixes in every
+    language ("ルギアV" = "Lugia V"); Asian printings join the English card.
+  - Card names follow the interface language, else English, else Japanese, else the
+    canonical name (`services/names.py`). Whole-catalog listings (> 5000 cards) are
+    sorted by canonical name: the per-card name lookup costs ~0.5 s for 40k cards.
+  - Catalog search by code: `[game] set [number]` (`pkm ssp 181`, `mtg j25 158`,
+    `sorcery ALP`); providers' `short_names`, Sorcery `set_aliases`.
+  - Base finish named "Standard" everywhere; collection sort by price (manual price, else
+    latest trend).
+  - Web: flag icons (`flag-icons`, 11 SVGs bundled) for languages; add dialog offers the
+    printing's languages only; pagination with page numbers and go-to-page.
+  - OCR: MTG old frames (number at the end of the copyright line or on the right, years
+    ignored), Pokémon labels touching Japanese names, set code box on its own line,
+    number matches ordered by detected language.
+  - Dropped: condition of the lowest offer (Cardmarket's public price guide has a single
+    `low` per product, no condition, seller or country).
+  - Phase B (Android) to do: collection screen, advanced search, condition colors and
+    flags, swipe-to-close sheet with Cardmarket link, automatic next card option, set
+    picker, automatic OCR script with detected name/language/set.
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
