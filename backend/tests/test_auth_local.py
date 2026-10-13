@@ -186,5 +186,5 @@ async def test_games_metadata(client, session):
     games = {g["id"]: g for g in (await client.get("/api/games", headers=headers)).json()}
     assert set(games) == {"mtg", "pokemon", "sorcery"}
     assert [c["code"] for c in games["mtg"]["colors"]][:5] == ["W", "U", "B", "R", "G"]
-    assert games["sorcery"]["has_prices"] is False
+    assert games["sorcery"]["has_prices"] is True
     assert (await client.get("/api/games")).status_code == 401

@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 type Props = { src: string | null | undefined; back?: string | null; alt: string; className?: string }
 
 /** Card picture at card proportions. Double-faced cards flip in 3D when clicked. */
 export function CardImage({ src, back, alt, className = '' }: Props) {
+  const { t } = useTranslation()
   const [flipped, setFlipped] = useState(false)
   const [failed, setFailed] = useState(false)
   const face = (url: string | null | undefined, label: string, extra = '') =>
@@ -28,7 +30,7 @@ export function CardImage({ src, back, alt, className = '' }: Props) {
       <div
         className={`relative h-full w-full transition-transform duration-500 transform-3d ${flipped ? 'rotate-y-180' : ''} ${back ? 'cursor-pointer' : ''}`}
         onClick={() => back && setFlipped((f) => !f)}
-        title={back ? 'Click to flip' : undefined}
+        title={back ? t('Click to flip') : undefined}
       >
         {face(src, alt)}
         {back && face(back, `${alt} (back)`, 'rotate-y-180')}

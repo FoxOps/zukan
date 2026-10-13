@@ -8,6 +8,8 @@ Username = Annotated[
     str, StringConstraints(min_length=1, max_length=150, pattern=r"^[A-Za-z0-9._@-]+$")
 ]
 Password = Annotated[str, StringConstraints(min_length=8, max_length=256)]
+# Languages of the web interface.
+UiLanguage = Literal["en", "fr"]
 
 
 class IdentityOut(BaseModel):
@@ -31,6 +33,16 @@ class UserOut(BaseModel):
 
 class MeOut(UserOut):
     identities: list[IdentityOut]
+    language: UiLanguage
+    # Games shown in the catalog, None for all.
+    catalog_games: list[str] | None
+
+
+class SettingsIn(BaseModel):
+    """Fields left out are not changed. `catalog_games: null` shows every game."""
+
+    language: UiLanguage | None = None
+    catalog_games: list[str] | None = None
 
 
 class TokenOut(BaseModel):

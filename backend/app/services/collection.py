@@ -36,6 +36,7 @@ class Variant:
 class PricePoint:
     trend: Decimal
     date: date
+    low: Decimal | None = None
 
 
 async def game_of(session: AsyncSession, printing: Printing) -> str:
@@ -168,13 +169,18 @@ async def undo(session: AsyncSession, user_id: int, transaction_id: int) -> Coll
 async def latest_prices(
     session: AsyncSession, printing_ids: Iterable[int], on: date | None = None
 ) -> dict[tuple[int, str], PricePoint]:
-    """Latest trend price per (printing, finish), optionally as of a date."""
+    """Latest trend price (and lowest offer) per (printing, finish), optionally as of a
+    date."""
     ids = list(set(printing_ids))
     if not ids:
         return {}
     query = (
         select(
-            PriceSnapshot.printing_id, PriceSnapshot.finish, PriceSnapshot.trend, PriceSnapshot.date
+            PriceSnapshot.printing_id,
+            PriceSnapshot.finish,
+            PriceSnapshot.trend,
+            PriceSnapshot.date,
+            PriceSnapshot.low,
         )
         .ext(distinct_on(PriceSnapshot.printing_id, PriceSnapshot.finish))
         .where(PriceSnapshot.printing_id.in_(ids), PriceSnapshot.trend.is_not(None))
@@ -183,7 +189,7 @@ async def latest_prices(
     if on is not None:
         query = query.where(PriceSnapshot.date <= on)
     rows = await session.execute(query)
-    return {(pid, finish): PricePoint(trend, day) for pid, finish, trend, day in rows}
+    return {(pid, finish): PricePoint(trend, day, low) for pid, finish, trend, day, low in rows}
 
 
 def unit_price(item: CollectionItem, prices: dict[tuple[int, str], PricePoint]) -> Decimal | None:

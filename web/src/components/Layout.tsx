@@ -1,15 +1,18 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { api, onSessionExpired } from '../api/client'
 import { useMe } from '../api/queries'
+import { useServerLanguage } from '../i18n'
+import { LanguageMenu } from './I18n'
 
 const NAV = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/collection', label: 'Collection' },
   { to: '/catalog', label: 'Catalog' },
   { to: '/import', label: 'Import / export' },
-  { to: '/settings', label: 'Account' },
+  { to: '/settings', label: 'Settings' },
 ]
 const ADMIN_NAV = [
   { to: '/admin/users', label: 'Users' },
@@ -29,11 +32,13 @@ function useTheme() {
 }
 
 export function Layout() {
+  const { t } = useTranslation()
   const me = useMe()
   const location = useLocation()
   const navigate = useNavigate()
   const client = useQueryClient()
   const [dark, setDark] = useTheme()
+  useServerLanguage(me.data?.language)
 
   useEffect(
     () =>
@@ -70,12 +75,13 @@ export function Layout() {
       <input id="nav-drawer" type="checkbox" className="drawer-toggle" />
       <div className="drawer-content flex min-h-screen flex-col">
         <header className="navbar sticky top-0 z-30 border-b border-base-300 bg-base-100/90 backdrop-blur">
-          <label htmlFor="nav-drawer" className="btn btn-square btn-ghost lg:hidden" aria-label="Menu">
+          <label htmlFor="nav-drawer" className="btn btn-square btn-ghost lg:hidden" aria-label={t('Menu')}>
             <svg viewBox="0 0 24 24" className="h-6 w-6 fill-none stroke-current stroke-2"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
           </label>
           <span className="flex-1 px-2 text-lg font-semibold lg:hidden">Fudabako</span>
           <div className="ml-auto flex items-center gap-2">
-            <label className="swap swap-rotate btn btn-ghost btn-circle" title="Toggle theme">
+            <LanguageMenu />
+            <label className="swap swap-rotate btn btn-ghost btn-circle" title={t('Toggle theme')}>
               <input type="checkbox" checked={dark} onChange={(e) => setDark(e.target.checked)} />
               <svg className="swap-off h-5 w-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><path d="M12 4V2m0 20v-2m8-8h2M2 12h2m13.66-5.66 1.41-1.41M4.93 19.07l1.41-1.41m0-11.32L4.93 4.93m14.14 14.14-1.41-1.41M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z" /></svg>
               <svg className="swap-on h-5 w-5 fill-current" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79Z" /></svg>
@@ -83,8 +89,8 @@ export function Layout() {
             <div className="dropdown dropdown-end">
               <button tabIndex={0} className="btn btn-ghost btn-sm">{me.data.username}</button>
               <ul tabIndex={0} className="menu dropdown-content z-40 w-44 rounded-box bg-base-200 p-2 shadow">
-                <li><NavLink to="/settings">Account</NavLink></li>
-                <li><button onClick={logout}>Log out</button></li>
+                <li><NavLink to="/settings">{t('Settings')}</NavLink></li>
+                <li><button onClick={logout}>{t('Log out')}</button></li>
               </ul>
             </div>
           </div>
@@ -94,21 +100,21 @@ export function Layout() {
         </main>
       </div>
       <div className="drawer-side z-40">
-        <label htmlFor="nav-drawer" className="drawer-overlay" aria-label="Close menu" />
+        <label htmlFor="nav-drawer" className="drawer-overlay" aria-label={t('Close menu')} />
         <aside className="min-h-full w-60 bg-base-200">
           <div className="px-6 py-5">
             <div className="text-xl font-bold">Fudabako</div>
-            <div className="text-xs text-base-content/50"><span lang="ja">札箱</span> · card box</div>
+            <div className="text-xs text-base-content/50"><span lang="ja">札箱</span> · {t('card box')}</div>
           </div>
           <ul className="menu w-full gap-1 px-3" onClick={closeDrawer}>
             {NAV.map((n) => (
-              <li key={n.to}><NavLink to={n.to} end={n.end} className={link}>{n.label}</NavLink></li>
+              <li key={n.to}><NavLink to={n.to} end={n.end} className={link}>{t(n.label)}</NavLink></li>
             ))}
             {me.data.role === 'admin' && (
               <>
-                <li className="menu-title mt-4">Administration</li>
+                <li className="menu-title mt-4">{t('Administration')}</li>
                 {ADMIN_NAV.map((n) => (
-                  <li key={n.to}><NavLink to={n.to} className={link}>{n.label}</NavLink></li>
+                  <li key={n.to}><NavLink to={n.to} className={link}>{t(n.label)}</NavLink></li>
                 ))}
               </>
             )}

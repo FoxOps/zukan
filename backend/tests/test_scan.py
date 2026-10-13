@@ -6,6 +6,7 @@ import respx
 
 from app.core.http import http_client
 from app.games.base import OcrLine, get_provider
+from app.games.cardmarket import DOWNLOAD_URL as CARDMARKET_URL
 from app.games.mtg.provider import API_URL as SCRYFALL
 from app.games.pokemon.provider import API_URL as TCGDEX
 from app.games.sorcery.provider import API_URL as SORCERY
@@ -118,7 +119,13 @@ async def catalogs(session, monkeypatch):
         )
 
     for game, routes in (
-        ("sorcery", lambda r: r.get(SORCERY).respond(json=SORCERY_CARDS)),
+        (
+            "sorcery",
+            lambda r: (
+                r.get(SORCERY).respond(json=SORCERY_CARDS),
+                r.get(url__startswith=CARDMARKET_URL).respond(404),
+            ),
+        ),
         ("pokemon", lambda r: r.get(url__startswith=TCGDEX).mock(side_effect=tcgdex)),
         (
             "mtg",
@@ -182,6 +189,16 @@ async def test_identify_number_and_name(client, alice):
     tropius = (await scan(client, alice, TROPIUS_JA))["candidates"][0]
     assert tropius["match"] == "set_number"
     assert tropius["card"]["name"] == "トロピウス"
+
+
+async def test_identify_ignores_accents_and_case(client, alice):
+    # OCR often misses accents: "insectoide" still finds "Aberration insectoïde".
+    for text in ("Aberration insectoïde", "ABERRATION INSECTOIDE"):
+        body = {"game": "mtg", "lines": [{"text": text}]}
+        response = await client.post("/api/scan/identify", json=body, headers=alice)
+        assert response.json()["candidates"][0]["card"]["name"] == (
+            "Delver of Secrets // Insectile Aberration"
+        ), text
 
 
 async def test_identify_by_name_detects_game(client, alice):

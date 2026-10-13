@@ -1,18 +1,24 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { api, call } from '../api/client'
-import { useGame, useGames } from '../api/queries'
+import { useGame, useGames, useMe } from '../api/queries'
 import { CardImage } from '../components/CardImage'
 import { ColorBadges } from '../components/ColorBadges'
 import { ColorFilter, GameTabs, SearchInput, SetSelect } from '../components/Filters'
 import { Pagination } from '../components/Pagination'
+import { formatMoney } from '../lib/format'
 import { useUrlState } from '../lib/hooks'
 
 const PAGE_SIZE = 48
 
 export default function Catalog() {
+  const { t } = useTranslation()
   const url = useUrlState()
-  const game = url.get('game')
+  const me = useMe()
+  // Games chosen in the settings; a single one is selected right away.
+  const only = me.data?.catalog_games ?? null
+  const game = url.get('game') || (only?.length === 1 ? only[0] : '')
   const q = url.get('q')
   const setId = url.get('set')
   const colors = url.getAll('color')
@@ -41,17 +47,24 @@ export default function Catalog() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold">Catalog</h1>
-      <GameTabs value={game} onChange={(id) => url.set({ game: id, set: null, color: null })} />
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h1 className="text-2xl font-bold">{t('Catalog')}</h1>
+        <Link to="/settings" className="link link-hover text-sm text-base-content/60">{t('Choose the games shown')}</Link>
+      </div>
+      {only?.length === 0 ? (
+        <div className="alert">{t('No game is selected in your settings.')}</div>
+      ) : (
+        <GameTabs value={game} only={only} onChange={(id) => url.set({ game: id, set: null, color: null })} />
+      )}
       <div className="flex flex-wrap items-center gap-3">
-        <SearchInput value={q} onChange={(v) => url.set({ q: v })} placeholder="Name in any language" />
+        <SearchInput value={q} onChange={(v) => url.set({ q: v })} placeholder={t('Name in any language')} />
         <SetSelect game={game} value={setId} onChange={(v) => url.set({ set: v })} />
         <ColorFilter game={gameInfo} value={colors} onChange={(v) => url.set({ color: v })} />
       </div>
       {cards.isError && <div className="alert alert-error">{cards.error.message}</div>}
       {cards.data && (
         <>
-          <div className="text-sm text-base-content/60">{cards.data.total.toLocaleString()} card{cards.data.total === 1 ? '' : 's'}</div>
+          <div className="text-sm text-base-content/60">{t('{{count}} cards', { count: cards.data.total })}</div>
           <div className={`grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 ${cards.isPlaceholderData ? 'opacity-60' : ''}`}>
             {cards.data.items.map((card) => (
               <Link
@@ -64,8 +77,15 @@ export default function Catalog() {
                   <span className="truncate font-medium group-hover:text-primary">{card.name}</span>
                   <span className="text-xs text-base-content/60">
                     {!game && `${games.find((g) => g.id === card.game_id)?.name ?? card.game_id} · `}
-                    {card.printing_count} printing{card.printing_count > 1 ? 's' : ''}
+                    {t('{{count}} printings', { count: card.printing_count })}
                   </span>
+                  {card.price_min !== null && (
+                    <span className="text-xs font-medium">
+                      {card.price_min === card.price_max
+                        ? formatMoney(card.price_min)
+                        : `${formatMoney(card.price_min)} - ${formatMoney(card.price_max)}`}
+                    </span>
+                  )}
                   <ColorBadges game={games.find((g) => g.id === card.game_id)} colors={card.colors} />
                 </div>
               </Link>

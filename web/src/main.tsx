@@ -5,6 +5,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router'
 import { ApiError } from './api/client'
 import { Layout } from './components/Layout'
 import { ToastProvider } from './components/Toasts'
+import './i18n'
 import './index.css'
 import Login from './pages/Login'
 import NotFound from './pages/NotFound'
@@ -46,9 +47,11 @@ const router = createBrowserRouter([
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <RouterProvider router={router} />
-      </ToastProvider>
+
+        <ToastProvider>
+          <RouterProvider router={router} />
+        </ToastProvider>
+
     </QueryClientProvider>
   </StrictMode>,
 )

@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api, call, type Schemas } from '../api/client'
 import { useInvalidateStock } from '../api/stock'
 import { formatMoney } from '../lib/format'
@@ -9,6 +10,7 @@ type Item = Schemas['ItemOut']
 
 /** Edit quantity, manual price and notes of an item, or delete it. */
 export function ItemDialog({ item, onClose }: { item: Item | null; onClose: () => void }) {
+  const { t } = useTranslation()
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     if (item) dialog.current?.showModal()
@@ -17,13 +19,14 @@ export function ItemDialog({ item, onClose }: { item: Item | null; onClose: () =
     <dialog ref={dialog} className="modal" onClose={onClose}>
       {item && <ItemForm key={item.id} item={item} close={() => close()} />}
       <form method="dialog" className="modal-backdrop">
-        <button>close</button>
+        <button>{t('close')}</button>
       </form>
     </dialog>
   )
 }
 
 function ItemForm({ item, close }: { item: Item; close: () => void }) {
+  const { t } = useTranslation()
   const toast = useToast()
   const invalidate = useInvalidateStock()
   const [quantity, setQuantity] = useState(item.quantity)
@@ -44,7 +47,7 @@ function ItemForm({ item, close }: { item: Item; close: () => void }) {
         }),
       ),
     onSuccess: () => {
-      toast('Saved')
+      toast(t('Saved'))
       close()
       return invalidate()
     },
@@ -54,7 +57,7 @@ function ItemForm({ item, close }: { item: Item; close: () => void }) {
     mutationFn: () =>
       call(api.DELETE('/api/collection/items/{item_id}', { params: { path: { item_id: item.id } } })),
     onSuccess: () => {
-      toast('Item deleted', 'info')
+      toast(t('Item deleted'), 'info')
       close()
       return invalidate()
     },
@@ -69,34 +72,34 @@ function ItemForm({ item, close }: { item: Item; close: () => void }) {
         </p>
         <div className="mt-4 flex flex-col gap-2">
           <label className="fieldset">
-            <span className="fieldset-legend">Quantity</span>
+            <span className="fieldset-legend">{t('Quantity')}</span>
             <input type="number" min={0} className="input w-32" value={quantity} onChange={(e) => setQuantity(Math.max(0, Number(e.target.value) || 0))} />
           </label>
           <label className="fieldset">
-            <span className="fieldset-legend">Manual price (€)</span>
-            <input inputMode="decimal" className="input w-40" placeholder={item.market_price ? `Market ${formatMoney(item.market_price)}` : 'No market price'} value={price} onChange={(e) => setPrice(e.target.value)} />
-            <span className="label">Empty = use the market price</span>
+            <span className="fieldset-legend">{t('Manual price (€)')}</span>
+            <input inputMode="decimal" className="input w-40" placeholder={item.market_price ? t('Market {{price}}', { price: formatMoney(item.market_price) }) : t('No market price')} value={price} onChange={(e) => setPrice(e.target.value)} />
+            <span className="label">{t('Empty = use the market price')}</span>
           </label>
           <label className="fieldset">
-            <span className="fieldset-legend">Notes</span>
+            <span className="fieldset-legend">{t('Notes')}</span>
             <textarea className="textarea w-full" maxLength={1000} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </label>
         </div>
         <div className="modal-action flex-wrap">
           {confirmDelete ? (
             <button className="btn btn-error mr-auto" onClick={() => remove.mutate()}>
-              Delete item and its history?
+              {t('Delete item and its history?')}
             </button>
           ) : (
             <button className="btn btn-ghost text-error mr-auto" onClick={() => setConfirmDelete(true)}>
-              Delete
+              {t('Delete')}
             </button>
           )}
           <form method="dialog">
-            <button className="btn btn-ghost">Cancel</button>
+            <button className="btn btn-ghost">{t('Cancel')}</button>
           </form>
           <button className="btn btn-primary" disabled={save.isPending} onClick={() => save.mutate()}>
-            Save
+            {t('Save')}
           </button>
         </div>
     </div>

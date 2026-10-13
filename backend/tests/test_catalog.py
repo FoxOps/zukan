@@ -7,7 +7,7 @@ import respx
 from sqlalchemy import func, select, update
 
 from app.core.config import get_settings
-from app.games.sorcery.provider import parse_cards
+from app.games.sorcery.provider import IMAGE_URL, parse_cards
 from app.models import Card, CardName, CardSet, JobKind, JobStatus, Printing, Role, SyncRun
 from app.services import jobs
 from app.worker import is_due
@@ -161,7 +161,10 @@ async def test_search_and_card_detail(client, session, synced):
     card = (await client.get(f"/api/cards/{card_id}", headers=headers)).json()
     assert [p["set"]["code"] for p in card["printings"]] == ["002", "001"]
     assert card["printings"][0]["names"] == {"en": "Abundance"}
-    assert card["printings"][0]["image"] is None
+    assert (
+        card["printings"][0]["image"]
+        == f"/api/printings/{card['printings'][0]['id']}/image?lang=en"
+    )
     assert card["attributes"]["thresholds"]["water"] >= 1
     assert (await client.get("/api/cards/999999", headers=headers)).status_code == 404
 
@@ -197,15 +200,22 @@ async def test_image_import_and_serving(client, session, synced):
         assert image.content == PNG
         assert image.headers["content-type"] == "image/png"
 
+    # Not imported: downloaded from the publisher's image URL, which does not have it.
     other = (await client.get("/api/cards", params={"q": "aqueduct"}, headers=headers)).json()
-    assert other["items"][0]["image"] is None
+    with respx.mock as router:
+        missing = router.get(url__startswith=IMAGE_URL).respond(403)
+        for _ in range(2):
+            assert (
+                await client.get(other["items"][0]["image"], headers=headers)
+            ).status_code == 404
+        assert missing.call_count == 1  # remembered as missing
 
 
 async def test_remote_image_fetched_once(client, session, synced):
     await make_user(session)
     headers = await bearer(client, "alice")
     printing = await session.scalar(select(Printing).order_by(Printing.id).limit(1))
-    printing.image_url = "https://images.test/card.jpg"
+    printing.image_urls = {"en": "https://images.test/card.jpg"}
     await session.commit()
     with respx.mock as router:
         route = router.get("https://images.test/card.jpg").respond(
@@ -218,14 +228,14 @@ async def test_remote_image_fetched_once(client, session, synced):
         assert route.call_count == 1
 
     await session.refresh(printing)
-    assert printing.image_path.endswith(f"/{printing.id}.jpg")
+    assert printing.image_paths["en"].endswith(f"/{printing.id}-en.jpg")
 
 
 async def test_remote_image_rejects_non_images(client, session, synced):
     await make_user(session)
     headers = await bearer(client, "alice")
     printing = await session.scalar(select(Printing).order_by(Printing.id).limit(1))
-    printing.image_url = "https://images.test/page.html"
+    printing.image_urls = {"en": "https://images.test/page.html"}
     await session.commit()
     with respx.mock as router:
         router.get("https://images.test/page.html").respond(

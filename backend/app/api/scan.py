@@ -78,7 +78,7 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
                 card=CandidateCardOut(
                     id=card.id, game_id=card.game_id, name=card.name, colors=card.colors
                 ),
-                printings=await describe_printings(session, user.id, printings),
+                printings=await describe_printings(session, user, printings),
             )
         )
     hints = result.hints

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { formatDate, formatMoney } from '../lib/format'
 
@@ -7,8 +8,9 @@ type Point = { date: string; [series: string]: number | string | null }
 
 /** Lines per series (finishes), or a single `value` series. */
 export function PriceChart({ data, series, height = 240 }: { data: Point[]; series: string[]; height?: number }) {
+  const { t } = useTranslation()
   if (data.length === 0) {
-    return <div className="py-8 text-center text-sm text-base-content/60">No price data yet</div>
+    return <div className="py-8 text-center text-sm text-base-content/60">{t('No price data yet')}</div>
   }
   return (
     <ResponsiveContainer width="100%" height={height}>

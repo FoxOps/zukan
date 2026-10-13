@@ -1,7 +1,18 @@
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import Date, DateTime, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import (
+    DDL,
+    Computed,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    UniqueConstraint,
+    event,
+    text,
+)
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -66,9 +77,15 @@ class Printing(Base):
     artist: Mapped[str | None] = mapped_column(String(255))
     finishes: Mapped[list[str]] = mapped_column(ARRAY(String(32)), default=list)
     languages: Mapped[list[str]] = mapped_column(ARRAY(String(8)), default=list)
-    image_url: Mapped[str | None] = mapped_column(String(1024))
-    # Path relative to settings.image_dir once cached.
-    image_path: Mapped[str | None] = mapped_column(String(512))
+    # Image download URL per language ({"en": url, "fr": url}).
+    image_urls: Mapped[dict[str, str]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
+    # Cached image per language, relative to settings.image_dir. An empty path marks a
+    # download the image server refused, so it is not retried on every view.
+    image_paths: Mapped[dict[str, str]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
     attributes: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
     card: Mapped[Card] = relationship(back_populates="printings")
@@ -89,6 +106,12 @@ class CardName(Base):
             postgresql_using="gin",
             postgresql_ops={"name": "gin_trgm_ops"},
         ),
+        Index(
+            "ix_card_name_search_name_trgm",
+            "search_name",
+            postgresql_using="gin",
+            postgresql_ops={"search_name": "gin_trgm_ops"},
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -99,3 +122,19 @@ class CardName(Base):
     )
     lang: Mapped[str] = mapped_column(String(8))
     name: Mapped[str] = mapped_column(String(255))
+    # Lower case without accents, for searches ("foret" finds "Forêt").
+    search_name: Mapped[str] = mapped_column(
+        String(255), Computed("lower(f_unaccent(name))", persisted=True)
+    )
+
+
+# `unaccent()` is not IMMUTABLE (its dictionary can change), so it cannot be used in a
+# generated column directly; this wrapper pins the dictionary.
+SEARCH_FUNCTIONS = [
+    "CREATE EXTENSION IF NOT EXISTS unaccent",
+    "CREATE OR REPLACE FUNCTION f_unaccent(text) RETURNS text "
+    "LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT "
+    "AS $$ SELECT public.unaccent('public.unaccent'::regdictionary, $1) $$",
+]
+for _statement in SEARCH_FUNCTIONS:
+    event.listen(CardName.__table__, "before_create", DDL(_statement))

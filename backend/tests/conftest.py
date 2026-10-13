@@ -24,6 +24,7 @@ from app.core.db import get_engine, get_sessionmaker  # noqa: E402
 from app.core.http import http_client  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.games.base import get_provider  # noqa: E402
+from app.games.cardmarket import DOWNLOAD_URL as CARDMARKET_URL  # noqa: E402
 from app.games.sorcery.provider import API_URL as SORCERY_URL  # noqa: E402
 from app.main import create_app, register_games  # noqa: E402
 from app.models import Base, Role, User  # noqa: E402
@@ -118,9 +119,17 @@ async def bearer(client: httpx.AsyncClient, username: str, password: str = "pass
 
 
 @pytest.fixture
-def sorcery_api():
+def sorcery_router():
     with respx.mock(assert_all_called=False) as router:
-        yield router.get(SORCERY_URL).respond(json=SORCERY_CARDS)
+        # No Cardmarket prices unless a test mocks them (test_sorcery_price_job).
+        router.get(url__startswith=CARDMARKET_URL, name="cardmarket").respond(404)
+        router.get(SORCERY_URL, name="sorcery").respond(json=SORCERY_CARDS)
+        yield router
+
+
+@pytest.fixture
+def sorcery_api(sorcery_router):
+    return sorcery_router["sorcery"]
 
 
 async def sync_sorcery(session: AsyncSession):

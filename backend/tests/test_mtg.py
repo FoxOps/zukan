@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 
 from app.core.http import http_client
 from app.games.base import get_provider
+from app.games.cardmarket import DOWNLOAD_URL as CARDMARKET_URL
 from app.games.mtg.provider import API_URL, iter_jsonl_gz, parse_card
 from app.main import register_games
 from app.models import (
@@ -57,6 +58,11 @@ def scryfall():
         router.get(ALL_URL).respond(content=gz(LINES))
         english = [line for line, c in zip(LINES, RAW, strict=True) if c["lang"] == "en"]
         router.get(DEFAULT_URL).respond(content=gz(english + [LINES[6]]))  # + JA-only Ajani
+        # Cardmarket price guide: Llanowar Elves (319744); trend 0 = none, foil has no trend.
+        guide = {"idProduct": 319744, "trend": 0, "low": 0.1, "avg": 0.45, "low-foil": 1.2}
+        router.get(f"{CARDMARKET_URL}/priceGuide/price_guide_1.json").respond(
+            json={"version": 1, "priceGuides": [guide]}
+        )
         yield router
 
 
@@ -95,7 +101,7 @@ def test_parse_card():
         "Insectile Aberration",
     ]
     assert delver.colors == ["U"]
-    assert delver.printings[0].image_url.startswith("https://cards.scryfall.io/normal/front/")
+    assert delver.printings[0].images["en"].startswith("https://cards.scryfall.io/normal/front/")
     assert "/back/" in delver.printings[0].attributes["back_image_url"]
     assert parse_card(raw("fr", "isd")).printings[0].names["fr"].startswith("Sondeur de secrets")
 
@@ -123,13 +129,15 @@ async def test_sync_merges_languages(client, session, scryfall):
     elves = await printing(session, "dom", "168")
     elves_id = elves.id
     assert set(elves.languages) == {"en", "fr", "de"}
-    # The French object came first, the English scan still wins.
-    assert elves.image_url == raw("en", "dom")["image_uris"]["normal"]
+    # One scan per language, whatever the order of the objects.
+    assert elves.image_urls == {
+        lang: raw(lang, "dom")["image_uris"]["normal"] for lang in ("en", "fr", "de")
+    }
     assert elves.attributes["scryfall_id"] == raw("en", "dom")["id"]
 
     ajani = await printing(session, "war", "184★")
     assert ajani.languages == ["ja"]
-    assert ajani.image_url == raw("ja", "war")["image_uris"]["normal"]
+    assert ajani.image_urls == {"ja": raw("ja", "war")["image_uris"]["normal"]}
 
     names = set(await session.scalars(select(CardName.name).where(CardName.lang == "fr")))
     assert {"Elfes de Llanowar", "Sondeur de secrets // Aberration insectoïde"} <= names
@@ -163,7 +171,7 @@ async def test_language_order_does_not_matter(session, scryfall):
     scryfall.get(ALL_URL).respond(content=gz(list(reversed(LINES))))
     await sync_mtg(session)
     elves = await printing(session, "dom", "168")
-    assert elves.image_url == raw("en", "dom")["image_uris"]["normal"]
+    assert elves.image_urls["en"] == raw("en", "dom")["image_uris"]["normal"]
     assert set(elves.languages) == {"en", "fr", "de"}
 
 
@@ -191,6 +199,19 @@ async def test_price_job_keeps_history_of_owned_cards(session, scryfall):
     run = await session.get(SyncRun, await jobs.run_job("mtg", JobKind.prices))
     assert run.report["stored"] == 6
     assert run.report["pruned"] == 1
+    # Scryfall's trend, Cardmarket's lowest offer and average.
+    latest = {
+        s.finish: (s.trend, s.low, s.avg)
+        for s in await session.scalars(
+            select(PriceSnapshot).where(
+                PriceSnapshot.printing_id == elves, PriceSnapshot.date == today()
+            )
+        )
+    }
+    assert latest == {
+        "nonfoil": (Decimal("0.39"), Decimal("0.10"), Decimal("0.45")),
+        "foil": (Decimal("1.69"), Decimal("1.20"), None),
+    }
 
     old = await session.scalars(
         select(PriceSnapshot.printing_id).where(PriceSnapshot.date == yesterday)

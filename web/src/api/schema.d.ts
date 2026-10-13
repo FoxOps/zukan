@@ -86,7 +86,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Settings */
+        patch: operations["update_settings_api_auth_me_patch"];
         trace?: never;
     };
     "/api/auth/password": {
@@ -234,6 +235,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/games/{game_id}/colors/{code}/icon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Color Icon */
+        get: operations["color_icon_api_games__game_id__colors__code__icon_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/games/{game_id}/sets": {
         parameters: {
             query?: never;
@@ -260,8 +278,9 @@ export interface paths {
         };
         /**
          * Search Cards
-         * @description Search cards by name in any language (substring match), set and colors.
-         *     Exact name matches come first, then names starting with `q`.
+         * @description Search cards by name in any language (substring match, case and accents
+         *     ignored), set and colors. Exact name matches come first, then names starting with
+         *     `q`. Without `game`, only the games chosen in the user's settings are searched.
          */
         get: operations["search_cards_api_cards_get"];
         put?: never;
@@ -316,7 +335,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Printing Image */
+        /**
+         * Printing Image
+         * @description Card image in `lang` (default: the user's language), else English, else
+         *     Japanese, else any language there is.
+         */
         get: operations["printing_image_api_printings__printing_id__image_get"];
         put?: never;
         post?: never;
@@ -706,6 +729,10 @@ export interface components {
             printing_count: number;
             /** Image */
             image: string | null;
+            /** Price Min */
+            price_min: string | null;
+            /** Price Max */
+            price_max: string | null;
         };
         /** ColorOut */
         ColorOut: {
@@ -715,6 +742,8 @@ export interface components {
             name: string;
             /** Hex */
             hex: string;
+            /** Icon */
+            icon: string | null;
         };
         /**
          * Condition
@@ -743,6 +772,8 @@ export interface components {
             languages: string[];
             /** Has Prices */
             has_prices: boolean;
+            /** Cardmarket */
+            cardmarket: string | null;
         };
         /** GameValueOut */
         GameValueOut: {
@@ -963,6 +994,13 @@ export interface components {
             has_password: boolean;
             /** Identities */
             identities: components["schemas"]["IdentityOut"][];
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "en" | "fr";
+            /** Catalog Games */
+            catalog_games: string[] | null;
         };
         /** OcrLineIn */
         OcrLineIn: {
@@ -1032,6 +1070,8 @@ export interface components {
             finish: string;
             /** Trend */
             trend: string;
+            /** Low */
+            low: string | null;
             /**
              * Date
              * Format: date
@@ -1063,6 +1103,8 @@ export interface components {
             attributes: {
                 [key: string]: unknown;
             };
+            /** Cardmarket Id */
+            cardmarket_id: number | null;
             /** Prices */
             prices: components["schemas"]["PriceOut"][];
             /** Owned */
@@ -1114,6 +1156,16 @@ export interface components {
             total: number | null;
             /** Icon Url */
             icon_url: string | null;
+        };
+        /**
+         * SettingsIn
+         * @description Fields left out are not changed. `catalog_games: null` shows every game.
+         */
+        SettingsIn: {
+            /** Language */
+            language?: ("en" | "fr") | null;
+            /** Catalog Games */
+            catalog_games?: string[] | null;
         };
         /**
          * TokenOut
@@ -1377,6 +1429,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeOut"];
+                };
+            };
+        };
+    };
+    update_settings_api_auth_me_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1683,6 +1768,38 @@ export interface operations {
             };
         };
     };
+    color_icon_api_games__game_id__colors__code__icon_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_sets_api_games__game_id__sets_get: {
         parameters: {
             query?: never;
@@ -1816,7 +1933,9 @@ export interface operations {
     };
     printing_image_api_printings__printing_id__image_get: {
         parameters: {
-            query?: never;
+            query?: {
+                lang?: string | null;
+            };
             header?: never;
             path: {
                 printing_id: number;

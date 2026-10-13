@@ -4,9 +4,11 @@ The catalog comes from the `all_cards` bulk file (every printing in every langua
 about 400 MB gzipped, streamed line by line). Scryfall stores one object per printing
 and language; they are merged here into one printing per set and collector number.
 English objects carry the full data, other languages are partial: they add a printed
-name and a language, and only provide the image when no English scan exists.
+name, a language and the scan of the card in that language.
 
-Prices are Scryfall's Cardmarket EUR prices from the smaller `default_cards` file.
+Prices are Scryfall's Cardmarket EUR prices from the smaller `default_cards` file. The
+daily price job adds Cardmarket's own price guide (lowest offer, average), matched by
+the Cardmarket product id Scryfall gives.
 """
 
 import json
@@ -22,6 +24,7 @@ import httpx
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.http import get_with_retry
+from app.games import cardmarket
 from app.games.base import (
     CardData,
     CatalogBatch,
@@ -64,6 +67,11 @@ LANGUAGES = {
     "ru": "ru",
 }
 PRICE_FIELDS = {"nonfoil": "eur", "foil": "eur_foil"}
+# Price guide field suffix per finish.
+GUIDE_SUFFIXES = {"nonfoil": "", "foil": "-foil"}
+CARDMARKET_GAME = 1
+# Mana symbols, as served by Scryfall's symbology API.
+SYMBOLS_URL = "https://svgs.scryfall.io/card-symbols"
 
 
 class MtgSettings(BaseSettings):
@@ -107,6 +115,9 @@ def _colors(raw: dict[str, Any]) -> list[str]:
 
 
 def _face_images(raw: dict[str, Any]) -> list[str]:
+    # Scryfall shows the English scan (or nothing) when it has no scan in this language.
+    if raw.get("image_status") in ("missing", "placeholder"):
+        return []
     if raw.get("image_uris"):
         return [raw["image_uris"]["normal"]]
     return [f["image_uris"]["normal"] for f in raw.get("card_faces", []) if f.get("image_uris")]
@@ -160,7 +171,7 @@ def parse_card(raw: dict[str, Any]) -> CardData | None:
         artist=raw.get("artist"),
         finishes=list(raw.get("finishes", [])),
         languages=[lang],
-        image_url=images[0] if images else None,
+        images={lang: images[0]} if images else {},
         attributes=printing_attributes,
         names={lang: printed} if printed and printed != raw["name"] else {},
     )
@@ -175,13 +186,25 @@ def parse_card(raw: dict[str, Any]) -> CardData | None:
     )
 
 
-def parse_prices(raw: dict[str, Any]) -> list[PriceQuote]:
+def parse_prices(
+    raw: dict[str, Any], guides: dict[int, cardmarket.Guide] | None = None
+) -> list[PriceQuote]:
+    """Scryfall's trend price, with lowest offer and average from Cardmarket's price
+    guide when given."""
     prices = raw.get("prices") or {}
+    guide = (guides or {}).get(raw.get("cardmarket_id") or 0)
     quotes = []
     for finish, field in PRICE_FIELDS.items():
-        trend = _decimal(prices.get(field))
-        if trend is not None and finish in raw.get("finishes", []):
-            quotes.append(PriceQuote(raw["set"], raw["collector_number"], finish, trend))
+        if finish not in raw.get("finishes", []):
+            continue
+        trend, low, avg = _decimal(prices.get(field)), None, None
+        if guide is not None:
+            guide_trend, low, avg = cardmarket.prices(guide, GUIDE_SUFFIXES[finish])
+            trend = trend or guide_trend
+        if trend is not None:
+            quotes.append(
+                PriceQuote(raw["set"], raw["collector_number"], finish, trend, low=low, avg=avg)
+            )
     return quotes
 
 
@@ -259,12 +282,12 @@ class MtgProvider:
     id = "mtg"
     name = "Magic: The Gathering"
     colors = [
-        ColorDef("W", "White", "#F8E7B9"),
-        ColorDef("U", "Blue", "#0E68AB"),
-        ColorDef("B", "Black", "#150B00"),
-        ColorDef("R", "Red", "#D3202A"),
-        ColorDef("G", "Green", "#00733E"),
-        ColorDef("C", "Colorless", "#A9A9A9"),
+        ColorDef("W", "White", "#F8E7B9", icon_url=f"{SYMBOLS_URL}/W.svg"),
+        ColorDef("U", "Blue", "#0E68AB", icon_url=f"{SYMBOLS_URL}/U.svg"),
+        ColorDef("B", "Black", "#150B00", icon_url=f"{SYMBOLS_URL}/B.svg"),
+        ColorDef("R", "Red", "#D3202A", icon_url=f"{SYMBOLS_URL}/R.svg"),
+        ColorDef("G", "Green", "#00733E", icon_url=f"{SYMBOLS_URL}/G.svg"),
+        ColorDef("C", "Colorless", "#A9A9A9", icon_url=f"{SYMBOLS_URL}/C.svg"),
     ]
     finishes = [
         FinishDef("nonfoil", "Non-foil"),
@@ -273,6 +296,7 @@ class MtgProvider:
     ]
     languages = list(LANGUAGES.values())
     price_source = "scryfall-cardmarket"
+    cardmarket_path = "Magic"
 
     async def _bulk(self, http: httpx.AsyncClient, kind: str) -> AsyncIterator[dict[str, Any]]:
         meta = (await get_with_retry(http, f"{API_URL}/bulk-data/{kind}")).json()
@@ -307,11 +331,16 @@ class MtgProvider:
         self, http: httpx.AsyncClient, owned: list[PriceTarget]
     ) -> AsyncIterator[list[PriceQuote]]:
         # The bulk file has every price, cheaper than looking up owned cards one by one.
+        try:
+            guides = await cardmarket.price_guide(http, CARDMARKET_GAME)
+        except httpx.HTTPError as exc:
+            log.warning("Cardmarket price guide unavailable, trend prices only: %s", exc)
+            guides = {}
         quotes: list[PriceQuote] = []
         async for raw in self._bulk(http, "default_cards"):
             if raw.get("digital"):
                 continue
-            quotes += parse_prices(raw)
+            quotes += parse_prices(raw, guides)
             if len(quotes) >= BATCH_SIZE:
                 yield quotes
                 quotes = []

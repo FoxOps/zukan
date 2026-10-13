@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import exists, func, select
 from sqlalchemy.orm import selectinload
 
-from app.api.catalog import image_link, like_pattern
+from app.api.catalog import image_link, name_matches
 from app.api.deps import CurrentUser, SessionDep
 from app.models import (
     Card,
@@ -137,7 +137,7 @@ def _item_query():
     )
 
 
-async def _items_out(session: SessionDep, items: list[CollectionItem]) -> list[ItemOut]:
+async def _items_out(session: SessionDep, items: list[CollectionItem], lang: str) -> list[ItemOut]:
     prices = await collection.latest_prices(session, (i.printing_id for i in items))
     out = []
     for item in items:
@@ -155,7 +155,7 @@ async def _items_out(session: SessionDep, items: list[CollectionItem]) -> list[I
                 set=ItemSetOut(id=printing.set.id, code=printing.set.code, name=printing.set.name),
                 collector_number=printing.collector_number,
                 rarity=printing.rarity,
-                image=image_link(printing),
+                image=image_link(printing, lang),
                 finish=item.finish,
                 condition=item.condition,
                 language=item.language,
@@ -172,10 +172,10 @@ async def _items_out(session: SessionDep, items: list[CollectionItem]) -> list[I
     return out
 
 
-async def _item_out(session: SessionDep, item_id: int) -> ItemOut:
+async def _item_out(session: SessionDep, item_id: int, lang: str) -> ItemOut:
     session.expire_all()
     item = await session.scalar(_item_query().where(CollectionItem.id == item_id))
-    return (await _items_out(session, [item]))[0]
+    return (await _items_out(session, [item], lang))[0]
 
 
 async def _own_item(session: SessionDep, user_id: int, item_id: int) -> CollectionItem:
@@ -222,9 +222,7 @@ async def list_items(
     if game:
         query = query.where(CardSet.game_id == game)
     if q:
-        query = query.where(
-            exists().where(CardName.card_id == Card.id, CardName.name.ilike(like_pattern(q)))
-        )
+        query = query.where(exists().where(CardName.card_id == Card.id, name_matches(q)))
     if set_id is not None:
         query = query.where(Printing.set_id == set_id)
     if color:
@@ -251,7 +249,7 @@ async def list_items(
         )
     ).all()
     return ItemPageOut(
-        items=await _items_out(session, list(items)),
+        items=await _items_out(session, list(items), user.language),
         total=total or 0,
         page=page,
         page_size=page_size,
@@ -274,13 +272,15 @@ async def adjust(body: AdjustIn, user: CurrentUser, session: SessionDep) -> Adju
         raise _conflict(exc) from exc
     item_id, transaction_id = item.id, transaction.id
     await session.commit()
-    return AdjustOut(item=await _item_out(session, item_id), transaction_id=transaction_id)
+    return AdjustOut(
+        item=await _item_out(session, item_id, user.language), transaction_id=transaction_id
+    )
 
 
 @router.get("/items/{item_id}")
 async def get_item(item_id: int, user: CurrentUser, session: SessionDep) -> ItemOut:
     await _own_item(session, user.id, item_id)
-    return await _item_out(session, item_id)
+    return await _item_out(session, item_id, user.language)
 
 
 @router.patch("/items/{item_id}")
@@ -302,7 +302,7 @@ async def update_item(
             await session.rollback()
             raise _conflict(exc) from exc
     await session.commit()
-    return await _item_out(session, item_id)
+    return await _item_out(session, item_id, user.language)
 
 
 @router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -361,7 +361,7 @@ async def undo_transaction(transaction_id: int, user: CurrentUser, session: Sess
         raise _conflict(exc) from exc
     item_id = item.id
     await session.commit()
-    return await _item_out(session, item_id)
+    return await _item_out(session, item_id, user.language)
 
 
 @router.get("/value")

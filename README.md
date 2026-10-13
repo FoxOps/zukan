@@ -46,19 +46,46 @@ file, Pokémon fetches every card from TCGdex one by one.
 
 ### Prices
 
-Cardmarket has no public API, so prices come from the card data APIs: Scryfall for MTG
-(Cardmarket trend price) and TCGdex for Pokémon (Cardmarket trend, low and average).
-Sorcery has no price source: set prices by hand on collection items. Price history is
-kept for cards somebody owns; other cards only keep their latest price.
+All prices are Cardmarket prices (EUR), never scraped from its website:
+
+- MTG: trend price from Scryfall, lowest offer and average from the daily price guide file
+  Cardmarket publishes for download (matched by Scryfall's Cardmarket product id).
+- Pokémon: trend, lowest offer and average from TCGdex.
+- Sorcery: Cardmarket's daily product list and price guide files; products are matched to
+  printings by set and card name. Cards too new for a trend use the 7 or 30 day average,
+  then the lowest offer.
+
+Card pages show the trend and lowest offer of each printing and finish, the cheapest and
+most expensive version of the card, and a link to each printing's Cardmarket page. A
+manual price on a collection item always wins. Price history is kept for cards somebody
+owns; other cards only keep their latest price.
 
 ### Card images
 
 Images are cached under `./data/images`: downloaded on first view, and pre-fetched
-for cards somebody owns. Sorcery images are not downloadable from its API; download the
+for cards somebody owns. Cards are shown in the user's interface language when that scan
+exists, else in English, else in Japanese, else in the language there is.
+
+Sorcery images are downloaded once each (about 1600, at most 2 at a time) from the
+addresses the [sorcerytcg.com card gallery](https://sorcerytcg.com/cards) uses, and served
+from the local cache only. Large scans are stored as WebP. The
 [public image folder](https://drive.google.com/drive/folders/17IrJkRGmIU9fDSTU2JQEU9JlFzb5liLJ)
-from Google Drive, unzip it into `./import/sorcery`, then run
+can be imported instead: unzip it into `./import/sorcery`, then run
 `docker compose exec api fudabako import-images sorcery /data/import/sorcery`
 (or use the admin import endpoint `POST /api/admin/images/sorcery/import`).
+
+Game color symbols (Scryfall mana symbols, the energy types of pokemon.com's card
+database, the element symbols of the sorcerytcg.com card gallery) are downloaded once when
+the API starts, into `./data/images/symbols`. A symbol that fails to download is shown as
+a colored badge and tried again on the next start.
+
+### Translations
+
+The web UI uses [i18next](https://www.i18next.com/) (`react-i18next`) with the English
+texts as keys: `web/src/locales/en.json` only holds plural forms, `fr.json` translates
+every text. `npm run check:i18n` lists missing and unused translations (run by CI). To add
+a language, add its JSON file and an entry in `LANGUAGES` (`web/src/i18n/index.ts`), and
+allow it in `UiLanguage` (`backend/app/api/schemas.py`).
 
 ### Collection and CSV
 

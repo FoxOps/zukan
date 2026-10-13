@@ -582,6 +582,14 @@
     "total": 103,
     "official": 73
    }
+  },
+  {
+   "id": "SM1+",
+   "name": "サン＆ムーン",
+   "cardCount": {
+    "total": 51,
+    "official": 51
+   }
   }
  ],
  "/ja/sets/SV1a": {
@@ -716,5 +724,27 @@
     "image": "https://assets.tcgdex.net/en/tcgp/A4/139"
    }
   ]
+ },
+ "/ja/sets/SM1+": {
+  "cardCount": {
+   "firstEd": 0,
+   "holo": 0,
+   "normal": 0,
+   "official": 51,
+   "reverse": 0,
+   "total": 51
+  },
+  "cards": [],
+  "id": "SM1+",
+  "legal": {
+   "expanded": false,
+   "standard": false
+  },
+  "name": "サン＆ムーン",
+  "releaseDate": "2017-01-27",
+  "serie": {
+   "id": "SM",
+   "name": "サン＆ムーン"
+  }
  }
 }

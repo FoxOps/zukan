@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Game } from '../api/queries'
 import { useAdjust } from '../api/stock'
-import { CONDITIONS, languageName } from '../lib/format'
+import { CONDITIONS, conditionName, finishName, languageName } from '../lib/format'
 
 export type StockTarget = {
   printingId: number
@@ -14,6 +15,7 @@ type Props = { game?: Game; target: StockTarget | null; onClose: () => void }
 
 /** Pick finish, condition, language and quantity, then add or remove copies. */
 export function StockDialog({ game, target, onClose }: Props) {
+  const { t } = useTranslation()
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     if (target) dialog.current?.showModal()
@@ -25,13 +27,14 @@ export function StockDialog({ game, target, onClose }: Props) {
         <StockForm key={target.printingId} game={game} target={target} close={() => dialog.current?.close()} />
       )}
       <form method="dialog" className="modal-backdrop">
-        <button>close</button>
+        <button>{t('close')}</button>
       </form>
     </dialog>
   )
 }
 
 function StockForm({ game, target, close }: { game: Game; target: StockTarget; close: () => void }) {
+  const { t } = useTranslation()
   const adjust = useAdjust()
   const finishes = target.finishes.length ? target.finishes : game.finishes.map((f) => f.code)
   const [finish, setFinish] = useState(finishes[0] ?? '')
@@ -49,14 +52,13 @@ function StockForm({ game, target, close }: { game: Game; target: StockTarget; c
       { onSuccess: close },
     )
   }
-  const finishName = (code: string) => game.finishes.find((f) => f.code === code)?.name ?? code
 
   return (
     <div className="modal-box animate-in fade-in zoom-in-95 duration-200">
       <h3 className="text-lg font-bold">{target.title}</h3>
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="fieldset col-span-2">
-          <span className="fieldset-legend">Finish</span>
+          <span className="fieldset-legend">{t('Finish')}</span>
           <div className="join">
             {finishes.map((f) => (
               <input
@@ -64,40 +66,46 @@ function StockForm({ game, target, close }: { game: Game; target: StockTarget; c
                 type="radio"
                 name="finish"
                 className="join-item btn btn-sm"
-                aria-label={finishName(f)}
+                aria-label={finishName(game, f)}
                 checked={finish === f}
                 onChange={() => setFinish(f)}
               />
             ))}
           </div>
         </div>
-        <label className="fieldset">
-          <span className="fieldset-legend">Condition</span>
-          <select
-            className="select select-sm"
-            value={condition}
-            onChange={(e) => setCondition(e.target.value as typeof condition)}
-          >
+        <div className="fieldset col-span-2">
+          <span className="fieldset-legend">
+            {t('Condition')}: {conditionName(condition)}
+          </span>
+          <div className="flex flex-wrap gap-1">
             {CONDITIONS.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.code} — {c.name}
-              </option>
+              <button
+                key={c.code}
+                type="button"
+                title={t(c.name)}
+                aria-pressed={condition === c.code}
+                className={`btn btn-sm min-w-11 border-0 font-semibold ${c.code === 'GD' ? 'text-neutral-900' : 'text-white'} ${condition === c.code ? 'ring-2 ring-base-content ring-offset-2 ring-offset-base-100' : 'opacity-60 hover:opacity-100'}`}
+                style={{ backgroundColor: c.color }}
+                onClick={() => setCondition(c.code)}
+              >
+                {c.code}
+              </button>
             ))}
-          </select>
-        </label>
+          </div>
+        </div>
         <label className="fieldset">
-          <span className="fieldset-legend">Language</span>
+          <span className="fieldset-legend">{t('Language')}</span>
           <select className="select select-sm" value={language} onChange={(e) => setLanguage(e.target.value)}>
             {game.languages.map((l) => (
               <option key={l} value={l}>
                 {languageName(l)}
-                {target.languages.includes(l) ? '' : ' (not listed)'}
+                {target.languages.includes(l) ? '' : ` (${t('not listed')})`}
               </option>
             ))}
           </select>
         </label>
-        <label className="fieldset col-span-2">
-          <span className="fieldset-legend">Quantity</span>
+        <label className="fieldset">
+          <span className="fieldset-legend">{t('Quantity')}</span>
           <input
             type="number"
             min={1}
@@ -110,13 +118,13 @@ function StockForm({ game, target, close }: { game: Game; target: StockTarget; c
       </div>
       <div className="modal-action">
         <form method="dialog">
-          <button className="btn btn-ghost">Cancel</button>
+          <button className="btn btn-ghost">{t('Cancel')}</button>
         </form>
         <button className="btn btn-outline btn-error" disabled={adjust.isPending} onClick={() => submit(-1)}>
-          Remove
+          {t('Remove')}
         </button>
         <button className="btn btn-primary" disabled={adjust.isPending || !finish} onClick={() => submit(1)}>
-          Add
+          {t('Add')}
         </button>
       </div>
     </div>

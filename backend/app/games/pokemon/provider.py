@@ -44,6 +44,8 @@ API_URL = "https://api.tcgdex.net/v2"
 CONCURRENCY = 8
 # Series that are not physical cards (Pokémon TCG Pocket is a mobile game).
 DIGITAL_SERIES = {"tcgp"}
+# Energy type symbols of the official card database (pokemon.com), 25 px each.
+ENERGY_SPRITE = "https://assets.pokemon.com/static2/_ui/img/cards/energy-types.png"
 
 # TCGdex language codes to ours.
 LANGUAGES = {
@@ -99,8 +101,8 @@ def _digital(raw_set: dict[str, Any]) -> bool:
     return (raw_set.get("serie") or {}).get("id") in DIGITAL_SERIES
 
 
-def _image(raw: dict[str, Any]) -> str | None:
-    return f"{raw['image']}/high.webp" if raw.get("image") else None
+def _images(raw: dict[str, Any], lang: str) -> dict[str, str]:
+    return {lang: f"{raw['image']}/high.webp"} if raw.get("image") else {}
 
 
 def _finishes(raw: dict[str, Any]) -> list[str]:
@@ -132,7 +134,7 @@ def parse_card(raw: dict[str, Any], set_id: str, lang: str) -> CardData:
         artist=raw.get("illustrator"),
         finishes=_finishes(raw),
         languages=[ours],
-        image_url=_image(raw),
+        images=_images(raw, ours),
         attributes=printing_attributes,
     )
     return CardData(
@@ -244,17 +246,17 @@ class PokemonProvider:
     id = "pokemon"
     name = "Pokémon TCG"
     colors = [
-        ColorDef("grass", "Grass", "#78C850"),
-        ColorDef("fire", "Fire", "#F08030"),
-        ColorDef("water", "Water", "#6890F0"),
-        ColorDef("lightning", "Lightning", "#F8D030"),
-        ColorDef("psychic", "Psychic", "#F85888"),
-        ColorDef("fighting", "Fighting", "#C03028"),
-        ColorDef("darkness", "Darkness", "#705848"),
-        ColorDef("metal", "Metal", "#B8B8D0"),
-        ColorDef("fairy", "Fairy", "#EE99AC"),
-        ColorDef("dragon", "Dragon", "#7038F8"),
-        ColorDef("colorless", "Colorless", "#A8A878"),
+        ColorDef("grass", "Grass", "#78C850", ENERGY_SPRITE, (25, 50, 25, 25)),
+        ColorDef("fire", "Fire", "#F08030", ENERGY_SPRITE, (0, 0, 25, 25)),
+        ColorDef("water", "Water", "#6890F0", ENERGY_SPRITE, (75, 50, 25, 25)),
+        ColorDef("lightning", "Lightning", "#F8D030", ENERGY_SPRITE, (50, 50, 25, 25)),
+        ColorDef("psychic", "Psychic", "#F85888", ENERGY_SPRITE, (75, 25, 25, 25)),
+        ColorDef("fighting", "Fighting", "#C03028", ENERGY_SPRITE, (50, 25, 25, 25)),
+        ColorDef("darkness", "Darkness", "#705848", ENERGY_SPRITE, (0, 50, 25, 25)),
+        ColorDef("metal", "Metal", "#B8B8D0", ENERGY_SPRITE, (75, 0, 25, 25)),
+        ColorDef("fairy", "Fairy", "#EE99AC", ENERGY_SPRITE, (50, 0, 25, 25)),
+        ColorDef("dragon", "Dragon", "#7038F8", ENERGY_SPRITE, (0, 25, 25, 25)),
+        ColorDef("colorless", "Colorless", "#A8A878", ENERGY_SPRITE, (25, 0, 25, 25)),
     ]
     finishes = [
         FinishDef("normal", "Normal"),
@@ -264,6 +266,7 @@ class PokemonProvider:
     ]
     languages = list(LANGUAGES.values())
     price_source = "tcgdex-cardmarket"
+    cardmarket_path = "Pokemon"
 
     async def _get(self, http: httpx.AsyncClient, path: str) -> Any:
         return (await get_with_retry(http, f"{API_URL}{path}")).json()
@@ -277,7 +280,7 @@ class PokemonProvider:
         async def one(card_id: str) -> dict[str, Any] | None:
             async with semaphore:
                 try:
-                    # Ids are literal (one is "exu-%3F"), so escape every character.
+                    # Ids are literal ("exu-%3F", "SM1+"), so escape every character.
                     return await self._get(http, f"/{lang}/cards/{quote(card_id, safe='')}")
                 except httpx.HTTPStatusError as exc:
                     if exc.response.status_code != 404:
@@ -307,7 +310,7 @@ class PokemonProvider:
 
         if "en" in languages:
             for brief in await self._get(http, "/en/sets"):
-                raw_set = await self._get(http, f"/en/sets/{brief['id']}")
+                raw_set = await self._get(http, f"/en/sets/{quote(brief['id'], safe='')}")
                 if _digital(raw_set):
                     continue
                 batch = await self._full_set(http, "en", raw_set, None)
@@ -321,7 +324,7 @@ class PokemonProvider:
             if lang == "en":
                 continue
             for brief in await self._get(http, f"/{lang}/sets"):
-                raw_set = await self._get(http, f"/{lang}/sets/{brief['id']}")
+                raw_set = await self._get(http, f"/{lang}/sets/{quote(brief['id'], safe='')}")
                 if _digital(raw_set):
                     continue
                 if brief["id"] not in english_sets:
@@ -355,6 +358,7 @@ class PokemonProvider:
                             set_external_id=set_id,
                             collector_number=brief["localId"],
                             languages=[ours],
+                            images=_images(brief, ours),
                             names={ours: brief["name"]},
                         )
                     ],

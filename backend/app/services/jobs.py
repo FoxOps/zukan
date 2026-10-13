@@ -68,7 +68,7 @@ async def _execute(game_id: str, kind: JobKind) -> dict:
             case JobKind.catalog:
                 return asdict(await sync_catalog(session, provider, http))
             case JobKind.images:
-                return asdict(await images.cache_owned_images(session, http, game_id))
+                return asdict(await images.cache_images(session, http, game_id))
             case JobKind.prices:
                 return asdict(await prices.sync_prices(session, provider, http))
 

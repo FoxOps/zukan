@@ -1,13 +1,15 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { api, call, type Schemas } from '../api/client'
 import { useGame, useGames } from '../api/queries'
 import { useAdjust } from '../api/stock'
+import { ConditionBadge, FinishBadge } from '../components/Badges'
 import { ColorFilter, GameTabs, SearchInput, SetSelect } from '../components/Filters'
 import { ItemDialog } from '../components/ItemDialog'
 import { Pagination } from '../components/Pagination'
-import { CONDITIONS, formatMoney, languageName } from '../lib/format'
+import { CONDITIONS, finishName, formatMoney, languageName } from '../lib/format'
 import { useUrlState } from '../lib/hooks'
 
 type Item = Schemas['ItemOut']
@@ -15,6 +17,7 @@ const PAGE_SIZE = 50
 const SORTS = { name: 'Name', set: 'Newest sets', updated: 'Recently changed', quantity: 'Quantity' } as const
 
 export default function Collection() {
+  const { t } = useTranslation()
   const url = useUrlState()
   const game = url.get('game')
   const gameInfo = useGame(game)
@@ -58,31 +61,31 @@ export default function Collection() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <h1 className="text-2xl font-bold">Collection</h1>
-        <Link to="/catalog" className="btn btn-primary btn-sm">Add cards from the catalog</Link>
+        <h1 className="text-2xl font-bold">{t('Collection')}</h1>
+        <Link to="/catalog" className="btn btn-primary btn-sm">{t('Add cards from the catalog')}</Link>
       </div>
       <GameTabs value={game} onChange={(id) => url.set({ game: id, set: null, color: null, finish: null, language: null })} />
       <div className="flex flex-wrap items-center gap-3">
-        <SearchInput value={url.get('q')} onChange={(v) => url.set({ q: v })} placeholder="Search your cards" />
+        <SearchInput value={url.get('q')} onChange={(v) => url.set({ q: v })} placeholder={t('Search your cards')} />
         <SetSelect game={game} value={url.get('set')} onChange={(v) => url.set({ set: v })} />
         {gameInfo && (
           <select className="select w-40" value={url.get('finish')} onChange={(e) => url.set({ finish: e.target.value })}>
-            <option value="">All finishes</option>
-            {gameInfo.finishes.map((f) => <option key={f.code} value={f.code}>{f.name}</option>)}
+            <option value="">{t('All finishes')}</option>
+            {gameInfo.finishes.map((f) => <option key={f.code} value={f.code}>{finishName(gameInfo, f.code)}</option>)}
           </select>
         )}
-        <select className="select w-40" value={url.get('condition')} onChange={(e) => url.set({ condition: e.target.value })}>
-          <option value="">All conditions</option>
-          {CONDITIONS.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+        <select className="select w-44" value={url.get('condition')} onChange={(e) => url.set({ condition: e.target.value })}>
+          <option value="">{t('All conditions')}</option>
+          {CONDITIONS.map((c) => <option key={c.code} value={c.code}>{c.code} - {t(c.name)}</option>)}
         </select>
         {gameInfo && (
           <select className="select w-40" value={url.get('language')} onChange={(e) => url.set({ language: e.target.value })}>
-            <option value="">All languages</option>
+            <option value="">{t('All languages')}</option>
             {gameInfo.languages.map((l) => <option key={l} value={l}>{languageName(l)}</option>)}
           </select>
         )}
         <select className="select w-44" value={filters.sort} onChange={(e) => url.set({ sort: e.target.value })}>
-          {Object.entries(SORTS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          {Object.entries(SORTS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
         </select>
         <ColorFilter game={gameInfo} value={url.getAll('color')} onChange={(v) => url.set({ color: v })} />
       </div>
@@ -92,8 +95,8 @@ export default function Collection() {
         <div className="hero rounded-box bg-base-200 py-12">
           <div className="hero-content text-center">
             <div>
-              <p className="text-lg">No cards here yet.</p>
-              <Link to="/catalog" className="btn btn-primary mt-4">Browse the catalog</Link>
+              <p className="text-lg">{t('No cards here yet.')}</p>
+              <Link to="/catalog" className="btn btn-primary mt-4">{t('Browse the catalog')}</Link>
             </div>
           </div>
         </div>
@@ -101,34 +104,25 @@ export default function Collection() {
       {items.data && items.data.total > 0 && (
         <>
           <div className="text-sm text-base-content/60">
-            {items.data.total} item{items.data.total === 1 ? '' : 's'} · this page {formatMoney(pageValue)}
+            {t('{{count}} items', { count: items.data.total })} · {t('this page {{value}}', { value: formatMoney(pageValue) })}
           </div>
           <div className={`overflow-x-auto rounded-box border border-base-300 ${items.isPlaceholderData ? 'opacity-60' : ''}`}>
             <table className="table table-sm">
               <thead>
                 <tr>
-                  <th />
-                  <th>Card</th>
-                  <th>Version</th>
-                  <th className="text-center">Qty</th>
-                  <th className="text-right">Unit</th>
-                  <th className="text-right">Total</th>
+                  <th>{t('Card')}</th>
+                  <th>{t('Version')}</th>
+                  <th className="text-center">{t('Qty')}</th>
+                  <th className="text-right">{t('Unit')}</th>
+                  <th className="text-right">{t('Total')}</th>
                   <th />
                 </tr>
               </thead>
               <tbody>
                 {items.data.items.map((item) => {
                   const g = games.find((x) => x.id === item.game_id)
-                  const finish = g?.finishes.find((f) => f.code === item.finish)?.name ?? item.finish
                   return (
                     <tr key={item.id} className="hover:bg-base-200">
-                      <td className="w-12">
-                        {item.image ? (
-                          <img src={item.image} alt="" loading="lazy" className="h-14 w-10 rounded object-cover" />
-                        ) : (
-                          <div className="h-14 w-10 rounded bg-base-300" />
-                        )}
-                      </td>
                       <td>
                         <Link to={`/cards/${item.card_id}`} className="link-hover font-medium">{item.name}</Link>
                         <div className="text-xs text-base-content/60">
@@ -138,24 +132,26 @@ export default function Collection() {
                         {item.notes && <div className="text-xs italic text-base-content/60">{item.notes}</div>}
                       </td>
                       <td className="whitespace-nowrap text-xs">
-                        <span className="badge badge-ghost badge-sm">{finish}</span>{' '}
-                        <span className="badge badge-ghost badge-sm">{item.condition}</span>{' '}
-                        <span className="badge badge-ghost badge-sm" title={languageName(item.language)}>{item.language}</span>
+                        <div className="flex items-center gap-1">
+                          <FinishBadge game={g} finish={item.finish} />
+                          <ConditionBadge condition={item.condition} />
+                          <span className="badge badge-ghost badge-sm" title={languageName(item.language)}>{item.language}</span>
+                        </div>
                       </td>
                       <td>
                         <div className="join justify-center">
-                          <button className="btn join-item btn-xs" disabled={adjust.isPending || item.quantity === 0} onClick={() => step(item, -1)} aria-label="Remove one">−</button>
+                          <button className="btn join-item btn-xs" disabled={adjust.isPending || item.quantity === 0} onClick={() => step(item, -1)} aria-label={t('Remove one')}>−</button>
                           <span className="join-item btn btn-xs pointer-events-none w-10">{item.quantity}</span>
-                          <button className="btn join-item btn-xs" disabled={adjust.isPending} onClick={() => step(item, 1)} aria-label="Add one">+</button>
+                          <button className="btn join-item btn-xs" disabled={adjust.isPending} onClick={() => step(item, 1)} aria-label={t('Add one')}>+</button>
                         </div>
                       </td>
                       <td className="text-right whitespace-nowrap">
                         {formatMoney(item.unit_price)}
-                        {item.manual_price !== null && <span className="badge badge-xs badge-info ml-1" title="Manual price">M</span>}
+                        {item.manual_price !== null && <span className="badge badge-xs badge-info ml-1" title={t('Manual price')}>M</span>}
                       </td>
                       <td className="text-right font-medium whitespace-nowrap">{formatMoney(item.total)}</td>
                       <td>
-                        <button className="btn btn-ghost btn-xs" onClick={() => setEditing(item)}>Edit</button>
+                        <button className="btn btn-ghost btn-xs" onClick={() => setEditing(item)}>{t('Edit')}</button>
                       </td>
                     </tr>
                   )

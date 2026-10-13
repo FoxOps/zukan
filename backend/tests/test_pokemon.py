@@ -1,6 +1,7 @@
 import json
 from decimal import Decimal
 from pathlib import Path
+from urllib.parse import unquote
 
 import httpx
 import pytest
@@ -36,7 +37,9 @@ def languages(monkeypatch):
 @pytest.fixture
 def tcgdex():
     def respond(request: httpx.Request) -> httpx.Response:
-        path = request.url.path.removeprefix("/v2")
+        # Like the real server, a literal "+" in the path means a space.
+        raw = request.url.raw_path.decode().split("?")[0].replace("+", " ")
+        path = unquote(raw).removeprefix("/v2")
         if path in API:
             return httpx.Response(200, json=API[path])
         return httpx.Response(404, json={"error": "not found"})
@@ -81,7 +84,7 @@ def test_prices_map_to_finishes():
 async def test_sync_sets_translations_and_exclusive_sets(client, session, tcgdex):
     report = await sync_pokemon(session)
     sets = {s.external_id: s for s in await session.scalars(select(CardSet))}
-    assert set(sets) == {"swsh3", "hgss1", "SV1a"}
+    assert set(sets) == {"swsh3", "hgss1", "SV1a", "SM1+"}
     assert sets["swsh3"].code == "DAA" and sets["swsh3"].lang is None
     assert sets["SV1a"].lang == "ja"
 
@@ -101,7 +104,10 @@ async def test_sync_sets_translations_and_exclusive_sets(client, session, tcgdex
     furret = await session.get(Printing, await printing_id(session, "swsh3", "136"))
     assert furret.languages == ["en", "fr"]
     assert furret.finishes == ["normal", "reverse"]
-    assert furret.image_url == "https://assets.tcgdex.net/en/swsh/swsh3/136/high.webp"
+    assert furret.image_urls == {
+        "en": "https://assets.tcgdex.net/en/swsh/swsh3/136/high.webp",
+        "fr": "https://assets.tcgdex.net/fr/swsh/swsh3/136/high.webp",
+    }
     assert furret.rarity == "Uncommon"  # translation did not clear details
     assert (
         len([p for p in await session.scalars(select(Printing)) if p.card_id == furret.card_id])

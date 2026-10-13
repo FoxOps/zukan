@@ -2,7 +2,8 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, UniqueConstraint
+from sqlalchemy import DateTime, Enum, ForeignKey, String, UniqueConstraint, text
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -25,6 +26,10 @@ class User(TimestampMixin, Base):
         Enum(Role, name="user_role", native_enum=False), default=Role.user
     )
     disabled: Mapped[bool] = mapped_column(default=False)
+    # Interface language; card images are shown in it when they exist.
+    language: Mapped[str] = mapped_column(String(8), default="en", server_default=text("'en'"))
+    # Games shown in the catalog, None for all of them.
+    catalog_games: Mapped[list[str] | None] = mapped_column(ARRAY(String(32)))
 
     identities: Mapped[list["UserIdentity"]] = relationship(
         back_populates="user", cascade="all, delete-orphan", passive_deletes=True

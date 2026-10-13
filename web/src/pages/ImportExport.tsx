@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { upload, type Schemas } from '../api/client'
 import { useGames } from '../api/queries'
 import { useInvalidateStock } from '../api/stock'
@@ -11,6 +12,7 @@ mtg,DOM,168,Llanowar Elves,fr,foil,NM,2,,
 sorcery,001,abundance-b,Abundance,en,standard,EX,1,4.50,binder 2`
 
 export default function ImportExport() {
+  const { t } = useTranslation()
   const { data: games = [] } = useGames()
   const toast = useToast()
   const invalidate = useInvalidateStock()
@@ -27,7 +29,7 @@ export default function ImportExport() {
       const result = await upload<Report>(`/api/collection/import?mode=${mode}&dry_run=${dryRun}`, file)
       setReport(result)
       if (!dryRun && result.errors.length === 0) {
-        toast(`${result.imported} rows imported`)
+        toast(t('{{count}} rows imported', { count: result.imported }))
         await invalidate()
       }
     } catch (e) {
@@ -39,15 +41,15 @@ export default function ImportExport() {
 
   return (
     <div className="flex max-w-4xl flex-col gap-6">
-      <h1 className="text-2xl font-bold">Import / export</h1>
+      <h1 className="text-2xl font-bold">{t('Import / export')}</h1>
 
       <div className="card bg-base-200">
         <div className="card-body">
-          <h2 className="card-title">Export</h2>
-          <p className="text-sm">Download your collection as CSV (spreadsheet-friendly, re-importable).</p>
+          <h2 className="card-title">{t('Export')}</h2>
+          <p className="text-sm">{t('Download your collection as CSV (spreadsheet-friendly, re-importable).')}</p>
           <div className="flex flex-wrap gap-2">
             <select className="select w-48" value={exportGame} onChange={(e) => setExportGame(e.target.value)}>
-              <option value="">All games</option>
+              <option value="">{t('All games')}</option>
               {games.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
@@ -59,7 +61,7 @@ export default function ImportExport() {
               href={`/api/collection/export.csv${exportGame ? `?game=${exportGame}` : ''}`}
               download
             >
-              Download CSV
+              {t('Download CSV')}
             </a>
           </div>
         </div>
@@ -67,12 +69,12 @@ export default function ImportExport() {
 
       <div className="card bg-base-200">
         <div className="card-body gap-4">
-          <h2 className="card-title">Import</h2>
+          <h2 className="card-title">{t('Import')}</h2>
           <div className="prose prose-sm max-w-none">
             <p>
-              One row per item. <code>collector_number</code> is the printed number, or the printing id for games
-              without numbers (Sorcery, e.g. <code>abundance-b</code>). Commas, semicolons or tabs work. If any row
-              is invalid, nothing is imported.
+              {t('One row per item.')} <code>collector_number</code>{' '}
+              {t('is the printed number, or the printing id for games without numbers (Sorcery, e.g.')}{' '}
+              <code>abundance-b</code>). {t('Commas, semicolons or tabs work. If any row is invalid, nothing is imported.')}
             </p>
             <pre className="text-xs">{EXAMPLE}</pre>
           </div>
@@ -88,19 +90,20 @@ export default function ImportExport() {
           <div className="flex flex-wrap gap-4">
             <label className="label cursor-pointer gap-2">
               <input type="radio" className="radio radio-sm" checked={mode === 'add'} onChange={() => setMode('add')} />
-              Add quantities to my collection
+              {t('Add quantities to my collection')}
             </label>
             <label className="label cursor-pointer gap-2">
               <input type="radio" className="radio radio-sm" checked={mode === 'set'} onChange={() => setMode('set')} />
-              Replace quantities of listed items
+              {t('Replace quantities of listed items')}
             </label>
           </div>
           <div className="flex gap-2">
             <button className="btn" disabled={!file || busy} onClick={() => run(true)}>
-              Check file
+              {t('Check file')}
             </button>
             <button className="btn btn-primary" disabled={!file || busy} onClick={() => run(false)}>
-              {busy && <span className="loading loading-spinner loading-sm" />}Import
+              {busy && <span className="loading loading-spinner loading-sm" />}
+              {t('Import')}
             </button>
           </div>
 
@@ -109,21 +112,21 @@ export default function ImportExport() {
               {report.errors.length === 0 ? (
                 <div role="alert" className="alert alert-success alert-soft">
                   {report.dry_run
-                    ? `${report.rows} rows are valid. Ready to import.`
-                    : `${report.imported} of ${report.rows} rows imported.`}
+                    ? t('{{count}} rows are valid. Ready to import.', { count: report.rows })
+                    : t('{{imported}} of {{rows}} rows imported.', { imported: report.imported, rows: report.rows })}
                 </div>
               ) : (
                 <>
                   <div role="alert" className="alert alert-error alert-soft">
-                    {report.errors.length} problem{report.errors.length > 1 ? 's' : ''} found in {report.rows} rows.
-                    Nothing was imported.
+                    {t('{{count}} problems found in {{rows}} rows.', { count: report.errors.length, rows: report.rows })}{' '}
+                    {t('Nothing was imported.')}
                   </div>
                   <div className="mt-2 max-h-80 overflow-auto">
                     <table className="table table-xs">
                       <thead>
                         <tr>
-                          <th>Line</th>
-                          <th>Problem</th>
+                          <th>{t('Line')}</th>
+                          <th>{t('Problem')}</th>
                         </tr>
                       </thead>
                       <tbody>
