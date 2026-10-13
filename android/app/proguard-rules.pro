@@ -9,3 +9,6 @@
 }
 # Retrofit interfaces are used through reflection.
 -keep,allowobfuscation interface fr.fudabako.app.data.FudabakoApi
+# ML Kit (via firebase-components) instantiates registrars listed in the manifest by reflection;
+# R8 full mode drops their unused no-arg constructors, leaving ML Kit uninitialized.
+-keep class * implements com.google.firebase.components.ComponentRegistrar { <init>(); }
