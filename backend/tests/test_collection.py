@@ -36,6 +36,7 @@ async def adjust(client, headers, printing, delta, finish="standard", **extra):
     return await client.post("/api/collection/adjust", json=body, headers=headers)
 
 
+@pytest.mark.smoke
 async def test_adjust_add_remove_and_validation(client, session, alice):
     abundance = await printing_id(session, "001", "abundance-b")
     response = await adjust(client, alice, abundance, 3)
@@ -76,6 +77,7 @@ async def test_concurrent_adjustments_are_not_lost(client, session, alice):
     assert items[0]["quantity"] == 10
 
 
+@pytest.mark.smoke
 async def test_undo(client, session, alice):
     abundance = await printing_id(session, "001", "abundance-b")
     added = (await adjust(client, alice, abundance, 2, source="scan")).json()
@@ -240,6 +242,7 @@ async def import_file(client, headers, text: str | bytes, **params):
     )
 
 
+@pytest.mark.smoke
 async def test_csv_import_export_round_trip(client, session, alice):
     dry = (await import_file(client, alice, CSV, dry_run=True)).json()
     assert (dry["rows"], dry["imported"], dry["errors"]) == (2, 0, [])

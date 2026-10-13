@@ -114,6 +114,7 @@ async def test_jsonl_stream_in_small_chunks():
     assert [c["id"] async for c in iter_jsonl_gz(response)] == [c["id"] for c in RAW]
 
 
+@pytest.mark.smoke
 async def test_sync_merges_languages(client, session, scryfall):
     report = await sync_mtg(session)
     assert report.sets == 4  # digital set skipped

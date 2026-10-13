@@ -9,7 +9,7 @@ Each provider needs two clients at the IdP:
 | Client | Type | Used by | Redirect URI |
 |---|---|---|---|
 | `tcg-web` | confidential, authorization code + PKCE (S256) | web UI | `https://<site>/api/auth/oidc/<name>/callback` |
-| `tcg-android` | public, authorization code + PKCE (S256) | Android app | `fr.fudabako.app:/oauth2redirect` |
+| `tcg-android` | public, authorization code + PKCE (S256) | Android app | `fr.fudabako.app:/oauth2redirect` (dev builds: `fr.fudabako.app.dev:/oauth2redirect`) |
 
 `<name>` is the provider `name` in `auth.yaml`. `<site>` is `TCG_PUBLIC_URL`.
 
@@ -40,7 +40,7 @@ Rules worth knowing:
    ```
 
 A ready development realm lives in `deploy/keycloak/tcg-realm.json`:
-`docker compose --profile sso-dev up keycloak`, issuer `http://localhost:8080/realms/tcg`,
+`docker compose -f docker-compose-dev.yml --profile sso-dev up keycloak`, issuer `http://localhost:8080/realms/tcg`,
 web secret `tcg-web-dev-secret`, users `admin` / `user` (password `password`).
 
 ## Authentik
@@ -50,7 +50,8 @@ web secret `tcg-web-dev-secret`, users `admin` / `user` (password `password`).
    Authentik signs with HS256, which is refused), *Issuer mode: Same identifier is used
    for all providers*.
 2. Create a second provider for Android: client type *Public*, redirect URI
-   `fr.fudabako.app:/oauth2redirect`, **same signing key**, same issuer mode.
+   `fr.fudabako.app:/oauth2redirect` (and `fr.fudabako.app.dev:/oauth2redirect` for dev
+   builds), **same signing key**, same issuer mode.
 3. Create an application for each provider. Groups are included in the `profile` scope.
 4. `auth.yaml`:
    ```yaml
@@ -80,7 +81,7 @@ identity_providers:
         public: true
         require_pkce: true
         pkce_challenge_method: S256
-        redirect_uris: ['fr.fudabako.app:/oauth2redirect']
+        redirect_uris: ['fr.fudabako.app:/oauth2redirect', 'fr.fudabako.app.dev:/oauth2redirect']
         scopes: [openid, profile, email, groups]
         token_endpoint_auth_method: none
         authorization_policy: two_factor

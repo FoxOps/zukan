@@ -92,7 +92,8 @@
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
       "redirectUris": [
-        "fr.fudabako.app:/oauth2redirect"
+        "fr.fudabako.app:/oauth2redirect",
+        "fr.fudabako.app.dev:/oauth2redirect"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256"

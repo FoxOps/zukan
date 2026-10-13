@@ -1,3 +1,10 @@
+# Deployment with the images built by CI (GitHub Actions -> ghcr.io).
+#   docker login ghcr.io          # the package is private: token with read:packages
+#   docker compose pull && docker compose up -d
+# FUDABAKO_TAG in .env pins a version (e.g. 0.1.0) or tests a dev build (dev-<branch>).
+# To build from source instead, use docker-compose-dev.yml.
+name: fudabako
+
 services:
   db:
     image: postgres:17
@@ -14,7 +21,7 @@ services:
       retries: 10
 
   api:
-    build: .
+    image: ghcr.io/foxops/fudabako:${FUDABAKO_TAG:-latest}
     restart: unless-stopped
     depends_on:
       db:
@@ -33,7 +40,7 @@ services:
 
   # Refreshes catalogs, prices and owned card images (TCG_SYNC_INTERVAL_HOURS).
   worker:
-    build: .
+    image: ghcr.io/foxops/fudabako:${FUDABAKO_TAG:-latest}
     restart: unless-stopped
     depends_on:
       db:
@@ -46,20 +53,6 @@ services:
     volumes:
       - images:/data/images
     command: ["python", "-m", "app.worker"]
-
-  # Development only: `docker compose --profile sso-dev up keycloak`
-  # Realm "tcg" with clients tcg-web / tcg-android and users admin/user (password: password).
-  keycloak:
-    profiles: [sso-dev]
-    image: quay.io/keycloak/keycloak:26.4
-    command: start-dev --import-realm
-    environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
-    volumes:
-      - ./deploy/keycloak:/opt/keycloak/data/import:ro
-    ports:
-      - "8080:8080"
 
 volumes:
   pgdata:

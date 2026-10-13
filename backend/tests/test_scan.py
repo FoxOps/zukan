@@ -150,6 +150,7 @@ async def scan(client, headers, lines, game=None):
     return response.json()
 
 
+@pytest.mark.smoke
 async def test_identify_exact_printing(client, alice):
     result = await scan(client, alice, ELVES_FR, game="mtg")
     best = result["candidates"][0]

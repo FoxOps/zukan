@@ -1,5 +1,6 @@
-# Web UI build
-FROM node:24-slim AS web
+# Web UI build. Static output, so it always runs on the build machine's platform
+# (multi-arch images do not emulate Node).
+FROM --platform=$BUILDPLATFORM node:24-slim AS web
 WORKDIR /web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci

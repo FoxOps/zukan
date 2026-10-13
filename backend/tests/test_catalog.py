@@ -75,6 +75,7 @@ def test_parse_groups_finishes_per_set_and_product():
     assert druid.attributes["back"] is not None
 
 
+@pytest.mark.smoke
 async def test_sync_is_idempotent(session, sorcery_api):
     from app.main import register_games
 
@@ -120,6 +121,7 @@ async def synced(session, sorcery_api):
     await sync_sorcery(session)
 
 
+@pytest.mark.smoke
 async def test_search_and_card_detail(client, session, synced):
     await make_user(session)
     headers = await bearer(client, "alice")
@@ -233,6 +235,7 @@ async def test_remote_image_rejects_non_images(client, session, synced):
     assert response.status_code == 404
 
 
+@pytest.mark.smoke
 async def test_jobs_record_runs_and_block_overlap(session, sorcery_api):
     from app.main import register_games
 

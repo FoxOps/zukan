@@ -1,8 +1,11 @@
+import pytest
+
 from app.core.config import get_settings
 from app.models import Role
 from tests.conftest import CSRF, bearer, make_user
 
 
+@pytest.mark.smoke
 async def test_login_token_mode_and_me(client, session):
     await make_user(session)
     headers = await bearer(client, "alice")
@@ -44,6 +47,7 @@ async def test_local_login_can_be_disabled(client, session):
     assert (await client.get("/api/auth/providers")).json()["local_login_enabled"] is False
 
 
+@pytest.mark.smoke
 async def test_refresh_rotates_and_detects_reuse(client, session):
     await make_user(session)
     login = await client.post(
@@ -75,6 +79,7 @@ async def test_logout_revokes_refresh_token(client, session):
     ).status_code == 401
 
 
+@pytest.mark.smoke
 async def test_cookie_mode_requires_csrf_header(client, session):
     await make_user(session)
     body = {"username": "alice", "password": "password123", "mode": "cookie"}

@@ -1,9 +1,11 @@
 import httpx
+import pytest
 
 from app.core.config import get_settings
 from app.main import create_app
 
 
+@pytest.mark.smoke
 async def test_serves_single_page_app(tmp_path, monkeypatch):
     web = tmp_path / "dist"
     (web / "assets").mkdir(parents=True)

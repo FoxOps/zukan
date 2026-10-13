@@ -211,6 +211,13 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
   - Found while testing: kotlinx.serialization skipped default values (scan source was
     recorded as "web") -> `encodeDefaults`; TCGdex includes the digital Pokémon TCG Pocket
     sets (series `tcgp`) -> skipped by the Pokémon provider.
+- [x] CI pipelines (2026-10-13): manual GitHub Actions `docker.yml` and `android.yml`,
+  each with `dev` (chosen non-main branch, smoke checks, dev image/APK) and `prod` (main +
+  version, full lint/tests, multi-arch image, signed APK, GitHub Release `vX.Y.Z`).
+  `docker-compose.yml` now runs GHCR images; `docker-compose-dev.yml` builds locally.
+  `pytest -m smoke` marks 15 critical-path tests. Dev Android build = separate app
+  `fr.fudabako.app.dev` (own SSO redirect). Release keystore kept outside the repo,
+  stored in `ANDROID_KEYSTORE_*` secrets.
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.

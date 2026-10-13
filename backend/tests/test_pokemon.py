@@ -77,6 +77,7 @@ def test_prices_map_to_finishes():
     assert parse_prices({"localId": "1", "variants": {"normal": True}}, "x") == []
 
 
+@pytest.mark.smoke
 async def test_sync_sets_translations_and_exclusive_sets(client, session, tcgdex):
     report = await sync_pokemon(session)
     sets = {s.external_id: s for s in await session.scalars(select(CardSet))}

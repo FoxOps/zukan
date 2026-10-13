@@ -4,6 +4,10 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+// Release signing comes from the environment (CI secrets); without it, release builds are
+// unsigned and debug builds use the local debug key.
+val keystorePath: String? = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
+
 android {
     namespace = "fr.fudabako.app"
     compileSdk = 37
@@ -12,10 +16,22 @@ android {
         applicationId = "fr.fudabako.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
-        // SSO redirect: fr.fudabako.app:/oauth2redirect (register it in your identity provider).
-        manifestPlaceholders["appAuthRedirectScheme"] = "fr.fudabako.app"
+        // CI passes -PversionCode / -PversionName (prod: from the release version).
+        versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
+        versionName = providers.gradleProperty("versionName").orNull ?: "0.1.0"
+        resValue("string", "app_name", "Fudabako")
+        redirectScheme("fr.fudabako.app")
+    }
+
+    signingConfigs {
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD").get()
+                keyAlias = providers.environmentVariable("ANDROID_KEY_ALIAS").get()
+                keyPassword = providers.environmentVariable("ANDROID_KEY_PASSWORD").get()
+            }
+        }
     }
 
     buildTypes {
@@ -23,10 +39,22 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.findByName("release")
+        }
+        // Dev builds install next to the released app ("Fudabako dev").
+        debug {
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = providers.gradleProperty("versionNameSuffix").orNull ?: "-dev"
+            resValue("string", "app_name", "Fudabako dev")
+            redirectScheme("fr.fudabako.app.dev")
+            // Same key as releases in CI, so successive dev builds update each other.
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+        resValues = true
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -67,4 +95,10 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
+}
+
+/** SSO redirect `<scheme>:/oauth2redirect`: register it in your identity provider. */
+fun com.android.build.api.dsl.VariantDimension.redirectScheme(scheme: String) {
+    manifestPlaceholders["appAuthRedirectScheme"] = scheme
+    buildConfigField("String", "REDIRECT_SCHEME", "\"$scheme\"")
 }

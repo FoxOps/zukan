@@ -8,12 +8,21 @@ See [PLAN.md](PLAN.md) for the full design and progress.
 
 ## Run with Docker
 
+`docker-compose.yml` runs the images built by CI from `ghcr.io/foxops/fudabako`. The
+package is private: log in once with a GitHub token that has `read:packages`.
+
 ```sh
 cp .env.example .env          # set POSTGRES_PASSWORD and TCG_SECRET_KEY
 cp auth.example.yaml auth.yaml  # SSO providers, may be left with `providers: []`
-docker compose up -d --build
+echo "$GITHUB_TOKEN" | docker login ghcr.io -u <github-user> --password-stdin
+docker compose pull && docker compose up -d
 docker compose exec -e TCG_ADMIN_PASSWORD=... api fudabako create-admin admin
 ```
+
+Update: `docker compose pull && docker compose up -d` (migrations run on start).
+`FUDABAKO_TAG` in `.env` pins a version (`0.1.0`) or tries a dev build (`dev-<branch>`).
+To build from this checkout instead: `docker compose -f docker-compose-dev.yml up -d --build`
+(separate project `fudabako-dev`, with an optional Keycloak for SSO tests).
 
 API docs: `http://localhost:8000/api/docs`. SSO setup: [docs/sso.md](docs/sso.md).
 
@@ -98,6 +107,30 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 For a release build, create a signing key and add a `signingConfigs` block (or sign
 `app-release-unsigned.apk` with `apksigner`).
+
+## CI and releases
+
+Two GitHub Actions workflows, both started by hand (Actions tab, "Run workflow"):
+
+| Workflow | `dev` (pick a branch other than main) | `prod` (main + version `X.Y.Z`) |
+|---|---|---|
+| Docker image | ruff, smoke tests (`pytest -m smoke`), type check, container smoke test; pushes `dev-<branch>` and `dev-<branch>-<sha>` (amd64) | ruff + format, migrations check, full tests, web lint/build, API types check, container smoke test; pushes `latest`, `X.Y.Z`, `sha-<sha>` (amd64 + arm64) |
+| Android app | unit tests, "Fudabako dev" debug APK as artifact | lint, unit tests, signed R8 release APK |
+
+Prod runs create (or complete) GitHub Release `vX.Y.Z` with the APK, its R8 mapping file
+and the Docker tag. The branch is chosen with "Use workflow from"; the workflows refuse
+dev builds from main and prod builds from anything else.
+
+From the command line:
+
+```sh
+gh workflow run docker.yml --ref my-branch -f channel=dev
+gh workflow run android.yml --ref main -f channel=prod -f version=0.2.0
+```
+
+The dev app (`fr.fudabako.app.dev`) installs next to the released one. Both are signed
+with the release key stored in the `ANDROID_KEYSTORE_*` secrets, so updates install over
+each other. Keep a backup of that keystore: without it the app cannot be updated.
 
 ## Backend development
 

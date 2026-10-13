@@ -3,6 +3,7 @@ package fr.fudabako.app.auth
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import fr.fudabako.app.BuildConfig
 import androidx.core.net.toUri
 import fr.fudabako.app.data.ProviderOut
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -19,7 +20,8 @@ import java.net.URL
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-const val REDIRECT_URI = "fr.fudabako.app:/oauth2redirect"
+/** fr.fudabako.app:/oauth2redirect, or fr.fudabako.app.dev:/oauth2redirect for dev builds. */
+const val REDIRECT_URI = "${BuildConfig.REDIRECT_SCHEME}:/oauth2redirect"
 
 /** What the server needs to log in with an identity provider's ID token. */
 data class SsoResult(val idToken: String, val nonce: String, val accessToken: String?)

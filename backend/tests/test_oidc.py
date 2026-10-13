@@ -124,6 +124,7 @@ async def test_providers_listing(client, idp):
     ]
 
 
+@pytest.mark.smoke
 async def test_web_login_creates_user(client, idp):
     query = await start_login(client, next="/collection")
     assert query["client_id"] == WEB_CLIENT
@@ -293,6 +294,7 @@ async def test_cannot_unlink_last_login_method(client, idp):
     assert response.status_code == 400
 
 
+@pytest.mark.smoke
 async def test_mobile_exchange(client, idp):
     token = idp.id_token(aud=MOBILE_CLIENT, nonce="n1")
     response = await client.post(
