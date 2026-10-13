@@ -1,0 +1,169 @@
+package fr.fudabako.app.data
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+// Mirrors of the server API (see /api/docs). Decimals arrive as strings.
+
+@Serializable
+data class ProvidersOut(
+    @SerialName("local_login_enabled") val localLoginEnabled: Boolean,
+    val providers: List<ProviderOut>,
+)
+
+@Serializable
+data class ProviderOut(
+    val name: String,
+    @SerialName("display_name") val displayName: String,
+    val issuer: String,
+    @SerialName("mobile_client_id") val mobileClientId: String? = null,
+    val scopes: List<String> = listOf("openid", "profile", "email"),
+)
+
+@Serializable
+data class LoginIn(val username: String, val password: String, val mode: String = "token")
+
+@Serializable
+data class RefreshIn(@SerialName("refresh_token") val refreshToken: String)
+
+@Serializable
+data class OidcExchangeIn(
+    @SerialName("id_token") val idToken: String,
+    val nonce: String,
+    @SerialName("access_token") val accessToken: String? = null,
+)
+
+@Serializable
+data class TokenOut(
+    @SerialName("access_token") val accessToken: String,
+    @SerialName("refresh_token") val refreshToken: String,
+    @SerialName("expires_in") val expiresIn: Int,
+)
+
+@Serializable
+data class MeOut(val id: Int, val username: String, val role: String)
+
+@Serializable
+data class ColorOut(val code: String, val name: String, val hex: String)
+
+@Serializable
+data class FinishOut(val code: String, val name: String)
+
+@Serializable
+data class GameOut(
+    val id: String,
+    val name: String,
+    val colors: List<ColorOut>,
+    val finishes: List<FinishOut>,
+    val languages: List<String>,
+    @SerialName("has_prices") val hasPrices: Boolean,
+)
+
+@Serializable
+data class OcrLineIn(
+    val text: String,
+    val left: Float? = null,
+    val top: Float? = null,
+    val width: Float? = null,
+    val height: Float? = null,
+)
+
+@Serializable
+data class IdentifyIn(val game: String?, val lines: List<OcrLineIn>)
+
+@Serializable
+data class HintsOut(
+    val name: String? = null,
+    @SerialName("set_code") val setCode: String? = null,
+    @SerialName("collector_number") val collectorNumber: String? = null,
+    val lang: String? = null,
+)
+
+@Serializable
+data class CardRef(val id: Int, @SerialName("game_id") val gameId: String, val name: String, val colors: List<String>)
+
+@Serializable
+data class SetOut(
+    val id: Int,
+    val code: String,
+    val name: String,
+    val lang: String? = null,
+    @SerialName("release_date") val releaseDate: String? = null,
+)
+
+@Serializable
+data class PriceOut(val finish: String, val trend: String, val date: String)
+
+@Serializable
+data class OwnedOut(
+    @SerialName("item_id") val itemId: Int,
+    val finish: String,
+    val condition: String,
+    val language: String,
+    val quantity: Int,
+)
+
+@Serializable
+data class PrintingOut(
+    val id: Int,
+    val set: SetOut,
+    @SerialName("collector_number") val collectorNumber: String? = null,
+    val rarity: String? = null,
+    val finishes: List<String>,
+    val languages: List<String>,
+    val image: String? = null,
+    val names: Map<String, String> = emptyMap(),
+    val prices: List<PriceOut> = emptyList(),
+    val owned: List<OwnedOut> = emptyList(),
+)
+
+@Serializable
+data class CandidateOut(val score: Double, val match: String, val card: CardRef, val printings: List<PrintingOut>)
+
+@Serializable
+data class IdentifyOut(
+    @SerialName("game_id") val gameId: String? = null,
+    val detected: HintsOut,
+    val candidates: List<CandidateOut>,
+)
+
+@Serializable
+data class AdjustIn(
+    @SerialName("printing_id") val printingId: Int,
+    val finish: String,
+    val condition: String,
+    val language: String,
+    val delta: Int,
+    val source: String = "scan",
+)
+
+@Serializable
+data class ItemOut(val id: Int, val name: String, val quantity: Int)
+
+@Serializable
+data class AdjustOut(val item: ItemOut, @SerialName("transaction_id") val transactionId: Int)
+
+@Serializable
+data class CardSummaryOut(
+    val id: Int,
+    @SerialName("game_id") val gameId: String,
+    val name: String,
+    val colors: List<String>,
+    @SerialName("printing_count") val printingCount: Int,
+    val image: String? = null,
+)
+
+@Serializable
+data class CardPageOut(val items: List<CardSummaryOut>, val total: Int)
+
+@Serializable
+data class CardOut(
+    val id: Int,
+    @SerialName("game_id") val gameId: String,
+    val name: String,
+    val colors: List<String>,
+    val printings: List<PrintingOut>,
+)
+
+@Serializable
+data class ErrorOut(val detail: kotlinx.serialization.json.JsonElement? = null)

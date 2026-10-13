@@ -10,10 +10,10 @@ auth.yaml
 *.jks
 keystore.properties
 
-# --- Runtime data ---
-data/
-backend/data/
-import/
+# --- Runtime data (repository root only: source folders may be named data/) ---
+/data/
+/backend/data/
+/import/
 
 # --- Python (backend) ---
 .venv/
@@ -52,7 +52,7 @@ captures/
 *.hprof
 .android/
 *.avd/
-Android/
+/Android/
 
 # --- Editors, OS, tools ---
 .idea/
