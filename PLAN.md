@@ -211,9 +211,11 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
   - Found while testing: kotlinx.serialization skipped default values (scan source was
     recorded as "web") -> `encodeDefaults`; TCGdex includes the digital Pokémon TCG Pocket
     sets (series `tcgp`) -> skipped by the Pokémon provider.
-- [x] CI pipelines (2026-10-13): manual GitHub Actions `docker.yml` and `android.yml`,
-  each with `dev` (chosen non-main branch, smoke checks, dev image/APK) and `prod` (main +
-  version, full lint/tests, multi-arch image, signed APK, GitHub Release `vX.Y.Z`).
+- [x] CI pipelines (2026-10-13): manual GitHub Actions `docker-dev`, `docker-prod`,
+  `android-dev`, `android-prod` (dev: chosen non-main branch, smoke checks, dev image/APK;
+  prod: main + version, full lint/tests, multi-arch image, signed APK). `release.yml`
+  runs on successful prod builds (workflow_run) and publishes GitHub Release `vX.Y.Z`
+  from the files the prod build handed over. Shared: `_checks.yml`, `_docker-image.yml`.
   `docker-compose.yml` now runs GHCR images; `docker-compose-dev.yml` builds locally.
   `pytest -m smoke` marks 15 critical-path tests. Dev Android build = separate app
   `fr.fudabako.app.dev` (own SSO redirect). Release keystore kept outside the repo,

@@ -1,0 +1,99 @@
+# Production Android app from main. Lint, unit tests and a signed R8 release build.
+# On success the Release workflow attaches the APK and its R8 mapping file to GitHub
+# Release v<version>.
+#
+# Secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS,
+# ANDROID_KEY_PASSWORD.
+name: Android prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version X.Y.Z"
+        type: string
+        required: true
+
+concurrency:
+  group: android-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Check branch and version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.guard.outputs.version }}
+      version_code: ${{ steps.guard.outputs.version_code }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: guard
+        env:
+          BRANCH: ${{ github.ref_name }}
+          VERSION: ${{ inputs.version }}
+        run: scripts/ci/guard.sh prod "$BRANCH" "$VERSION"
+
+  build:
+    name: Lint, unit tests and release build
+    needs: guard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    env:
+      VERSION: ${{ needs.guard.outputs.version }}
+      VERSION_CODE: ${{ needs.guard.outputs.version_code }}
+      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Android SDK platform
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" > /dev/null
+      - name: Signing key
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Prod builds must be signed: add the ANDROID_KEYSTORE_* secrets."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+      - name: Lint, unit tests and release build
+        run: |
+          ./gradlew lintRelease testDebugUnitTest assembleRelease \
+            -PversionName="$VERSION" -PversionCode="$VERSION_CODE"
+          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner
+          "$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk
+      - name: Release files
+        run: |
+          mkdir -p release
+          echo "$VERSION" > release/version
+          echo "Android app: \`fudabako-$VERSION.apk\` (version code $VERSION_CODE)" > release/notes-android.md
+          cp app/build/outputs/apk/release/app-release.apk "release/fudabako-$VERSION.apk"
+          cp app/build/outputs/mapping/release/mapping.txt "release/mapping-$VERSION.txt"
+      - name: Test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-reports
+          path: |
+            android/app/build/reports/
+            android/app/build/test-results/
+          retention-days: 14
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-android
+          path: android/release/
+          retention-days: 30
+      - name: Summary
+        run: |
+          for f in release/*.apk release/*.txt; do echo "- \`$(basename "$f")\` ($(du -h "$f" | cut -f1))"; done >> "$GITHUB_STEP_SUMMARY"

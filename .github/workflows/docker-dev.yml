@@ -1,0 +1,45 @@
+# Dev server image from a development branch (pick it in "Use workflow from").
+# Quick checks for breaking bugs, then an amd64 image pushed as dev-<branch> and
+# dev-<branch>-<sha>.
+name: Docker dev
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: docker-dev-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Check branch
+    runs-on: ubuntu-latest
+    outputs:
+      slug: ${{ steps.guard.outputs.slug }}
+      short_sha: ${{ steps.guard.outputs.short_sha }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: guard
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: scripts/ci/guard.sh dev "$BRANCH"
+
+  checks:
+    needs: guard
+    uses: ./.github/workflows/_checks.yml
+    with:
+      full: false
+
+  image:
+    needs: [guard, checks]
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/_docker-image.yml
+    with:
+      tags: dev-${{ needs.guard.outputs.slug }},dev-${{ needs.guard.outputs.slug }}-${{ needs.guard.outputs.short_sha }}
+      platforms: linux/amd64
+      version: dev-${{ needs.guard.outputs.slug }}

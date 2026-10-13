@@ -1,0 +1,70 @@
+# Production server image from main. Full lint and tests, then an amd64 + arm64 image
+# pushed as latest, <version> and sha-<sha>. On success the Release workflow publishes
+# GitHub Release v<version>.
+name: Docker prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version X.Y.Z"
+        type: string
+        required: true
+
+concurrency:
+  group: docker-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Check branch and version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.guard.outputs.version }}
+      short_sha: ${{ steps.guard.outputs.short_sha }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: guard
+        env:
+          BRANCH: ${{ github.ref_name }}
+          VERSION: ${{ inputs.version }}
+        run: scripts/ci/guard.sh prod "$BRANCH" "$VERSION"
+
+  checks:
+    needs: guard
+    uses: ./.github/workflows/_checks.yml
+    with:
+      full: true
+
+  image:
+    needs: [guard, checks]
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/_docker-image.yml
+    with:
+      tags: latest,${{ needs.guard.outputs.version }},sha-${{ needs.guard.outputs.short_sha }}
+      platforms: linux/amd64,linux/arm64
+      version: ${{ needs.guard.outputs.version }}
+
+  release-info:
+    name: Hand over to the release
+    needs: [guard, image]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release notes
+        env:
+          VERSION: ${{ needs.guard.outputs.version }}
+          IMAGE: ${{ needs.image.outputs.image }}
+        run: |
+          mkdir release
+          echo "$VERSION" > release/version
+          echo "Docker image: \`$IMAGE:$VERSION\` (linux/amd64, linux/arm64)" > release/notes-docker.md
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-docker
+          path: release/
+          retention-days: 7

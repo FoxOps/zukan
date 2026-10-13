@@ -110,22 +110,27 @@ For a release build, create a signing key and add a `signingConfigs` block (or s
 
 ## CI and releases
 
-Two GitHub Actions workflows, both started by hand (Actions tab, "Run workflow"):
+GitHub Actions workflows, all started by hand (Actions tab, "Run workflow"), except the
+release which follows successful prod builds:
 
-| Workflow | `dev` (pick a branch other than main) | `prod` (main + version `X.Y.Z`) |
+| Workflow | Runs from | Does |
 |---|---|---|
-| Docker image | ruff, smoke tests (`pytest -m smoke`), type check, container smoke test; pushes `dev-<branch>` and `dev-<branch>-<sha>` (amd64) | ruff + format, migrations check, full tests, web lint/build, API types check, container smoke test; pushes `latest`, `X.Y.Z`, `sha-<sha>` (amd64 + arm64) |
-| Android app | unit tests, "Fudabako dev" debug APK as artifact | lint, unit tests, signed R8 release APK |
+| Docker dev | any branch but main | ruff, smoke tests (`pytest -m smoke`), type check, container smoke test; pushes `dev-<branch>` and `dev-<branch>-<sha>` (amd64) |
+| Docker prod | main, version `X.Y.Z` | ruff + format, migrations check, all tests, web lint/build, API types check, container smoke test; pushes `latest`, `X.Y.Z`, `sha-<sha>` (amd64 + arm64) |
+| Android dev | any branch but main | unit tests, "Fudabako dev" debug APK as artifact |
+| Android prod | main, version `X.Y.Z` | lint, unit tests, signed R8 release APK |
+| Release | after a successful prod build | creates or completes GitHub Release `vX.Y.Z` (APK, R8 mapping, Docker tag) |
 
-Prod runs create (or complete) GitHub Release `vX.Y.Z` with the APK, its R8 mapping file
-and the Docker tag. The branch is chosen with "Use workflow from"; the workflows refuse
-dev builds from main and prod builds from anything else.
+The branch is chosen with "Use workflow from"; dev workflows refuse main and prod
+workflows refuse anything else. Run both prod workflows with the same version to get
+one release with the image and the APK. Shared steps live in `_checks.yml` and
+`_docker-image.yml` (reusable workflows, not started directly).
 
 From the command line:
 
 ```sh
-gh workflow run docker.yml --ref my-branch -f channel=dev
-gh workflow run android.yml --ref main -f channel=prod -f version=0.2.0
+gh workflow run docker-dev.yml --ref my-branch
+gh workflow run android-prod.yml --ref main -f version=0.2.0
 ```
 
 The dev app (`fr.fudabako.app.dev`) installs next to the released one. Both are signed

@@ -1,0 +1,99 @@
+# Build the server image, smoke test it against PostgreSQL, then push it to GHCR.
+# Called by the Docker dev and prod workflows.
+name: Docker image build
+
+on:
+  workflow_call:
+    inputs:
+      tags:
+        description: Comma-separated tag names (without the image name)
+        type: string
+        required: true
+      platforms:
+        type: string
+        required: true
+      version:
+        description: Value of the image version label
+        type: string
+        required: true
+    outputs:
+      image:
+        description: Image name (ghcr.io/<owner>/<repo>, lowercase)
+        value: ${{ jobs.image.outputs.image }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    name: Build, smoke test and push
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.names.outputs.image }}
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: tcg
+          POSTGRES_PASSWORD: tcg
+          POSTGRES_DB: tcg
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tcg" --health-interval 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Image name and tags
+        id: names
+        env:
+          TAGS: ${{ inputs.tags }}
+        # GHCR names must be lowercase (the owner is FoxOps).
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "tags=$(echo "$TAGS" | tr ',' '\n' | sed "s|^|$image:|" | paste -sd, -)" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@v4
+        if: contains(inputs.platforms, 'arm64')
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build for smoke test
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: fudabako:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Container smoke test
+        run: scripts/ci/docker-smoke.sh fudabako:ci
+
+      - name: Push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ inputs.platforms }}
+          push: true
+          tags: ${{ steps.names.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ inputs.version }}
+            org.opencontainers.image.title=Fudabako
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summary
+        env:
+          TAGS: ${{ steps.names.outputs.tags }}
+          PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          {
+            echo "### Docker image ($PLATFORMS)"
+            echo "$TAGS" | tr ',' '\n' | sed 's/^/- `/; s/$/`/'
+          } >> "$GITHUB_STEP_SUMMARY"

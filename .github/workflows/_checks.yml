@@ -1,0 +1,84 @@
+# Backend and web checks, called by the Docker dev and prod workflows.
+#   full: false -> lint, smoke tests (pytest -m smoke), type check
+#   full: true  -> also formatting, migrations check, all tests, web lint/build, API types
+name: Checks
+
+on:
+  workflow_call:
+    inputs:
+      full:
+        type: boolean
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: ${{ inputs.full && 'Full tests' || 'Smoke tests' }}
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: tcg
+          POSTGRES_PASSWORD: tcg
+          POSTGRES_DB: tcg
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tcg" --health-interval 5s --health-retries 10
+    env:
+      PGPASSWORD: tcg
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - name: Install backend
+        working-directory: backend
+        # Same layout as local development (web's gen:api uses backend/.venv).
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -e '.[dev]'
+      - name: Create test database
+        run: psql -h localhost -U tcg -d tcg -c "CREATE DATABASE tcg_test"
+      - name: Lint
+        working-directory: backend
+        run: .venv/bin/ruff check .
+      - name: Formatting and migrations
+        if: inputs.full
+        working-directory: backend
+        env:
+          TCG_DATABASE_URL: postgresql+asyncpg://tcg:tcg@localhost:5432/tcg
+        run: |
+          .venv/bin/ruff format --check .
+          .venv/bin/alembic upgrade head
+          .venv/bin/alembic check
+      - name: Tests
+        working-directory: backend
+        run: .venv/bin/pytest -q ${{ inputs.full && ' ' || '-m smoke' }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install web
+        working-directory: web
+        run: npm ci
+      - name: Type check
+        working-directory: web
+        run: npx tsc -b
+      - name: Lint, build and API types
+        if: inputs.full
+        working-directory: web
+        run: |
+          npx oxlint src
+          npx vite build
+          npm run gen:api
+          git diff --exit-code -- src/api/schema.d.ts || {
+            echo "::error::src/api/schema.d.ts is out of date: run 'npm run gen:api' and commit it."
+            exit 1
+          }

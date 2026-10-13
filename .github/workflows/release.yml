@@ -1,0 +1,45 @@
+# Publish GitHub Release v<version> when a prod build succeeds. Docker prod and Android
+# prod hand over a "release-*" artifact (version, notes, files); either one may come
+# first, the second completes the same release.
+name: Release
+
+on:
+  workflow_run:
+    workflows: ["Docker prod", "Android prod"]
+    types: [completed]
+
+# One release update at a time, so two prod builds finishing together don't race.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    name: Publish release
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: release-*
+          path: release
+          merge-multiple: true
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+          BUILD_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          version=$(cat release/version)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Bad version '$version'"; exit 1; }
+          notes=$(cat release/notes-*.md)
+          mapfile -t files < <(find release -type f ! -name version ! -name 'notes-*.md' | sort)
+          scripts/ci/release.sh "$version" "$notes" "${files[@]}"
+          echo "Release [v$version]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/v$version) updated from $BUILD_URL" >> "$GITHUB_STEP_SUMMARY"
