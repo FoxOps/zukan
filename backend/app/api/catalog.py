@@ -27,6 +27,8 @@ from app.services.names import display_name
 
 router = APIRouter(tags=["catalog"])
 
+SORT_BY_SHOWN_NAME_MAX = 5000
+
 
 class SetOut(BaseModel):
     id: int
@@ -204,7 +206,7 @@ async def search_cards(
     # Cards without printings cannot be collected (left over by older catalog syncs).
     name = display_name(user.language)
     query = select(Card).where(exists().where(Printing.card_id == Card.id))
-    order: list[Any] = [name, Card.id]
+    order: list[Any] = []
     if game:
         query = query.where(Card.game_id == game)
     elif user.catalog_games is not None:
@@ -251,6 +253,9 @@ async def search_cards(
         query = query.where(Card.colors.contains(color))
 
     total = await session.scalar(select(func.count()).select_from(query.subquery()))
+    # Sorting by the shown name costs a name lookup per card: whole catalogs (tens of
+    # thousands of cards) are sorted by canonical name instead.
+    order += [name if (total or 0) <= SORT_BY_SHOWN_NAME_MAX else Card.name, Card.id]
     rows = (
         await session.execute(
             query.add_columns(name)
