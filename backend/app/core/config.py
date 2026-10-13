@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     catalog_interval_hours: int = 7 * 24
     sync_interval_hours: int = 24
     worker_games: list[str] = []
-    user_agent: str = "Fudabako/0.2"
+    user_agent: str = "Fudabako/0.3"
 
 
 @lru_cache
