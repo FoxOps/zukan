@@ -277,7 +277,7 @@ class PokemonProvider:
         async def one(card_id: str) -> dict[str, Any] | None:
             async with semaphore:
                 try:
-                    # Ids are literal (one is "exu-%3F"), so escape every character.
+                    # Ids are literal ("exu-%3F", "SM1+"), so escape every character.
                     return await self._get(http, f"/{lang}/cards/{quote(card_id, safe='')}")
                 except httpx.HTTPStatusError as exc:
                     if exc.response.status_code != 404:
@@ -307,7 +307,7 @@ class PokemonProvider:
 
         if "en" in languages:
             for brief in await self._get(http, "/en/sets"):
-                raw_set = await self._get(http, f"/en/sets/{brief['id']}")
+                raw_set = await self._get(http, f"/en/sets/{quote(brief['id'], safe='')}")
                 if _digital(raw_set):
                     continue
                 batch = await self._full_set(http, "en", raw_set, None)
@@ -321,7 +321,7 @@ class PokemonProvider:
             if lang == "en":
                 continue
             for brief in await self._get(http, f"/{lang}/sets"):
-                raw_set = await self._get(http, f"/{lang}/sets/{brief['id']}")
+                raw_set = await self._get(http, f"/{lang}/sets/{quote(brief['id'], safe='')}")
                 if _digital(raw_set):
                     continue
                 if brief["id"] not in english_sets:
