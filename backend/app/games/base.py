@@ -139,7 +139,10 @@ class GameProvider(Protocol):
     - `cache_all_images = True`: the image job downloads every printing's image instead
       of only owned ones (small catalogs).
     - `cardmarket_path`: the game's Cardmarket URL segment ("Magic"); printings with a
-      `cardmarket_id` attribute then link to their Cardmarket page."""
+      `cardmarket_id` attribute then link to their Cardmarket page.
+    - `catalog_version` (default 1): bump it when `fetch_catalog` output changes in a way
+      stored data must catch up with; the worker then syncs the catalog without waiting
+      for `TCG_CATALOG_INTERVAL_HOURS`."""
 
     id: str
     name: str
@@ -171,6 +174,10 @@ class GameProvider(Protocol):
 
 
 ENTRY_POINT_GROUP = "fudabako.games"
+
+
+def catalog_version(provider: GameProvider) -> int:
+    return getattr(provider, "catalog_version", 1)
 
 
 @lru_cache

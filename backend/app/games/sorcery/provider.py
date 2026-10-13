@@ -241,6 +241,8 @@ class SorceryProvider:
     cardmarket_path = "Sorcery"
     # About 1600 printings: every image is cached, not only those of owned cards.
     cache_all_images = True
+    # 2: image URLs (databases upgraded from 0.2 had none).
+    catalog_version = 2
 
     async def _catalog(self, http: httpx.AsyncClient) -> CatalogBatch:
         # Whole catalog in one call (API limit: 30 requests/minute).

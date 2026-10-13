@@ -170,12 +170,7 @@ async def cache_images(
 ) -> ImageReport:
     """Pre-fetch the default image (English, else Japanese, else any) of owned printings,
     or of every printing when the provider sets `cache_all_images`."""
-    query = (
-        select(Printing)
-        .join(Card)
-        .where(Card.game_id == game_id, Printing.image_urls != {})
-        .order_by(Printing.id)
-    )
+    query = select(Printing).join(Card).where(Card.game_id == game_id).order_by(Printing.id)
     if not getattr(get_provider(game_id), "cache_all_images", False):
         owned = select(CollectionItem.printing_id).where(CollectionItem.quantity > 0)
         query = query.where(Printing.id.in_(owned))
@@ -188,7 +183,11 @@ async def cache_images(
 
     async def fetch(printing: Printing) -> None:
         languages = image_languages(printing)
-        if not languages or any(cached_file(printing, lang) for lang in languages):
+        if not languages:
+            # No source known: the catalog has no image URL and nothing was imported.
+            report.missing += 1
+            return
+        if any(cached_file(printing, lang) for lang in languages):
             return
         lang = next((lang for lang in languages if printing.image_paths.get(lang) != ""), None)
         if lang is None:
@@ -201,6 +200,12 @@ async def cache_images(
 
     await asyncio.gather(*(fetch(p) for p in printings))
     await session.commit()
+    if report.missing and report.missing == len(printings):
+        log.warning(
+            "No image source for any of %s %s printings: run the catalog job first",
+            len(printings),
+            game_id,
+        )
     return report
 
 

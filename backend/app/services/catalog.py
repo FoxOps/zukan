@@ -6,11 +6,18 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-from sqlalchemy import literal_column, update
+from sqlalchemy import delete, exists, literal_column, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.games.base import CardData, CatalogBatch, GameProvider, PrintingData, SetData
+from app.games.base import (
+    CardData,
+    CatalogBatch,
+    GameProvider,
+    PrintingData,
+    SetData,
+    catalog_version,
+)
 from app.models import Card, CardName, CardSet, Game, Printing
 from app.services import prices
 
@@ -23,6 +30,9 @@ class SyncReport:
     names: int = 0
     prices: int = 0
     pruned_prices: int = 0
+    # Cards left without printings (a printing moved to another card).
+    pruned_cards: int = 0
+    catalog_version: int = 1
 
 
 # Stay well under PostgreSQL's 32767 bind parameters per statement.
@@ -292,6 +302,13 @@ async def sync_catalog(
         writer.report.pruned_prices = await prices.prune_history(
             session, provider.id, provider.price_source
         )
+    pruned = await session.execute(
+        delete(Card).where(
+            Card.game_id == provider.id, ~exists().where(Printing.card_id == Card.id)
+        )
+    )
+    writer.report.pruned_cards = pruned.rowcount
+    writer.report.catalog_version = catalog_version(provider)
     await session.execute(
         update(Game).where(Game.id == provider.id).values(last_catalog_sync=datetime.now(UTC))
     )

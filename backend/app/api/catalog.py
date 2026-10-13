@@ -152,7 +152,8 @@ async def search_cards(
     """Search cards by name in any language (substring match, case and accents
     ignored), set and colors. Exact name matches come first, then names starting with
     `q`. Without `game`, only the games chosen in the user's settings are searched."""
-    query = select(Card)
+    # Cards without printings cannot be collected (left over by older catalog syncs).
+    query = select(Card).where(exists().where(Printing.card_id == Card.id))
     order: list[Any] = [Card.name, Card.id]
     if game:
         query = query.where(Card.game_id == game)
