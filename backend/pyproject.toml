@@ -1,6 +1,6 @@
 [project]
 name = "fudabako"
-version = "0.1.0"
+version = "0.2.0"
 description = "Fudabako (札箱, card box): self-hosted TCG collection manager"
 requires-python = ">=3.13"
 dependencies = [
