@@ -1,13 +1,13 @@
 # Production server image from main. Full lint and tests, then an amd64 + arm64 image
 # pushed as latest, <version> and sha-<sha>. On success the Release workflow publishes
-# GitHub Release v<version>.
+# GitHub Release server-v<version>. The server version is independent of the Android one.
 name: Docker prod
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version X.Y.Z"
+        description: "Server version X.Y.Z"
         type: string
         required: true
 
@@ -31,7 +31,7 @@ jobs:
         env:
           BRANCH: ${{ github.ref_name }}
           VERSION: ${{ inputs.version }}
-        run: scripts/ci/guard.sh prod "$BRANCH" "$VERSION"
+        run: scripts/ci/guard.sh prod "$BRANCH" server "$VERSION"
 
   checks:
     needs: guard
@@ -61,8 +61,9 @@ jobs:
           IMAGE: ${{ needs.image.outputs.image }}
         run: |
           mkdir release
+          echo server > release/component
           echo "$VERSION" > release/version
-          echo "Docker image: \`$IMAGE:$VERSION\` (linux/amd64, linux/arm64)" > release/notes-docker.md
+          echo "Docker image: \`$IMAGE:$VERSION\` (linux/amd64, linux/arm64)" > release/notes.md
       - uses: actions/upload-artifact@v7
         with:
           name: release-docker

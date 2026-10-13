@@ -116,21 +116,23 @@ release which follows successful prod builds:
 | Workflow | Runs from | Does |
 |---|---|---|
 | Docker dev | any branch but main | ruff, smoke tests (`pytest -m smoke`), type check, container smoke test; pushes `dev-<branch>` and `dev-<branch>-<sha>` (amd64) |
-| Docker prod | main, version `X.Y.Z` | ruff + format, migrations check, all tests, web lint/build, API types check, container smoke test; pushes `latest`, `X.Y.Z`, `sha-<sha>` (amd64 + arm64) |
+| Docker prod | main, server version `X.Y.Z` | ruff + format, migrations check, all tests, web lint/build, API types check, container smoke test; pushes `latest`, `X.Y.Z`, `sha-<sha>` (amd64 + arm64) |
 | Android dev | any branch but main | unit tests, "Fudabako dev" debug APK as artifact |
-| Android prod | main, version `X.Y.Z` | lint, unit tests, signed R8 release APK |
-| Release | after a successful prod build | creates or completes GitHub Release `vX.Y.Z` (APK, R8 mapping, Docker tag) |
+| Android prod | main, app version `X.Y.Z` | lint, unit tests, signed R8 release APK |
+| Release | after a successful prod build | publishes GitHub Release `server-vX.Y.Z` (Docker tag) or `android-vX.Y.Z` (APK, R8 mapping) |
 
 The branch is chosen with "Use workflow from"; dev workflows refuse main and prod
-workflows refuse anything else. Run both prod workflows with the same version to get
-one release with the image and the APK. Shared steps live in `_checks.yml` and
+workflows refuse anything else. The server and the Android app have independent
+versions: an app fix ships a new `android-v*` release without a new server version, and
+the other way round. Shared steps live in `_checks.yml` and
 `_docker-image.yml` (reusable workflows, not started directly).
 
 From the command line:
 
 ```sh
 gh workflow run docker-dev.yml --ref my-branch
-gh workflow run android-prod.yml --ref main -f version=0.2.0
+gh workflow run docker-prod.yml --ref main -f version=0.3.0
+gh workflow run android-prod.yml --ref main -f version=0.2.1
 ```
 
 The dev app (`fr.fudabako.app.dev`) installs next to the released one. Both are signed

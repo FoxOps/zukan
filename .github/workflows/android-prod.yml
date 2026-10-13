@@ -1,6 +1,6 @@
 # Production Android app from main. Lint, unit tests and a signed R8 release build.
-# On success the Release workflow attaches the APK and its R8 mapping file to GitHub
-# Release v<version>.
+# On success the Release workflow publishes GitHub Release android-v<version> with the APK
+# and its R8 mapping file. The app version is independent of the server one.
 #
 # Secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS,
 # ANDROID_KEY_PASSWORD.
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version X.Y.Z"
+        description: "Android app version X.Y.Z"
         type: string
         required: true
 
@@ -34,7 +34,7 @@ jobs:
         env:
           BRANCH: ${{ github.ref_name }}
           VERSION: ${{ inputs.version }}
-        run: scripts/ci/guard.sh prod "$BRANCH" "$VERSION"
+        run: scripts/ci/guard.sh prod "$BRANCH" android "$VERSION"
 
   build:
     name: Lint, unit tests and release build
@@ -76,8 +76,9 @@ jobs:
       - name: Release files
         run: |
           mkdir -p release
+          echo android > release/component
           echo "$VERSION" > release/version
-          echo "Android app: \`fudabako-$VERSION.apk\` (version code $VERSION_CODE)" > release/notes-android.md
+          echo "Android app: \`fudabako-$VERSION.apk\` (version code $VERSION_CODE)" > release/notes.md
           cp app/build/outputs/apk/release/app-release.apk "release/fudabako-$VERSION.apk"
           cp app/build/outputs/mapping/release/mapping.txt "release/mapping-$VERSION.txt"
       - name: Test reports

@@ -1,6 +1,6 @@
-# Publish GitHub Release v<version> when a prod build succeeds. Docker prod and Android
-# prod hand over a "release-*" artifact (version, notes, files); either one may come
-# first, the second completes the same release.
+# Publish a GitHub Release when a prod build succeeds. Docker prod and Android prod hand
+# over a "release-*" artifact (component, version, notes, files). The server and the
+# Android app are versioned independently: server-v<version> and android-v<version>.
 name: Release
 
 on:
@@ -37,9 +37,11 @@ jobs:
           TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
           BUILD_URL: ${{ github.event.workflow_run.html_url }}
         run: |
+          component=$(cat release/component)
           version=$(cat release/version)
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Bad version '$version'"; exit 1; }
-          notes=$(cat release/notes-*.md)
-          mapfile -t files < <(find release -type f ! -name version ! -name 'notes-*.md' | sort)
-          scripts/ci/release.sh "$version" "$notes" "${files[@]}"
-          echo "Release [v$version]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/v$version) updated from $BUILD_URL" >> "$GITHUB_STEP_SUMMARY"
+          notes=$(cat release/notes.md)
+          mapfile -t files < <(find release -type f ! -name component ! -name version ! -name notes.md | sort)
+          scripts/ci/release.sh "$component" "$version" "$notes" "${files[@]}"
+          tag="$component-v$version"
+          echo "Release [$tag]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$tag) updated from $BUILD_URL" >> "$GITHUB_STEP_SUMMARY"
