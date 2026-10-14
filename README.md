@@ -150,15 +150,15 @@ For a release build, create a signing key and add a `signingConfigs` block (or s
 ## CI and releases
 
 GitHub Actions workflows, all started by hand (Actions tab, "Run workflow"), except the
-release which follows successful prod builds:
+release which follows successful builds:
 
 | Workflow | Runs from | Does |
 |---|---|---|
 | Docker dev | any branch but main | ruff, smoke tests (`pytest -m smoke`), type check, container smoke test; pushes `dev-<branch>` and `dev-<branch>-<sha>` (amd64) |
 | Docker prod | main, server version `X.Y.Z` | ruff + format, migrations check, all tests, web lint/build, API types check, container smoke test; pushes `latest`, `X.Y.Z`, `sha-<sha>` (amd64 + arm64) |
-| Android dev | any branch but main | unit tests, "Fudabako dev" debug APK as artifact |
+| Android dev | any branch but main | unit tests, "Fudabako dev" debug APK |
 | Android prod | main, app version `X.Y.Z` | lint, unit tests, signed R8 release APK |
-| Release | after a successful prod build | publishes GitHub Release `server-vX.Y.Z` (Docker tag) or `android-vX.Y.Z` (APK, R8 mapping) |
+| Release | after a successful build | prod: GitHub Release `server-vX.Y.Z` (Docker tag) or `android-vX.Y.Z` (APK, R8 mapping); dev: pre-release `server-dev-<branch>` (Docker tag) or `android-dev-<branch>` (dev APK), replaced by each dev build of the branch |
 
 The branch is chosen with "Use workflow from"; dev workflows refuse main and prod
 workflows refuse anything else. The server and the Android app have independent

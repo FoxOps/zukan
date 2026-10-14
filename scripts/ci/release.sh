@@ -4,9 +4,13 @@
 # versions and releases.
 #
 #   scripts/ci/release.sh COMPONENT VERSION NOTE [FILE...]
+#   CHANNEL=dev scripts/ci/release.sh COMPONENT dev-BRANCH NOTE [FILE...]
+#
+# CHANNEL=dev publishes pre-release COMPONENT-dev-BRANCH, deleted and created again on
+# each dev build so its tag and files follow the branch.
 #
 # Needs GH_TOKEN with contents: write. The tag is created on TARGET_SHA (the commit the
-# prod build ran on), default HEAD.
+# build ran on), default HEAD.
 set -euo pipefail
 
 component=${1:?component}
@@ -18,10 +22,24 @@ case "$component" in
     android) title="Fudabako Android $version" ;;
     *) echo "::error::Unknown component '$component'."; exit 1 ;;
 esac
+target=${TARGET_SHA:-$(git rev-parse HEAD)}
+
+if [ "${CHANNEL:-prod}" = dev ]; then
+    tag="$component-$version"
+    title="$title (${target:0:7})"
+    if gh release view "$tag" >/dev/null 2>&1; then
+        gh release delete "$tag" --cleanup-tag --yes
+    elif git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+        git push origin ":refs/tags/$tag"
+    fi
+    gh release create "$tag" --target "$target" --title "$title" --notes "$note" \
+        --prerelease --latest=false "$@"
+    exit 0
+fi
 tag="$component-v$version"
 
 if ! gh release view "$tag" >/dev/null 2>&1; then
-    gh release create "$tag" --target "${TARGET_SHA:-$(git rev-parse HEAD)}" --title "$title" \
+    gh release create "$tag" --target "$target" --title "$title" \
         --notes "$note" "$@"
     exit 0
 fi

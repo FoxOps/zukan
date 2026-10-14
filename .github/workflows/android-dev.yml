@@ -1,6 +1,7 @@
 # Dev Android app from a development branch (pick it in "Use workflow from").
 # Unit tests and a debug build of "Fudabako dev" (fr.fudabako.app.dev, installs next to
-# the released app), uploaded as a workflow artifact.
+# the released app). On success the Release workflow publishes it as pre-release
+# android-dev-<branch> (replaced by each new dev build of that branch).
 name: Android dev
 
 on:
@@ -63,8 +64,12 @@ jobs:
         run: |
           ./gradlew testDebugUnitTest assembleDebug \
             -PversionCode="$GITHUB_RUN_NUMBER" -PversionNameSuffix="-dev.$SHORT_SHA"
-          mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk "dist/fudabako-dev-$SLUG-$SHORT_SHA.apk"
+          mkdir -p release
+          echo android > release/component
+          echo dev > release/channel
+          echo "dev-$SLUG" > release/version
+          echo "Dev build of branch \`$GITHUB_REF_NAME\` at $SHORT_SHA: \`fudabako-dev-$SLUG-$SHORT_SHA.apk\` (Fudabako dev, installs next to the released app)." > release/notes.md
+          cp app/build/outputs/apk/debug/app-debug.apk "release/fudabako-dev-$SLUG-$SHORT_SHA.apk"
       - name: Test reports
         if: failure()
         uses: actions/upload-artifact@v7
@@ -76,9 +81,9 @@ jobs:
           retention-days: 14
       - uses: actions/upload-artifact@v7
         with:
-          name: fudabako-dev-${{ needs.guard.outputs.slug }}-${{ needs.guard.outputs.short_sha }}
-          path: android/dist/
+          name: release-android
+          path: android/release/
           retention-days: 14
       - name: Summary
         run: |
-          for f in dist/*; do echo "- \`$(basename "$f")\` ($(du -h "$f" | cut -f1))"; done >> "$GITHUB_STEP_SUMMARY"
+          for f in release/*.apk; do echo "- \`$(basename "$f")\` ($(du -h "$f" | cut -f1))"; done >> "$GITHUB_STEP_SUMMARY"
