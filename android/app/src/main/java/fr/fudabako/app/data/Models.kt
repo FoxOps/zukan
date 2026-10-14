@@ -97,7 +97,14 @@ data class HintsOut(
 )
 
 @Serializable
-data class CardRef(val id: Int, @SerialName("game_id") val gameId: String, val name: String, val colors: List<String>)
+data class CardRef(
+    val id: Int,
+    @SerialName("game_id") val gameId: String,
+    val name: String,
+    val colors: List<String>,
+    // Latin name next to a non-Latin one ("ビードル (Aspicot)"), servers 0.6+.
+    val translation: String? = null,
+)
 
 @Serializable
 data class SetOut(
@@ -141,6 +148,9 @@ data class PrintingOut(
     val finishes: List<String>,
     val languages: List<String>,
     val image: String? = null,
+    // Named as printed in its set, with a Latin translation of non-Latin names (servers 0.6+).
+    val name: String = "",
+    val translation: String? = null,
     val names: Map<String, String> = emptyMap(),
     val links: List<LinkOut> = emptyList(),
     val prices: List<PriceOut> = emptyList(),
@@ -183,6 +193,7 @@ data class ItemSetOut(val id: Int, val code: String, val name: String)
 data class ItemOut(
     val id: Int,
     val name: String,
+    val translation: String? = null,
     val quantity: Int,
     @SerialName("printing_id") val printingId: Int = 0,
     @SerialName("card_id") val cardId: Int = 0,
@@ -215,9 +226,12 @@ data class CardSummaryOut(
     val id: Int,
     @SerialName("game_id") val gameId: String,
     val name: String,
+    val translation: String? = null,
     val colors: List<String>,
     @SerialName("printing_count") val printingCount: Int,
     val image: String? = null,
+    // Printing whose image is shown: the card opens on it (servers 0.6+).
+    @SerialName("printing_id") val printingId: Int? = null,
     @SerialName("price_min") val priceMin: String? = null,
     @SerialName("price_max") val priceMax: String? = null,
     val currency: String? = null,
@@ -231,7 +245,10 @@ data class CardOut(
     val id: Int,
     @SerialName("game_id") val gameId: String,
     val name: String,
+    val translation: String? = null,
     val colors: List<String>,
+    // Printing the catalog shows for the card (servers 0.6+).
+    @SerialName("default_printing_id") val defaultPrintingId: Int? = null,
     val printings: List<PrintingOut>,
 )
 

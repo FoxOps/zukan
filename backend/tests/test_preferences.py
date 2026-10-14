@@ -140,10 +140,23 @@ async def test_image_in_user_language_with_fallbacks(client, session, alice):
     await session.commit()
     assert images.image_languages(p, "fr") == ["ja", "ko"]
 
-    # Links carry the user's language, so a language change is not hidden by the cache.
+    # Links carry the chosen language, so a language change is not hidden by the cache.
     await client.patch("/api/auth/me", json={"language": "fr"}, headers=alice)
     card = (await client.get(f"/api/cards/{p.card_id}", headers=alice)).json()
-    assert all(pr["image"].endswith("?lang=fr") for pr in card["printings"])
+    shown = next(pr for pr in card["printings"] if pr["id"] == p.id)
+    assert shown["image"].endswith("?lang=ja")
+    p.image_urls = {**p.image_urls, "fr": "https://img.test/fr2.png"}
+    p.image_paths = {**p.image_paths, "fr": ""}
+    await session.commit()
+    # A refused French download is not chosen.
+    card = (await client.get(f"/api/cards/{p.card_id}", headers=alice)).json()
+    shown = next(pr for pr in card["printings"] if pr["id"] == p.id)
+    assert shown["image"].endswith("?lang=ja")
+    p.image_paths = {**p.image_paths, "fr": "x.png"}
+    await session.commit()
+    card = (await client.get(f"/api/cards/{p.card_id}", headers=alice)).json()
+    shown = next(pr for pr in card["printings"] if pr["id"] == p.id)
+    assert shown["image"].endswith("?lang=fr")
 
 
 async def test_sorcery_images_job_caches_every_printing(session, alice, monkeypatch):

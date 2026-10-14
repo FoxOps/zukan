@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useParams } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router'
 import { api, call, type Schemas } from '../api/client'
 import { useGame, useMe } from '../api/queries'
 import { Attributes } from '../components/Attributes'
@@ -14,15 +14,19 @@ import { Select } from '../components/Select'
 import { hasVisibleAttributes } from '../lib/attributes'
 import { useUrlState } from '../lib/hooks'
 import { finishName, formatDate, formatMoney, languageName, normalize } from '../lib/format'
+import { ShownName } from '../components/ShownName'
 
 type PrintingOut = Schemas['PrintingOut']
 
 function PriceHistory({
   printing,
+  finish,
   finishLabel,
   source,
 }: {
   printing: PrintingOut
+  // Only this finish's prices (all finishes when null).
+  finish: string | null
   finishLabel: (f: string) => string
   source: { id: string; currency: string } | undefined
 }) {
@@ -34,7 +38,7 @@ function PriceHistory({
     const byDate = new Map<string, Record<string, number | string | null>>()
     const names = new Set<string>()
     for (const point of history.data ?? []) {
-      if (point.source !== source?.id) continue
+      if (point.source !== source?.id || (finish !== null && point.finish !== finish)) continue
       const name = finishLabel(point.finish)
       names.add(name)
       const row = byDate.get(point.date) ?? { date: point.date }
@@ -42,7 +46,7 @@ function PriceHistory({
       byDate.set(point.date, row)
     }
     return { data: [...byDate.values()] as { date: string }[], series: [...names] }
-  }, [history.data, finishLabel, source])
+  }, [history.data, finish, finishLabel, source])
   if (history.isPending) return <span className="loading loading-dots" />
   return <PriceChart data={data} series={series} currency={source?.currency} />
 }
@@ -90,7 +94,9 @@ function sortPrintings(printings: PrintingOut[], sort: PrintingSort, source: str
 
 export default function CardDetail() {
   const { t } = useTranslation()
-  const { cardId } = useParams()
+  const { cardId, printingId } = useParams()
+  const navigate = useNavigate()
+  const location = useLocation()
   const card = useQuery({
     queryKey: ['card', Number(cardId)],
     queryFn: () => call(api.GET('/api/cards/{card_id}', { params: { path: { card_id: Number(cardId) } } })),
@@ -99,7 +105,6 @@ export default function CardDetail() {
   })
   const game = useGame(card.data?.game_id)
   const me = useMe()
-  const [selectedId, setSelectedId] = useState<number | null>(null)
   const [target, setTarget] = useState<StockTarget | null>(null)
   const [setFilter, setSetFilter] = useState('')
   const url = useUrlState()
@@ -111,8 +116,21 @@ export default function CardDetail() {
   if (card.isError) return <div className="alert alert-error">{card.error.message}</div>
 
   const c = card.data
-  const selected = c.printings.find((p) => p.id === selectedId) ?? c.printings[0]
-  const localNames = Object.entries(selected?.names ?? {}).filter(([, n]) => n !== c.name)
+  // Each printing has its own page; the card's address opens the printing the catalog shows.
+  if (printingId === undefined && c.default_printing_id !== null && c.default_printing_id !== undefined)
+    return <Navigate replace to={`/cards/${c.id}/${c.default_printing_id}${location.search}`} />
+  const selected = c.printings.find((p) => p.id === Number(printingId))
+  if (!selected && printingId !== undefined)
+    return <div className="alert alert-error">{t('This printing does not exist.')}</div>
+  // Shown as printed in the printing's own set ("ビードル (Aspicot)").
+  const name = selected?.name || c.name
+  const translation = selected?.name ? selected.translation : c.translation
+  const localNames = Object.entries(selected?.names ?? {}).filter(([, n]) => n !== name && n !== translation)
+  const goTo = (p: PrintingOut) => {
+    // Another printing has other finishes: only the sort order is kept.
+    const sortParam = url.get('sort')
+    navigate(`/cards/${c.id}/${p.id}${sortParam ? `?sort=${encodeURIComponent(sortParam)}` : ''}`)
+  }
   const owned = c.printings.reduce((sum, p) => sum + p.owned.reduce((s, o) => s + o.quantity, 0), 0)
   // Prices of the user's source (the game's first source when it has not that one).
   const mainSource = game?.price_sources.find((s) => s.id === me.data?.price_source) ?? game?.price_sources[0]
@@ -128,10 +146,17 @@ export default function CardDetail() {
     .filter((o) => o.price.low !== null)
     .reduce<(typeof offers)[number] | null>((a, b) => (a && Number(a.price.low) <= Number(b.price.low) ? a : b), null)
   const offerLabel = (o: (typeof offers)[number]) => `${o.printing.set.name} · ${finishLabel(o.price.finish)}`
+  // This printing in the chosen finish (default: its cheapest one).
+  const ownPrices = selected ? offers.filter((o) => o.printing.id === selected.id) : []
+  const finishes = [...new Set([...(selected?.finishes ?? []), ...ownPrices.map((o) => o.price.finish)])]
+  const cheapestOwn = ownPrices.length ? ownPrices.reduce((a, b) => (b.trend < a.trend ? b : a)) : null
+  const finishParam = url.get('finish')
+  const finish = finishes.includes(finishParam) ? finishParam : (cheapestOwn?.price.finish ?? finishes[0] ?? null)
+  const thisVersion = ownPrices.find((o) => o.price.finish === finish) ?? null
   const openStock = (p: PrintingOut) =>
     setTarget({
       printingId: p.id,
-      title: `${c.name} - ${p.set.code} ${p.collector_number ?? ''}`,
+      title: `${p.name || c.name} - ${p.set.code} ${p.collector_number ?? ''}`,
       finishes: p.finishes,
       languages: p.languages,
     })
@@ -153,7 +178,13 @@ export default function CardDetail() {
       <div className="breadcrumbs text-sm">
         <ul>
           <li><Link to={`/catalog?game=${c.game_id}`}>{game?.name ?? c.game_id}</Link></li>
-          <li>{c.name}</li>
+          <li>{name}</li>
+          {selected && (
+            <li>
+              {selected.set.code}
+              {selected.collector_number && ` · ${selected.collector_number}`}
+            </li>
+          )}
         </ul>
       </div>
 
@@ -164,7 +195,7 @@ export default function CardDetail() {
               key={selected.id}
               src={selected.image}
               back={selected.back_image ?? null}
-              alt={c.name}
+              alt={name}
               className="w-full max-w-xs shadow-xl rounded-[4.5%]"
             />
           )}
@@ -177,7 +208,9 @@ export default function CardDetail() {
 
         <div className="flex flex-col gap-4">
           <div>
-            <h1 className="text-3xl font-bold">{c.name}</h1>
+            <h1 className="text-3xl font-bold">
+              <ShownName name={name} translation={translation} />
+            </h1>
             {localNames.length > 0 && (
               <div className="mt-1 flex flex-wrap gap-2 text-sm text-base-content/70">
                 {localNames.map(([lang, name]) => (
@@ -194,7 +227,33 @@ export default function CardDetail() {
             </div>
           </div>
           {cheapest && dearest && (
-            <div className="stats stats-vertical bg-base-200 sm:stats-horizontal">
+            <div className="flex flex-col gap-2">
+            {finishes.length > 1 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-base-content/60">{t('Finish')}</span>
+                <div className="join">
+                  {finishes.map((f) => (
+                    <button
+                      key={f}
+                      className={`btn btn-sm join-item ${f === finish ? 'btn-primary' : ''}`}
+                      aria-pressed={f === finish}
+                      onClick={() => url.set({ finish: f }, false)}
+                    >
+                      {finishLabel(f)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="stats stats-vertical bg-base-200 lg:stats-horizontal">
+              <div className="stat bg-primary/10 py-3">
+                <div className="stat-title">{t('This version')}</div>
+                <div className="stat-value text-xl">{thisVersion ? money(thisVersion.trend) : '—'}</div>
+                <div className="stat-desc">
+                  {finish && finishLabel(finish)}
+                  {thisVersion && thisVersion.price.low !== null && ` · ${t('from {{price}}', { price: money(thisVersion.price.low) })}`}
+                </div>
+              </div>
               <div className="stat py-3">
                 <div className="stat-title">{t('Cheapest version')}</div>
                 <div className="stat-value text-xl">{money(cheapest.trend)}</div>
@@ -213,6 +272,7 @@ export default function CardDetail() {
                 </div>
               )}
             </div>
+            </div>
           )}
           <div className="card bg-base-200">
             <div className="card-body p-4">
@@ -230,9 +290,10 @@ export default function CardDetail() {
               <div className="card-body p-4">
                 <h2 className="card-title text-base">
                   {t('Price history')} - {selected.set.code} {selected.collector_number}
+                  {finish && ` · ${finishLabel(finish)}`}
                   {mainSource && <span className="text-sm font-normal text-base-content/60">({mainSource.name})</span>}
                 </h2>
-                <PriceHistory printing={selected} finishLabel={finishLabel} source={mainSource} />
+                <PriceHistory printing={selected} finish={finish} finishLabel={finishLabel} source={mainSource} />
               </div>
             </div>
           )}
@@ -285,15 +346,27 @@ export default function CardDetail() {
               {printings.map((p) => (
                 <tr
                   key={p.id}
-                  className={`cursor-pointer hover:bg-base-200 ${p.id === selected?.id ? 'bg-base-200' : p.owned.length ? 'bg-success/5' : ''}`}
-                  onClick={() => setSelectedId(p.id)}
+                  className={`cursor-pointer hover:bg-base-200 ${p.id === selected?.id ? 'bg-base-200 outline-2 -outline-offset-2 outline-primary' : p.owned.length ? 'bg-success/5' : ''}`}
+                  aria-current={p.id === selected?.id ? 'page' : undefined}
+                  onClick={() => goTo(p)}
                 >
                   <td className={p.owned.length ? 'border-l-4 border-success' : 'border-l-4 border-transparent'}>
                     <div className="flex items-center gap-1.5 font-medium">
                       {p.set.icon && (
                         <img src={p.set.icon} alt="" loading="lazy" className="h-4 w-4 object-contain dark:rounded-sm dark:bg-white/85 dark:p-px" onError={(e) => (e.currentTarget.style.display = 'none')} />
                       )}
-                      {p.set.name}
+                      <Link
+                        to={`/cards/${c.id}/${p.id}`}
+                        className="link-hover"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          goTo(p)
+                        }}
+                      >
+                        {p.set.name}
+                      </Link>
+                      {p.id === selected?.id && <span className="badge badge-primary badge-xs">{t('This page')}</span>}
                     </div>
                     <div className="text-xs text-base-content/60">
                       {p.set.code} · {formatDate(p.set.release_date)}

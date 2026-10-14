@@ -3,13 +3,12 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, StringConstraints
 
-from app.api.catalog import PrintingOut, describe_printings
+from app.api.catalog import PrintingOut, describe_printings, load_names, show_card
 from app.api.deps import CurrentUser, SessionDep
 from app.core.http import http_client
 from app.games.base import OcrLine, registry
 from app.models import Printing
 from app.services import identify, lookup
-from app.services.names import display_names
 
 router = APIRouter(prefix="/scan", tags=["scan"])
 
@@ -42,6 +41,8 @@ class CandidateCardOut(BaseModel):
     id: int
     game_id: str
     name: str
+    # Latin name next to the name of cards printed only in non-Latin scripts.
+    translation: str | None = None
     colors: list[str]
 
 
@@ -79,8 +80,8 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
             fetched = await lookup.look_up(session, http, providers, lines, bool(body.game))
         if fetched:
             result = await identify.identify(session, lines, body.game)
-    names = await display_names(
-        session, (c.card.id for c in result.candidates if c.card), user.language
+    card_names, printing_names = await load_names(
+        session, (c.card.id for c in result.candidates if c.card)
     )
     candidates = []
     for candidate in result.candidates:
@@ -88,12 +89,24 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
         assert card is not None
         by_id: dict[int, Printing] = {p.id: p for p in card.printings}
         printings = [by_id[pid] for pid in candidate.printing_ids]
+        # Named as printed in the best matching printing's set.
+        shown = show_card(
+            card,
+            card_names,
+            printing_names,
+            user.language,
+            {printings[0].set_id} if printings else None,
+        )
         candidates.append(
             CandidateOut(
                 score=round(candidate.score, 3),
                 match=candidate.match,
                 card=CandidateCardOut(
-                    id=card.id, game_id=card.game_id, name=names[card.id], colors=card.colors
+                    id=card.id,
+                    game_id=card.game_id,
+                    name=shown.name.name,
+                    translation=shown.name.translation,
+                    colors=card.colors,
                 ),
                 printings=await describe_printings(session, user, printings),
                 printing_count=len(card.printings),

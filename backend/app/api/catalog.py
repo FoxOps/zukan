@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -25,8 +26,10 @@ from app.models import (
 )
 from app.prices.base import game_sources, price_sources
 from app.services import collection, images, refresh
+from app.services.display import ShownName, card_is_latin, latest_lang, pick_image, pick_name
 from app.services.identify import number_matches
 from app.services.names import display_name
+from app.services.scripts import printing_is_latin, printing_lang
 
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["catalog"])
@@ -82,6 +85,10 @@ class PrintingOut(BaseModel):
     image: str | None
     # Back of double-faced cards (local copy).
     back_image: str | None = None
+    # Shown name: in the reader's language, or for printings of non-Latin sets in the
+    # set's language with a Latin `translation` ("ビードル (Aspicot)").
+    name: str = ""
+    translation: str | None = None
     names: dict[str, str]
     attributes: dict[str, Any]
     # Deprecated (app 0.3): use `links`.
@@ -97,6 +104,10 @@ class CardOut(BaseModel):
     id: int
     game_id: str
     name: str
+    # Latin name next to the name of cards printed only in non-Latin scripts.
+    translation: str | None = None
+    # Printing shown for the card, as in the catalog: the card's page opens on it.
+    default_printing_id: int | None = None
     colors: list[str]
     attributes: dict[str, Any]
     printings: list[PrintingOut]
@@ -109,9 +120,13 @@ class CardSummaryOut(BaseModel):
     id: int
     game_id: str
     name: str
+    # Latin name next to the name of cards printed only in non-Latin scripts.
+    translation: str | None = None
     colors: list[str]
     printing_count: int
     image: str | None
+    # Printing whose image is shown: the card's page opens on it.
+    printing_id: int | None = None
     # Cheapest and most expensive printing (latest trend price of any finish), from the
     # user's price source for this game, in `currency`.
     price_min: Decimal | None
@@ -186,10 +201,88 @@ def _short_names(provider: Any) -> set[str]:
 
 
 def image_link(printing: Printing, lang: str) -> str | None:
-    """Image URL in the user's language (with fallbacks, see `images`)."""
+    """Image URL in `lang` (with fallbacks, see `images`)."""
     if images.has_image(printing):
         return f"/api/printings/{printing.id}/image?lang={lang}"
     return None
+
+
+Names = dict[int, dict[str, str]]
+
+
+async def load_names(session: SessionDep, card_ids: Iterable[int]) -> tuple[Names, Names]:
+    """Names per language of the cards, and of their printings (printed names)."""
+    rows = await session.execute(
+        select(CardName.card_id, CardName.printing_id, CardName.lang, CardName.name).where(
+            CardName.card_id.in_(set(card_ids))
+        )
+    )
+    card_names: Names = {}
+    printing_names: Names = {}
+    for card_id, printing_id, lang, name in rows:
+        if printing_id is None:
+            card_names.setdefault(card_id, {})[lang] = name
+        else:
+            printing_names.setdefault(printing_id, {})[lang] = name
+    return card_names, printing_names
+
+
+def show_printing(
+    printing: Printing,
+    card_names: Names,
+    printing_names: Names,
+    ui_lang: str,
+    default_name: str = "",
+) -> tuple[ShownName, str | None]:
+    """Name and image link of a printing (set loaded), shown as printed in its own set
+    (see `display`). `default_name` when no name is known."""
+    names = {**card_names.get(printing.card_id, {}), **printing_names.get(printing.id, {})}
+    latin, set_lang = printing_is_latin(printing), printing_lang(printing)
+    picked = pick_image([printing], ui_lang, latin, set_lang)
+    return (
+        pick_name(names, ui_lang, latin, set_lang, default=default_name),
+        image_link(printing, picked[1]) if picked else None,
+    )
+
+
+@dataclass
+class ShownCard:
+    name: ShownName
+    # Printing whose image shows the card (None: no printing has an image).
+    printing: Printing | None
+    image: str | None
+
+
+def show_card(
+    card: Card,
+    card_names: Names,
+    printing_names: Names,
+    ui_lang: str,
+    shown_sets: set[int] | None = None,
+    default_name: str | None = None,
+) -> ShownCard:
+    """Image and name of a card (printings and their sets loaded), see `display`. With
+    `shown_sets` (set filter), the card is shown as printed in those sets."""
+    printings = [p for p in card.printings if p.set_id in (shown_sets or ())] or card.printings
+    latin = card_is_latin(printings)
+    set_lang = latest_lang(printings)
+    picked = pick_image(printings, ui_lang, latin, set_lang)
+    if picked is None and len(printings) < len(card.printings):
+        picked = pick_image(card.printings, ui_lang, latin, set_lang)
+    printing, lang = picked or (None, None)
+    # Card names win over printed names, the shown printing's over the others'.
+    names: dict[str, str] = {}
+    for p in card.printings:
+        if p is not printing:
+            names.update(printing_names.get(p.id, {}))
+    if printing is not None:
+        names.update(printing_names.get(printing.id, {}))
+    names.update(card_names.get(card.id, {}))
+    return ShownCard(
+        name=pick_name(names, ui_lang, latin, set_lang, default=default_name or card.name),
+        printing=printing,
+        image=image_link(printing, lang) if printing and lang else None,
+    )
 
 
 def _int_or_none(value: Any) -> int | None:
@@ -331,7 +424,7 @@ async def search_cards(
             .order_by(*order)
             .offset((page - 1) * page_size)
             .limit(page_size)
-            .options(selectinload(Card.printings))
+            .options(selectinload(Card.printings).selectinload(Printing.set))
         )
     ).all()
     cards = [card for card, _ in rows]
@@ -343,29 +436,24 @@ async def search_cards(
     by_printing = {p.id: c.id for c in cards for p in c.printings}
     for (printing_id, _), point in latest.items():
         card_prices.setdefault(by_printing[printing_id], []).append(point.trend)
-    # Images show the chosen set (set filter or code search) when the card is in it.
+    # Cards are shown as printed in the chosen set (set filter or code search).
     shown_sets = {set_id} if set_id is not None else set(code.set_ids if code else ())
+    card_names, printing_names = await load_names(session, (c.id for c in cards))
     items = []
     for card in cards:
-        # A printing of the chosen set, with the user's language, already cached.
-        printings = sorted(
-            card.printings,
-            key=lambda p: (
-                p.set_id not in shown_sets,
-                user.language not in p.image_urls,
-                not any(p.image_paths.values()),
-            ),
+        shown = show_card(
+            card, card_names, printing_names, user.language, shown_sets, names[card.id]
         )
         items.append(
             CardSummaryOut(
                 id=card.id,
                 game_id=card.game_id,
-                name=names[card.id],
+                name=shown.name.name,
+                translation=shown.name.translation,
                 colors=card.colors,
-                printing_count=len(printings),
-                image=next(
-                    (link for p in printings if (link := image_link(p, user.language))), None
-                ),
+                printing_count=len(card.printings),
+                image=shown.image,
+                printing_id=shown.printing.id if shown.printing else None,
                 price_min=min(card_prices.get(card.id, []), default=None),
                 price_max=max(card_prices.get(card.id, []), default=None),
                 currency=_currency(card.game_id, user.price_source),
@@ -417,10 +505,15 @@ async def get_card(
     described = await describe_printings(session, user, printings)
     # Printings the user owns first, newest first within each group (stable sort).
     described.sort(key=lambda p: not p.owned)
+    card_names, printing_names = await load_names(session, [card.id])
+    shown = show_card(card, card_names, printing_names, user.language, default_name=name)
+    default = shown.printing or (printings[0] if printings else None)
     return CardOut(
         id=card.id,
         game_id=card.game_id,
-        name=name,
+        name=shown.name.name,
+        translation=shown.name.translation,
+        default_printing_id=default.id if default else None,
         colors=card.colors,
         attributes=card.attributes,
         printings=described,
@@ -476,19 +569,7 @@ async def describe_printings(
     copies, in the given order. Images are in the user's language when available."""
     user_id = user.id
     printing_ids = [p.id for p in printings]
-    card_ids = {p.card_id for p in printings}
-    rows = await session.execute(
-        select(CardName.card_id, CardName.printing_id, CardName.lang, CardName.name).where(
-            CardName.card_id.in_(card_ids)
-        )
-    )
-    card_names: dict[int, dict[str, str]] = {}
-    printing_names: dict[int, dict[str, str]] = {}
-    for card_id, printing_id, lang, name in rows:
-        if printing_id is None:
-            card_names.setdefault(card_id, {})[lang] = name
-        else:
-            printing_names.setdefault(printing_id, {})[lang] = name
+    card_names, printing_names = await load_names(session, {p.card_id for p in printings})
     games = {p.set.game_id for p in printings}
     prices: dict[int, list[PriceOut]] = {}
     for game_id in sorted(games):
@@ -530,28 +611,34 @@ async def describe_printings(
                 quantity=item.quantity,
             )
         )
-    return [
-        PrintingOut(
-            id=p.id,
-            set=_set_out(p.set),
-            collector_number=p.collector_number,
-            rarity=p.rarity,
-            artist=p.artist,
-            finishes=p.finishes,
-            languages=p.languages,
-            image=image_link(p, user.language),
-            back_image=f"/api/printings/{p.id}/image?face=back"
-            if p.attributes.get("back_image_url")
-            else None,
-            names={**card_names.get(p.card_id, {}), **printing_names.get(p.id, {})},
-            attributes=p.attributes,
-            cardmarket_id=_int_or_none(_market_ids(p).get("cardmarket")),
-            links=_links(p, user.language),
-            prices=prices.get(p.id, []),
-            owned=owned.get(p.id, []),
+    described = []
+    for p in printings:
+        names = {**card_names.get(p.card_id, {}), **printing_names.get(p.id, {})}
+        shown, image = show_printing(p, card_names, printing_names, user.language)
+        described.append(
+            PrintingOut(
+                id=p.id,
+                set=_set_out(p.set),
+                collector_number=p.collector_number,
+                rarity=p.rarity,
+                artist=p.artist,
+                finishes=p.finishes,
+                languages=p.languages,
+                image=image,
+                back_image=f"/api/printings/{p.id}/image?face=back"
+                if p.attributes.get("back_image_url")
+                else None,
+                name=shown.name,
+                translation=shown.translation,
+                names=names,
+                attributes=p.attributes,
+                cardmarket_id=_int_or_none(_market_ids(p).get("cardmarket")),
+                links=_links(p, user.language),
+                prices=prices.get(p.id, []),
+                owned=owned.get(p.id, []),
+            )
         )
-        for p in printings
-    ]
+    return described
 
 
 def _filter_condition(f: FilterDef, value: str) -> ColumnElement[bool]:

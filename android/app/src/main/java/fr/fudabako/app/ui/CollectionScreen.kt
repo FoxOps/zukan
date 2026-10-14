@@ -178,7 +178,7 @@ private fun ItemRow(
     ) {
         AsyncImage(model = imageUrl(item.image), contentDescription = null, imageLoader = imageLoader, modifier = Modifier.width(44.dp).aspectRatio(63f / 88f))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(item.name, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+            Text(shownName(item.name, item.translation), style = MaterialTheme.typography.titleSmall, maxLines = 1)
             Text(
                 listOfNotNull(item.set?.code, item.collectorNumber, item.set?.name).joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,

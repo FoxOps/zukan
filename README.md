@@ -170,8 +170,8 @@ From the command line:
 
 ```sh
 gh workflow run docker-dev.yml --ref my-branch
-gh workflow run docker-prod.yml --ref main -f version=0.5.0
-gh workflow run android-prod.yml --ref main -f version=0.4.0
+gh workflow run docker-prod.yml --ref main -f version=0.6.0
+gh workflow run android-prod.yml --ref main -f version=0.5.0
 ```
 
 The dev app (`fr.fudabako.app.dev`) installs next to the released one. Both are signed
