@@ -10,6 +10,7 @@ import { PriceChart } from '../components/PriceChart'
 import { Select } from '../components/Select'
 import { useToast } from '../components/toast'
 import { formatDateTime, formatMoney } from '../lib/format'
+import { ShownName } from '../components/ShownName'
 
 const RANGES = [30, 90, 365]
 
@@ -119,7 +120,9 @@ export default function Dashboard() {
                   {tr.delta > 0 ? `+${tr.delta}` : tr.delta}
                 </span>
                 <div className="flex-1">
-                  <div className="font-medium">{tr.name}</div>
+                  <div className="font-medium">
+                    <ShownName name={tr.name} translation={tr.translation} />
+                  </div>
                   <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/60">
                     <span>{tr.set_code}</span>
                     <FinishBadge game={games.find((g) => g.id === tr.game_id)} finish={tr.finish} size="badge-xs" />

@@ -10,6 +10,7 @@ import { AdvancedFilters, ColorFilter, GameTabs, SearchInput, SetSelect } from '
 import { Pagination } from '../components/Pagination'
 import { formatMoney } from '../lib/format'
 import { useUrlState } from '../lib/hooks'
+import { ShownName } from '../components/ShownName'
 
 const PAGE_SIZE = 48
 
@@ -90,8 +91,7 @@ export default function Catalog() {
                 <CardImage src={card.image} alt={card.name} className="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
                 <div className="flex flex-col gap-1">
                   <span className="break-words font-medium group-hover:text-primary">
-                    {card.name}
-                    {card.translation && <span className="font-normal text-base-content/60"> ({card.translation})</span>}
+                    <ShownName name={card.name} translation={card.translation} />
                   </span>
                   <span className="text-xs text-base-content/60">
                     {!game && `${games.find((g) => g.id === card.game_id)?.name ?? card.game_id} · `}

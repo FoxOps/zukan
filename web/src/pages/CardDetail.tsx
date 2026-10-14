@@ -14,6 +14,7 @@ import { Select } from '../components/Select'
 import { hasVisibleAttributes } from '../lib/attributes'
 import { useUrlState } from '../lib/hooks'
 import { finishName, formatDate, formatMoney, languageName, normalize } from '../lib/format'
+import { ShownName } from '../components/ShownName'
 
 type PrintingOut = Schemas['PrintingOut']
 
@@ -208,8 +209,7 @@ export default function CardDetail() {
         <div className="flex flex-col gap-4">
           <div>
             <h1 className="text-3xl font-bold">
-              {name}
-              {translation && <span className="font-normal text-base-content/60"> ({translation})</span>}
+              <ShownName name={name} translation={translation} />
             </h1>
             {localNames.length > 0 && (
               <div className="mt-1 flex flex-wrap gap-2 text-sm text-base-content/70">

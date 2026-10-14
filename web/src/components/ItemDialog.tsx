@@ -7,6 +7,7 @@ import { useGame } from '../api/queries'
 import { formatMoney } from '../lib/format'
 import { ConditionBadge, FinishBadge, LangFlag } from './Badges'
 import { useToast } from './toast'
+import { ShownName } from './ShownName'
 
 type Item = Schemas['ItemOut']
 
@@ -69,7 +70,9 @@ function ItemForm({ item, close }: { item: Item; close: () => void }) {
 
   return (
     <div className="modal-box animate-in fade-in zoom-in-95 duration-200">
-        <h3 className="text-lg font-bold">{item.name}</h3>
+        <h3 className="text-lg font-bold">
+          <ShownName name={item.name} translation={item.translation} />
+        </h3>
         <p className="flex flex-wrap items-center gap-1 text-sm text-base-content/60">
           {item.set.name} {item.collector_number}
           <FinishBadge game={game} finish={item.finish} />

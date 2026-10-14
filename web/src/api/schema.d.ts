@@ -756,6 +756,8 @@ export interface components {
             game_id: string;
             /** Name */
             name: string;
+            /** Translation */
+            translation?: string | null;
             /** Colors */
             colors: string[];
         };
@@ -1044,6 +1046,8 @@ export interface components {
             game_id: string;
             /** Name */
             name: string;
+            /** Translation */
+            translation?: string | null;
             /** Colors */
             colors: string[];
             set: components["schemas"]["ItemSetOut"];
@@ -1425,6 +1429,8 @@ export interface components {
             game_id: string;
             /** Name */
             name: string;
+            /** Translation */
+            translation?: string | null;
             /** Set Code */
             set_code: string;
             /** Finish */

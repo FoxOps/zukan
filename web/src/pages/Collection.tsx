@@ -12,6 +12,7 @@ import { Pagination } from '../components/Pagination'
 import { Select } from '../components/Select'
 import { CONDITIONS, finishName, formatMoney, languageName } from '../lib/format'
 import { useUrlState } from '../lib/hooks'
+import { ShownName } from '../components/ShownName'
 
 type Item = Schemas['ItemOut']
 const PAGE_SIZE = 50
@@ -144,7 +145,9 @@ export default function Collection() {
                   return (
                     <tr key={item.id} className="hover:bg-base-200">
                       <td>
-                        <Link to={`/cards/${item.card_id}/${item.printing_id}`} className="link-hover font-medium">{item.name}</Link>
+                        <Link to={`/cards/${item.card_id}/${item.printing_id}`} className="link-hover font-medium">
+                          <ShownName name={item.name} translation={item.translation} />
+                        </Link>
                         <div className="text-xs text-base-content/60">
                           {item.set.code} {item.collector_number} · {item.set.name}
                           {!game && ` · ${g?.name ?? item.game_id}`}
