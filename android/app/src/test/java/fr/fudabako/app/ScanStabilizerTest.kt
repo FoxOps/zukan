@@ -38,4 +38,14 @@ class ScanStabilizerTest {
         val stabilizer = ScanStabilizer(framesNeeded = 2)
         assertEquals(listOf(false, false, false), stabilizer.run(emptyList(), listOf("a"), emptyList()))
     }
+
+    @Test
+    fun asianLinesSurviveOneMisreadGlyph() {
+        // Unspaced text: one wrong glyph changed the whole line when it was one word.
+        val read = listOf("たねトロピウスHP110", "リーフドレイン 20", "SV1a 001/073")
+        val misread = listOf("たねトロピワスHP110", "リーフドレイン 20", "SV1a 001/073")
+        assertEquals(true, ScanStabilizer.jaccard(ScanStabilizer.words(read), ScanStabilizer.words(misread)) >= 0.6)
+        val stabilizer = ScanStabilizer(framesNeeded = 3)
+        assertEquals(listOf(false, false, true), stabilizer.run(read, misread, read))
+    }
 }

@@ -27,13 +27,14 @@ fun CameraPreview(
     paused: Boolean,
     onFrame: (List<OcrLineIn>) -> Boolean,
     onIdentify: (List<OcrLineIn>) -> Unit,
+    onAsianFrame: (List<OcrLineIn>) -> Boolean,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     // TextureView mode: composes correctly under the overlays drawn on top of the preview.
     val previewView = remember { PreviewView(context).apply { implementationMode = PreviewView.ImplementationMode.COMPATIBLE } }
-    val analyzer = remember(script) { TextAnalyzer(script, onFrame, onIdentify) }
+    val analyzer = remember(script) { TextAnalyzer(script, onFrame, onIdentify, onAsianFrame) }
     analyzer.paused = paused
 
     DisposableEffect(lifecycleOwner, analyzer) {

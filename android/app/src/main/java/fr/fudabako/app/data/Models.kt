@@ -41,7 +41,20 @@ data class TokenOut(
 )
 
 @Serializable
-data class MeOut(val id: Int, val username: String, val role: String, val language: String = "en")
+data class MeOut(
+    val id: Int,
+    val username: String,
+    val role: String,
+    val language: String = "en",
+    @SerialName("price_source") val priceSource: String = "cardmarket",
+)
+
+/** Fields left null are not changed. */
+@Serializable
+data class SettingsIn(@SerialName("price_source") val priceSource: String? = null)
+
+@Serializable
+data class PriceSourceOut(val id: String, val name: String, val currency: String)
 
 @Serializable
 data class ColorOut(val code: String, val name: String, val hex: String, val icon: String? = null)
@@ -57,6 +70,8 @@ data class GameOut(
     val finishes: List<FinishOut>,
     val languages: List<String>,
     @SerialName("has_prices") val hasPrices: Boolean,
+    // Markets with prices, the game's main one first.
+    @SerialName("price_sources") val priceSources: List<PriceSourceOut> = emptyList(),
     // Cardmarket URL segment ("Magic"), null when the game has no Cardmarket links.
     val cardmarket: String? = null,
 )
@@ -94,7 +109,19 @@ data class SetOut(
 )
 
 @Serializable
-data class PriceOut(val finish: String, val trend: String, val low: String? = null, val date: String)
+data class PriceOut(
+    val finish: String,
+    val trend: String,
+    val low: String? = null,
+    val date: String,
+    // Market (price source id) and its currency; the user's source comes first.
+    val source: String = "cardmarket",
+    val currency: String = "EUR",
+)
+
+/** A product page on a market. */
+@Serializable
+data class LinkOut(val source: String, val name: String, val url: String)
 
 @Serializable
 data class OwnedOut(
@@ -115,19 +142,28 @@ data class PrintingOut(
     val languages: List<String>,
     val image: String? = null,
     val names: Map<String, String> = emptyMap(),
-    @SerialName("cardmarket_id") val cardmarketId: Int? = null,
+    val links: List<LinkOut> = emptyList(),
     val prices: List<PriceOut> = emptyList(),
     val owned: List<OwnedOut> = emptyList(),
 )
 
 @Serializable
-data class CandidateOut(val score: Double, val match: String, val card: CardRef, val printings: List<PrintingOut>)
+data class CandidateOut(
+    val score: Double,
+    val match: String,
+    val card: CardRef,
+    // At most 30; `printingCount` tells how many the card has (search the others).
+    val printings: List<PrintingOut>,
+    @SerialName("printing_count") val printingCount: Int = printings.size,
+)
 
 @Serializable
 data class IdentifyOut(
     @SerialName("game_id") val gameId: String? = null,
     val detected: HintsOut,
     val candidates: List<CandidateOut>,
+    // The card was missing from the server catalog and was fetched from its source.
+    val fetched: Boolean = false,
 )
 
 @Serializable
@@ -158,6 +194,7 @@ data class ItemOut(
     val condition: String = "",
     val language: String = "",
     @SerialName("unit_price") val unitPrice: String? = null,
+    val currency: String = "EUR",
     val total: String? = null,
 )
 
@@ -165,7 +202,7 @@ data class ItemOut(
 data class ItemPageOut(val items: List<ItemOut>, val total: Int, val page: Int, @SerialName("page_size") val pageSize: Int)
 
 @Serializable
-data class GameValueOut(@SerialName("game_id") val gameId: String, val total: String, val quantity: Int)
+data class GameValueOut(@SerialName("game_id") val gameId: String, val total: String, val quantity: Int, val currency: String = "EUR")
 
 @Serializable
 data class ValueOut(val currency: String = "EUR", val total: String, val quantity: Int, val games: List<GameValueOut> = emptyList())
@@ -183,6 +220,7 @@ data class CardSummaryOut(
     val image: String? = null,
     @SerialName("price_min") val priceMin: String? = null,
     @SerialName("price_max") val priceMax: String? = null,
+    val currency: String? = null,
 )
 
 @Serializable

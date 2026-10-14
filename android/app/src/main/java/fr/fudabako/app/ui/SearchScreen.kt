@@ -147,7 +147,7 @@ fun SearchScreen(
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
-                    card.priceMin?.let { Text(stringResource(R.string.price_value, it), style = MaterialTheme.typography.bodySmall) }
+                    card.priceMin?.let { Text(money(it, card.currency), style = MaterialTheme.typography.bodySmall) }
                 }
             }
             if (results.size < total) {

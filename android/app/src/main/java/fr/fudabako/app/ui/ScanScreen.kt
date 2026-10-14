@@ -73,6 +73,7 @@ fun ScanScreen(
                 paused = state.phase != Phase.SCANNING,
                 onFrame = scan::onFrame,
                 onIdentify = scan::identify,
+                onAsianFrame = scan::onAsianFrame,
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
@@ -132,6 +133,7 @@ fun ScanScreen(
                     imageLoader = imageLoader,
                     onCandidate = scan::selectCandidate,
                     onPrinting = scan::selectPrinting,
+                    searchPrintings = scan::searchPrintings,
                     onAdjust = scan::adjust,
                     onClose = { scan.resume() },
                 )

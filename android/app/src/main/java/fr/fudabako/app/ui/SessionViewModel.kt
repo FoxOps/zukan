@@ -14,6 +14,7 @@ import fr.fudabako.app.data.OidcExchangeIn
 import fr.fudabako.app.data.ProviderOut
 import fr.fudabako.app.data.ProvidersOut
 import fr.fudabako.app.data.RefreshIn
+import fr.fudabako.app.data.SettingsIn
 import fr.fudabako.app.data.ServerUrl
 import fr.fudabako.app.data.Settings
 import fr.fudabako.app.data.TokenOut
@@ -35,6 +36,8 @@ data class SessionState(
     val username: String? = null,
     val games: List<GameOut> = emptyList(),
     val serverVersion: String? = null,
+    // Preferred market for prices (server setting, shared with the web UI).
+    val priceSource: String = "cardmarket",
     val error: String? = null,
 ) {
     val loggedIn get() = username != null
@@ -129,8 +132,13 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         runCatching {
             val me = client.api.me()
             val games = client.api.games()
-            _state.update { it.copy(username = me.username, games = games, error = null) }
+            _state.update { it.copy(username = me.username, games = games, priceSource = me.priceSource, error = null) }
         }.onFailure { e -> _state.update { it.copy(username = null, error = e.userMessage(app)) } }
+    }
+
+    fun setPriceSource(source: String) = work {
+        val me = requireClient().api.updateMe(SettingsIn(priceSource = source))
+        _state.update { it.copy(priceSource = me.priceSource) }
     }
 
     private fun requireClient(): ApiClient = app.client.value ?: error(app.getString(R.string.error_not_connected))

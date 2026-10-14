@@ -44,6 +44,21 @@ fun SettingsScreen(session: SessionViewModel, state: SessionState, settings: Set
                 }
             }
         }
+        val sources = state.games.flatMap { it.priceSources }.distinctBy { it.id }
+        if (sources.size > 1) {
+            Section(stringResource(R.string.price_source)) {
+                Text(stringResource(R.string.price_source_help), style = MaterialTheme.typography.bodySmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    sources.forEach { s ->
+                        FilterChip(
+                            selected = state.priceSource == s.id,
+                            onClick = { session.setPriceSource(s.id) },
+                            label = { Text("${s.name} (${s.currency})") },
+                        )
+                    }
+                }
+            }
+        }
         Section(stringResource(R.string.after_add)) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 FilterChip(selected = !settings.autoNext, onClick = { session.updateSettings { it.copy(autoNext = false) } }, label = { Text(stringResource(R.string.after_add_stay)) })

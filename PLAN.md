@@ -353,6 +353,15 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
     (`PrintingOut.back_image`), set icons `/api/sets/{id}/icon` (`SetOut.icon`, raw URL no
     longer in the API), both prefetched by the images job; SVG served with
     `Content-Security-Policy: default-src 'none'` (color icons too).
+  - [x] H scan + Android 0.4.0: server `printing_count` on candidates,
+    `GET /api/cards/{id}/printings?q=`, unknown-card lookup (`services/lookup.py`,
+    provider `lookup`: Scryfall set/number or fuzzy name, TCGdex set/number with English
+    listing first, Sorcery exact name; misses cached 1 h; `IdentifyOut.fetched`), CJK
+    name containment scoring + Asian label skipping. App: picker searches the server past
+    the 30 loaded printings, version in settings, price source setting, prices per
+    market with currency (`Format.kt`), market links, OCR: CJK character pairs in the
+    stabilizer, AUTO mode reads every 3rd frame with one Asian model (own stabilizer),
+    recognition errors logged. Real-phone check of JA/KO/ZH cards still needed.
 
 ## Feedback batch 3 plan
 

@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -18,6 +18,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +32,7 @@ import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import fr.fudabako.app.R
 import fr.fudabako.app.data.PrintingOut
+import kotlinx.coroutines.delay
 
 /** True when `query` appears in the set name, code or collector number (case-insensitive). */
 fun printingMatches(printing: PrintingOut, query: String): Boolean {
@@ -40,23 +42,44 @@ fun printingMatches(printing: PrintingOut, query: String): Boolean {
         .any { it.contains(q, ignoreCase = true) }
 }
 
-/** All printings of a card, filterable by set name, code or number. */
+/**
+ * Printings of a card, filterable by set name, code or number. A scan loads the 30 most
+ * likely of `total`: the others are searched on the server while typing.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrintingPicker(
     printings: List<PrintingOut>,
-    selected: Int,
+    total: Int,
+    selectedId: Int?,
+    search: suspend (String) -> List<PrintingOut>,
     imageUrl: (String?) -> String?,
     imageLoader: ImageLoader,
-    onPick: (Int) -> Unit,
+    onPick: (PrintingOut) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
-    val shown = printings.withIndex().filter { printingMatches(it.value, query) }
+    var remote by remember { mutableStateOf<List<PrintingOut>>(emptyList()) }
+    val partial = total > printings.size
+    LaunchedEffect(query) {
+        val q = query.trim()
+        if (!partial || q.length < 2) {
+            remote = emptyList()
+            return@LaunchedEffect
+        }
+        delay(300) // typing: wait for a pause
+        remote = runCatching { search(q) }.getOrDefault(emptyList())
+    }
+    val local = printings.filter { printingMatches(it, query) }
+    val known = local.map { it.id }.toSet()
+    val shown = local + remote.filter { it.id !in known }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.choose_printing), style = MaterialTheme.typography.titleMedium)
-            if (printings.size > 6) {
+            if (partial) {
+                Text(stringResource(R.string.printings_partial, printings.size, total), style = MaterialTheme.typography.bodySmall)
+            }
+            if (total > 6) {
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
@@ -66,11 +89,11 @@ fun PrintingPicker(
                 )
             }
             LazyColumn(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                itemsIndexed(shown, key = { _, item -> item.value.id }) { _, (index, printing) ->
+                items(shown, key = { it.id }) { printing ->
                     Row(
                         Modifier.fillMaxWidth()
-                            .background(if (index == selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)
-                            .clickable { onPick(index) }
+                            .background(if (printing.id == selectedId) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)
+                            .clickable { onPick(printing) }
                             .padding(6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -92,8 +115,8 @@ fun PrintingPicker(
                             }
                         }
                         Column(horizontalAlignment = Alignment.End) {
-                            printing.prices.minByOrNull { it.trend.toDoubleOrNull() ?: Double.MAX_VALUE }?.let {
-                                Text(stringResource(R.string.price_value, it.trend), style = MaterialTheme.typography.bodySmall)
+                            mainPrices(printing).minByOrNull { it.trend.toDoubleOrNull() ?: Double.MAX_VALUE }?.let {
+                                Text(money(it.trend, it.currency), style = MaterialTheme.typography.bodySmall)
                             }
                             val owned = printing.owned.sumOf { it.quantity }
                             if (owned > 0) {

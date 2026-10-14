@@ -40,8 +40,13 @@ class ScanStabilizer(
     }
 
     companion object {
+        private val cjk = Regex("""[\p{IsHan}\p{IsHiragana}\p{IsKatakana}\p{IsHangul}]""")
+
+        /** Normalized words; unspaced Japanese, Korean and Chinese text is cut into pairs
+         * of characters, so one misread glyph does not change the whole line. */
         fun words(lines: List<String>): Set<String> = lines
             .flatMap { it.lowercase().split(Regex("""[^\p{L}\p{N}/]+""")) }
+            .flatMap { if (it.length > 2 && cjk.containsMatchIn(it)) it.windowed(2) else listOf(it) }
             .filter { it.length >= 2 }
             .toSet()
 

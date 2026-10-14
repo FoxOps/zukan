@@ -110,7 +110,13 @@ fun CollectionScreen(
         value?.let { v ->
             val shown = game?.let { g -> v.games.firstOrNull { it.gameId == g } }
             Text(
-                pluralStringResource(R.plurals.collection_value, shown?.quantity ?: v.quantity, shown?.total ?: v.total, shown?.quantity ?: v.quantity),
+                pluralStringResource(
+                    R.plurals.collection_value,
+                    shown?.quantity ?: v.quantity,
+                    // Per currency: markets in different currencies are never added up.
+                    shown?.let { money(it.total, it.currency) } ?: moneyByCurrency(v.games.map { it.total to it.currency }),
+                    shown?.quantity ?: v.quantity,
+                ),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(top = 12.dp),
             )
@@ -190,7 +196,7 @@ private fun ItemRow(
                 Text("${item.quantity}", fontWeight = FontWeight.SemiBold)
                 IconButton(onClick = { onAdjust(item, 1) }) { Icon(Icons.Default.Add, stringResource(R.string.more)) }
             }
-            item.unitPrice?.let { Text(stringResource(R.string.price_value, it), style = MaterialTheme.typography.bodySmall) }
+            item.unitPrice?.let { Text(money(it, item.currency), style = MaterialTheme.typography.bodySmall) }
         }
     }
 }
