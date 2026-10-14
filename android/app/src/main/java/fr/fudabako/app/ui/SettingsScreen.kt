@@ -46,15 +46,31 @@ fun SettingsScreen(session: SessionViewModel, state: SessionState, settings: Set
         }
         val sources = state.games.flatMap { it.priceSources }.distinctBy { it.id }
         if (sources.size > 1) {
-            Section(stringResource(R.string.price_source)) {
-                Text(stringResource(R.string.price_source_help), style = MaterialTheme.typography.bodySmall)
+            Section(stringResource(R.string.price_sources)) {
+                Text(stringResource(R.string.price_sources_help), style = MaterialTheme.typography.bodySmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     sources.forEach { s ->
+                        val on = s.id in state.priceSources
                         FilterChip(
-                            selected = state.priceSource == s.id,
-                            onClick = { session.setPriceSource(s.id) },
+                            selected = on,
+                            // One source at least stays shown.
+                            enabled = !(on && state.priceSources.size == 1),
+                            onClick = { session.togglePriceSource(s.id) },
                             label = { Text("${s.name} (${s.currency})") },
                         )
+                    }
+                }
+                if (state.priceSources.size > 1) {
+                    Text(stringResource(R.string.price_source), style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.price_source_help), style = MaterialTheme.typography.bodySmall)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        sources.filter { it.id in state.priceSources }.forEach { s ->
+                            FilterChip(
+                                selected = state.priceSources.first() == s.id,
+                                onClick = { session.setMainPriceSource(s.id) },
+                                label = { Text(s.name) },
+                            )
+                        }
                     }
                 }
             }

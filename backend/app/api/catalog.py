@@ -24,7 +24,7 @@ from app.models import (
     Printing,
     User,
 )
-from app.prices.base import game_sources, price_sources
+from app.prices.base import price_sources, shown_sources
 from app.services import collection, images, refresh
 from app.services.display import ShownName, card_is_latin, latest_lang, pick_image, pick_name
 from app.services.identify import number_matches
@@ -574,11 +574,8 @@ async def describe_printings(
     prices: dict[int, list[PriceOut]] = {}
     for game_id in sorted(games):
         ids = [p.id for p in printings if p.set.game_id == game_id]
-        sources = game_sources(game_id)
-        chosen = collection.pricing(game_id, user.price_source)
-        # The user's source first.
-        sources.sort(key=lambda source: chosen is None or source.id != chosen.source)
-        for source in sources:
+        # The user's sources, main one first.
+        for source in shown_sources(game_id, user.price_sources):
             latest = await collection.latest_prices(session, ids, source.id)
             for (printing_id, finish), point in sorted(latest.items()):
                 prices.setdefault(printing_id, []).append(
@@ -633,7 +630,7 @@ async def describe_printings(
                 names=names,
                 attributes=p.attributes,
                 cardmarket_id=_int_or_none(_market_ids(p).get("cardmarket")),
-                links=_links(p, user.language),
+                links=_links(p, user.language, user.price_sources),
                 prices=prices.get(p.id, []),
                 owned=owned.get(p.id, []),
             )
@@ -660,10 +657,12 @@ def _market_ids(printing: Printing) -> dict[str, Any]:
     return printing.attributes.get("market_ids") or {}
 
 
-def _links(printing: Printing, lang: str) -> list[LinkOut]:
+def _links(printing: Printing, lang: str, wanted: list[str]) -> list[LinkOut]:
+    """Market pages of the printing, for the user's sources."""
+    shown = {s.id for s in shown_sources(printing.set.game_id, wanted)}
     links = []
     for source_id, market_id in _market_ids(printing).items():
-        source = price_sources().get(source_id)
+        source = price_sources().get(source_id) if source_id in shown else None
         url = source.link(printing.set.game_id, market_id, lang) if source else None
         if source and url:
             links.append(LinkOut(source=source.id, name=source.name, url=url))
@@ -683,17 +682,23 @@ class PriceHistoryOut(BaseModel):
 @router.get("/printings/{printing_id}/prices")
 async def price_history(
     printing_id: int,
-    _: CurrentUser,
+    user: CurrentUser,
     session: SessionDep,
     days: Annotated[int, Query(ge=1, le=3650)] = 365,
 ) -> list[PriceHistoryOut]:
-    """Price snapshots, oldest first. Full history exists for printings in a collection."""
-    if await session.get(Printing, printing_id) is None:
+    """Price snapshots from the user's sources, oldest first. Full history exists for
+    printings in a collection."""
+    game_id = await session.scalar(
+        select(CardSet.game_id).join(Printing).where(Printing.id == printing_id)
+    )
+    if game_id is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Printing not found")
+    shown = [s.id for s in shown_sources(game_id, user.price_sources)]
     rows = await session.scalars(
         select(PriceSnapshot)
         .where(
             PriceSnapshot.printing_id == printing_id,
+            PriceSnapshot.source.in_(shown),
             PriceSnapshot.date > date.today() - timedelta(days=days),
         )
         .order_by(PriceSnapshot.date, PriceSnapshot.finish)

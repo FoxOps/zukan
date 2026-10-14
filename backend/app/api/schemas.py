@@ -36,8 +36,10 @@ class MeOut(UserOut):
     language: UiLanguage
     # Games shown in the catalog, None for all.
     catalog_games: list[str] | None
-    # Preferred price source id (see GameOut.price_sources).
+    # Main price source id (see GameOut.price_sources): values, sorts, price ranges.
     price_source: str
+    # Price sources shown, main one first.
+    price_sources: list[str]
 
 
 class SettingsIn(BaseModel):
@@ -45,7 +47,10 @@ class SettingsIn(BaseModel):
 
     language: UiLanguage | None = None
     catalog_games: list[str] | None = None
+    # Makes this source the main one (the others stay shown).
     price_source: str | None = None
+    # Sources shown, main one first (at least one).
+    price_sources: list[str] | None = None
 
 
 class TokenOut(BaseModel):

@@ -378,7 +378,8 @@ export interface paths {
         };
         /**
          * Price History
-         * @description Price snapshots, oldest first. Full history exists for printings in a collection.
+         * @description Price snapshots from the user's sources, oldest first. Full history exists for
+         *     printings in a collection.
          */
         get: operations["price_history_api_printings__printing_id__prices_get"];
         put?: never;
@@ -1220,6 +1221,8 @@ export interface components {
             catalog_games: string[] | null;
             /** Price Source */
             price_source: string;
+            /** Price Sources */
+            price_sources: string[];
         };
         /** OcrLineIn */
         OcrLineIn: {
@@ -1424,6 +1427,8 @@ export interface components {
             catalog_games?: string[] | null;
             /** Price Source */
             price_source?: string | null;
+            /** Price Sources */
+            price_sources?: string[] | null;
         };
         /**
          * TokenOut

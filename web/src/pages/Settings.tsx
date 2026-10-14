@@ -23,8 +23,8 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
     mutationFn: (body: SettingsIn) => call(api.PATCH('/api/auth/me', { body })),
     onSuccess: (data) => {
       client.setQueryData(['me'], data)
-      // Prices shown everywhere follow the price source.
-      return Promise.all(['cards', 'card', 'collection', 'value'].map((key) => client.invalidateQueries({ queryKey: [key] })))
+      // Prices shown everywhere follow the price sources.
+      return Promise.all(['cards', 'card', 'collection', 'value', 'prices'].map((key) => client.invalidateQueries({ queryKey: [key] })))
     },
     onError: (e) => toast(e.message, 'error'),
   })
@@ -50,19 +50,43 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
             {t('Card images are shown in this language when available, else in English, else in Japanese.')}
           </span>
         </label>
-        <label className="fieldset">
-          <span className="fieldset-legend">{t('Price source')}</span>
-          <Select
-            className="w-56"
-            value={me.price_source}
-            disabled={save.isPending}
-            onChange={(v) => save.mutate({ price_source: v })}
-            options={sources.map((s) => ({ value: s.id, label: `${s.name} (${s.currency})` }))}
-          />
-          <span className="label whitespace-normal">
-            {t('Used for values, price ranges and sorting. Games without it use their own market; other currencies are never added up.')}
-          </span>
-        </label>
+        <fieldset className="fieldset">
+          <legend className="fieldset-legend">{t('Price sources')}</legend>
+          {sources.map((s) => {
+            const on = me.price_sources.includes(s.id)
+            return (
+              <label key={s.id} className="label cursor-pointer gap-2 text-base-content">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-sm"
+                  checked={on}
+                  // At least one source stays shown.
+                  disabled={save.isPending || (on && me.price_sources.length === 1)}
+                  onChange={(e) =>
+                    save.mutate({ price_sources: e.target.checked ? [...me.price_sources, s.id] : me.price_sources.filter((id) => id !== s.id) })
+                  }
+                />
+                {s.name} ({s.currency})
+              </label>
+            )
+          })}
+          <span className="label whitespace-normal">{t('Prices of these markets are shown on card pages and in the app.')}</span>
+        </fieldset>
+        {me.price_sources.length > 1 && (
+          <label className="fieldset">
+            <span className="fieldset-legend">{t('Main price source')}</span>
+            <Select
+              className="w-56"
+              value={me.price_source}
+              disabled={save.isPending}
+              onChange={(v) => save.mutate({ price_source: v })}
+              options={sources.filter((s) => me.price_sources.includes(s.id)).map((s) => ({ value: s.id, label: `${s.name} (${s.currency})` }))}
+            />
+            <span className="label whitespace-normal">
+              {t('Used for values, price ranges and sorting. Games without it use their own market; other currencies are never added up.')}
+            </span>
+          </label>
+        )}
         <fieldset className="fieldset">
           <legend className="fieldset-legend">{t('Games shown in the catalog')}</legend>
           {games.map((g) => (

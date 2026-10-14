@@ -36,8 +36,8 @@ data class SessionState(
     val username: String? = null,
     val games: List<GameOut> = emptyList(),
     val serverVersion: String? = null,
-    // Preferred market for prices (server setting, shared with the web UI).
-    val priceSource: String = "cardmarket",
+    // Markets whose prices are shown, main one first (server setting, shared with the web UI).
+    val priceSources: List<String> = listOf("cardmarket"),
     val error: String? = null,
 ) {
     val loggedIn get() = username != null
@@ -132,13 +132,23 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         runCatching {
             val me = client.api.me()
             val games = client.api.games()
-            _state.update { it.copy(username = me.username, games = games, priceSource = me.priceSource, error = null) }
+            _state.update { it.copy(username = me.username, games = games, priceSources = me.shownPriceSources, error = null) }
         }.onFailure { e -> _state.update { it.copy(username = null, error = e.userMessage(app)) } }
     }
 
-    fun setPriceSource(source: String) = work {
+    /** Makes [source] the main price source. */
+    fun setMainPriceSource(source: String) = work {
         val me = requireClient().api.updateMe(SettingsIn(priceSource = source))
-        _state.update { it.copy(priceSource = me.priceSource) }
+        _state.update { it.copy(priceSources = me.shownPriceSources) }
+    }
+
+    /** Shows or hides the prices of [source] (one source at least stays shown). */
+    fun togglePriceSource(source: String) = work {
+        val current = _state.value.priceSources
+        val next = if (source in current) current - source else current + source
+        if (next.isEmpty()) return@work
+        val me = requireClient().api.updateMe(SettingsIn(priceSources = next))
+        _state.update { it.copy(priceSources = me.shownPriceSources) }
     }
 
     private fun requireClient(): ApiClient = app.client.value ?: error(app.getString(R.string.error_not_connected))

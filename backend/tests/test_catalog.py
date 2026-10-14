@@ -555,6 +555,7 @@ async def test_price_source_plugin_with_its_own_api(client, session, synced, mon
 
     monkeypatch.setattr(prices, "price_sources", lambda: sources)
     monkeypatch.setattr("app.api.catalog.price_sources", lambda: sources)
+    monkeypatch.setattr("app.api.auth.price_sources", lambda: sources)
 
     async def no_cardmarket(self, http, owned):
         return
@@ -570,12 +571,30 @@ async def test_price_source_plugin_with_its_own_api(client, session, synced, mon
     games = (await client.get("/api/games", headers=headers)).json()
     sorcery = next(g for g in games if g["id"] == "sorcery")
     assert [s["id"] for s in sorcery["price_sources"]] == ["cardmarket", "nexus"]
-    card = (await client.get(f"/api/cards/{printing.card_id}", headers=headers)).json()
-    ours = next(p for p in card["printings"] if p["id"] == printing.id)
-    assert {"source": "nexus", "name": "Nexus", "url": "https://nexus.example/p/42"} in ours[
-        "links"
-    ]
-    assert any(p["source"] == "nexus" and p["trend"] == "3.30" for p in ours["prices"])
+
+    async def shown() -> tuple[list[dict], list[dict], set[str]]:
+        card = (await client.get(f"/api/cards/{printing.card_id}", headers=headers)).json()
+        ours = next(p for p in card["printings"] if p["id"] == printing.id)
+        history = (await client.get(f"/api/printings/{printing.id}/prices", headers=headers)).json()
+        return ours["links"], ours["prices"], {p["source"] for p in history}
+
+    # Only the user's sources are shown (Cardmarket by default).
+    links, quotes, history = await shown()
+    assert all(link["source"] != "nexus" for link in links)
+    assert all(p["source"] != "nexus" for p in quotes) and "nexus" not in history
+
+    me = await client.patch(
+        "/api/auth/me", json={"price_sources": ["nexus", "cardmarket"]}, headers=headers
+    )
+    assert me.json()["price_sources"] == ["nexus", "cardmarket"]
+    assert me.json()["price_source"] == "nexus"
+    links, quotes, history = await shown()
+    assert {"source": "nexus", "name": "Nexus", "url": "https://nexus.example/p/42"} in links
+    # Main source first.
+    assert quotes[0]["source"] == "nexus" and quotes[0]["trend"] == "3.30"
+    assert "nexus" in history
+    empty = await client.patch("/api/auth/me", json={"price_sources": []}, headers=headers)
+    assert empty.status_code == 422
 
 
 async def test_advanced_search_filters(client, session, synced):

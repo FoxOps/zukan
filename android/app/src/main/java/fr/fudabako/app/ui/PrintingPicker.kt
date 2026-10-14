@@ -52,6 +52,8 @@ fun PrintingPicker(
     printings: List<PrintingOut>,
     total: Int,
     selectedId: Int?,
+    // Price shown for each printing: this market's (null: the first one listed).
+    mainSource: String?,
     search: suspend (String) -> List<PrintingOut>,
     imageUrl: (String?) -> String?,
     imageLoader: ImageLoader,
@@ -115,7 +117,7 @@ fun PrintingPicker(
                             }
                         }
                         Column(horizontalAlignment = Alignment.End) {
-                            mainPrices(printing).minByOrNull { it.trend.toDoubleOrNull() ?: Double.MAX_VALUE }?.let {
+                            mainPrices(printing, mainSource).minByOrNull { it.trend.toDoubleOrNull() ?: Double.MAX_VALUE }?.let {
                                 Text(money(it.trend, it.currency), style = MaterialTheme.typography.bodySmall)
                             }
                             val owned = printing.owned.sumOf { it.quantity }

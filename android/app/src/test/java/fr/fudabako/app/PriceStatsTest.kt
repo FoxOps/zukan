@@ -6,7 +6,11 @@ import fr.fudabako.app.data.PriceOut
 import fr.fudabako.app.data.PrintingOut
 import fr.fudabako.app.data.SetOut
 import fr.fudabako.app.data.json
+import fr.fudabako.app.data.GameOut
+import fr.fudabako.app.data.MeOut
+import fr.fudabako.app.data.PriceSourceOut
 import fr.fudabako.app.ui.priceStats
+import fr.fudabako.app.ui.shownSources
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -29,7 +33,7 @@ class PriceStatsTest {
 
     @Test
     fun thisVersionFollowsTheFinish() {
-        val stats = priceStats(listOf(mew, base, promo), mew, "reverse", complete = true)
+        val stats = priceStats(listOf(mew, base, promo), mew, "reverse", complete = true, mainSource = null)
         assertEquals("0.45", stats.thisVersion?.price?.trend)
         assertEquals("0.12", stats.cheapest?.price?.trend)
         assertEquals("MEW", stats.cheapest?.printing?.set?.code)
@@ -39,7 +43,7 @@ class PriceStatsTest {
 
     @Test
     fun cardWidePricesNeedEveryPrinting() {
-        val stats = priceStats(listOf(mew), mew, "normal", complete = false)
+        val stats = priceStats(listOf(mew), mew, "normal", complete = false, mainSource = null)
         assertEquals("0.12", stats.thisVersion?.price?.trend)
         assertNull(stats.cheapest)
         assertNull(stats.dearest)
@@ -47,8 +51,32 @@ class PriceStatsTest {
     }
 
     @Test
+    fun mainSourceIsTheUsersNotTheFirstListed() {
+        // This printing has no Cardmarket price: the stats stay on Cardmarket.
+        val tcgOnly = printing(4, "TCG", price("normal", "9.00", source = "tcgplayer"))
+        val stats = priceStats(listOf(tcgOnly, base), tcgOnly, "normal", complete = true, mainSource = "cardmarket")
+        assertNull(stats.thisVersion)
+        assertEquals("38.00", stats.cheapest?.price?.trend)
+    }
+
+    @Test
+    fun shownSourcesFollowTheUserAndTheGame() {
+        val cm = PriceSourceOut("cardmarket", "Cardmarket", "EUR")
+        val tcg = PriceSourceOut("tcgplayer", "TCGplayer", "USD")
+        val mtg = GameOut("mtg", "MTG", emptyList(), emptyList(), listOf("en"), hasPrices = true, priceSources = listOf(cm, tcg))
+        val sorcery = mtg.copy(id = "sorcery", priceSources = listOf(cm))
+        assertEquals(listOf("tcgplayer", "cardmarket"), shownSources(mtg, listOf("tcgplayer", "cardmarket")))
+        assertEquals(listOf("cardmarket"), shownSources(mtg, listOf("cardmarket")))
+        // The game has none of the user's sources: its first one.
+        assertEquals(listOf("cardmarket"), shownSources(sorcery, listOf("tcgplayer")))
+        // Servers before 0.7 only send the main source.
+        val old = json.decodeFromString<MeOut>("""{"id":1,"username":"a","role":"user","price_source":"tcgplayer"}""")
+        assertEquals(listOf("tcgplayer"), old.shownPriceSources)
+    }
+
+    @Test
     fun noPrices() {
-        val stats = priceStats(listOf(promo), promo, "normal", complete = true)
+        val stats = priceStats(listOf(promo), promo, "normal", complete = true, mainSource = null)
         assertNull(stats.thisVersion)
         assertNull(stats.cheapest)
     }

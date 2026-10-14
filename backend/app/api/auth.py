@@ -204,13 +204,23 @@ async def update_settings(body: SettingsIn, user: CurrentUser, session: SessionD
                 )
             games = [g for g in registry() if g in games]
         user.catalog_games = games
-    if fields.get("price_source") is not None:
-        if fields["price_source"] not in price_sources():
+    chosen = fields.get("price_sources")
+    if chosen is not None:
+        chosen = list(dict.fromkeys(chosen))
+        if not chosen:
             raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_CONTENT,
-                f"Unknown price source {fields['price_source']!r}",
+                status.HTTP_422_UNPROCESSABLE_CONTENT, "Choose at least one price source"
             )
-        user.price_source = fields["price_source"]
+    if fields.get("price_source") is not None:
+        main = fields["price_source"]
+        chosen = [main, *(s for s in chosen or user.price_sources if s != main)]
+    if chosen is not None:
+        unknown = [s for s in chosen if s not in price_sources()]
+        if unknown:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown price sources: {unknown}"
+            )
+        user.price_sources = chosen
     await session.commit()
     return await _load_me(session, user.id)
 

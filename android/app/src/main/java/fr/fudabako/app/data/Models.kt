@@ -47,11 +47,19 @@ data class MeOut(
     val role: String,
     val language: String = "en",
     @SerialName("price_source") val priceSource: String = "cardmarket",
-)
+    // Shown price sources, main one first (servers before 0.7: only the main one).
+    @SerialName("price_sources") val priceSources: List<String> = emptyList(),
+) {
+    val shownPriceSources get() = priceSources.ifEmpty { listOf(priceSource) }
+}
 
 /** Fields left null are not changed. */
 @Serializable
-data class SettingsIn(@SerialName("price_source") val priceSource: String? = null)
+data class SettingsIn(
+    // Makes this source the main one.
+    @SerialName("price_source") val priceSource: String? = null,
+    @SerialName("price_sources") val priceSources: List<String>? = null,
+)
 
 @Serializable
 data class PriceSourceOut(val id: String, val name: String, val currency: String)

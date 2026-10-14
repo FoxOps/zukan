@@ -169,7 +169,9 @@ async def test_prices_value_and_history(client, session, alice):
     # TCGplayer preferred: Sorcery has no TCGplayer prices and stays on Cardmarket, in
     # euros, never added to dollar totals.
     me = await client.patch("/api/auth/me", json={"price_source": "tcgplayer"}, headers=alice)
+    # The main source changes, the others stay shown.
     assert me.json()["price_source"] == "tcgplayer"
+    assert me.json()["price_sources"] == ["tcgplayer", "cardmarket"]
     value = (await client.get("/api/collection/value", headers=alice)).json()
     assert (value["currency"], value["total"]) == ("USD", "0")
     assert value["totals"] == [{"currency": "EUR", "total": "25.90"}]

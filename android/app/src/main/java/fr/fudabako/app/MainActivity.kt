@@ -125,7 +125,7 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, app: FudabakoApp
             ) { padding ->
                 Box(Modifier.padding(padding)) {
                     when (tab) {
-                        Tab.SCAN -> ScanScreen(scan, scanState, state.games, settings, imageUrl, imageLoader) { game ->
+                        Tab.SCAN -> ScanScreen(scan, scanState, state.games, settings, state.priceSources, imageUrl, imageLoader) { game ->
                             session.updateSettings { it.copy(game = game) }
                         }
                         Tab.COLLECTION -> CollectionScreen(

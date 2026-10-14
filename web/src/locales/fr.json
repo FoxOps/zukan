@@ -244,7 +244,6 @@
   "The worker refreshes catalogs weekly, prices and images daily, and outdated cards every two days. A job started here runs at once, stopping an automatic run of the same job.": "Le worker actualise les catalogues chaque semaine, les prix et les images chaque jour, et les cartes obsolètes tous les deux jours. Une tâche lancée ici démarre aussitôt et arrête une exécution automatique de la même tâche.",
   "Manual price ({{currency}})": "Prix manuel ({{currency}})",
   "Trend price": "Prix tendance",
-  "Price source": "Source des prix",
   "Used for values, price ranges and sorting. Games without it use their own market; other currencies are never added up.": "Utilisée pour les valeurs, fourchettes de prix et tris. Les jeux sans cette source utilisent leur propre marché ; les devises différentes ne sont jamais additionnées.",
   "Data checks": "Contrôle des données",
   "name": "nom",
@@ -284,5 +283,8 @@
   "Reset the {{game}} catalog?": "Réinitialiser le catalogue {{game}} ?",
   "Every card, set, name, price history and cached image of this game is deleted, then the catalog is synced again from scratch. Printings in collections are kept. Images imported from a folder must be imported again.": "Toutes les cartes, extensions, noms, historiques de prix et images en cache de ce jeu sont supprimés, puis le catalogue est synchronisé à nouveau depuis zéro. Les impressions présentes dans les collections sont conservées. Les images importées depuis un dossier devront être réimportées.",
   "Type {{game}} to confirm": "Tapez {{game}} pour confirmer",
-  "Close": "Fermer"
+  "Close": "Fermer",
+  "Price sources": "Sources de prix",
+  "Prices of these markets are shown on card pages and in the app.": "Les prix de ces marchés sont affichés sur les pages de cartes et dans l’application.",
+  "Main price source": "Source de prix principale"
 }

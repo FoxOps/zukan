@@ -90,8 +90,8 @@
     <string name="app_version">App %1$s · server %2$s</string>
     <string name="printings_partial">Shown: %1$d / %2$d. Type to search them all.</string>
     <string name="card_fetched">New card: added to the catalog from its source</string>
-    <string name="price_source">Price source</string>
-    <string name="price_source_help">Used for values and prices shown first, here and on the web. Games without it use their own market.</string>
+    <string name="price_source">Main price source</string>
+    <string name="price_source_help">Used for values and the prices shown first. Games without it use their own market.</string>
     <string name="choose_printing">Choose printing</string>
     <string name="filter_printings">Set name, code or number</string>
     <string name="detected">Read:</string>
@@ -119,4 +119,6 @@
     <string name="sort_quantity">Quantity</string>
     <string name="sort_price_asc">Price: low to high</string>
     <string name="sort_price_desc">Price: high to low</string>
+    <string name="price_sources">Price sources</string>
+    <string name="price_sources_help">Markets whose prices are shown, here and on the web.</string>
 </resources>

@@ -1,5 +1,6 @@
 package fr.fudabako.app.ui
 
+import fr.fudabako.app.data.GameOut
 import fr.fudabako.app.data.PriceOut
 import fr.fudabako.app.data.PrintingOut
 import java.math.BigDecimal
@@ -17,9 +18,20 @@ data class Offer(val printing: PrintingOut, val price: PriceOut) {
  */
 data class PriceStats(val thisVersion: Offer?, val cheapest: Offer?, val dearest: Offer?, val lowestOffer: Offer?)
 
-fun priceStats(printings: List<PrintingOut>, printing: PrintingOut, finish: String, complete: Boolean): PriceStats {
-    // The user's market: the server lists it first in each printing's prices.
-    val source = printing.prices.firstOrNull()?.source
+/** The game's markets among the user's ones, main one first; else the game's first market. */
+fun shownSources(game: GameOut?, wanted: List<String>): List<String> {
+    val ids = game?.priceSources?.map { it.id }.orEmpty()
+    return wanted.filter { it in ids }.ifEmpty { ids.take(1) }
+}
+
+/** Prices of [source] (the main market), else those listed first by the server. */
+fun mainPrices(printing: PrintingOut, source: String?) =
+    printing.prices.filter { it.source == (source ?: printing.prices.firstOrNull()?.source) }
+
+fun priceStats(printings: List<PrintingOut>, printing: PrintingOut, finish: String, complete: Boolean, mainSource: String?): PriceStats {
+    // The user's main market (unknown game: the one the server lists first).
+    val source = mainSource
+        ?: printing.prices.firstOrNull()?.source
         ?: printings.firstNotNullOfOrNull { it.prices.firstOrNull()?.source }
         ?: return PriceStats(null, null, null, null)
     val offers = printings.flatMap { p ->

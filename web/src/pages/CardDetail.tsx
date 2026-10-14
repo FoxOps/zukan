@@ -107,6 +107,8 @@ export default function CardDetail() {
   const me = useMe()
   const [target, setTarget] = useState<StockTarget | null>(null)
   const [setFilter, setSetFilter] = useState('')
+  // Price source of the history chart (default: the main one).
+  const [chartSourceId, setChartSourceId] = useState<string | null>(null)
   const url = useUrlState()
   const sortParam = url.get('sort')
   const sort: PrintingSort = sortParam in PRINTING_SORTS ? (sortParam as PrintingSort) : 'owned'
@@ -132,27 +134,45 @@ export default function CardDetail() {
     navigate(`/cards/${c.id}/${p.id}${sortParam ? `?sort=${encodeURIComponent(sortParam)}` : ''}`)
   }
   const owned = c.printings.reduce((sum, p) => sum + p.owned.reduce((s, o) => s + o.quantity, 0), 0)
-  // Prices of the user's source (the game's first source when it has not that one).
-  const mainSource = game?.price_sources.find((s) => s.id === me.data?.price_source) ?? game?.price_sources[0]
-  const sourceName = (id: string) => game?.price_sources.find((s) => s.id === id)?.name ?? id
-  const money = (value: string | number | null) => formatMoney(value, mainSource?.currency)
-  // Cheapest and most expensive version of the card, over every printing and finish.
-  const offers = c.printings.flatMap((p) =>
-    p.prices.filter((price) => price.source === mainSource?.id).map((price) => ({ printing: p, price, trend: Number(price.trend) })),
-  )
-  const cheapest = offers.length ? offers.reduce((a, b) => (b.trend < a.trend ? b : a)) : null
-  const dearest = offers.length ? offers.reduce((a, b) => (b.trend > a.trend ? b : a)) : null
-  const lowestOffer = offers
-    .filter((o) => o.price.low !== null)
-    .reduce<(typeof offers)[number] | null>((a, b) => (a && Number(a.price.low) <= Number(b.price.low) ? a : b), null)
-  const offerLabel = (o: (typeof offers)[number]) => `${o.printing.set.name} · ${finishLabel(o.price.finish)}`
-  // This printing in the chosen finish (default: its cheapest one).
-  const ownPrices = selected ? offers.filter((o) => o.printing.id === selected.id) : []
+  // The user's price sources this game has, main one first (the game's first source when
+  // it has none of them).
+  const wanted = me.data?.price_sources ?? []
+  const gameSources = game?.price_sources ?? []
+  const chosenSources = gameSources.filter((s) => wanted.includes(s.id)).sort((a, b) => wanted.indexOf(a.id) - wanted.indexOf(b.id))
+  const sources = chosenSources.length ? chosenSources : gameSources.slice(0, 1)
+  const mainSource = sources[0]
+  const chartSource = sources.find((s) => s.id === chartSourceId) ?? mainSource
+  const sourceName = (id: string) => gameSources.find((s) => s.id === id)?.name ?? id
+  // Every version of the card from one source, over every printing and finish.
+  const offersOf = (source: string | undefined) =>
+    c.printings.flatMap((p) =>
+      p.prices.filter((price) => price.source === source).map((price) => ({ printing: p, price, trend: Number(price.trend) })),
+    )
+  type Offer = ReturnType<typeof offersOf>[number]
+  const offerLabel = (o: Offer) => `${o.printing.set.name} · ${finishLabel(o.price.finish)}`
+  // This printing's finishes; the chosen one (default: its cheapest at the main source).
+  const ownPrices = selected ? offersOf(mainSource?.id).filter((o) => o.printing.id === selected.id) : []
   const finishes = [...new Set([...(selected?.finishes ?? []), ...ownPrices.map((o) => o.price.finish)])]
   const cheapestOwn = ownPrices.length ? ownPrices.reduce((a, b) => (b.trend < a.trend ? b : a)) : null
   const finishParam = url.get('finish')
   const finish = finishes.includes(finishParam) ? finishParam : (cheapestOwn?.price.finish ?? finishes[0] ?? null)
-  const thisVersion = ownPrices.find((o) => o.price.finish === finish) ?? null
+  // Price summary per source: this version, cheapest and most expensive versions, lowest offer.
+  const stats = sources
+    .map((source) => {
+      const offers = offersOf(source.id)
+      if (!offers.length) return null
+      return {
+        source,
+        money: (value: string | number | null) => formatMoney(value, source.currency),
+        thisVersion: selected ? (offers.find((o) => o.printing.id === selected.id && o.price.finish === finish) ?? null) : null,
+        cheapest: offers.reduce((a, b) => (b.trend < a.trend ? b : a)),
+        dearest: offers.reduce((a, b) => (b.trend > a.trend ? b : a)),
+        lowestOffer: offers
+          .filter((o) => o.price.low !== null)
+          .reduce<Offer | null>((a, b) => (a && Number(a.price.low) <= Number(b.price.low) ? a : b), null),
+      }
+    })
+    .filter((x) => x !== null)
   const openStock = (p: PrintingOut) =>
     setTarget({
       printingId: p.id,
@@ -226,52 +246,57 @@ export default function CardDetail() {
               {owned > 0 && <span className="badge badge-success">{t('{{count}} owned', { count: owned })}</span>}
             </div>
           </div>
-          {cheapest && dearest && (
+          {stats.length > 0 && (
             <div className="flex flex-col gap-2">
-            {finishes.length > 1 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm text-base-content/60">{t('Finish')}</span>
-                <div className="join">
-                  {finishes.map((f) => (
-                    <button
-                      key={f}
-                      className={`btn btn-sm join-item ${f === finish ? 'btn-primary' : ''}`}
-                      aria-pressed={f === finish}
-                      onClick={() => url.set({ finish: f }, false)}
-                    >
-                      {finishLabel(f)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="stats stats-vertical bg-base-200 lg:stats-horizontal">
-              <div className="stat bg-primary/10 py-3">
-                <div className="stat-title">{t('This version')}</div>
-                <div className="stat-value text-xl">{thisVersion ? money(thisVersion.trend) : '—'}</div>
-                <div className="stat-desc">
-                  {finish && finishLabel(finish)}
-                  {thisVersion && thisVersion.price.low !== null && ` · ${t('from {{price}}', { price: money(thisVersion.price.low) })}`}
-                </div>
-              </div>
-              <div className="stat py-3">
-                <div className="stat-title">{t('Cheapest version')}</div>
-                <div className="stat-value text-xl">{money(cheapest.trend)}</div>
-                <div className="stat-desc">{offerLabel(cheapest)}</div>
-              </div>
-              <div className="stat py-3">
-                <div className="stat-title">{t('Most expensive version')}</div>
-                <div className="stat-value text-xl">{money(dearest.trend)}</div>
-                <div className="stat-desc">{offerLabel(dearest)}</div>
-              </div>
-              {lowestOffer && (
-                <div className="stat py-3">
-                  <div className="stat-title">{t('Lowest offer')}</div>
-                  <div className="stat-value text-xl">{money(lowestOffer.price.low)}</div>
-                  <div className="stat-desc">{offerLabel(lowestOffer)}</div>
+              {finishes.length > 1 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-base-content/60">{t('Finish')}</span>
+                  <div className="join">
+                    {finishes.map((f) => (
+                      <button
+                        key={f}
+                        className={`btn btn-sm join-item ${f === finish ? 'btn-primary' : ''}`}
+                        aria-pressed={f === finish}
+                        onClick={() => url.set({ finish: f }, false)}
+                      >
+                        {finishLabel(f)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
-            </div>
+              {stats.map(({ source, money, thisVersion, cheapest, dearest, lowestOffer }) => (
+                <div key={source.id} className="flex flex-col gap-1">
+                  {stats.length > 1 && <h2 className="text-sm font-semibold text-base-content/70">{source.name}</h2>}
+                  <div className="stats stats-vertical bg-base-200 lg:stats-horizontal">
+                    <div className="stat bg-primary/10 py-3">
+                      <div className="stat-title">{t('This version')}</div>
+                      <div className="stat-value text-xl">{thisVersion ? money(thisVersion.trend) : '—'}</div>
+                      <div className="stat-desc">
+                        {finish && finishLabel(finish)}
+                        {thisVersion && thisVersion.price.low !== null && ` · ${t('from {{price}}', { price: money(thisVersion.price.low) })}`}
+                      </div>
+                    </div>
+                    <div className="stat py-3">
+                      <div className="stat-title">{t('Cheapest version')}</div>
+                      <div className="stat-value text-xl">{money(cheapest.trend)}</div>
+                      <div className="stat-desc">{offerLabel(cheapest)}</div>
+                    </div>
+                    <div className="stat py-3">
+                      <div className="stat-title">{t('Most expensive version')}</div>
+                      <div className="stat-value text-xl">{money(dearest.trend)}</div>
+                      <div className="stat-desc">{offerLabel(dearest)}</div>
+                    </div>
+                    {lowestOffer && (
+                      <div className="stat py-3">
+                        <div className="stat-title">{t('Lowest offer')}</div>
+                        <div className="stat-value text-xl">{money(lowestOffer.price.low)}</div>
+                        <div className="stat-desc">{offerLabel(lowestOffer)}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
           <div className="card bg-base-200">
@@ -291,9 +316,23 @@ export default function CardDetail() {
                 <h2 className="card-title text-base">
                   {t('Price history')} - {selected.set.code} {selected.collector_number}
                   {finish && ` · ${finishLabel(finish)}`}
-                  {mainSource && <span className="text-sm font-normal text-base-content/60">({mainSource.name})</span>}
+                  {sources.length === 1 && chartSource && <span className="text-sm font-normal text-base-content/60">({chartSource.name})</span>}
                 </h2>
-                <PriceHistory printing={selected} finish={finish} finishLabel={finishLabel} source={mainSource} />
+                {sources.length > 1 && (
+                  <div className="join">
+                    {sources.map((source) => (
+                      <button
+                        key={source.id}
+                        className={`btn btn-xs join-item ${source.id === chartSource?.id ? 'btn-primary' : ''}`}
+                        aria-pressed={source.id === chartSource?.id}
+                        onClick={() => setChartSourceId(source.id)}
+                      >
+                        {source.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <PriceHistory printing={selected} finish={finish} finishLabel={finishLabel} source={chartSource} />
               </div>
             </div>
           )}
@@ -390,7 +429,7 @@ export default function CardDetail() {
                     {p.prices.map((price, i) => (
                       <div key={`${price.source}-${price.finish}`} className="text-xs">
                         {/* Each source's prices under its name. */}
-                        {(game?.price_sources.length ?? 0) > 1 && (i === 0 || p.prices[i - 1].source !== price.source) && (
+                        {sources.length > 1 && (i === 0 || p.prices[i - 1].source !== price.source) && (
                           <div className={`font-semibold text-base-content/70 ${i > 0 ? 'mt-1' : ''}`}>{sourceName(price.source)}</div>
                         )}
                         <span className="text-base-content/60">{finishLabel(price.finish)}</span>{' '}

@@ -14,6 +14,7 @@ Adding a market is a new plugin; core code, the web UI and the app only use this
 interface.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import lru_cache
 from importlib.metadata import entry_points
@@ -74,6 +75,14 @@ def game_sources(game_id: str) -> list[PriceSource]:
     ids = list(getattr(provider, "price_sources", [])) if provider else []
     ids += [s.id for s in price_sources().values() if fetches(s, game_id) and s.id not in ids]
     return [price_sources()[i] for i in ids if i in price_sources()]
+
+
+def shown_sources(game_id: str, wanted: Sequence[str]) -> list[PriceSource]:
+    """The game's sources among `wanted`, in that order; the game's first source when
+    none of them."""
+    sources = {s.id: s for s in game_sources(game_id)}
+    shown = [sources[i] for i in dict.fromkeys(wanted) if i in sources]
+    return shown or list(sources.values())[:1]
 
 
 def preferred_source(game_id: str, wanted: str | None) -> PriceSource | None:

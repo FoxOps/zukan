@@ -30,11 +30,16 @@ class User(TimestampMixin, Base):
     language: Mapped[str] = mapped_column(String(8), default="en", server_default=text("'en'"))
     # Games shown in the catalog, None for all of them.
     catalog_games: Mapped[list[str] | None] = mapped_column(ARRAY(String(32)))
-    # Preferred price source (`app.prices` id) for values, sorts and price ranges; games
-    # without it use their first source.
-    price_source: Mapped[str] = mapped_column(
-        String(32), default="cardmarket", server_default=text("'cardmarket'")
+    # Price sources (`app.prices` ids) shown, in order. The first one gives values, sorts
+    # and price ranges; games without it use their first source.
+    price_sources: Mapped[list[str]] = mapped_column(
+        ARRAY(String(32)), default=lambda: ["cardmarket"], server_default=text("'{cardmarket}'")
     )
+
+    @property
+    def price_source(self) -> str:
+        """Main price source."""
+        return self.price_sources[0] if self.price_sources else "cardmarket"
 
     identities: Mapped[list["UserIdentity"]] = relationship(
         back_populates="user", cascade="all, delete-orphan", passive_deletes=True

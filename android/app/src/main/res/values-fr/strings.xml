@@ -90,8 +90,8 @@
     <string name="app_version">Application %1$s · serveur %2$s</string>
     <string name="printings_partial">Affichées : %1$d / %2$d. Tapez pour chercher parmi toutes.</string>
     <string name="card_fetched">Nouvelle carte : ajoutée au catalogue depuis sa source</string>
-    <string name="price_source">Source des prix</string>
-    <string name="price_source_help">Utilisée pour les valeurs et les prix affichés en premier, ici et sur le web. Les jeux sans cette source utilisent leur propre marché.</string>
+    <string name="price_source">Source de prix principale</string>
+    <string name="price_source_help">Utilisée pour les valeurs et les prix affichés en premier. Les jeux sans cette source utilisent leur propre marché.</string>
     <string name="choose_printing">Choisir la version</string>
     <string name="filter_printings">Nom, code d\'extension ou numéro</string>
     <string name="detected">Lu :</string>
@@ -120,4 +120,6 @@
     <string name="sort_quantity">Quantité</string>
     <string name="sort_price_asc">Prix croissant</string>
     <string name="sort_price_desc">Prix décroissant</string>
+    <string name="price_sources">Sources de prix</string>
+    <string name="price_sources_help">Marchés dont les prix sont affichés, ici et sur le web.</string>
 </resources>

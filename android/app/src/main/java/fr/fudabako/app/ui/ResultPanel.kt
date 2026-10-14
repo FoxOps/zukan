@@ -58,9 +58,6 @@ fun languageName(code: String): String =
 /** Only web pages are opened from links the server sends (no intents, files...). */
 fun isWebLink(url: String): Boolean = url.startsWith("https://") || url.startsWith("http://")
 
-/** Prices of the user's price source (the server lists it first). */
-fun mainPrices(printing: PrintingOut) = printing.prices.filter { it.source == printing.prices.firstOrNull()?.source }
-
 /**
  * The identified card: what was read, the card and its price, the copies owned, then
  * the printing, variant and quantity to add or remove.
@@ -70,6 +67,8 @@ fun ResultPanel(
     state: ScanState,
     games: List<GameOut>,
     settings: Settings,
+    // The user's price sources, main one first.
+    priceSources: List<String>,
     imageUrl: (String?) -> String?,
     imageLoader: ImageLoader,
     onCandidate: (Int) -> Unit,
@@ -100,7 +99,10 @@ fun ResultPanel(
     val name = printing.name.ifEmpty { candidate.card.name }
     val translation = if (printing.name.isNotEmpty()) printing.translation else candidate.card.translation
     // The finish chips also choose the price shown; card-wide prices need every printing.
-    val stats = priceStats(candidate.printings, printing, finish, complete = candidate.printings.size >= candidate.printingCount)
+    // Servers before 0.7 send every market: only the user's are shown.
+    val sources = shownSources(game, priceSources)
+    val mainSource = sources.firstOrNull()
+    val stats = priceStats(candidate.printings, printing, finish, complete = candidate.printings.size >= candidate.printingCount, mainSource = mainSource)
 
     Column(modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         DetectedRow(result.detected.name, result.detected.lang, result.detected.setCode, result.detected.collectorNumber)
@@ -128,10 +130,13 @@ fun ResultPanel(
                 }
                 printing.rarity?.let { Text(it.replaceFirstChar(Char::uppercase), style = MaterialTheme.typography.bodySmall) }
                 val sourceName = { id: String -> game?.priceSources?.firstOrNull { it.id == id }?.name ?: id }
-                printing.prices.groupBy { it.source }.entries.forEachIndexed { index, (source, prices) ->
-                    // The user's market in full, the others on one line each.
+                val shownPrices = printing.prices
+                    .filter { game == null || it.source in sources }
+                    .sortedBy { sources.indexOf(it.source).let { i -> if (i < 0) Int.MAX_VALUE else i } }
+                shownPrices.groupBy { it.source }.entries.forEachIndexed { index, (source, prices) ->
+                    // The main market in full, the others on one line each.
                     if (index == 0) {
-                        if (printing.prices.map { it.source }.distinct().size > 1) {
+                        if (shownPrices.map { it.source }.distinct().size > 1) {
                             Text(sourceName(source), style = MaterialTheme.typography.labelSmall)
                         }
                         prices.forEach { price ->
@@ -149,7 +154,7 @@ fun ResultPanel(
                         )
                     }
                 }
-                printing.links.filter { isWebLink(it.url) }.forEach { link ->
+                printing.links.filter { isWebLink(it.url) && (game == null || it.source in sources) }.forEach { link ->
                     TextButton(onClick = { uriHandler.openUri(link.url) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
                         Text(link.name)
                         Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.padding(start = 4.dp).size(16.dp))
@@ -212,6 +217,7 @@ fun ResultPanel(
             printings = candidate.printings,
             total = candidate.printingCount,
             selectedId = printing.id,
+            mainSource = mainSource,
             search = { q -> searchPrintings(candidate.card.id, q) },
             imageUrl = imageUrl,
             imageLoader = imageLoader,
