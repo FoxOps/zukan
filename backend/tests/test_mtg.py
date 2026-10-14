@@ -367,3 +367,37 @@ async def test_mtgjson_fills_gaps_and_reports_discrepancies(client, session, scr
     await jobs.run_job("mtg", JobKind.catalog)
     page = (await client.get("/api/admin/discrepancies", headers=admin)).json()
     assert [d["field"] for d in page["items"]] == ["release date"]
+
+
+async def test_set_icons_and_back_faces_are_served_locally(
+    client, session, scryfall, tmp_path, monkeypatch
+):
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "image_dir", tmp_path)
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg"/>'
+    icon = scryfall.get(url__startswith="https://svgs.scryfall.io/sets/").respond(
+        content=svg, headers={"content-type": "image/svg+xml"}
+    )
+    back = scryfall.get(url__startswith="https://cards.scryfall.io/").respond(
+        content=b"\x89PNG\r\n\x1a\n0000", headers={"content-type": "image/png"}
+    )
+    await sync_mtg(session)
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    delver = await printing(session, "isd", "51")
+    card = (await client.get(f"/api/cards/{delver.card_id}", headers=headers)).json()
+    ours = card["printings"][0]
+    assert ours["set"]["icon"] == f"/api/sets/{ours['set']['id']}/icon"
+    assert ours["back_image"] == f"/api/printings/{ours['id']}/image?face=back"
+
+    for _ in range(2):  # downloaded once, then from the cache
+        response = await client.get(ours["set"]["icon"], headers=headers)
+        assert response.content == svg
+        assert "default-src 'none'" in response.headers["content-security-policy"]
+    assert icon.call_count == 1
+    response = await client.get(ours["back_image"], headers=headers)
+    assert response.status_code == 200 and back.call_count == 1
+    elves = await printing(session, "dom", "168")
+    no_back = await client.get(f"/api/printings/{elves.id}/image?face=back", headers=headers)
+    assert no_back.status_code == 404

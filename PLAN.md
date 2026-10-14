@@ -348,6 +348,11 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
     everywhere. `GET /api/games/{id}/filters` (distinct values, 1 h cache),
     `/api/cards?attr=key:value` (`@>` on a GIN `jsonb_path_ops` index), catalog
     "Advanced search" panel.
+  - [x] G local assets: `images.cached_asset` (download once to `stem.<ext>`, SVG allowed,
+    failures retried after an hour), MTG back faces `/api/printings/{id}/image?face=back`
+    (`PrintingOut.back_image`), set icons `/api/sets/{id}/icon` (`SetOut.icon`, raw URL no
+    longer in the API), both prefetched by the images job; SVG served with
+    `Content-Security-Policy: default-src 'none'` (color icons too).
 
 ## Feedback batch 3 plan
 

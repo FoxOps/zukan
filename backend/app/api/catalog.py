@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from fastapi.responses import FileResponse
@@ -41,7 +41,8 @@ class SetOut(BaseModel):
     lang: str | None
     release_date: date | None
     total: int | None
-    icon_url: str | None
+    # Set symbol, served from the local cache.
+    icon: str | None
 
 
 class OwnedOut(BaseModel):
@@ -79,6 +80,8 @@ class PrintingOut(BaseModel):
     finishes: list[str]
     languages: list[str]
     image: str | None
+    # Back of double-faced cards (local copy).
+    back_image: str | None = None
     names: dict[str, str]
     attributes: dict[str, Any]
     # Deprecated (app 0.3): use `links`.
@@ -197,7 +200,35 @@ def _int_or_none(value: Any) -> int | None:
 
 
 def _set_out(card_set: CardSet) -> SetOut:
-    return SetOut.model_validate(card_set, from_attributes=True)
+    return SetOut(
+        id=card_set.id,
+        code=card_set.code,
+        name=card_set.name,
+        lang=card_set.lang,
+        release_date=card_set.release_date,
+        total=card_set.total,
+        icon=f"/api/sets/{card_set.id}/icon" if card_set.icon_url else None,
+    )
+
+
+# Pictures are SVG or bitmaps from card data sources: never run anything they contain.
+_ASSET_HEADERS = {
+    "Cache-Control": "private, max-age=2592000",
+    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+    "X-Content-Type-Options": "nosniff",
+}
+
+
+@router.get("/sets/{set_id}/icon")
+async def set_icon(set_id: int, _: CurrentUser, session: SessionDep) -> FileResponse:
+    card_set = await session.get(CardSet, set_id)
+    if card_set is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Set not found")
+    async with http_client(timeout=20) as http:
+        path = await images.cached_asset(http, card_set.icon_url, images.set_icon_stem(card_set))
+    if path is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No icon for this set")
+    return FileResponse(path, headers=_ASSET_HEADERS)
 
 
 @router.get("/games/{game_id}/sets")
@@ -468,6 +499,9 @@ async def describe_printings(
             finishes=p.finishes,
             languages=p.languages,
             image=image_link(p, user.language),
+            back_image=f"/api/printings/{p.id}/image?face=back"
+            if p.attributes.get("back_image_url")
+            else None,
             names={**card_names.get(p.card_id, {}), **printing_names.get(p.id, {})},
             attributes=p.attributes,
             cardmarket_id=_int_or_none(_market_ids(p).get("cardmarket")),
@@ -545,12 +579,23 @@ async def printing_image(
     user: CurrentUser,
     session: SessionDep,
     lang: Annotated[str | None, Query(max_length=8)] = None,
+    face: Literal["front", "back"] = "front",
 ) -> FileResponse:
     """Card image in `lang` (default: the user's language), else English, else
-    Japanese, else any language there is."""
+    Japanese, else any language there is. `face=back`: the back of double-faced cards."""
     printing = await session.get(Printing, printing_id)
     if printing is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Printing not found")
+    if face == "back":
+        card_set = await session.get(CardSet, printing.set_id)
+        game_id = card_set.game_id if card_set else ""
+        async with http_client(timeout=20) as http:
+            path = await images.cached_asset(
+                http, printing.attributes.get("back_image_url"), images.back_stem(game_id, printing)
+            )
+        if path is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "No back image for this printing")
+        return FileResponse(path, headers=_ASSET_HEADERS)
     wanted = lang or user.language
     languages = images.image_languages(printing, wanted)
     # Fast path: the best language is cached. Otherwise try to download it (or the next

@@ -93,7 +93,15 @@ async def color_icon(game_id: str, code: str, _: CurrentUser) -> FileResponse:
     path = symbol_file(game_id, code)
     if path is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Symbol not downloaded yet")
-    return FileResponse(path, headers={"Cache-Control": "private, max-age=2592000"})
+    # SVG files: never run anything they contain.
+    return FileResponse(
+        path,
+        headers={
+            "Cache-Control": "private, max-age=2592000",
+            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 # Filter values change with catalog syncs only (weekly): computed at most once an hour.

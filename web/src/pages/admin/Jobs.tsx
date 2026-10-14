@@ -30,6 +30,8 @@ const REPORT: Record<string, string> = {
   missing: 'without source',
   refused: 'refused by source',
   failed: 'failed',
+  icons: 'set icons',
+  backs: 'card backs',
   pruned: 'old prices removed',
   pruned_prices: 'old prices removed',
   pruned_cards: 'empty cards removed',

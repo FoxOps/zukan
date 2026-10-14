@@ -163,7 +163,7 @@ export default function CardDetail() {
             <CardImage
               key={selected.id}
               src={selected.image}
-              back={(selected.attributes.back_image_url as string | undefined) ?? null}
+              back={selected.back_image ?? null}
               alt={c.name}
               className="w-full max-w-xs shadow-xl rounded-[4.5%]"
             />
@@ -289,7 +289,12 @@ export default function CardDetail() {
                   onClick={() => setSelectedId(p.id)}
                 >
                   <td className={p.owned.length ? 'border-l-4 border-success' : 'border-l-4 border-transparent'}>
-                    <div className="font-medium">{p.set.name}</div>
+                    <div className="flex items-center gap-1.5 font-medium">
+                      {p.set.icon && (
+                        <img src={p.set.icon} alt="" loading="lazy" className="h-4 w-4 object-contain dark:rounded-sm dark:bg-white/85 dark:p-px" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                      )}
+                      {p.set.name}
+                    </div>
                     <div className="text-xs text-base-content/60">
                       {p.set.code} · {formatDate(p.set.release_date)}
                       {p.set.lang && (

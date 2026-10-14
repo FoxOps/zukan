@@ -272,6 +272,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sets/{set_id}/icon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Set Icon */
+        get: operations["set_icon_api_sets__set_id__icon_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/games/{game_id}/sets": {
         parameters: {
             query?: never;
@@ -361,7 +378,7 @@ export interface paths {
         /**
          * Printing Image
          * @description Card image in `lang` (default: the user's language), else English, else
-         *     Japanese, else any language there is.
+         *     Japanese, else any language there is. `face=back`: the back of double-faced cards.
          */
         get: operations["printing_image_api_printings__printing_id__image_get"];
         put?: never;
@@ -1248,6 +1265,8 @@ export interface components {
             languages: string[];
             /** Image */
             image: string | null;
+            /** Back Image */
+            back_image?: string | null;
             /** Names */
             names: {
                 [key: string]: string;
@@ -1309,8 +1328,8 @@ export interface components {
             release_date: string | null;
             /** Total */
             total: number | null;
-            /** Icon Url */
-            icon_url: string | null;
+            /** Icon */
+            icon: string | null;
         };
         /**
          * SettingsIn
@@ -1998,6 +2017,37 @@ export interface operations {
             };
         };
     };
+    set_icon_api_sets__set_id__icon_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                set_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_sets_api_games__game_id__sets_get: {
         parameters: {
             query?: never;
@@ -2135,6 +2185,7 @@ export interface operations {
         parameters: {
             query?: {
                 lang?: string | null;
+                face?: "front" | "back";
             };
             header?: never;
             path: {
