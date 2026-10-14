@@ -44,7 +44,6 @@
   "Card": "Carte",
   "card box": "boîte à cartes",
   "Card images are shown in this language when available, else in English, else in Japanese.": "Les images des cartes sont affichées dans cette langue si elles existent, sinon en anglais, sinon en japonais.",
-  "Cardmarket trend price": "Prix tendance Cardmarket",
   "catalog": "catalogue",
   "Catalog": "Catalogue",
   "Change password": "Changer le mot de passe",
@@ -115,9 +114,7 @@
   "Log out": "Se déconnecter",
   "Login": "Connexion",
   "Lowest offer": "Offre la plus basse",
-  "Lowest offer on Cardmarket": "Offre la plus basse sur Cardmarket",
   "Manual price": "Prix manuel",
-  "Manual price (€)": "Prix manuel (€)",
   "Market {{price}}": "Marché {{price}}",
   "Menu": "Menu",
   "Metal": "Métal",
@@ -244,5 +241,9 @@
   "outdated cards": "cartes obsolètes",
   "updated": "mises à jour",
   "not found at the source": "introuvables à la source",
-  "The worker refreshes catalogs weekly, prices and images daily, and outdated cards every two days. A job started here runs at once, stopping an automatic run of the same job.": "Le worker actualise les catalogues chaque semaine, les prix et les images chaque jour, et les cartes obsolètes tous les deux jours. Une tâche lancée ici démarre aussitôt et arrête une exécution automatique de la même tâche."
+  "The worker refreshes catalogs weekly, prices and images daily, and outdated cards every two days. A job started here runs at once, stopping an automatic run of the same job.": "Le worker actualise les catalogues chaque semaine, les prix et les images chaque jour, et les cartes obsolètes tous les deux jours. Une tâche lancée ici démarre aussitôt et arrête une exécution automatique de la même tâche.",
+  "Manual price ({{currency}})": "Prix manuel ({{currency}})",
+  "Trend price": "Prix tendance",
+  "Price source": "Source des prix",
+  "Used for values, price ranges and sorting. Games without it use their own market; other currencies are never added up.": "Utilisée pour les valeurs, fourchettes de prix et tris. Les jeux sans cette source utilisent leur propre marché ; les devises différentes ne sont jamais additionnées."
 }

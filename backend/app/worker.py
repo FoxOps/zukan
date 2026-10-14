@@ -22,6 +22,7 @@ from app.games.base import catalog_version, registry
 from app.main import register_games
 from app.models import JobKind, JobStatus, JobTrigger, SyncRun
 from app.services.jobs import JobAlreadyRunning, JobStopped, reap_runs, run_job, set_process_role
+from app.services.prices import has_prices
 from app.services.refresh import can_refresh
 
 log = logging.getLogger("fudabako.worker")
@@ -92,7 +93,7 @@ async def is_due(game_id: str, kind: JobKind, now: datetime) -> bool:
 
 def jobs_for(game_id: str) -> list[JobKind]:
     kinds = [JobKind.catalog]
-    if registry()[game_id].price_source is not None:
+    if has_prices(registry()[game_id]):
         kinds.append(JobKind.prices)
     kinds.append(JobKind.images)
     if can_refresh(registry()[game_id]):

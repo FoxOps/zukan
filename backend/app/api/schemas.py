@@ -36,6 +36,8 @@ class MeOut(UserOut):
     language: UiLanguage
     # Games shown in the catalog, None for all.
     catalog_games: list[str] | None
+    # Preferred price source id (see GameOut.price_sources).
+    price_source: str
 
 
 class SettingsIn(BaseModel):
@@ -43,6 +45,7 @@ class SettingsIn(BaseModel):
 
     language: UiLanguage | None = None
     catalog_games: list[str] | None = None
+    price_source: str | None = None
 
 
 class TokenOut(BaseModel):

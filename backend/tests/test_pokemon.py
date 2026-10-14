@@ -10,7 +10,7 @@ from sqlalchemy import func, select, update
 
 from app.core.http import http_client
 from app.games.base import get_provider
-from app.games.pokemon.provider import API_URL, parse_prices
+from app.games.pokemon.provider import API_URL, parse_card, parse_prices
 from app.main import register_games
 from app.models import (
     Card,
@@ -238,3 +238,26 @@ async def test_refresh_fetches_printings_again(session, tcgdex):
     # A Japanese printing joined to an English card stays on that card.
     japanese = await session.get(Printing, ropiusu)
     assert japanese.image_urls["ja"] and japanese.card_id in card_ids
+
+
+def test_tcgplayer_prices_and_product_ids():
+    raw = {
+        "localId": "136",
+        "variants": {"normal": True, "reverse": True},
+        "pricing": {
+            "tcgplayer": {
+                "unit": "USD",
+                "normal": {"productId": 219333, "lowPrice": 0.02, "midPrice": 0.25,
+                           "marketPrice": 0.26},
+                "reverse-holofoil": {"productId": 219333, "lowPrice": 0.17, "midPrice": 0.43,
+                                     "marketPrice": None},
+            }
+        },
+    }  # fmt: skip
+    quotes = {(q.source, q.finish): q for q in parse_prices(raw, "swsh3")}
+    assert set(quotes) == {("tcgplayer", "normal"), ("tcgplayer", "reverse")}
+    assert quotes["tcgplayer", "normal"].trend == Decimal("0.26")
+    assert quotes["tcgplayer", "reverse"].trend == Decimal("0.43")  # mid when no market
+    assert quotes["tcgplayer", "normal"].currency == "USD"
+    card = parse_card(raw | {"name": "Furret", "category": "Pokemon"}, "swsh3", "en")
+    assert card.printings[0].attributes["market_ids"] == {"tcgplayer": 219333}

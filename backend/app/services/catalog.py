@@ -136,10 +136,9 @@ _PRINTING_PARTIAL = {
 
 
 class CatalogWriter:
-    def __init__(self, session: AsyncSession, game_id: str, price_source: str | None = None):
+    def __init__(self, session: AsyncSession, game_id: str):
         self.session = session
         self.game_id = game_id
-        self.price_source = price_source
         self.set_ids: dict[str, int] = {}
         self.report = SyncReport()
 
@@ -153,10 +152,10 @@ class CatalogWriter:
     async def write(self, batch: CatalogBatch) -> None:
         await self._upsert_sets(batch.sets)
         ids = await self._upsert_cards(_dedupe_cards(batch.cards))
-        if batch.prices and self.price_source:
+        if batch.prices:
             # Prices refer to printings of the same batch.
             self.report.prices += await prices.store_quotes(
-                self.session, self.price_source, batch.prices, prices.today(), ids
+                self.session, batch.prices, prices.today(), ids
             )
 
     async def _upsert_sets(self, sets: list[SetData]) -> None:
@@ -303,15 +302,13 @@ async def sync_catalog(
     session: AsyncSession, provider: GameProvider, http: httpx.AsyncClient
 ) -> SyncReport:
     """Fetch and store the provider catalog, committing after each batch."""
-    writer = CatalogWriter(session, provider.id, provider.price_source)
+    writer = CatalogWriter(session, provider.id)
     async for batch in provider.fetch_catalog(http):
         await writer.write(batch)
         await session.commit()
         await progress()
-    if provider.price_source and writer.report.prices:
-        writer.report.pruned_prices = await prices.prune_history(
-            session, provider.id, provider.price_source
-        )
+    if writer.report.prices:
+        writer.report.pruned_prices = await prices.prune_history(session, provider.id)
     pruned = await session.execute(
         delete(Card).where(
             Card.game_id == provider.id, ~exists().where(Printing.card_id == Card.id)

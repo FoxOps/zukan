@@ -73,6 +73,7 @@ LANGUAGES = {
     "ru": "ru",
 }
 PRICE_FIELDS = {"nonfoil": "eur", "foil": "eur_foil"}
+USD_FIELDS = {"nonfoil": "usd", "foil": "usd_foil", "etched": "usd_etched"}
 # Price guide field suffix per finish.
 GUIDE_SUFFIXES = {"nonfoil": "", "foil": "-foil"}
 CARDMARKET_GAME = 1
@@ -163,8 +164,13 @@ def parse_card(raw: dict[str, Any]) -> CardData | None:
     printing_attributes: dict[str, Any] = {}
     if english:
         printing_attributes["scryfall_id"] = raw["id"]
-        if raw.get("cardmarket_id"):
-            printing_attributes["cardmarket_id"] = raw["cardmarket_id"]
+        market_ids = {
+            source: raw[key]
+            for source, key in (("cardmarket", "cardmarket_id"), ("tcgplayer", "tcgplayer_id"))
+            if raw.get(key)
+        }
+        if market_ids:
+            printing_attributes["market_ids"] = market_ids
     if len(images) > 1:
         printing_attributes["back_image_url"] = images[1]
 
@@ -195,8 +201,8 @@ def parse_card(raw: dict[str, Any]) -> CardData | None:
 def parse_prices(
     raw: dict[str, Any], guides: dict[int, cardmarket.Guide] | None = None
 ) -> list[PriceQuote]:
-    """Scryfall's trend price, with lowest offer and average from Cardmarket's price
-    guide when given."""
+    """Scryfall's Cardmarket trend price, with lowest offer and average from Cardmarket's
+    price guide when given, and TCGplayer's market price."""
     prices = raw.get("prices") or {}
     guide = (guides or {}).get(raw.get("cardmarket_id") or 0)
     quotes = []
@@ -209,7 +215,27 @@ def parse_prices(
             trend = trend or guide_trend
         if trend is not None:
             quotes.append(
-                PriceQuote(raw["set"], raw["collector_number"], finish, trend, low=low, avg=avg)
+                PriceQuote(
+                    raw["set"],
+                    raw["collector_number"],
+                    finish,
+                    trend,
+                    low=low,
+                    avg=avg,
+                    source="cardmarket",
+                )
+            )
+    for finish, field in USD_FIELDS.items():
+        if finish in raw.get("finishes", []) and (usd := _decimal(prices.get(field))):
+            quotes.append(
+                PriceQuote(
+                    raw["set"],
+                    raw["collector_number"],
+                    finish,
+                    usd,
+                    currency="USD",
+                    source="tcgplayer",
+                )
             )
     return quotes
 
@@ -305,7 +331,7 @@ class MtgProvider:
         FinishDef("etched", "Etched foil"),
     ]
     languages = list(LANGUAGES.values())
-    price_source = "scryfall-cardmarket"
+    price_sources = ["cardmarket", "tcgplayer"]
     cardmarket_path = "Magic"
     short_names = ["mtg", "magic"]
 

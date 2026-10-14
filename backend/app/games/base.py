@@ -89,6 +89,8 @@ class PriceQuote:
     low: Decimal | None = None
     avg: Decimal | None = None
     currency: str = "EUR"
+    # Price source (market) id, see `app.prices`.
+    source: str = field(default="cardmarket", kw_only=True)
 
 
 @dataclass
@@ -163,8 +165,8 @@ class GameProvider(Protocol):
     """Optional attributes:
     - `cache_all_images = True`: the image job downloads every printing's image instead
       of only owned ones (small catalogs).
-    - `cardmarket_path`: the game's Cardmarket URL segment ("Magic"); printings with a
-      `cardmarket_id` attribute then link to their Cardmarket page.
+    - `cardmarket_path`: the game's Cardmarket URL segment ("Magic"), for links to
+      product pages (`attributes["market_ids"]["cardmarket"]` of printings).
     - `short_names`: words that select the game in a catalog search ("mtg j25 158").
     - `set_aliases`: other codes people use for a set, by set code ({"001": ["ALP"]}).
     - `catalog_version` (default 1): bump it when `fetch_catalog` output changes in a way
@@ -179,8 +181,9 @@ class GameProvider(Protocol):
     colors: list[ColorDef]
     finishes: list[FinishDef]
     languages: list[str]
-    # Source name stored on price snapshots, None when the game has no price data.
-    price_source: str | None
+    # Price sources (`app.prices` ids) whose quotes `fetch_catalog` and `fetch_prices`
+    # yield; empty when the game's data has no prices.
+    price_sources: list[str]
 
     def fetch_catalog(self, http: httpx.AsyncClient) -> AsyncIterator[CatalogBatch]:
         """Yield the full catalog in batches."""

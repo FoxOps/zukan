@@ -23,6 +23,7 @@ from app.models import (
     Printing,
     User,
 )
+from app.prices.base import game_sources, price_sources
 from app.services import collection, images, refresh
 from app.services.identify import number_matches
 from app.services.names import display_name
@@ -53,10 +54,20 @@ class OwnedOut(BaseModel):
 
 class PriceOut(BaseModel):
     finish: str
+    # Price source id (GameOut.price_sources) and its currency.
+    source: str
+    currency: str
     trend: Decimal
-    # Lowest Cardmarket offer, when the price source gives it.
+    # Lowest offer, when the price source gives it.
     low: Decimal | None
     date: date
+
+
+class LinkOut(BaseModel):
+    # Price source id.
+    source: str
+    name: str
+    url: str
 
 
 class PrintingOut(BaseModel):
@@ -70,9 +81,11 @@ class PrintingOut(BaseModel):
     image: str | None
     names: dict[str, str]
     attributes: dict[str, Any]
-    # Cardmarket product, for a link to its page (see GameOut.cardmarket).
+    # Deprecated (app 0.3): use `links`.
     cardmarket_id: int | None
-    # Latest API price per finish and the current user's copies.
+    # Product pages on the game's markets.
+    links: list[LinkOut]
+    # Latest price per source and finish (user's source first), the user's copies.
     prices: list[PriceOut]
     owned: list[OwnedOut]
 
@@ -96,9 +109,11 @@ class CardSummaryOut(BaseModel):
     colors: list[str]
     printing_count: int
     image: str | None
-    # Cheapest and most expensive printing (latest trend price of any finish).
+    # Cheapest and most expensive printing (latest trend price of any finish), from the
+    # user's price source for this game, in `currency`.
     price_min: Decimal | None
     price_max: Decimal | None
+    currency: str | None = None
 
 
 class CardPageOut(BaseModel):
@@ -275,7 +290,9 @@ async def search_cards(
     ).all()
     cards = [card for card, _ in rows]
     names = {card.id: card_name for card, card_name in rows}
-    latest = await collection.latest_prices(session, (p.id for c in cards for p in c.printings))
+    latest = await collection.user_prices(
+        session, user.price_source, {p.id: c.game_id for c in cards for p in c.printings}
+    )
     card_prices: dict[int, list[Decimal]] = {}
     by_printing = {p.id: c.id for c in cards for p in c.printings}
     for (printing_id, _), point in latest.items():
@@ -305,6 +322,7 @@ async def search_cards(
                 ),
                 price_min=min(card_prices.get(card.id, []), default=None),
                 price_max=max(card_prices.get(card.id, []), default=None),
+                currency=_currency(card.game_id, user.price_source),
             )
         )
     return CardPageOut(items=items, total=total or 0, page=page, page_size=page_size)
@@ -384,12 +402,27 @@ async def describe_printings(
             card_names.setdefault(card_id, {})[lang] = name
         else:
             printing_names.setdefault(printing_id, {})[lang] = name
-    latest = await collection.latest_prices(session, printing_ids)
+    games = {p.set.game_id for p in printings}
     prices: dict[int, list[PriceOut]] = {}
-    for (printing_id, finish), point in sorted(latest.items()):
-        prices.setdefault(printing_id, []).append(
-            PriceOut(finish=finish, trend=point.trend, low=point.low, date=point.date)
-        )
+    for game_id in sorted(games):
+        ids = [p.id for p in printings if p.set.game_id == game_id]
+        sources = game_sources(game_id)
+        chosen = collection.pricing(game_id, user.price_source)
+        # The user's source first.
+        sources.sort(key=lambda source: chosen is None or source.id != chosen.source)
+        for source in sources:
+            latest = await collection.latest_prices(session, ids, source.id)
+            for (printing_id, finish), point in sorted(latest.items()):
+                prices.setdefault(printing_id, []).append(
+                    PriceOut(
+                        finish=finish,
+                        source=source.id,
+                        currency=point.currency,
+                        trend=point.trend,
+                        low=point.low,
+                        date=point.date,
+                    )
+                )
     owned: dict[int, list[OwnedOut]] = {}
     items = await session.scalars(
         select(CollectionItem)
@@ -422,12 +455,32 @@ async def describe_printings(
             image=image_link(p, user.language),
             names={**card_names.get(p.card_id, {}), **printing_names.get(p.id, {})},
             attributes=p.attributes,
-            cardmarket_id=_int_or_none(p.attributes.get("cardmarket_id")),
+            cardmarket_id=_int_or_none(_market_ids(p).get("cardmarket")),
+            links=_links(p, user.language),
             prices=prices.get(p.id, []),
             owned=owned.get(p.id, []),
         )
         for p in printings
     ]
+
+
+def _currency(game_id: str, wanted: str) -> str | None:
+    chosen = collection.pricing(game_id, wanted)
+    return chosen.currency if chosen else None
+
+
+def _market_ids(printing: Printing) -> dict[str, Any]:
+    return printing.attributes.get("market_ids") or {}
+
+
+def _links(printing: Printing, lang: str) -> list[LinkOut]:
+    links = []
+    for source_id, market_id in _market_ids(printing).items():
+        source = price_sources().get(source_id)
+        url = source.link(printing.set.game_id, market_id, lang) if source else None
+        if source and url:
+            links.append(LinkOut(source=source.id, name=source.name, url=url))
+    return links
 
 
 class PriceHistoryOut(BaseModel):

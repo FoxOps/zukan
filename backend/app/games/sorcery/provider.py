@@ -168,14 +168,16 @@ def _name_key(name: str) -> str:
 
 def _guide_quote(set_code: str, printing_id: str, finish: str, guide: Guide) -> PriceQuote:
     trend, low, avg = cardmarket.prices(guide, "" if finish == "standard" else "-foil")
-    return PriceQuote(set_code, printing_id, finish, trend=trend, low=low, avg=avg)
+    return PriceQuote(
+        set_code, printing_id, finish, trend=trend, low=low, avg=avg, source="cardmarket"
+    )
 
 
 def match_cardmarket(
     catalog: CatalogBatch, products: list[dict[str, Any]], guides: dict[int, Guide]
 ) -> list[PriceQuote]:
     """Price quotes for catalog printings from Cardmarket's product list and price guide.
-    Matched printings also get their `cardmarket_id` attribute (product page link).
+    Matched printings also get their Cardmarket product id (`market_ids`, page link).
 
     Products are matched by expansion and card name. When one name has several products
     in an expansion (box toppers, preconstructed decks), they are paired in order with
@@ -214,7 +216,7 @@ def match_cardmarket(
             same_name[_name_key(product["name"])].append(product)
         for key, matches in same_name.items():
             for product, printing in zip(matches, ours.get((set_code, key), []), strict=False):
-                printing.attributes["cardmarket_id"] = product["idProduct"]
+                printing.attributes["market_ids"] = {"cardmarket": product["idProduct"]}
                 guide = guides.get(product["idProduct"])
                 if guide is not None:
                     quotes += [
@@ -244,7 +246,7 @@ class SorceryProvider:
         FinishDef("rainbow", "Rainbow foil"),
     ]
     languages = ["en"]
-    price_source = "cardmarket"
+    price_sources = ["cardmarket"]
     cardmarket_path = "Sorcery"
     short_names = ["sorcery", "sor", "sct"]
     # Set codes are numbers; these are the abbreviations players use.

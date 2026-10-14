@@ -64,7 +64,10 @@ export default function Collection() {
       source: 'web',
     })
 
-  const pageValue = (items.data?.items ?? []).reduce((sum, i) => sum + Number(i.total ?? 0), 0)
+  // Per currency: prices of different markets are never added up.
+  const pageValues = new Map<string, number>()
+  for (const i of items.data?.items ?? []) pageValues.set(i.currency, (pageValues.get(i.currency) ?? 0) + Number(i.total ?? 0))
+  const pageValue = [...pageValues].map(([currency, total]) => formatMoney(total, currency)).join(' + ') || formatMoney(0)
 
   return (
     <div className="flex flex-col gap-4">
@@ -121,7 +124,7 @@ export default function Collection() {
       {items.data && items.data.total > 0 && (
         <>
           <div className="text-sm text-base-content/60">
-            {t('{{count}} items', { count: items.data.total })} · {t('this page {{value}}', { value: formatMoney(pageValue) })}
+            {t('{{count}} items', { count: items.data.total })} · {t('this page {{value}}', { value: pageValue })}
           </div>
           <div className={`overflow-x-auto rounded-box border border-base-300 ${items.isPlaceholderData ? 'opacity-60' : ''}`}>
             <table className="table table-sm">
@@ -163,10 +166,10 @@ export default function Collection() {
                         </div>
                       </td>
                       <td className="text-right whitespace-nowrap">
-                        {formatMoney(item.unit_price)}
+                        {formatMoney(item.unit_price, item.currency)}
                         {item.manual_price !== null && <span className="badge badge-xs badge-info ml-1" title={t('Manual price')}>M</span>}
                       </td>
-                      <td className="text-right font-medium whitespace-nowrap">{formatMoney(item.total)}</td>
+                      <td className="text-right font-medium whitespace-nowrap">{formatMoney(item.total, item.currency)}</td>
                       <td>
                         <button className="btn btn-ghost btn-xs" onClick={() => setEditing(item)}>{t('Edit')}</button>
                       </td>

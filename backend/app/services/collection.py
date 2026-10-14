@@ -5,7 +5,9 @@ Stock changes are single atomic upserts (`quantity = quantity + delta`) guarded 
 web never lose updates or go negative.
 
 Unit price of an item: its manual price, else the latest API price of its printing and
-finish. API prices are not per condition or language.
+finish from the user's price source for that game (`app.prices.base.preferred_source`).
+API prices are not per condition or language. Values are per currency: prices of
+different sources are never added up.
 """
 
 from collections.abc import Iterable
@@ -19,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.games.base import get_provider
 from app.models import CardSet, CollectionItem, Condition, PriceSnapshot, Printing, StockTransaction
+from app.prices.base import preferred_source, price_sources
 
 
 class StockError(Exception):
@@ -37,6 +40,21 @@ class PricePoint:
     trend: Decimal
     date: date
     low: Decimal | None = None
+    currency: str = "EUR"
+    source: str = "cardmarket"
+
+
+@dataclass(frozen=True)
+class Pricing:
+    """The price source used for a game and its currency."""
+
+    source: str
+    currency: str
+
+
+def pricing(game_id: str, wanted: str | None) -> Pricing | None:
+    source = preferred_source(game_id, wanted)
+    return Pricing(source.id, source.currency) if source else None
 
 
 async def game_of(session: AsyncSession, printing: Printing) -> str:
@@ -167,10 +185,10 @@ async def undo(session: AsyncSession, user_id: int, transaction_id: int) -> Coll
 
 
 async def latest_prices(
-    session: AsyncSession, printing_ids: Iterable[int], on: date | None = None
+    session: AsyncSession, printing_ids: Iterable[int], source: str, on: date | None = None
 ) -> dict[tuple[int, str], PricePoint]:
-    """Latest trend price (and lowest offer) per (printing, finish), optionally as of a
-    date."""
+    """Latest trend price (and lowest offer) of one source per (printing, finish),
+    optionally as of a date."""
     ids = list(set(printing_ids))
     if not ids:
         return {}
@@ -181,15 +199,40 @@ async def latest_prices(
             PriceSnapshot.trend,
             PriceSnapshot.date,
             PriceSnapshot.low,
+            PriceSnapshot.currency,
         )
         .ext(distinct_on(PriceSnapshot.printing_id, PriceSnapshot.finish))
-        .where(PriceSnapshot.printing_id.in_(ids), PriceSnapshot.trend.is_not(None))
+        .where(
+            PriceSnapshot.printing_id.in_(ids),
+            PriceSnapshot.source == source,
+            PriceSnapshot.trend.is_not(None),
+        )
         .order_by(PriceSnapshot.printing_id, PriceSnapshot.finish, PriceSnapshot.date.desc())
     )
     if on is not None:
         query = query.where(PriceSnapshot.date <= on)
     rows = await session.execute(query)
-    return {(pid, finish): PricePoint(trend, day, low) for pid, finish, trend, day, low in rows}
+    return {
+        (pid, finish): PricePoint(trend, day, low, currency, source)
+        for pid, finish, trend, day, low, currency in rows
+    }
+
+
+async def user_prices(
+    session: AsyncSession,
+    wanted: str | None,
+    game_by_printing: dict[int, str],
+    on: date | None = None,
+) -> dict[tuple[int, str], PricePoint]:
+    """Latest prices of printings of any games, each from the user's source for its game."""
+    by_source: dict[str, list[int]] = {}
+    for printing_id, game_id in game_by_printing.items():
+        if (chosen := pricing(game_id, wanted)) is not None:
+            by_source.setdefault(chosen.source, []).append(printing_id)
+    found: dict[tuple[int, str], PricePoint] = {}
+    for source, ids in by_source.items():
+        found |= await latest_prices(session, ids, source, on)
+    return found
 
 
 def unit_price(item: CollectionItem, prices: dict[tuple[int, str], PricePoint]) -> Decimal | None:
@@ -201,37 +244,37 @@ def unit_price(item: CollectionItem, prices: dict[tuple[int, str], PricePoint]) 
 
 async def owned_items(
     session: AsyncSession, user_id: int, game_id: str | None = None
-) -> list[CollectionItem]:
-    query = select(CollectionItem).where(
-        CollectionItem.user_id == user_id, CollectionItem.quantity > 0
+) -> list[tuple[CollectionItem, str]]:
+    """Items with copies, with their game."""
+    query = (
+        select(CollectionItem, CardSet.game_id)
+        .join(Printing, CollectionItem.printing_id == Printing.id)
+        .join(CardSet, Printing.set_id == CardSet.id)
+        .where(CollectionItem.user_id == user_id, CollectionItem.quantity > 0)
     )
     if game_id:
-        query = query.join(Printing).join(CardSet).where(CardSet.game_id == game_id)
-    return list(await session.scalars(query))
+        query = query.where(CardSet.game_id == game_id)
+    return [(item, game) for item, game in (await session.execute(query)).all()]
 
 
 @dataclass
 class GameValue:
     game_id: str
+    currency: str
     total: Decimal
     quantity: int
     priced: int
     unpriced: int
 
 
-async def value_by_game(session: AsyncSession, user_id: int) -> list[GameValue]:
-    rows = (
-        await session.execute(
-            select(CollectionItem, CardSet.game_id)
-            .join(Printing, CollectionItem.printing_id == Printing.id)
-            .join(CardSet, Printing.set_id == CardSet.id)
-            .where(CollectionItem.user_id == user_id, CollectionItem.quantity > 0)
-        )
-    ).all()
-    prices = await latest_prices(session, (item.printing_id for item, _ in rows))
+async def value_by_game(session: AsyncSession, user_id: int, wanted: str) -> list[GameValue]:
+    rows = await owned_items(session, user_id)
+    prices = await user_prices(session, wanted, {item.printing_id: game for item, game in rows})
     games: dict[str, GameValue] = {}
     for item, game_id in rows:
-        value = games.setdefault(game_id, GameValue(game_id, Decimal(0), 0, 0, 0))
+        chosen = pricing(game_id, wanted)
+        currency = chosen.currency if chosen else "EUR"
+        value = games.setdefault(game_id, GameValue(game_id, currency, Decimal(0), 0, 0, 0))
         price = unit_price(item, prices)
         value.quantity += item.quantity
         if price is None:
@@ -243,23 +286,47 @@ async def value_by_game(session: AsyncSession, user_id: int) -> list[GameValue]:
 
 
 async def value_history(
-    session: AsyncSession, user_id: int, game_id: str | None, start: date, end: date
-) -> list[tuple[date, Decimal]]:
-    """Daily value of the current holdings, priced with each day's latest known prices.
+    session: AsyncSession,
+    user_id: int,
+    wanted: str,
+    game_id: str | None,
+    start: date,
+    end: date,
+) -> tuple[str, list[tuple[date, Decimal]]]:
+    """Currency and daily value of the current holdings, priced with each day's latest
+    known prices.
 
-    Quantities are today's: the curve shows how prices moved for what is owned now."""
-    items = await owned_items(session, user_id, game_id)
-    printing_ids = {i.printing_id for i in items}
+    Quantities are today's: the curve shows how prices moved for what is owned now.
+    Without a game, games priced in another currency than the user's source are left
+    out."""
+    currency = price_sources()[wanted].currency if wanted in price_sources() else "EUR"
+    if game_id is not None and (chosen := pricing(game_id, wanted)) is not None:
+        currency = chosen.currency
+    rows = await owned_items(session, user_id, game_id)
+    source_of = {
+        item.printing_id: chosen.source
+        for item, game in rows
+        if (chosen := pricing(game, wanted)) is not None and chosen.currency == currency
+    }
+    items = [item for item, _ in rows if item.printing_id in source_of]
+    days = [start + timedelta(days=n) for n in range((end - start).days + 1)]
     if not items:
-        return [(start + timedelta(days=n), Decimal(0)) for n in range((end - start).days + 1)]
+        return currency, [(day, Decimal(0)) for day in days]
     # Prices on the first day, then every later snapshot in order.
-    current = {k: p.trend for k, p in (await latest_prices(session, printing_ids, start)).items()}
-    rows = await session.execute(
+    first = await user_prices(
+        session, wanted, {i.printing_id: g for i, g in rows if i.printing_id in source_of}, start
+    )
+    current = {k: p.trend for k, p in first.items()}
+    snapshots = await session.execute(
         select(
-            PriceSnapshot.date, PriceSnapshot.printing_id, PriceSnapshot.finish, PriceSnapshot.trend
+            PriceSnapshot.date,
+            PriceSnapshot.printing_id,
+            PriceSnapshot.finish,
+            PriceSnapshot.trend,
+            PriceSnapshot.source,
         )
         .where(
-            PriceSnapshot.printing_id.in_(printing_ids),
+            PriceSnapshot.printing_id.in_(source_of),
             PriceSnapshot.trend.is_not(None),
             PriceSnapshot.date > start,
             PriceSnapshot.date <= end,
@@ -267,8 +334,9 @@ async def value_history(
         .order_by(PriceSnapshot.date)
     )
     changes: dict[date, list[tuple[tuple[int, str], Decimal]]] = {}
-    for day, pid, finish, trend in rows:
-        changes.setdefault(day, []).append(((pid, finish), trend))
+    for day, pid, finish, trend, source in snapshots:
+        if source == source_of[pid]:
+            changes.setdefault(day, []).append(((pid, finish), trend))
 
     history = []
     day = start
@@ -284,4 +352,4 @@ async def value_history(
                 total += price * item.quantity
         history.append((day, total))
         day += timedelta(days=1)
-    return history
+    return currency, history

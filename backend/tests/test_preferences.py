@@ -297,3 +297,13 @@ async def test_symbols_downloaded_once(client, alice):
     assert (
         await client.get("/api/games/mtg/colors/..%2F..%2Fx/icon", headers=alice)
     ).status_code == 404
+
+
+def test_api_tokens_follow_the_naming_rule(monkeypatch):
+    from app.core.config import api_token
+
+    monkeypatch.setenv("TCG_APITOKEN_GAMES_PKM_POKEMONTCG", "secret")
+    monkeypatch.setenv("TCG_APITOKEN_PRICES_CARDNEXUS", "")
+    assert api_token("games", "pokemontcg", "pkm") == "secret"
+    assert api_token("prices", "cardnexus") is None
+    assert api_token("prices", "nothing") is None

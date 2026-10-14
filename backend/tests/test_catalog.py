@@ -1,6 +1,7 @@
 import asyncio
 import json
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import httpx
 import pytest
@@ -516,3 +517,58 @@ async def test_sorcery_refresh_downloads_the_catalog_once(session, synced, sorce
     session.expire_all()
     for card_id in card_ids:
         assert (await session.get(Card, card_id)).attributes
+
+
+async def test_price_source_plugin_with_its_own_api(client, session, synced, monkeypatch):
+    """A market plugin fetching its own prices, matched through market ids."""
+    from app.games.base import PriceQuote
+    from app.prices import base as price_base
+
+    printing = await session.scalar(select(Printing).order_by(Printing.id).limit(1))
+    printing.attributes = {**printing.attributes, "market_ids": {"nexus": 42}}
+    await session.commit()
+
+    class Nexus:
+        id = "nexus"
+        name = "Nexus"
+        currency = "EUR"
+        games = {"sorcery"}
+
+        def link(self, game_id, market_id, lang):
+            return f"https://nexus.example/p/{market_id}"
+
+        async def fetch(self, http, game_id, targets):
+            yield [
+                PriceQuote(t.set_external_id, t.printing_external_id, t.finishes[0],
+                           Decimal("3.30"), source="nexus")
+                for t in targets
+                if t.market_ids.get("nexus") == 42
+            ]  # fmt: skip
+
+    sources = dict(price_base.price_sources()) | {"nexus": Nexus()}
+    monkeypatch.setattr(price_base, "price_sources", lambda: sources)
+    from app.services import prices
+
+    monkeypatch.setattr(prices, "price_sources", lambda: sources)
+    monkeypatch.setattr("app.api.catalog.price_sources", lambda: sources)
+
+    async def no_cardmarket(self, http, owned):
+        return
+        yield
+
+    monkeypatch.setattr(type(get_provider("sorcery")), "fetch_prices", no_cardmarket)
+    async with http_client() as http:
+        report = await prices.sync_prices(session, get_provider("sorcery"), http)
+    assert report.stored == 1
+
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    games = (await client.get("/api/games", headers=headers)).json()
+    sorcery = next(g for g in games if g["id"] == "sorcery")
+    assert [s["id"] for s in sorcery["price_sources"]] == ["cardmarket", "nexus"]
+    card = (await client.get(f"/api/cards/{printing.card_id}", headers=headers)).json()
+    ours = next(p for p in card["printings"] if p["id"] == printing.id)
+    assert {"source": "nexus", "name": "Nexus", "url": "https://nexus.example/p/42"} in ours[
+        "links"
+    ]
+    assert any(p["source"] == "nexus" and p["trend"] == "3.30" for p in ours["prices"])

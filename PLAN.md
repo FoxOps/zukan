@@ -326,6 +326,13 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
     out: many printings are legitimately unpriced), provider `fetch_cards` (Scryfall
     `oracleid:` search, TCGdex per printing + missing-image languages, Sorcery cached
     catalog), refresh on card view (BackgroundTasks, once an hour), `refresh` job (48 h).
+  - [x] D price sources: `fudabako.prices` plugins (`app/prices`: Cardmarket EUR,
+    TCGplayer USD from Scryfall `usd*` and TCGdex `pricing.tcgplayer`), quotes tagged with
+    `source`, `attributes.market_ids`, sources with their own API (`fetch`, called by the
+    prices job after the provider). Deviation: one prices job per game (not per source):
+    provider data carries several sources in one download. User `price_source` (fallback:
+    game's first source); per-currency values, never added up; card page shows every
+    source + links; `TCG_APITOKEN_*` helper (`api_token`). Docs: `docs/price-sources.md`.
 
 ## Feedback batch 3 plan
 

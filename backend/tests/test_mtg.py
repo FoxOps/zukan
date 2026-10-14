@@ -149,7 +149,16 @@ async def test_sync_merges_languages(client, session, scryfall):
         )
     )
     assert snapshot.trend == Decimal("0.39") and snapshot.date == today()
-    assert report.prices == 6  # elves, delver and ajani, nonfoil and foil
+    # Elves, delver and ajani, nonfoil and foil, on Cardmarket and TCGplayer.
+    assert report.prices == 12
+    tcgplayer = await session.scalar(
+        select(PriceSnapshot).where(
+            PriceSnapshot.printing_id == elves_id,
+            PriceSnapshot.finish == "nonfoil",
+            PriceSnapshot.source == "tcgplayer",
+        )
+    )
+    assert tcgplayer.currency == "USD" and tcgplayer.trend > 0
 
     counts = [
         await session.scalar(select(func.count()).select_from(m))
@@ -199,21 +208,23 @@ async def test_price_job_keeps_history_of_owned_cards(session, scryfall):
                 printing_id=printing_id,
                 finish="nonfoil",
                 date=yesterday,
-                source="scryfall-cardmarket",
+                source="cardmarket",
                 trend=Decimal("9.99"),
             )
         )
     await session.commit()
 
     run = await session.get(SyncRun, await jobs.run_job("mtg", JobKind.prices))
-    assert run.report["stored"] == 6
+    assert run.report["stored"] == 12
     assert run.report["pruned"] == 1
     # Scryfall's trend, Cardmarket's lowest offer and average.
     latest = {
         s.finish: (s.trend, s.low, s.avg)
         for s in await session.scalars(
             select(PriceSnapshot).where(
-                PriceSnapshot.printing_id == elves, PriceSnapshot.date == today()
+                PriceSnapshot.printing_id == elves,
+                PriceSnapshot.date == today(),
+                PriceSnapshot.source == "cardmarket",
             )
         )
     }

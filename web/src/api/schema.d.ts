@@ -478,7 +478,8 @@ export interface paths {
         };
         /**
          * Value History
-         * @description Daily value of current holdings over the last `days` days.
+         * @description Daily value of current holdings over the last `days` days. Without a game, games
+         *     priced in another currency than the user's price source are left out.
          */
         get: operations["value_history_api_collection_value_history_get"];
         put?: never;
@@ -738,6 +739,8 @@ export interface components {
             price_min: string | null;
             /** Price Max */
             price_max: string | null;
+            /** Currency */
+            currency?: string | null;
         };
         /** ColorOut */
         ColorOut: {
@@ -756,6 +759,13 @@ export interface components {
          * @enum {string}
          */
         Condition: "MT" | "NM" | "EX" | "GD" | "LP" | "PL" | "PO";
+        /** CurrencyTotalOut */
+        CurrencyTotalOut: {
+            /** Currency */
+            currency: string;
+            /** Total */
+            total: string;
+        };
         /** FinishOut */
         FinishOut: {
             /** Code */
@@ -775,6 +785,8 @@ export interface components {
             finishes: components["schemas"]["FinishOut"][];
             /** Languages */
             languages: string[];
+            /** Price Sources */
+            price_sources: components["schemas"]["PriceSourceOut"][];
             /** Has Prices */
             has_prices: boolean;
             /** Cardmarket */
@@ -784,6 +796,8 @@ export interface components {
         GameValueOut: {
             /** Game Id */
             game_id: string;
+            /** Currency */
+            currency: string;
             /** Total */
             total: string;
             /** Quantity */
@@ -896,6 +910,8 @@ export interface components {
             manual_price: string | null;
             /** Market Price */
             market_price: string | null;
+            /** Currency */
+            currency: string;
             /** Price Date */
             price_date: string | null;
             /** Unit Price */
@@ -977,6 +993,15 @@ export interface components {
          * @enum {string}
          */
         JobTrigger: "auto" | "manual";
+        /** LinkOut */
+        LinkOut: {
+            /** Source */
+            source: string;
+            /** Name */
+            name: string;
+            /** Url */
+            url: string;
+        };
         /** LoginIn */
         LoginIn: {
             /** Username */
@@ -1012,6 +1037,8 @@ export interface components {
             language: "en" | "fr";
             /** Catalog Games */
             catalog_games: string[] | null;
+            /** Price Source */
+            price_source: string;
         };
         /** OcrLineIn */
         OcrLineIn: {
@@ -1079,6 +1106,10 @@ export interface components {
         PriceOut: {
             /** Finish */
             finish: string;
+            /** Source */
+            source: string;
+            /** Currency */
+            currency: string;
             /** Trend */
             trend: string;
             /** Low */
@@ -1088,6 +1119,15 @@ export interface components {
              * Format: date
              */
             date: string;
+        };
+        /** PriceSourceOut */
+        PriceSourceOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
         };
         /** PrintingOut */
         PrintingOut: {
@@ -1116,6 +1156,8 @@ export interface components {
             };
             /** Cardmarket Id */
             cardmarket_id: number | null;
+            /** Links */
+            links: components["schemas"]["LinkOut"][];
             /** Prices */
             prices: components["schemas"]["PriceOut"][];
             /** Owned */
@@ -1177,6 +1219,8 @@ export interface components {
             language?: ("en" | "fr") | null;
             /** Catalog Games */
             catalog_games?: string[] | null;
+            /** Price Source */
+            price_source?: string | null;
         };
         /**
          * TokenOut
@@ -1274,15 +1318,21 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** ValueHistoryOut */
+        ValueHistoryOut: {
+            /** Currency */
+            currency: string;
+            /** Points */
+            points: components["schemas"]["ValuePointOut"][];
+        };
         /** ValueOut */
         ValueOut: {
-            /**
-             * Currency
-             * @default EUR
-             */
+            /** Currency */
             currency: string;
             /** Total */
             total: string;
+            /** Totals */
+            totals: components["schemas"]["CurrencyTotalOut"][];
             /** Quantity */
             quantity: number;
             /** Games */
@@ -2248,7 +2298,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ValuePointOut"][];
+                    "application/json": components["schemas"]["ValueHistoryOut"];
                 };
             };
             /** @description Validation Error */

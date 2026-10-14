@@ -42,6 +42,7 @@ from app.core.security import (
 )
 from app.games.base import registry
 from app.models import User, UserIdentity
+from app.prices.base import price_sources
 from app.services.sso import resolve_sso_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -203,6 +204,13 @@ async def update_settings(body: SettingsIn, user: CurrentUser, session: SessionD
                 )
             games = [g for g in registry() if g in games]
         user.catalog_games = games
+    if fields.get("price_source") is not None:
+        if fields["price_source"] not in price_sources():
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                f"Unknown price source {fields['price_source']!r}",
+            )
+        user.price_source = fields["price_source"]
     await session.commit()
     return await _load_me(session, user.id)
 

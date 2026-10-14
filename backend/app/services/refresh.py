@@ -131,7 +131,7 @@ async def refresh_cards(
 
     wanted = {ref.external_id for ref in refs}
     found: set[str] = set()
-    writer = CatalogWriter(session, provider.id, provider.price_source)
+    writer = CatalogWriter(session, provider.id)
     await writer.load_sets()
     fetch: Any = provider.fetch_cards
     async for batch in fetch(http, refs):

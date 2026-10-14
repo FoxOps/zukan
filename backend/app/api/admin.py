@@ -9,7 +9,7 @@ from app.api.deps import AdminUser, SessionDep
 from app.core.config import get_settings
 from app.games.base import registry
 from app.models import JobKind, JobStatus, JobTrigger, SyncRun
-from app.services import images, jobs
+from app.services import images, jobs, prices
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -63,7 +63,7 @@ async def start_job(
     game_id: str, kind: JobKind, _: AdminUser, background: BackgroundTasks
 ) -> dict[str, int]:
     _check_game(game_id)
-    if kind == JobKind.prices and registry()[game_id].price_source is None:
+    if kind == JobKind.prices and not prices.has_prices(registry()[game_id]):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"{game_id} has no price source")
     try:
         # Takes over a running auto run of the same job (waits for it to stop).

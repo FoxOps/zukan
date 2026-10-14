@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 from app.api.deps import CurrentUser
 from app.games.base import registry
+from app.prices.base import game_sources
 from app.services.symbols import symbol_file
 
 router = APIRouter(prefix="/games", tags=["games"])
@@ -22,14 +23,22 @@ class FinishOut(BaseModel):
     name: str
 
 
+class PriceSourceOut(BaseModel):
+    id: str
+    name: str
+    currency: str
+
+
 class GameOut(BaseModel):
     id: str
     name: str
     colors: list[ColorOut]
     finishes: list[FinishOut]
     languages: list[str]
+    # Markets with prices for this game, the main one first.
+    price_sources: list[PriceSourceOut]
     has_prices: bool
-    # Cardmarket URL segment: https://www.cardmarket.com/{lang}/{cardmarket}/Products?idProduct=
+    # Deprecated (app 0.3): Cardmarket URL segment, see PrintingOut.links.
     cardmarket: str | None
 
 
@@ -52,7 +61,11 @@ async def list_games(_: CurrentUser) -> list[GameOut]:
             ],
             finishes=[FinishOut(code=f.code, name=f.name) for f in p.finishes],
             languages=p.languages,
-            has_prices=p.price_source is not None,
+            price_sources=[
+                PriceSourceOut(id=s.id, name=s.name, currency=s.currency)
+                for s in game_sources(p.id)
+            ],
+            has_prices=bool(game_sources(p.id)),
             cardmarket=getattr(p, "cardmarket_path", None),
         )
         for p in registry().values()

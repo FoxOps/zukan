@@ -1,13 +1,15 @@
-"""Price snapshots from provider data.
+"""Price snapshots from game providers and price sources (`app.prices`).
 
 One snapshot per printing, finish, day and source. Full history is kept for printings
 someone has in a collection; for the rest only the latest snapshot survives, which is
 enough to show current prices without growing the table by the whole catalog each day.
 """
 
-from collections.abc import Sequence
+import logging
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from typing import Any
 
 import httpx
 from sqlalchemy import delete, exists, select, update
@@ -18,6 +20,9 @@ from sqlalchemy.orm import aliased
 from app.core.progress import progress
 from app.games.base import GameProvider, PriceQuote, PriceTarget
 from app.models import CardSet, CollectionItem, Game, PriceSnapshot, Printing
+from app.prices.base import MarketTarget, fetches, price_sources
+
+log = logging.getLogger(__name__)
 
 _CHUNK = 1000
 
@@ -51,15 +56,16 @@ async def printing_ids(session: AsyncSession, game_id: str) -> PrintingIds:
 
 
 async def store_quotes(
-    session: AsyncSession, source: str, quotes: Sequence[PriceQuote], day: date, ids: PrintingIds
+    session: AsyncSession, quotes: Sequence[PriceQuote], day: date, ids: PrintingIds
 ) -> int:
-    """Upsert quotes as snapshots for `day`. Quotes for printings missing from `ids` are
-    skipped."""
-    unique: dict[tuple[str, str, str], PriceQuote] = {}
+    """Upsert quotes as snapshots for `day`, under each quote's source. Quotes for
+    printings missing from `ids` are skipped."""
+    unique: dict[tuple[str, str, str, str], PriceQuote] = {}
     for quote in quotes:
         if quote.trend is None and quote.low is None and quote.avg is None:
             continue
-        unique.setdefault((quote.set_external_id, quote.printing_external_id, quote.finish), quote)
+        key = (quote.set_external_id, quote.printing_external_id, quote.finish, quote.source)
+        unique.setdefault(key, quote)
     items = list(unique.items())
     stored = 0
     for start in range(0, len(items), _CHUNK):
@@ -75,7 +81,7 @@ async def store_quotes(
                 "low": quote.low,
                 "avg": quote.avg,
             }
-            for (set_ext, printing_ext, finish), quote in chunk
+            for (set_ext, printing_ext, finish, source), quote in chunk
             if (set_ext, printing_ext) in ids
         ]
         if not values:
@@ -95,12 +101,11 @@ async def store_quotes(
     return stored
 
 
-async def prune_history(session: AsyncSession, game_id: str, source: str) -> int:
+async def prune_history(session: AsyncSession, game_id: str) -> int:
     """Drop superseded snapshots of printings that are in nobody's collection."""
     newer = aliased(PriceSnapshot)
     result = await session.execute(
         delete(PriceSnapshot).where(
-            PriceSnapshot.source == source,
             PriceSnapshot.printing_id.in_(
                 select(Printing.id).join(CardSet).where(CardSet.game_id == game_id)
             ),
@@ -128,26 +133,59 @@ async def owned_targets(session: AsyncSession, game_id: str) -> list[PriceTarget
     return [PriceTarget(*row) for row in rows]
 
 
+async def market_targets(session: AsyncSession, game_id: str) -> list[MarketTarget]:
+    """Every printing of the game, for sources fetching prices with their own API."""
+    rows = await session.execute(
+        select(CardSet.external_id, Printing.external_id, Printing.finishes, Printing.attributes)
+        .join(Printing, Printing.set_id == CardSet.id)
+        .where(CardSet.game_id == game_id)
+    )
+    return [
+        MarketTarget(set_ext, printing_ext, tuple(finishes), dict(attrs.get("market_ids") or {}))
+        for set_ext, printing_ext, finishes, attrs in rows
+    ]
+
+
 async def sync_prices(
     session: AsyncSession, provider: GameProvider, http: httpx.AsyncClient
 ) -> PriceReport:
+    """Prices from the game's own data, then from sources with their own API."""
     report = PriceReport()
-    if provider.price_source is None:
-        return report
-    targets = await owned_targets(session, provider.id)
-    report.targets = len(targets)
     ids = await printing_ids(session, provider.id)
     day = today()
-    async for quotes in provider.fetch_prices(http, targets):
-        report.quotes += len(quotes)
-        stored = await store_quotes(session, provider.price_source, quotes, day, ids)
-        report.stored += stored
-        report.skipped += len(quotes) - stored
-        await session.commit()
-        await progress()
-    report.pruned = await prune_history(session, provider.id, provider.price_source)
+
+    async def store(batches: AsyncIterator[list[PriceQuote]]) -> None:
+        async for quotes in batches:
+            report.quotes += len(quotes)
+            stored = await store_quotes(session, quotes, day, ids)
+            report.stored += stored
+            report.skipped += len(quotes) - stored
+            await session.commit()
+            await progress()
+
+    if provider.price_sources:
+        targets = await owned_targets(session, provider.id)
+        report.targets = len(targets)
+        await store(provider.fetch_prices(http, targets))
+    standalone = [s for s in price_sources().values() if fetches(s, provider.id)]
+    if standalone:
+        everything = await market_targets(session, provider.id)
+        for source in standalone:
+            fetch: Any = source.fetch
+            try:
+                await store(fetch(http, provider.id, everything))
+            except httpx.HTTPError as exc:
+                # One market down does not cost the others their prices.
+                log.warning("%s prices for %s unavailable: %s", source.id, provider.id, exc)
+    report.pruned = await prune_history(session, provider.id)
     await session.execute(
         update(Game).where(Game.id == provider.id).values(last_price_sync=datetime.now(UTC))
     )
     await session.commit()
     return report
+
+
+def has_prices(provider: GameProvider) -> bool:
+    return bool(provider.price_sources) or any(
+        fetches(s, provider.id) for s in price_sources().values()
+    )

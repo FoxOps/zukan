@@ -132,9 +132,9 @@ def parse_card(raw: dict[str, Any], set_id: str, lang: str) -> CardData:
         for k in ("regulationMark", "attacks", "abilities", "effect")
         if raw.get(k) is not None
     }
-    cardmarket = (raw.get("pricing") or {}).get("cardmarket") or {}
-    if cardmarket.get("idProduct"):
-        printing_attributes["cardmarket_id"] = cardmarket["idProduct"]
+    market_ids = _market_ids(raw)
+    if market_ids:
+        printing_attributes["market_ids"] = market_ids
     printing = PrintingData(
         external_id=raw["localId"],
         set_external_id=set_id,
@@ -193,12 +193,60 @@ def join_english(card: CardData, english_cards: set[str]) -> CardData:
     return card
 
 
+# TCGplayer price variants to finishes ("1stEditionHolofoil", "unlimitedHolofoil"...).
+TCGPLAYER_VARIANTS = {
+    "normal": "normal",
+    "holofoil": "holo",
+    "reverse-holofoil": "reverse",
+    "1stEditionNormal": "first_edition",
+    "1stEditionHolofoil": "first_edition",
+    "unlimitedNormal": "normal",
+    "unlimitedHolofoil": "holo",
+}
+
+
+def _market_ids(raw: dict[str, Any]) -> dict[str, int]:
+    pricing = raw.get("pricing") or {}
+    ids = {}
+    if (pricing.get("cardmarket") or {}).get("idProduct"):
+        ids["cardmarket"] = pricing["cardmarket"]["idProduct"]
+    for variant in (pricing.get("tcgplayer") or {}).values():
+        if isinstance(variant, dict) and variant.get("productId"):
+            ids["tcgplayer"] = variant["productId"]
+            break
+    return ids
+
+
+def _tcgplayer_prices(raw: dict[str, Any], set_id: str) -> list[PriceQuote]:
+    tcgplayer = (raw.get("pricing") or {}).get("tcgplayer") or {}
+    quotes: dict[str, PriceQuote] = {}
+    for variant, finish in TCGPLAYER_VARIANTS.items():
+        data = tcgplayer.get(variant)
+        if not isinstance(data, dict) or finish in quotes:
+            continue
+        trend = _decimal(data.get("marketPrice")) or _decimal(data.get("midPrice"))
+        if trend:
+            quotes[finish] = PriceQuote(
+                set_id,
+                raw["localId"],
+                finish,
+                trend=trend,
+                low=_decimal(data.get("lowPrice")),
+                avg=_decimal(data.get("midPrice")),
+                currency=tcgplayer.get("unit") or "USD",
+                source="tcgplayer",
+            )
+    return list(quotes.values())
+
+
 def parse_prices(raw: dict[str, Any], set_id: str) -> list[PriceQuote]:
     """Cardmarket lists one product per card; its `-holo` prices are the reverse holo
-    (or holo, when the card also exists without holo) version."""
+    (or holo, when the card also exists without holo) version. TCGplayer lists a price
+    per variant."""
+    tcgplayer = _tcgplayer_prices(raw, set_id)
     cardmarket = (raw.get("pricing") or {}).get("cardmarket") or {}
     if not cardmarket:
-        return []
+        return tcgplayer
     finishes = _finishes(raw)
     base = "normal" if "normal" in finishes else "holo" if "holo" in finishes else None
     if "reverse" in finishes:
@@ -219,10 +267,11 @@ def parse_prices(raw: dict[str, Any], set_id: str) -> list[PriceQuote]:
             low=_decimal(cardmarket.get(f"low{suffix}")),
             avg=_decimal(cardmarket.get(f"avg{suffix}")),
             currency=cardmarket.get("unit") or "EUR",
+            source="cardmarket",
         )
         if quote.trend or quote.low or quote.avg:
             quotes.append(quote)
-    return quotes
+    return quotes + tcgplayer
 
 
 PRINTED_LANGUAGES = {"EN": "en", "FR": "fr", "DE": "de", "IT": "it", "ES": "es", "PT": "pt"}
@@ -317,7 +366,7 @@ class PokemonProvider:
         FinishDef("first_edition", "1st edition"),
     ]
     languages = list(LANGUAGES.values())
-    price_source = "tcgdex-cardmarket"
+    price_sources = ["cardmarket", "tcgplayer"]
     cardmarket_path = "Pokemon"
     short_names = ["pkm", "pokemon", "poke", "ptcg"]
     # 2: one set per set id across Asian languages, names from species names.

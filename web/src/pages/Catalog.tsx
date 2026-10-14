@@ -82,8 +82,8 @@ export default function Catalog() {
                   {card.price_min !== null && (
                     <span className="text-xs font-medium">
                       {card.price_min === card.price_max
-                        ? formatMoney(card.price_min)
-                        : `${formatMoney(card.price_min)} - ${formatMoney(card.price_max)}`}
+                        ? formatMoney(card.price_min, card.currency ?? undefined)
+                        : `${formatMoney(card.price_min, card.currency ?? undefined)} - ${formatMoney(card.price_max, card.currency ?? undefined)}`}
                     </span>
                   )}
                   <ColorBadges game={games.find((g) => g.id === card.game_id)} colors={card.colors} />
