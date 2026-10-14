@@ -272,3 +272,87 @@ async def test_identify_edge_cases(client, alice):
         "/api/scan/identify", json={"lines": [{"text": "x"}] * 201}, headers=alice
     )
     assert too_many.status_code == 422
+
+
+async def test_unknown_card_is_fetched_from_its_source(client, session):
+    from app.services import lookup
+    from tests.test_mtg import RAW
+
+    lookup._misses.clear()
+    await register_games()
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    elves = next(c for c in RAW if c["set"] == "dom" and c["lang"] == "en")
+    with respx.mock(assert_all_called=False) as router:
+        router.get(f"{SCRYFALL}/sets").respond(json=SETS)
+        exact = router.get(f"{SCRYFALL}/cards/dom/168").respond(json=elves)
+        router.get(f"{SCRYFALL}/cards/search").respond(
+            json={"data": [c for c in RAW if c.get("oracle_id") == elves["oracle_id"]]}
+        )
+        missing = router.get(f"{SCRYFALL}/cards/war/999").respond(404)
+        router.get(f"{SCRYFALL}/cards/named").respond(404)
+
+        found = await scan(client, headers, ELVES_FR, "mtg")
+        assert found["fetched"] is True and exact.call_count == 1
+        assert found["candidates"][0]["card"]["name"] == "Llanowar Elves"
+        assert found["candidates"][0]["printing_count"] == 1
+        # Known now: no new lookup.
+        assert (await scan(client, headers, ELVES_FR, "mtg"))["fetched"] is False
+
+        unknown = ocr(
+            "Nothing Like It",
+            "Creature — Elf",
+            "Flying",
+            "2/2",
+            "999/264 C",
+            "WAR • EN",
+            "™ & © 2019 Wizards of the Coast",
+        )
+        for _ in range(2):
+            result = await scan(client, headers, unknown, "mtg")
+            assert result["candidates"] == [] and result["fetched"] is False
+        assert missing.call_count == 1  # misses are remembered
+
+
+async def test_unknown_sorcery_card_found_by_name(client, session):
+    from app.services import lookup
+
+    lookup._misses.clear()
+    await register_games()
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    with respx.mock(assert_all_called=False) as router:
+        router.get(SORCERY).respond(json=SORCERY_CARDS)
+        found = await scan(client, headers, ABUNDANCE, "sorcery")
+    assert found["fetched"] is True
+    assert found["candidates"][0]["card"]["name"] == "Abundance"
+
+
+async def test_printing_search(client, alice, session):
+    from sqlalchemy import select
+
+    from app.models import Card
+
+    card_id = await session.scalar(select(Card.id).where(Card.name == "Abundance"))
+    found = await client.get(f"/api/cards/{card_id}/printings", params={"q": "beta"}, headers=alice)
+    assert [p["set"]["name"] for p in found.json()] == ["Beta"]
+    every = (await client.get(f"/api/cards/{card_id}/printings", headers=alice)).json()
+    assert len(every) == 2
+
+
+def test_pokemon_parser_skips_asian_labels():
+    provider = get_provider("pokemon")
+    korean = provider.parse_ocr(
+        ocr("서포트", "박사의 연구", "자신의 패를 모두 트래쉬하고", "SV1 F 190/198")
+    )
+    assert korean.name == "박사의 연구" and korean.lang == "ko"
+    japanese = provider.parse_ocr(ocr("グッズ", "エネルギーつけかえ", "SV1a 060/073"))
+    assert japanese.name == "エネルギーつけかえ" and japanese.lang == "ja"
+    chinese = provider.parse_ocr(ocr("支援者", "博士的研究", "CSV1C 120/130"))
+    assert chinese.name == "博士的研究"
+
+
+async def test_identify_short_asian_name_in_noisy_text(client, alice):
+    # No set or number, extra glyphs around the name: found by containment.
+    result = await scan(client, alice, ocr("ーートロピウスのぎ", "リーフドレイン 20"), "pokemon")
+    assert result["candidates"][0]["card"]["name"] in {"Tropius", "トロピウス"}

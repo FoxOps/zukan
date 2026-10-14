@@ -16,6 +16,11 @@ def clean(text: str) -> str:
     return " ".join(unicodedata.normalize("NFKC", text).split())
 
 
+def has_cjk(text: str) -> bool:
+    """Japanese, Korean or Chinese characters (names without spaces, few trigrams)."""
+    return bool(_KANA.search(text) or _HANGUL.search(text) or _CJK.search(text))
+
+
 def script_language(lines: list[OcrLine]) -> str | None:
     """Language implied by the writing system (Japanese, Korean, Chinese), if any."""
     text = " ".join(line.text for line in lines)

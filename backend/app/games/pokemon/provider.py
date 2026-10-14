@@ -306,7 +306,12 @@ _SKIP = re.compile(
     r"^(trainer|dresseur|trainer-?karte|allenatore|entrenador|treinador|supporter|"
     r"supporters|item|objet|stadium|stade|energy|énergie|energie|tool|outil|"
     r"evolves from|évolue de|entwickelt sich aus|si evolve da|evoluciona de|evolui de|"
-    r"pokémon|pokemon)\b",
+    r"pokémon|pokemon)\b|"
+    # Asian trainer and energy labels, alone on their line (card names such as
+    # "エネルギーつけかえ" start with the same words).
+    r"^(トレーナーズ|サポート|グッズ|スタジアム|ポケモンのどうぐ|基本エネルギー|特殊エネルギー|"
+    r"エネルギー|트레이너스|서포트|아이템|스타디움|포켓몬의 도구|기본 에너지|특수 에너지|에너지|"
+    r"訓練家|训练家|支援者|物品|竞技场|競技場|宝可梦道具|寶可夢道具|基本能量|特殊能量|能量)$",
     re.IGNORECASE,
 )
 
@@ -517,6 +522,40 @@ class PokemonProvider:
                         batch.cards.append(_translation(ref.external_id, raw, printing, lang))
             if batch.cards:
                 yield batch
+
+    async def lookup(self, http: httpx.AsyncClient, hints: OcrHints) -> CatalogBatch | None:
+        """A scanned card missing from the catalog, by set id and number (English listing
+        first: international sets are stored from it)."""
+        if not (hints.set_code and hints.collector_number):
+            return None
+        reverse = {ours: theirs for theirs, ours in LANGUAGES.items()}
+        number = hints.collector_number.lstrip("0") or "0"
+        for lang in dict.fromkeys(["en", reverse.get(hints.lang or "", "en")]):
+            try:
+                raw_set = await self._get(http, f"/{lang}/sets/{quote(hints.set_code, safe='')}")
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code != 404:
+                    raise
+                continue
+            if _digital(raw_set):
+                return None
+            brief = next(
+                (
+                    c
+                    for c in raw_set.get("cards", [])
+                    if (c["localId"].lstrip("0") or "0").casefold() == number.casefold()
+                ),
+                None,
+            )
+            if brief is None:
+                continue
+            card_set = parse_set(raw_set, None if lang == "en" else LANGUAGES[lang])
+            batch = CatalogBatch(sets=[card_set])
+            for raw in await self._cards(http, lang, [brief["id"]]):
+                batch.cards.append(parse_card(raw, card_set.external_id, lang))
+                batch.prices += parse_prices(raw, card_set.external_id)
+            return batch
+        return None
 
     async def fetch_prices(
         self, http: httpx.AsyncClient, owned: list[PriceTarget]

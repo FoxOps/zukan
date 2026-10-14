@@ -428,6 +428,47 @@ async def get_card(
     )
 
 
+@router.get("/cards/{card_id}/printings")
+async def search_printings(
+    card_id: int,
+    user: CurrentUser,
+    session: SessionDep,
+    q: Annotated[str | None, Query(max_length=100)] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[PrintingOut]:
+    """The card's printings whose set name, set code, collector number or release year
+    contain every word of `q` (case and accents ignored), newest first."""
+    if await session.get(Card, card_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Card not found")
+    query = (
+        select(Printing)
+        .join(CardSet, Printing.set_id == CardSet.id)
+        .where(Printing.card_id == card_id)
+        .options(selectinload(Printing.set))
+    )
+    text = func.lower(
+        func.f_unaccent(
+            func.concat_ws(
+                " ",
+                CardSet.name,
+                CardSet.code,
+                Printing.collector_number,
+                func.to_char(CardSet.release_date, "YYYY"),
+            )
+        )
+    )
+    for word in (q or "").split():
+        query = query.where(text.like("%" + _search_text(word) + "%"))
+    printings = list(
+        await session.scalars(
+            query.order_by(
+                CardSet.release_date.desc().nulls_last(), Printing.collector_number
+            ).limit(limit)
+        )
+    )
+    return await describe_printings(session, user, printings)
+
+
 async def describe_printings(
     session: SessionDep, user: User, printings: list[Printing]
 ) -> list[PrintingOut]:

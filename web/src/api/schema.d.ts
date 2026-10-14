@@ -348,6 +348,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cards/{card_id}/printings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Printings
+         * @description The card's printings whose set name, set code, collector number or release year
+         *     contain every word of `q` (case and accents ignored), newest first.
+         */
+        get: operations["search_printings_api_cards__card_id__printings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/printings/{printing_id}/prices": {
         parameters: {
             query?: never;
@@ -747,6 +768,8 @@ export interface components {
             card: components["schemas"]["CandidateCardOut"];
             /** Printings */
             printings: components["schemas"]["PrintingOut"][];
+            /** Printing Count */
+            printing_count: number;
         };
         /** CardOut */
         CardOut: {
@@ -956,6 +979,11 @@ export interface components {
             detected: components["schemas"]["HintsOut"];
             /** Candidates */
             candidates: components["schemas"]["CandidateOut"][];
+            /**
+             * Fetched
+             * @default false
+             */
+            fetched: boolean;
         };
         /** IdentityOut */
         IdentityOut: {
@@ -2135,6 +2163,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CardOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_printings_api_cards__card_id__printings_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingOut"][];
                 };
             };
             /** @description Validation Error */

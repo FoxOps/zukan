@@ -11,11 +11,12 @@ recognized lines. Candidates come from, in order of confidence:
 from dataclasses import dataclass, field
 from datetime import date
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import Float, and_, case, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.games.base import GameProvider, OcrHints, OcrLine, registry
+from app.games.ocr import has_cjk
 from app.models import Card, CardName, CardSet, Printing
 
 MAX_CARDS = 8
@@ -97,6 +98,24 @@ async def _name_similarity(
         )
         for text in texts
     ]
+    # Asian names are short and unspaced: a misread or extra glyph costs most of their
+    # few trigrams. A name found inside the read text (or the reverse) scores by length.
+    contained = []
+    for name, text in zip(names, texts, strict=True):
+        if not has_cjk(name):
+            continue
+        name_length = func.char_length(CardName.search_name)
+        text_length = func.char_length(text)
+        inside = and_(name_length >= 2, func.strpos(text, CardName.search_name) > 0)
+        around = func.strpos(CardName.search_name, text) > 0
+        scores.append(
+            case(
+                (inside, cast(name_length, Float) / func.greatest(text_length, 1)),
+                (around, cast(text_length, Float) / func.greatest(name_length, 1)),
+                else_=0.0,
+            )
+        )
+        contained.append(or_(inside, around))
     best = func.max(func.greatest(*scores) if len(scores) > 1 else scores[0])
     query = (
         select(CardName.card_id, best)
@@ -110,7 +129,9 @@ async def _name_similarity(
         query = query.where(CardName.card_id.in_(card_ids))
     else:
         # Trigram index lookup (similarity above pg_trgm.similarity_threshold, 0.3).
-        query = query.where(or_(*(CardName.search_name.op("%")(text) for text in texts)))
+        query = query.where(
+            or_(*(CardName.search_name.op("%")(text) for text in texts), *contained)
+        )
     return {card_id: float(score) for card_id, score in await session.execute(query)}
 
 

@@ -5,9 +5,10 @@ from pydantic import BaseModel, Field, StringConstraints
 
 from app.api.catalog import PrintingOut, describe_printings
 from app.api.deps import CurrentUser, SessionDep
+from app.core.http import http_client
 from app.games.base import OcrLine, registry
 from app.models import Printing
-from app.services import identify
+from app.services import identify, lookup
 from app.services.names import display_names
 
 router = APIRouter(prefix="/scan", tags=["scan"])
@@ -49,14 +50,18 @@ class CandidateOut(BaseModel):
     # set_number: exact printing; number_name: number and similar name; name: name only.
     match: str
     card: CandidateCardOut
-    # Most likely printing first.
+    # Most likely printing first; at most 30, see `printing_count` and
+    # /api/cards/{id}/printings for the others.
     printings: list[PrintingOut]
+    printing_count: int
 
 
 class IdentifyOut(BaseModel):
     game_id: str | None
     detected: HintsOut
     candidates: list[CandidateOut]
+    # The card was missing from the catalog and was just fetched from its game's source.
+    fetched: bool = False
 
 
 @router.post("/identify")
@@ -66,6 +71,14 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unknown game {body.game!r}")
     lines = [OcrLine(**line.model_dump()) for line in body.lines if line.text.strip()]
     result = await identify.identify(session, lines, body.game)
+    fetched = False
+    if not result.candidates and lines:
+        # Not in the catalog (yet): ask the game's source, then match again.
+        providers = [registry()[body.game]] if body.game else list(registry().values())
+        async with http_client(timeout=20) as http:
+            fetched = await lookup.look_up(session, http, providers, lines, bool(body.game))
+        if fetched:
+            result = await identify.identify(session, lines, body.game)
     names = await display_names(
         session, (c.card.id for c in result.candidates if c.card), user.language
     )
@@ -83,6 +96,7 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
                     id=card.id, game_id=card.game_id, name=names[card.id], colors=card.colors
                 ),
                 printings=await describe_printings(session, user, printings),
+                printing_count=len(card.printings),
             )
         )
     hints = result.hints
@@ -95,4 +109,5 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
             lang=hints.lang,
         ),
         candidates=candidates,
+        fetched=fetched,
     )

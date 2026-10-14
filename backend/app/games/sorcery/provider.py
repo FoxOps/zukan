@@ -274,15 +274,28 @@ class SorceryProvider:
         # Whole catalog in one call (API limit: 30 requests/minute).
         return parse_cards((await get_with_retry(http, API_URL)).json())
 
-    async def fetch_cards(
-        self, http: httpx.AsyncClient, cards: list[CardRef]
-    ) -> AsyncIterator[CatalogBatch]:
+    async def _cached(self, http: httpx.AsyncClient) -> CatalogBatch:
         # No single card endpoint: the whole catalog (one call), kept a while so
-        # refreshing cards one by one on view does not download it every time.
+        # refreshing cards one by one does not download it every time.
         global _cached_catalog
         if _cached_catalog is None or time.monotonic() - _cached_catalog[0] > CATALOG_TTL:
             _cached_catalog = (time.monotonic(), await self._catalog(http))
-        catalog = _cached_catalog[1]
+        return _cached_catalog[1]
+
+    async def lookup(self, http: httpx.AsyncClient, hints: OcrHints) -> CatalogBatch | None:
+        """A scanned card missing from the catalog, by exact name (accents, case and
+        punctuation aside)."""
+        if not hints.name:
+            return None
+        catalog = await self._cached(http)
+        key = _name_key(hints.name)
+        found = [card for card in catalog.cards if _name_key(card.name) == key]
+        return CatalogBatch(sets=catalog.sets, cards=found) if found else None
+
+    async def fetch_cards(
+        self, http: httpx.AsyncClient, cards: list[CardRef]
+    ) -> AsyncIterator[CatalogBatch]:
+        catalog = await self._cached(http)
         wanted = {ref.external_id for ref in cards}
         found = [card for card in catalog.cards if card.external_id in wanted]
         if found:

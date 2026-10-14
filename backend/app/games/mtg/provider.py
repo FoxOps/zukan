@@ -415,6 +415,31 @@ class MtgProvider:
             if batch.cards:
                 yield batch
 
+    async def lookup(self, http: httpx.AsyncClient, hints: OcrHints) -> CatalogBatch | None:
+        """A scanned card missing from the catalog: by set and number, else by English
+        name; then every printing of it."""
+        raw = None
+        if hints.set_code and hints.collector_number:
+            raw = await self._card(
+                http, f"{API_URL}/cards/{hints.set_code.lower()}/{hints.collector_number}"
+            )
+        if raw is None and hints.name:
+            raw = await self._card(http, f"{API_URL}/cards/named", params={"fuzzy": hints.name})
+        oracle = _oracle_id(raw) if raw else None
+        if oracle is None:
+            return None
+        sets = {s.external_id: s for s in await self._sets(http)}
+        raws = [r async for r in self._search(http, f"oracleid:{oracle}")]
+        return self._batch(raws, sets)
+
+    async def _card(self, http: httpx.AsyncClient, url: str, **kwargs: Any) -> dict | None:
+        try:
+            return (await get_with_retry(http, url, **kwargs)).json()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                return None
+            raise
+
     async def fetch_catalog(self, http: httpx.AsyncClient) -> AsyncIterator[CatalogBatch]:
         sets = await self._sets(http)
         known = {s.external_id for s in sets}
