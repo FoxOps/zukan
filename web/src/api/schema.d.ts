@@ -616,6 +616,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/discrepancies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Discrepancies
+         * @description Where secondary catalog sources disagree with the primary one (kept).
+         */
+        get: operations["list_discrepancies_api_admin_discrepancies_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -765,6 +785,56 @@ export interface components {
             currency: string;
             /** Total */
             total: string;
+        };
+        /** DiscrepancyCountOut */
+        DiscrepancyCountOut: {
+            /** Game Id */
+            game_id: string;
+            /** Source */
+            source: string;
+            /** Field */
+            field: string;
+            /** Count */
+            count: number;
+        };
+        /** DiscrepancyOut */
+        DiscrepancyOut: {
+            /** Id */
+            id: number;
+            /** Game Id */
+            game_id: string;
+            /** Source */
+            source: string;
+            /** Set Code */
+            set_code: string;
+            /** Set Name */
+            set_name: string;
+            /** Card Id */
+            card_id: number | null;
+            /** Card Name */
+            card_name: string | null;
+            /** Collector Number */
+            collector_number: string | null;
+            /** Field */
+            field: string;
+            /** Primary Value */
+            primary_value: string | null;
+            /** Secondary Value */
+            secondary_value: string | null;
+            /**
+             * First Seen
+             * Format: date-time
+             */
+            first_seen: string;
+        };
+        /** DiscrepancyPageOut */
+        DiscrepancyPageOut: {
+            /** Items */
+            items: components["schemas"]["DiscrepancyOut"][];
+            /** Total */
+            total: number;
+            /** Counts */
+            counts: components["schemas"]["DiscrepancyCountOut"][];
         };
         /** FinishOut */
         FinishOut: {
@@ -2520,6 +2590,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImageImportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_discrepancies_api_admin_discrepancies_get: {
+        parameters: {
+            query?: {
+                game?: string | null;
+                source?: string | null;
+                field?: string | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscrepancyPageOut"];
                 };
             };
             /** @description Validation Error */

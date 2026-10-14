@@ -5,6 +5,7 @@ group. Providers only fetch and normalize data; core services store it. Core cod
 clients only talk to this interface, so adding a game never requires changes elsewhere.
 """
 
+import unicodedata
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import date
@@ -135,6 +136,81 @@ class CardRef:
 
 
 @dataclass(frozen=True)
+class StoredPrinting:
+    """A printing as stored (from the primary source), for secondary sources."""
+
+    set_external_id: str
+    external_id: str
+    collector_number: str | None
+    rarity: str | None
+    artist: str | None
+    card_external_id: str
+    card_name: str
+    image_languages: tuple[str, ...]
+    market_ids: dict[str, Any]
+
+
+@dataclass
+class CatalogIndex:
+    """What the primary source stored for a game: secondary sources match their data
+    against it."""
+
+    sets: dict[str, SetData]
+    printings: dict[tuple[str, str], StoredPrinting]
+
+
+@dataclass(frozen=True)
+class Discrepancy:
+    """A field a secondary source disagrees on. `printing_external_id` None: the set."""
+
+    set_external_id: str
+    printing_external_id: str | None
+    field: str
+    primary: str | None
+    secondary: str | None
+
+
+@dataclass
+class SecondaryBatch:
+    # Partial cards keyed on stored external ids: only fill missing data.
+    cards: list[CardData] = field(default_factory=list)
+    discrepancies: list[Discrepancy] = field(default_factory=list)
+    # Stored printings this source has (cross-checked).
+    matched: int = 0
+
+
+@runtime_checkable
+class CatalogSource(Protocol):
+    """A second source of a game's catalog, run after the provider's own (primary) one by
+    the catalog job. It fills what the primary lacks and reports disagreements; the
+    primary's values are kept."""
+
+    id: str
+    name: str
+
+    def fetch(
+        self, http: httpx.AsyncClient, index: CatalogIndex
+    ) -> AsyncIterator[SecondaryBatch]: ...
+
+
+def compare(
+    set_ext: str, printing_ext: str | None, field: str, primary: Any, secondary: Any
+) -> Discrepancy | None:
+    """A discrepancy when both sources have a value and they differ (case, accents and
+    spacing aside)."""
+    if primary in (None, "") or secondary in (None, ""):
+        return None
+    if _comparable(primary) == _comparable(secondary):
+        return None
+    return Discrepancy(set_ext, printing_ext, field, str(primary), str(secondary))
+
+
+def _comparable(value: Any) -> str:
+    text = unicodedata.normalize("NFKD", str(value))
+    return " ".join("".join(c for c in text if not unicodedata.combining(c)).casefold().split())
+
+
+@dataclass(frozen=True)
 class OcrLine:
     """A text line recognized on a card photo. Box coordinates are fractions of the card
     (or frame) size, 0 = left/top; unknown when the client does not send them."""
@@ -172,6 +248,8 @@ class GameProvider(Protocol):
     - `catalog_version` (default 1): bump it when `fetch_catalog` output changes in a way
       stored data must catch up with; the worker then syncs the catalog without waiting
       for `TCG_CATALOG_INTERVAL_HOURS`.
+    - `secondary_sources: list[CatalogSource]`: other sources of this game's catalog,
+      cross-checked against it after each catalog sync.
     - `fetch_cards(http, cards: list[CardRef]) -> AsyncIterator[CatalogBatch]`: fetch
       these cards again (stale or incomplete data). Yielded cards keep the external ids
       of the refs; cards the source no longer has are left out."""

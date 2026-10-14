@@ -14,5 +14,7 @@
   "{{count}} rows imported_one": "{{count}} row imported",
   "{{count}} rows imported_other": "{{count}} rows imported",
   "{{count}} without price_one": "{{count}} without price",
-  "{{count}} without price_other": "{{count}} without price"
+  "{{count}} without price_other": "{{count}} without price",
+  "{{count}} differences_one": "{{count}} difference",
+  "{{count}} differences_other": "{{count}} differences"
 }

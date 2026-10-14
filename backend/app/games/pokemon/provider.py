@@ -41,6 +41,7 @@ from app.games.base import (
     SetData,
 )
 from app.games.ocr import bottom_part, by_position, clean, letter_ratio, script_language
+from app.games.pokemon import pokemontcg
 from app.games.pokemon.species import derive_names
 from app.models import Printing
 
@@ -368,6 +369,7 @@ class PokemonProvider:
     languages = list(LANGUAGES.values())
     price_sources = ["cardmarket", "tcgplayer"]
     cardmarket_path = "Pokemon"
+    secondary_sources = [pokemontcg.source]
     short_names = ["pkm", "pokemon", "poke", "ptcg"]
     # 2: one set per set id across Asian languages, names from species names.
     catalog_version = 2

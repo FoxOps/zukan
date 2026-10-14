@@ -23,6 +23,7 @@ from app.models import (
     JobStatus,
     PriceSnapshot,
     Printing,
+    Role,
     SyncRun,
 )
 from app.services import jobs
@@ -301,3 +302,63 @@ async def test_refresh_job_fetches_cards_missed_by_the_last_sync(session, scryfa
     # Fresh again: the next run has nothing to do.
     run = await session.get(SyncRun, await jobs.run_job("mtg", JobKind.refresh))
     assert run.report == {"checked": 0, "updated": 0, "not_found": 0}
+
+
+def csv_gz(header: str, *rows: str) -> bytes:
+    return gzip.compress(("\n".join([header, *rows]) + "\n").encode())
+
+
+async def test_mtgjson_fills_gaps_and_reports_discrepancies(client, session, scryfall):
+    from app.games.mtg.mtgjson import CSV_URL
+
+    scryfall.get(f"{CSV_URL}/sets.csv.gz").respond(
+        content=csv_gz(
+            "code,name,releaseDate",
+            "DOM,Dominaria,2018-04-27",
+            "ISD,Innistrad,2011-09-29",  # one day off
+        )
+    )
+    scryfall.get(f"{CSV_URL}/cardIdentifiers.csv.gz").respond(
+        content=csv_gz("uuid,mcmId,tcgplayerProductId", "u-elves,999,162231", "u-delver,,55")
+    )
+    scryfall.get(f"{CSV_URL}/cards.csv.gz").respond(
+        content=csv_gz(
+            "setCode,number,name,rarity,artist,uuid,side",
+            "DOM,168,Llanowar Elves,uncommon,Chris Rahn,u-elves,",
+            "ISD,51,Delver of Secrets // Insectile Aberration,common,Nils Hamm,u-delver,a",
+            "ISD,51,Delver of Secrets // Insectile Aberration,common,Nils Hamm,u-delver,b",
+            "XXX,1,Unknown,common,Nobody,u-x,",
+        )
+    )
+    run = await session.get(SyncRun, await jobs.run_job("mtg", JobKind.catalog))
+    assert run.report["cross_checked"] == 2
+    assert run.report["discrepancies"] == 2  # elves rarity, isd release date
+
+    elves = await printing(session, "dom", "168")
+    # Scryfall's Cardmarket id is kept, the TCGplayer id it lacked is added.
+    assert elves.attributes["market_ids"] == {"cardmarket": 319744, "tcgplayer": 162231}
+    assert elves.rarity == "common"  # the primary source wins
+    delver = await printing(session, "isd", "51")
+    assert delver.attributes["market_ids"] == {"cardmarket": 250620, "tcgplayer": 55}
+
+    await make_user(session, "root", role=Role.admin)
+    admin = await bearer(client, "root")
+    page = (await client.get("/api/admin/discrepancies", headers=admin)).json()
+    found = {(d["set_code"], d["collector_number"], d["field"]): d for d in page["items"]}
+    assert set(found) == {("DOM", "168", "rarity"), ("ISD", None, "release date")}
+    assert found["DOM", "168", "rarity"]["secondary_value"] == "uncommon"
+    assert page["counts"] == [
+        {"game_id": "mtg", "source": "mtgjson", "field": "rarity", "count": 1},
+        {"game_id": "mtg", "source": "mtgjson", "field": "release date", "count": 1},
+    ]
+
+    # Fixed upstream: the next run drops the discrepancy.
+    scryfall.get(f"{CSV_URL}/cards.csv.gz").respond(
+        content=csv_gz(
+            "setCode,number,name,rarity,artist,uuid,side",
+            "DOM,168,Llanowar Elves,common,Chris Rahn,u-elves,",
+        )
+    )
+    await jobs.run_job("mtg", JobKind.catalog)
+    page = (await client.get("/api/admin/discrepancies", headers=admin)).json()
+    assert [d["field"] for d in page["items"]] == ["release date"]

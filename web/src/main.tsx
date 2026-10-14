@@ -39,6 +39,7 @@ const router = createBrowserRouter([
       { path: '/settings', lazy: page(() => import('./pages/Settings')) },
       { path: '/admin/users', lazy: page(() => import('./pages/admin/Users')) },
       { path: '/admin/jobs', lazy: page(() => import('./pages/admin/Jobs')) },
+      { path: '/admin/checks', lazy: page(() => import('./pages/admin/Checks')) },
       { path: '*', element: <NotFound /> },
     ],
   },

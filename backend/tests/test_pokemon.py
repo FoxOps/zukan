@@ -10,6 +10,7 @@ from sqlalchemy import func, select, update
 
 from app.core.http import http_client
 from app.games.base import get_provider
+from app.games.pokemon.pokemontcg import DATA_URL as POKEMONTCG_URL
 from app.games.pokemon.provider import API_URL, parse_card, parse_prices
 from app.main import register_games
 from app.models import (
@@ -27,6 +28,7 @@ from app.services.catalog import sync_catalog
 from app.services.refresh import refresh_cards
 from tests.conftest import bearer, make_user
 
+POKEMONTCG: dict[str, object] = {}
 API = json.loads((Path(__file__).parent / "fixtures" / "pokemon_api.json").read_text())
 
 
@@ -47,6 +49,14 @@ def tcgdex():
 
     with respx.mock(assert_all_called=False) as router:
         route = router.get(url__startswith=API_URL).mock(side_effect=respond)
+        # Second source (pokemontcg data files): nothing unless a test adds files.
+        router.get(url__startswith=POKEMONTCG_URL).mock(
+            side_effect=lambda request: (
+                httpx.Response(200, json=POKEMONTCG[str(request.url).removeprefix(POKEMONTCG_URL)])
+                if str(request.url).removeprefix(POKEMONTCG_URL) in POKEMONTCG
+                else httpx.Response(404)
+            )
+        )
         yield route
 
 
@@ -261,3 +271,37 @@ def test_tcgplayer_prices_and_product_ids():
     assert quotes["tcgplayer", "normal"].currency == "USD"
     card = parse_card(raw | {"name": "Furret", "category": "Pokemon"}, "swsh3", "en")
     assert card.printings[0].attributes["market_ids"] == {"tcgplayer": 219333}
+
+
+async def test_pokemontcg_fills_images_and_checks(session, tcgdex, monkeypatch):
+    from app.services.crosscheck import cross_check
+
+    monkeypatch.setitem(
+        POKEMONTCG,
+        "/sets/en.json",
+        [
+            {"id": "swsh3", "name": "Darkness Ablaze", "ptcgoCode": "DAA",
+             "releaseDate": "2020/08/14", "total": 201},
+            {"id": "zzz", "name": "Not ours", "releaseDate": "2000/01/01", "total": 1},
+        ],
+    )  # fmt: skip
+    image = "https://images.pokemontcg.io/swsh3/136_hires.png"
+    monkeypatch.setitem(
+        POKEMONTCG,
+        "/cards/en/swsh3.json",
+        [
+            {"number": "136", "name": "Furret", "rarity": "Rare", "artist": "tetsuya koizumi",
+             "images": {"large": image}},
+            {"number": "025", "name": "Heatran", "rarity": None},
+        ],
+    )  # fmt: skip
+    await sync_pokemon(session)
+    furret = await printing_id(session, "swsh3", "136")
+    await session.execute(update(Printing).where(Printing.id == furret).values(image_urls={}))
+    await session.commit()
+    async with http_client() as http:
+        report = await cross_check(session, get_provider("pokemon"), http)
+    assert report.matched == 2 and not report.failed_sources
+    assert report.discrepancies == 1  # Furret's rarity
+    session.expire_all()
+    assert (await session.get(Printing, furret)).image_urls == {"en": image}

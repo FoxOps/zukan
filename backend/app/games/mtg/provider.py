@@ -42,6 +42,7 @@ from app.games.base import (
     PrintingData,
     SetData,
 )
+from app.games.mtg import mtgjson
 from app.games.ocr import (
     bottom_part,
     by_position,
@@ -333,6 +334,7 @@ class MtgProvider:
     languages = list(LANGUAGES.values())
     price_sources = ["cardmarket", "tcgplayer"]
     cardmarket_path = "Magic"
+    secondary_sources = [mtgjson.source]
     short_names = ["mtg", "magic"]
 
     async def _bulk(self, http: httpx.AsyncClient, kind: str) -> AsyncIterator[dict[str, Any]]:

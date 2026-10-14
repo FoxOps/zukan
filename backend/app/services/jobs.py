@@ -29,7 +29,7 @@ from app.core.http import http_client
 from app.core.progress import Progress, current
 from app.games.base import get_provider
 from app.models import JobKind, JobStatus, JobTrigger, SyncRun
-from app.services import images, prices, refresh
+from app.services import crosscheck, images, prices, refresh
 from app.services.catalog import sync_catalog
 
 log = logging.getLogger(__name__)
@@ -191,7 +191,15 @@ async def _execute(game_id: str, kind: JobKind) -> dict:
     async with get_sessionmaker()() as session, http_client() as http:
         match kind:
             case JobKind.catalog:
-                return asdict(await sync_catalog(session, provider, http))
+                report = asdict(await sync_catalog(session, provider, http))
+                if crosscheck.secondary_sources(provider):
+                    checks = await crosscheck.cross_check(session, provider, http)
+                    report |= {
+                        "cross_checked": checks.matched,
+                        "discrepancies": checks.discrepancies,
+                        "failed_sources": checks.failed_sources,
+                    }
+                return report
             case JobKind.images:
                 return asdict(await images.cache_images(session, http, game_id))
             case JobKind.prices:

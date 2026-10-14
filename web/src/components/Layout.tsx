@@ -17,6 +17,7 @@ const NAV = [
 const ADMIN_NAV = [
   { to: '/admin/users', label: 'Users' },
   { to: '/admin/jobs', label: 'Data sync' },
+  { to: '/admin/checks', label: 'Data checks' },
 ]
 
 function useTheme() {

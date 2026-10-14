@@ -333,6 +333,15 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
     provider data carries several sources in one download. User `price_source` (fallback:
     game's first source); per-currency values, never added up; card page shows every
     source + links; `TCG_APITOKEN_*` helper (`api_token`). Docs: `docs/price-sources.md`.
+  - [x] E secondary catalog sources (`secondary_sources` on providers, `CatalogSource`
+    protocol, `services/crosscheck.py` run by the catalog job after the primary):
+    MTGJSON CSV files (market ids, rarity/artist gaps; name, rarity, set name, release
+    date compared) and the Pokémon TCG API **data files on GitHub** (the pokemontcg.io API
+    answered 500, it is being replaced by the paid Scrydex; same data, no key): English
+    images, rarity/artist gaps; set matched by id/ptcgoCode/name+date. Secondary writes
+    do not touch `last_seen_at`; market ids merge key by key. `catalog_discrepancy`
+    table, `GET /api/admin/discrepancies`, web "Data checks" page. A failing secondary
+    never fails the catalog job.
 
 ## Feedback batch 3 plan
 
