@@ -55,10 +55,15 @@ All prices are Cardmarket prices (EUR), never scraped from its website:
   printings by set and card name. Cards too new for a trend use the 7 or 30 day average,
   then the lowest offer.
 
-Card pages show the trend and lowest offer of each printing and finish, the cheapest and
+Each user picks the markets shown (Settings, several allowed); the first one gives values,
+sorts and price ranges. Card pages show the trend and lowest offer of each printing and finish, the cheapest and
 most expensive version of the card, and a link to each printing's Cardmarket page. A
 manual price on a collection item always wins. Price history is kept for cards somebody
 owns; other cards only keep their latest price.
+
+An admin can reset a game's catalog (Data sync page, "Reset catalog"): everything is
+deleted except the printings in collections, then synced again from scratch. Images
+imported from a folder must be imported again.
 
 ### Card images
 
@@ -170,8 +175,8 @@ From the command line:
 
 ```sh
 gh workflow run docker-dev.yml --ref my-branch
-gh workflow run docker-prod.yml --ref main -f version=0.6.0
-gh workflow run android-prod.yml --ref main -f version=0.5.0
+gh workflow run docker-prod.yml --ref main -f version=0.7.0
+gh workflow run android-prod.yml --ref main -f version=0.6.0
 ```
 
 The dev app (`fr.fudabako.app.dev`) installs next to the released one. Both are signed

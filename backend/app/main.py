@@ -94,8 +94,9 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def unexpected_error(request: Request, exc: Exception) -> JSONResponse:
-        # Same shape as other errors, so clients show their own message (the traceback
-        # is logged by the server).
+        # Same shape as other errors, so clients show their own message; details only in
+        # the server log.
+        logger.error("Unhandled error on %s %s", request.method, request.url.path, exc_info=exc)
         return JSONResponse({"detail": "Internal server error"}, status_code=500)
 
     app.include_router(api)

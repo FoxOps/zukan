@@ -610,7 +610,7 @@ Mockups approved by the user 2026-10-14 (long catalog names wrap, never truncate
 
 ## Backlog 2026-10-14 (server 0.7.0, Android 0.6.0)
 User list from the 0.6.0 test deployment. Root causes found on its data (read-only).
-- [ ] Sync / data quality: TCGdex reuses set ids across language families (JA `neo2`
+- [x] Sync / data quality: TCGdex reuses set ids across language families (JA `neo2`
   遺跡をこえて is not EN `neo2` Neo Discovery) so JA cards landed in EN sets and got English
   images through pokemontcg.io number matching ("030" = "30"). Asian sets colliding with a
   European id become `asia:<id>`; pokemontcg only touches printings with `en`; bad TCGdex JA
@@ -618,15 +618,18 @@ User list from the 0.6.0 test deployment. Root causes found on its data (read-on
   changed image URLs re-downloaded; pokemontcg task cleanup + transport retries; TCGdex set
   symbols from the language path (`/univ/` returns 400). Admin "Reset catalog" per game keeps
   owned printings.
-- [ ] MTG lowest offer: catalog job overwrote the prices job's `low`/`avg` with NULL
+- [x] MTG lowest offer: catalog job overwrote the prices job's `low`/`avg` with NULL
   (`store_quotes`): keep existing values.
-- [ ] Several price sources per user (`price_sources`, first = primary for totals); card page,
+- [x] Several price sources per user (`price_sources`, first = primary for totals); card page,
   price history, links and Android show only the selected ones.
-- [ ] Catalog: set select width bug (`Select.tsx` regex ate `sm:` prefix); advanced filters
+- [x] Catalog: set select width bug (`Select.tsx` regex ate `sm:` prefix); advanced filters
   always shown.
-- [ ] Jobs page: live chrono, server-computed elapsed time.
-- [ ] HTTP errors: JSON 500s, translated client messages, themed error / 404 pages.
-- [ ] Android: identify `status` (`not_found` / `not_a_card`), shown in the scan pill.
+- [x] Jobs page: live chrono, server-computed elapsed time.
+- [x] HTTP errors: JSON 500s, translated client messages, themed error / 404 pages.
+- [x] Android: identify `status` (`not_found` / `not_a_card`), shown in the scan pill.
+- [x] CI: dev builds publish pre-releases `server-dev-<branch>` / `android-dev-<branch>`.
+- [x] Versions server 0.7.0, Android 0.6.0. 124 backend tests, 26 Android unit tests, lint, builds.
+- [ ] Not done: live check on the test service (reset Pokémon catalog, Playwright pass), real-phone scan check.
 
 
 ## Build phases
