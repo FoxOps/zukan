@@ -46,6 +46,7 @@ export default function Collection() {
 
   const items = useQuery({
     queryKey: ['collection', filters, url.page],
+    meta: { inlineError: true },
     queryFn: () =>
       call(
         api.GET('/api/collection', {

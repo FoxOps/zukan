@@ -286,5 +286,19 @@
   "Close": "Fermer",
   "Price sources": "Sources de prix",
   "Prices of these markets are shown on card pages and in the app.": "Les prix de ces marchés sont affichés sur les pages de cartes et dans l’application.",
-  "Main price source": "Source de prix principale"
+  "Main price source": "Source de prix principale",
+  "The server cannot be reached. Check your connection and try again.": "Le serveur est injoignable. Vérifiez votre connexion et réessayez.",
+  "Your session has expired. Please log in again.": "Votre session a expiré. Reconnectez-vous.",
+  "You are not allowed to do this.": "Vous n’avez pas le droit de faire cela.",
+  "This item does not exist (anymore).": "Cet élément n’existe pas (ou plus).",
+  "This file is too large.": "Ce fichier est trop volumineux.",
+  "Too many requests. Try again in a moment.": "Trop de requêtes. Réessayez dans un instant.",
+  "The server is unavailable. Try again in a moment.": "Le serveur est indisponible. Réessayez dans un instant.",
+  "Server error. Try again later.": "Erreur du serveur. Réessayez plus tard.",
+  "Request failed ({{status}})": "La requête a échoué ({{status}})",
+  "Try again": "Réessayer",
+  "A new version is available": "Une nouvelle version est disponible",
+  "Reload the page to use it.": "Rechargez la page pour l’utiliser.",
+  "Something went wrong": "Un problème est survenu",
+  "This page could not be shown. Reload it, and report the problem if it happens again.": "Cette page n’a pas pu être affichée. Rechargez-la, et signalez le problème s’il se reproduit."
 }

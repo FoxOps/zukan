@@ -2,10 +2,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
-import { api, onSessionExpired } from '../api/client'
+import { api, ApiError, onSessionExpired } from '../api/client'
 import { useHealth, useMe } from '../api/queries'
 import { useServerLanguage } from '../i18n'
 import { LanguageMenu } from './I18n'
+import { ErrorScreen } from './ErrorPage'
 
 const NAV = [
   { to: '/', label: 'Dashboard', end: true },
@@ -55,7 +56,11 @@ export function Layout() {
     return <div className="flex h-screen items-center justify-center"><span className="loading loading-spinner loading-lg" /></div>
   }
   if (me.isError) {
-    return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />
+    // Not logged in: the login page. Server down or failing: say so, with a retry.
+    if (me.error instanceof ApiError && (me.error.status === 401 || me.error.status === 403)) {
+      return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />
+    }
+    return <ErrorScreen title={t('Something went wrong')} text={me.error.message} onRetry={() => me.refetch()} home={false} />
   }
 
   const logout = async () => {

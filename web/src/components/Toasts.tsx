@@ -1,5 +1,5 @@
-import { useCallback, useState, type ReactNode } from 'react'
-import { ToastContext, type Kind, type ToastAction, type ToastFn } from './toast'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { onShowError, ToastContext, type Kind, type ToastAction, type ToastFn } from './toast'
 
 type Toast = { id: number; text: string; kind: Kind; action?: ToastAction }
 
@@ -22,6 +22,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     },
     [dismiss],
   )
+  useEffect(() => onShowError((text) => show(text, 'error')), [show])
   return (
     <ToastContext.Provider value={show}>
       {children}
