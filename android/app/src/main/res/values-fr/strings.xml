@@ -25,7 +25,6 @@
     <string name="any_game">Tous les jeux</string>
     <string name="point_at_card">Visez une carte</string>
     <string name="identifying">Identification…</string>
-    <string name="no_match">Aucune correspondance</string>
     <string name="try_again">Réessayer</string>
 
     <!-- Résultat -->
@@ -122,4 +121,8 @@
     <string name="sort_price_desc">Prix décroissant</string>
     <string name="price_sources">Sources de prix</string>
     <string name="price_sources_help">Marchés dont les prix sont affichés, ici et sur le web.</string>
+    <string name="card_not_found">Carte introuvable</string>
+    <string name="not_a_card">Ce n’est pas une carte</string>
+    <string name="not_a_card_help">Aucun nom ni numéro de carte n’a pu être lu. Cadrez la carte en entier, avec une bonne lumière.</string>
+    <string name="error_identify">La carte n’a pas pu être identifiée</string>
 </resources>

@@ -9,6 +9,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -104,8 +106,17 @@ fun ScanScreen(
         val status = when (state.phase) {
             Phase.SCANNING -> stringResource(R.string.point_at_card)
             Phase.IDENTIFYING -> stringResource(R.string.identifying)
-            Phase.NOT_FOUND -> stringResource(R.string.no_match)
+            Phase.NOT_FOUND -> stringResource(if (state.result?.notACard == true) R.string.not_a_card else R.string.card_not_found)
+            Phase.ERROR -> state.error ?: stringResource(R.string.error_identify)
             Phase.RESULT -> null
+        }
+        // What was read, so the user sees why nothing matched.
+        val detail = when (state.phase) {
+            Phase.NOT_FOUND -> state.result?.takeIf { !it.notACard }?.detected?.let { d ->
+                listOfNotNull(d.name, listOfNotNull(d.setCode, d.collectorNumber).joinToString(" ").ifEmpty { null })
+                    .joinToString(" · ").ifEmpty { null }
+            } ?: if (state.result?.notACard == true) stringResource(R.string.not_a_card_help) else null
+            else -> null
         }
         if (status != null) {
             Surface(
@@ -115,8 +126,15 @@ fun ScanScreen(
             ) {
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (state.phase == Phase.IDENTIFYING) CircularProgressIndicator(Modifier.padding(end = 8.dp).size(18.dp), strokeWidth = 2.dp)
-                    Text(status)
-                    if (state.phase == Phase.NOT_FOUND) {
+                    Column(Modifier.weight(1f, fill = false)) {
+                        Text(
+                            status,
+                            color = if (state.phase == Phase.ERROR) MaterialTheme.colorScheme.error else LocalContentColor.current,
+                            fontWeight = if (state.phase == Phase.NOT_FOUND || state.phase == Phase.ERROR) FontWeight.SemiBold else null,
+                        )
+                        detail?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    }
+                    if (state.phase == Phase.NOT_FOUND || state.phase == Phase.ERROR) {
                         TextButton(onClick = { scan.resume(forgetCard = true) }) { Text(stringResource(R.string.try_again)) }
                     }
                 }

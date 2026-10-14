@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, StringConstraints
@@ -63,6 +63,9 @@ class IdentifyOut(BaseModel):
     candidates: list[CandidateOut]
     # The card was missing from the catalog and was just fetched from its game's source.
     fetched: bool = False
+    # found: candidates. not_found: the text looks like a card (game markers, set code
+    # and number) but none matches. not_a_card: nothing card-like was read.
+    status: Literal["found", "not_found", "not_a_card"] = "found"
 
 
 @router.post("/identify")
@@ -113,6 +116,12 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
             )
         )
     hints = result.hints
+    if candidates:
+        found_status = "found"
+    elif hints.recognized or hints.set_code or hints.collector_number:
+        found_status = "not_found"
+    else:
+        found_status = "not_a_card"
     return IdentifyOut(
         game_id=result.game_id,
         detected=HintsOut(
@@ -123,4 +132,5 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
         ),
         candidates=candidates,
         fetched=fetched,
+        status=found_status,
     )

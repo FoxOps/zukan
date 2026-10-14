@@ -75,6 +75,16 @@ class PriceStatsTest {
     }
 
     @Test
+    fun identifyStatusOfNewAndOldServers() {
+        val none = json.decodeFromString<fr.fudabako.app.data.IdentifyOut>(
+            """{"game_id":null,"detected":{"name":"zzzz"},"candidates":[],"status":"not_a_card"}""",
+        )
+        assertEquals(true, none.notACard)
+        val old = json.decodeFromString<fr.fudabako.app.data.IdentifyOut>("""{"detected":{},"candidates":[]}""")
+        assertEquals(false, old.notACard)
+    }
+
+    @Test
     fun noPrices() {
         val stats = priceStats(listOf(promo), promo, "normal", complete = true, mainSource = null)
         assertNull(stats.thisVersion)

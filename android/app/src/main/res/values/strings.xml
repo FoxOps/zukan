@@ -26,7 +26,6 @@
     <string name="any_game">Any game</string>
     <string name="point_at_card">Point at a card</string>
     <string name="identifying">Identifying…</string>
-    <string name="no_match">No match</string>
     <string name="try_again">Try again</string>
 
     <!-- Result panel -->
@@ -121,4 +120,8 @@
     <string name="sort_price_desc">Price: high to low</string>
     <string name="price_sources">Price sources</string>
     <string name="price_sources_help">Markets whose prices are shown, here and on the web.</string>
+    <string name="card_not_found">Card not found</string>
+    <string name="not_a_card">Not a card</string>
+    <string name="not_a_card_help">No card name or number could be read. Fill the frame with the card, in good light.</string>
+    <string name="error_identify">The card could not be identified</string>
 </resources>

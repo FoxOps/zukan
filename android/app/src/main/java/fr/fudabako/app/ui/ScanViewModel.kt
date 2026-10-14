@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-enum class Phase { SCANNING, IDENTIFYING, RESULT, NOT_FOUND }
+enum class Phase { SCANNING, IDENTIFYING, RESULT, NOT_FOUND, ERROR }
 
 data class Undoable(val transactionId: Int, val text: String)
 
@@ -33,6 +33,8 @@ data class ScanState(
     val printing: Int = 0,
     val busy: Boolean = false,
     val message: String? = null,
+    // Why identification failed (phase ERROR): network, server...
+    val error: String? = null,
     val undo: Undoable? = null,
     // Bumped after every stock change, so lists of owned cards reload.
     val stockVersion: Int = 0,
@@ -64,7 +66,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     fun identify(lines: List<OcrLineIn>) {
         val client = app.client.value ?: return
-        _state.update { it.copy(phase = Phase.IDENTIFYING, message = null) }
+        _state.update { it.copy(phase = Phase.IDENTIFYING, message = null, error = null) }
         viewModelScope.launch {
             runCatching { client.api.identify(IdentifyIn(game, lines)) }
                 .onSuccess { result ->
@@ -79,7 +81,8 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                 }
-                .onFailure { e -> _state.update { it.copy(phase = Phase.SCANNING, message = e.userMessage(app)) } }
+                // Shown on the camera until "Try again" (no scanning against a server that fails).
+                .onFailure { e -> _state.update { it.copy(phase = Phase.ERROR, error = e.userMessage(app)) } }
         }
     }
 
@@ -199,7 +202,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
             stabilizer.reset()
             asianStabilizer.reset()
         }
-        _state.update { it.copy(phase = Phase.SCANNING, result = null) }
+        _state.update { it.copy(phase = Phase.SCANNING, result = null, error = null) }
     }
 
     fun consumeMessage() = _state.update { it.copy(message = null) }

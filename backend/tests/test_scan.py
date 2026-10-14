@@ -267,7 +267,8 @@ async def test_identify_reports_owned_copies(client, session, alice):
 
 
 async def test_identify_edge_cases(client, alice):
-    assert (await scan(client, alice, ocr("zzzz qqqq xxxx")))["candidates"] == []
+    nonsense = await scan(client, alice, ocr("zzzz qqqq xxxx"))
+    assert nonsense["candidates"] == [] and nonsense["status"] == "not_a_card"
     assert (await scan(client, alice, []))["candidates"] == []
     unknown = await client.post(
         "/api/scan/identify", json={"lines": [], "game": "chess"}, headers=alice
@@ -316,7 +317,11 @@ async def test_unknown_card_is_fetched_from_its_source(client, session):
         for _ in range(2):
             result = await scan(client, headers, unknown, "mtg")
             assert result["candidates"] == [] and result["fetched"] is False
+            # A card, but not one the catalog or its source knows; what was read is sent.
+            assert result["status"] == "not_found"
+            assert result["detected"]["collector_number"] == "999"
         assert missing.call_count == 1  # misses are remembered
+        assert found["status"] == "found"
 
 
 async def test_unknown_sorcery_card_found_by_name(client, session):
