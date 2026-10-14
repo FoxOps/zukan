@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.api.deps import AdminUser, SessionDep
 from app.core.config import get_settings
 from app.games.base import registry
-from app.models import JobKind, JobStatus, SyncRun
+from app.models import JobKind, JobStatus, JobTrigger, SyncRun
 from app.services import images, jobs
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -19,6 +19,7 @@ class JobOut(BaseModel):
     game_id: str
     kind: JobKind
     status: JobStatus
+    trigger: JobTrigger
     started_at: datetime
     finished_at: datetime | None
     report: dict[str, Any]
@@ -62,7 +63,10 @@ async def start_job(
     game_id: str, kind: JobKind, _: AdminUser, background: BackgroundTasks
 ) -> dict[str, int]:
     _check_game(game_id)
+    if kind == JobKind.prices and registry()[game_id].price_source is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"{game_id} has no price source")
     try:
+        # Takes over a running auto run of the same job (waits for it to stop).
         run_id = await jobs.start_job(game_id, kind)
     except jobs.JobAlreadyRunning as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc

@@ -947,6 +947,7 @@ export interface components {
             game_id: string;
             kind: components["schemas"]["JobKind"];
             status: components["schemas"]["JobStatus"];
+            trigger: components["schemas"]["JobTrigger"];
             /**
              * Started At
              * Format: date-time
@@ -965,7 +966,12 @@ export interface components {
          * JobStatus
          * @enum {string}
          */
-        JobStatus: "running" | "success" | "failed";
+        JobStatus: "running" | "success" | "failed" | "cancelled";
+        /**
+         * JobTrigger
+         * @enum {string}
+         */
+        JobTrigger: "auto" | "manual";
         /** LoginIn */
         LoginIn: {
             /** Username */

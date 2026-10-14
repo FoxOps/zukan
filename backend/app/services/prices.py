@@ -15,6 +15,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
+from app.core.progress import progress
 from app.games.base import GameProvider, PriceQuote, PriceTarget
 from app.models import CardSet, CollectionItem, Game, PriceSnapshot, Printing
 
@@ -23,8 +24,12 @@ _CHUNK = 1000
 
 @dataclass
 class PriceReport:
+    # Owned printings asked for (sources priced one by one only fetch these).
+    targets: int = 0
     quotes: int = 0
     stored: int = 0
+    # Quotes not stored: printing missing from the catalog, no price, or duplicates.
+    skipped: int = 0
     pruned: int = 0
 
 
@@ -130,12 +135,16 @@ async def sync_prices(
     if provider.price_source is None:
         return report
     targets = await owned_targets(session, provider.id)
+    report.targets = len(targets)
     ids = await printing_ids(session, provider.id)
     day = today()
     async for quotes in provider.fetch_prices(http, targets):
         report.quotes += len(quotes)
-        report.stored += await store_quotes(session, provider.price_source, quotes, day, ids)
+        stored = await store_quotes(session, provider.price_source, quotes, day, ids)
+        report.stored += stored
+        report.skipped += len(quotes) - stored
         await session.commit()
+        await progress()
     report.pruned = await prune_history(session, provider.id, provider.price_source)
     await session.execute(
         update(Game).where(Game.id == provider.id).values(last_price_sync=datetime.now(UTC))

@@ -18,6 +18,7 @@ from app.core.db import get_sessionmaker
 from app.core.security import hash_password
 from app.games.base import registry
 from app.models import Game, Role, User
+from app.services.jobs import reap_runs
 from app.services.symbols import ensure_symbols
 
 logger = logging.getLogger(__name__)
@@ -62,6 +63,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         raise RuntimeError("Set TCG_SECRET_KEY to a random value of at least 32 characters")
     await register_games()
     await create_default_admin()
+    # Jobs this API process ran before a restart are gone.
+    await reap_runs()
     # Game symbols are downloaded once; the API serves requests meanwhile.
     symbols = asyncio.create_task(ensure_symbols())
     yield

@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import UTC, datetime, timedelta
 
@@ -8,9 +9,20 @@ from sqlalchemy import func, select, update
 
 from app.core.config import get_settings
 from app.core.http import http_client
+from app.core.progress import progress
 from app.games.base import get_provider
 from app.games.sorcery.provider import IMAGE_URL, parse_cards
-from app.models import Card, CardName, CardSet, JobKind, JobStatus, Printing, Role, SyncRun
+from app.models import (
+    Card,
+    CardName,
+    CardSet,
+    JobKind,
+    JobStatus,
+    JobTrigger,
+    Printing,
+    Role,
+    SyncRun,
+)
 from app.services import images, jobs
 from app.worker import is_due
 from tests.conftest import SORCERY_CARDS as FIXTURE
@@ -271,16 +283,101 @@ async def test_jobs_record_runs_and_block_overlap(session, sorcery_api):
     # Another kind or game is not blocked.
     await jobs.start_job("sorcery", JobKind.images)
 
-    # A job stuck for hours is considered dead.
+    # A job without heartbeat for longer than a stall is considered dead.
     await session.execute(
         update(SyncRun)
         .where(SyncRun.id == running)
-        .values(started_at=datetime.now(UTC) - timedelta(hours=7))
+        .values(heartbeat_at=datetime.now(UTC) - timedelta(minutes=25))
     )
     await session.commit()
-    await jobs.start_job("sorcery", JobKind.catalog)
+    restarted = await jobs.start_job("sorcery", JobKind.catalog)
     session.expire_all()
     assert (await session.get(SyncRun, running)).status == JobStatus.failed
+
+    # Runs of an earlier instance of this process are failed when it starts again.
+    await session.execute(
+        update(SyncRun).where(SyncRun.id == restarted).values(owner="api:earlier")
+    )
+    await session.commit()
+    assert await jobs.reap_runs() == 1
+    session.expire_all()
+    assert "stopped" in (await session.get(SyncRun, restarted)).error
+
+
+@pytest.fixture
+def quick_jobs(monkeypatch):
+    """Jobs checked often, with a fake job body (`body` is replaced by tests)."""
+    monkeypatch.setattr(jobs, "CHECK_EVERY", 0.05)
+    monkeypatch.setattr(jobs, "TAKEOVER_WAIT", 5)
+    state = {"body": None, "started": asyncio.Event()}
+
+    async def execute(game_id, kind):
+        state["started"].set()
+        return await state["body"]()
+
+    monkeypatch.setattr(jobs, "_execute", execute)
+    return state
+
+
+async def _busy() -> dict:
+    while True:
+        await progress()
+        await asyncio.sleep(0.01)
+
+
+async def test_stuck_job_is_stopped(session, quick_jobs, monkeypatch):
+    from app.main import register_games
+
+    await register_games()
+    monkeypatch.setattr(jobs, "STALL_AFTER", timedelta(seconds=0.2))
+
+    async def hang() -> dict:
+        await asyncio.sleep(3600)
+        return {}
+
+    quick_jobs["body"] = hang
+    with pytest.raises(jobs.JobStopped):
+        await jobs.run_job("sorcery", JobKind.catalog)
+    run = await session.scalar(select(SyncRun))
+    assert run.status == JobStatus.failed and run.error.startswith("Stuck")
+
+    # Progress keeps a job alive, up to its time limit.
+    monkeypatch.setitem(jobs.TIME_LIMITS, JobKind.images, timedelta(seconds=0.5))
+    quick_jobs["body"] = _busy
+    with pytest.raises(jobs.JobStopped):
+        await jobs.run_job("sorcery", JobKind.images)
+    run = await session.scalar(select(SyncRun).where(SyncRun.kind == JobKind.images))
+    assert run.status == JobStatus.failed and run.error.startswith("Timed out")
+
+
+async def test_manual_run_takes_over_auto_run(session, quick_jobs):
+    from app.main import register_games
+
+    await register_games()
+    quick_jobs["body"] = _busy
+    auto = asyncio.create_task(jobs.run_job("sorcery", JobKind.catalog, JobTrigger.auto))
+    await quick_jobs["started"].wait()
+
+    async def done() -> dict:
+        return {"cards": 1}
+
+    quick_jobs["body"] = done
+    manual = await jobs.run_job("sorcery", JobKind.catalog)
+    with pytest.raises(jobs.JobStopped):
+        await auto
+    runs = {r.trigger: r for r in await session.scalars(select(SyncRun))}
+    assert runs[JobTrigger.auto].status == JobStatus.cancelled
+    assert runs[JobTrigger.manual].id == manual
+    assert runs[JobTrigger.manual].status == JobStatus.success
+
+    # An auto run never takes over.
+    quick_jobs["body"] = _busy
+    quick_jobs["started"].clear()
+    running = asyncio.create_task(jobs.run_job("sorcery", JobKind.images))
+    await quick_jobs["started"].wait()
+    with pytest.raises(jobs.JobAlreadyRunning):
+        await jobs.start_job("sorcery", JobKind.images, JobTrigger.auto)
+    running.cancel()
 
 
 async def test_failed_job_is_recorded(session, sorcery_api):
@@ -322,32 +419,39 @@ async def test_worker_schedule(session):
     now = datetime.now(UTC)
     assert await is_due("sorcery", JobKind.catalog, now)
 
+    def auto(**values) -> SyncRun:
+        return SyncRun(game_id="sorcery", trigger=JobTrigger.auto, **values)
+
+    # Manual runs do not count.
     session.add(SyncRun(game_id="sorcery", kind=JobKind.catalog, status=JobStatus.failed))
+    await session.commit()
+    assert await is_due("sorcery", JobKind.catalog, now)
+    session.add(auto(kind=JobKind.catalog, status=JobStatus.cancelled))
+    await session.commit()
+    assert await is_due("sorcery", JobKind.catalog, now)  # cancelled: retried at once
+
+    session.add(auto(kind=JobKind.catalog, status=JobStatus.failed))
     await session.commit()
     assert not await is_due("sorcery", JobKind.catalog, now)  # retry waits an hour
     assert await is_due("sorcery", JobKind.catalog, now + timedelta(hours=2))
 
     # A catalog synced by an older version of the provider is synced again at once.
-    session.add(SyncRun(game_id="sorcery", kind=JobKind.catalog, status=JobStatus.success))
+    session.add(auto(kind=JobKind.catalog, status=JobStatus.success))
     await session.commit()
     assert await is_due("sorcery", JobKind.catalog, now + timedelta(hours=2))
     current = {"catalog_version": get_provider("sorcery").catalog_version}
-    session.add(
-        SyncRun(game_id="sorcery", kind=JobKind.catalog, status=JobStatus.success, report=current)
-    )
+    session.add(auto(kind=JobKind.catalog, status=JobStatus.success, report=current))
     await session.commit()
     assert not await is_due("sorcery", JobKind.catalog, now + timedelta(hours=2))
     # Catalogs refresh weekly, prices and images daily.
     assert not await is_due("sorcery", JobKind.catalog, now + timedelta(hours=25))
     assert await is_due("sorcery", JobKind.catalog, now + timedelta(hours=169))
-    session.add(SyncRun(game_id="sorcery", kind=JobKind.images, status=JobStatus.success))
+    session.add(auto(kind=JobKind.images, status=JobStatus.success))
     await session.commit()
     assert not await is_due("sorcery", JobKind.images, now + timedelta(hours=2))
     assert await is_due("sorcery", JobKind.images, now + timedelta(hours=25))
     # A newer catalog may bring new image URLs.
-    session.add(
-        SyncRun(game_id="sorcery", kind=JobKind.catalog, status=JobStatus.success, report=current)
-    )
+    session.add(auto(kind=JobKind.catalog, status=JobStatus.success, report=current))
     await session.commit()
     assert await is_due("sorcery", JobKind.images, now + timedelta(hours=2))
 
@@ -360,6 +464,20 @@ async def test_image_job_reports_printings_without_source(session, synced):
     async with http_client() as http:
         report = await images.cache_images(session, http, "sorcery")
     assert (report.stored, report.failed, report.missing) == (0, 0, total)
+
+
+async def test_image_job_counts_every_printing(session, synced):
+    total = await session.scalar(select(func.count()).select_from(Printing))
+    with respx.mock(assert_all_mocked=False) as router:
+        router.get(url__startswith=IMAGE_URL).respond(
+            200, content=PNG, headers={"content-type": "image/png"}
+        )
+        async with http_client() as http:
+            first = await images.cache_images(session, http, "sorcery")
+            # Nothing left to download: a second run says why it did nothing.
+            second = await images.cache_images(session, http, "sorcery")
+    assert (first.printings, first.stored) == (total, total)
+    assert (second.printings, second.cached, second.stored) == (total, total, 0)
 
 
 async def test_catalog_sync_prunes_cards_without_printings(session, synced):

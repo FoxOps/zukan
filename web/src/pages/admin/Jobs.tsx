@@ -13,6 +13,34 @@ const STATUS: Record<string, string> = {
   running: 'badge-info',
   success: 'badge-success',
   failed: 'badge-error',
+  cancelled: 'badge-warning',
+}
+// Report counters in display order, with their labels; others are internal.
+const REPORT: Record<string, string> = {
+  sets: 'sets',
+  cards: 'cards',
+  printings: 'printings',
+  names: 'names',
+  targets: 'owned printings',
+  quotes: 'prices received',
+  prices: 'prices',
+  stored: 'stored',
+  cached: 'already cached',
+  skipped: 'skipped',
+  missing: 'without source',
+  refused: 'refused by source',
+  failed: 'failed',
+  pruned: 'old prices removed',
+  pruned_prices: 'old prices removed',
+  pruned_cards: 'empty cards removed',
+}
+
+function Report({ report }: { report: Record<string, unknown> }) {
+  const { t } = useTranslation()
+  const counters = Object.keys(REPORT)
+    .filter((k) => typeof report[k] === 'number' && report[k] !== 0)
+    .map((k) => `${t(REPORT[k])} ${(report[k] as number).toLocaleString()}`)
+  return <>{counters.length ? counters.join(' · ') : t('Nothing to do')}</>
 }
 
 function duration(start: string, end: string | null): string {
@@ -91,12 +119,14 @@ export default function Jobs() {
                         )}
                       </div>
                     </div>
+                    {/* A manual run takes over a running automatic one. */}
                     <button
                       className="btn btn-sm"
-                      disabled={start.isPending || run?.status === 'running'}
+                      disabled={start.isPending || (run?.status === 'running' && run.trigger === 'manual')}
+                      title={run?.status === 'running' && run.trigger === 'auto' ? t('Stops the automatic run and starts again now') : undefined}
                       onClick={() => start.mutate({ game: g.id, kind })}
                     >
-                      {run?.status === 'running' ? <span className="loading loading-spinner loading-xs" /> : t('Run')}
+                      {run?.status === 'running' && run.trigger === 'manual' ? <span className="loading loading-spinner loading-xs" /> : t('Run')}
                     </button>
                   </div>
                 )
@@ -146,18 +176,17 @@ export default function Jobs() {
               <tr key={j.id}>
                 <td>{j.game_id}</td>
                 <td>{t(j.kind)}</td>
-                <td>
-                  <span className={`badge badge-sm ${STATUS[j.status]}`}>{t(j.status)}</span>
+                <td className="whitespace-nowrap">
+                  <span className={`badge badge-sm ${STATUS[j.status]}`}>{t(j.status)}</span>{' '}
+                  <span className="text-xs text-base-content/60">{t(j.trigger)}</span>
                 </td>
                 <td className="whitespace-nowrap">{formatDateTime(j.started_at)}</td>
                 <td>{duration(j.started_at, j.finished_at)}</td>
                 <td className="max-w-md text-xs">
                   {j.error ? (
                     <span className="text-error">{j.error}</span>
-                  ) : (
-                    Object.entries(j.report)
-                      .map(([k, v]) => `${k} ${v}`)
-                      .join(' · ')
+                  ) : j.status === 'running' ? null : (
+                    <Report report={j.report} />
                   )}
                 </td>
               </tr>

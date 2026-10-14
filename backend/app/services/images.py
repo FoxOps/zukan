@@ -44,8 +44,15 @@ FALLBACK_LANGUAGES = ("en", "ja")
 
 @dataclass
 class ImageReport:
+    # Printings looked at; each one lands in exactly one of the counters below.
+    printings: int = 0
     stored: int = 0
+    # Already on disk.
+    cached: int = 0
+    # No image source (no URL, nothing imported).
     missing: int = 0
+    # Every source answered 404 earlier: not tried again.
+    refused: int = 0
     failed: int = 0
 
 
@@ -178,7 +185,7 @@ async def cache_images(
         # Be gentle with servers that were not made for bulk downloads.
         concurrency = 2
     printings = (await session.scalars(query)).all()
-    report = ImageReport()
+    report = ImageReport(printings=len(printings))
     semaphore = asyncio.Semaphore(concurrency)
 
     async def fetch(printing: Printing) -> None:
@@ -188,9 +195,11 @@ async def cache_images(
             report.missing += 1
             return
         if any(cached_file(printing, lang) for lang in languages):
+            report.cached += 1
             return
         lang = next((lang for lang in languages if printing.image_paths.get(lang) != ""), None)
         if lang is None:
+            report.refused += 1
             return
         async with semaphore:
             if await download_image(http, game_id, printing, lang):

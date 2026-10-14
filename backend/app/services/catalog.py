@@ -10,6 +10,7 @@ from sqlalchemy import delete, exists, literal_column, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.progress import progress
 from app.games.base import (
     CardData,
     CatalogBatch,
@@ -298,6 +299,7 @@ async def sync_catalog(
     async for batch in provider.fetch_catalog(http):
         await writer.write(batch)
         await session.commit()
+        await progress()
     if provider.price_source and writer.report.prices:
         writer.report.pruned_prices = await prices.prune_history(
             session, provider.id, provider.price_source

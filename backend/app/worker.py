@@ -5,6 +5,9 @@ Wakes every few minutes and runs each job whose last success is older than
 Failed jobs are retried after `RETRY_AFTER`. A catalog is also due when its provider's
 `catalog_version` is newer than the one of the last successful sync (after an upgrade),
 and images when the catalog changed since the last image run (new image URLs).
+
+The schedule only follows the worker's own (`auto`) runs: manual runs neither delay nor
+replace them.
 """
 
 import asyncio
@@ -17,8 +20,8 @@ from app.core.config import get_settings
 from app.core.db import get_sessionmaker
 from app.games.base import catalog_version, registry
 from app.main import register_games
-from app.models import JobKind, JobStatus, SyncRun
-from app.services.jobs import JobAlreadyRunning, run_job
+from app.models import JobKind, JobStatus, JobTrigger, SyncRun
+from app.services.jobs import JobAlreadyRunning, JobStopped, reap_runs, run_job, set_process_role
 
 log = logging.getLogger("fudabako.worker")
 
@@ -26,38 +29,42 @@ TICK_SECONDS = 300
 RETRY_AFTER = timedelta(hours=1)
 
 
-async def _last(game_id: str, kind: JobKind, status: JobStatus | None) -> datetime | None:
+async def _last_attempt(game_id: str, kind: JobKind) -> datetime | None:
+    """Start of the last auto run that did not end cancelled (a cancelled run is retried
+    at once)."""
     query = select(func.max(SyncRun.started_at)).where(
-        SyncRun.game_id == game_id, SyncRun.kind == kind
+        SyncRun.game_id == game_id,
+        SyncRun.kind == kind,
+        SyncRun.trigger == JobTrigger.auto,
+        SyncRun.status != JobStatus.cancelled,
     )
-    if status is not None:
-        query = query.where(SyncRun.status == status)
     async with get_sessionmaker()() as session:
         return await session.scalar(query)
 
 
-async def _last_success(game_id: str, kind: JobKind) -> SyncRun | None:
+async def _last_success(game_id: str, kind: JobKind, auto_only: bool = True) -> SyncRun | None:
+    query = select(SyncRun).where(
+        SyncRun.game_id == game_id,
+        SyncRun.kind == kind,
+        SyncRun.status == JobStatus.success,
+    )
+    if auto_only:
+        query = query.where(SyncRun.trigger == JobTrigger.auto)
     async with get_sessionmaker()() as session:
-        return await session.scalar(
-            select(SyncRun)
-            .where(
-                SyncRun.game_id == game_id,
-                SyncRun.kind == kind,
-                SyncRun.status == JobStatus.success,
-            )
-            .order_by(SyncRun.started_at.desc())
-            .limit(1)
-        )
+        return await session.scalar(query.order_by(SyncRun.started_at.desc()).limit(1))
 
 
 async def _outdated(game_id: str, kind: JobKind, last_success: SyncRun) -> bool:
-    """Stored data older than the code (catalog) or than the catalog (images)."""
+    """Stored data older than the code (catalog) or than the catalog (images). Manual runs
+    count here: the data they stored is what is checked."""
     if kind == JobKind.catalog:
-        stored = (last_success.report or {}).get("catalog_version", 1)
+        latest = await _last_success(game_id, kind, auto_only=False) or last_success
+        stored = (latest.report or {}).get("catalog_version", 1)
         return stored < catalog_version(registry()[game_id])
     if kind == JobKind.images:
-        catalog = await _last_success(game_id, JobKind.catalog)
-        return catalog is not None and catalog.started_at > last_success.started_at
+        catalog = await _last_success(game_id, JobKind.catalog, auto_only=False)
+        images = await _last_success(game_id, kind, auto_only=False) or last_success
+        return catalog is not None and catalog.started_at > images.started_at
     return False
 
 
@@ -76,7 +83,7 @@ async def is_due(game_id: str, kind: JobKind, now: datetime) -> bool:
         and not await _outdated(game_id, kind, last_success)
     ):
         return False
-    last_attempt = await _last(game_id, kind, None)
+    last_attempt = await _last_attempt(game_id, kind)
     return last_attempt is None or now - last_attempt >= RETRY_AFTER
 
 
@@ -89,15 +96,18 @@ def jobs_for(game_id: str) -> list[JobKind]:
 
 
 async def tick() -> None:
+    await reap_runs()
     games = get_settings().worker_games or list(registry())
     for game_id in games:
         for kind in jobs_for(game_id):
             if not await is_due(game_id, kind, datetime.now(UTC)):
                 continue
             try:
-                await run_job(game_id, kind)
+                await run_job(game_id, kind, JobTrigger.auto)
             except JobAlreadyRunning:
                 log.info("%s/%s already running elsewhere", game_id, kind)
+            except JobStopped:
+                pass  # recorded in sync_run
             except Exception:
                 # Logged and recorded in sync_run; later jobs of this game still run.
                 pass
@@ -105,7 +115,9 @@ async def tick() -> None:
 
 async def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    set_process_role("worker")
     await register_games()
+    await reap_runs()
     while True:
         await tick()
         await asyncio.sleep(TICK_SECONDS)

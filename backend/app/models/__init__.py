@@ -1,7 +1,7 @@
 from app.models.base import Base
 from app.models.catalog import Card, CardName, CardSet, Game, Printing
 from app.models.collection import CollectionItem, Condition, PriceSnapshot, StockTransaction
-from app.models.sync import JobKind, JobStatus, SyncRun
+from app.models.sync import JobKind, JobStatus, JobTrigger, SyncRun
 from app.models.user import RefreshToken, Role, User, UserIdentity
 
 __all__ = [
@@ -14,6 +14,7 @@ __all__ = [
     "Game",
     "JobKind",
     "JobStatus",
+    "JobTrigger",
     "PriceSnapshot",
     "Printing",
     "RefreshToken",
