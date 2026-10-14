@@ -1,12 +1,14 @@
 """Store normalized catalog data from game providers (idempotent upserts)."""
 
+import asyncio
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import httpx
-from sqlalchemy import delete, exists, func, literal_column, select, update
+from sqlalchemy import and_, delete, exists, func, literal_column, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -131,20 +133,35 @@ def _merge_attributes(first: str, second: str) -> str:
     )
 
 
+def _kept_image_paths(urls: str) -> str:
+    """Cached images (and refused downloads) whose URL did not change: an image whose
+    source moved is downloaded again."""
+    return (
+        "(SELECT coalesce(jsonb_object_agg(e.key, e.value), '{}'::jsonb) "
+        "FROM jsonb_each(printing.image_paths) AS e "
+        f"WHERE ({urls}) ->> e.key IS NOT DISTINCT FROM printing.image_urls ->> e.key)"
+    )
+
+
+# Image URLs are per language: any source giving one has the latest (secondary sources
+# only send languages without one).
+_URLS = "printing.image_urls || excluded.image_urls"
 # On conflict, full data replaces stored fields while partial data only fills gaps.
 _PRINTING_FULL = {
     "card_id": "excluded.card_id",
     "collector_number": "excluded.collector_number",
     "rarity": "excluded.rarity",
     "artist": "excluded.artist",
-    "image_urls": "printing.image_urls || excluded.image_urls",
+    "image_urls": _URLS,
+    "image_paths": _kept_image_paths(_URLS),
     "attributes": _merge_attributes("printing.attributes", "excluded.attributes"),
 }
 _PRINTING_PARTIAL = {
     "collector_number": "coalesce(printing.collector_number, excluded.collector_number)",
     "rarity": "coalesce(printing.rarity, excluded.rarity)",
     "artist": "coalesce(printing.artist, excluded.artist)",
-    "image_urls": "excluded.image_urls || printing.image_urls",
+    "image_urls": _URLS,
+    "image_paths": _kept_image_paths(_URLS),
     "attributes": _merge_attributes("excluded.attributes", "printing.attributes"),
 }
 
@@ -243,14 +260,20 @@ class CatalogWriter:
         self.report.cards += len(cards)
 
         names: list[dict[str, Any]] = []
+        # Names from full data replace the stored ones of the same card or printing and
+        # language (corrected at the source).
+        replacing: list[dict[str, Any]] = []
         stored: prices.PrintingIds = {}
         printing_rows: list[tuple[int, PrintingData, bool]] = []
         for card in cards:
             card_id = card_ids[card.data.external_id]
-            names += [
+            card_names = [
                 {"card_id": card_id, "printing_id": None, "lang": lang, "name": name}
                 for lang, name in card.data.names.items()
             ]
+            names += card_names
+            if not card.data.partial:
+                replacing += card_names
             for printing, partial in _dedupe_printings(card.printings):
                 printing_rows.append((card_id, printing, partial))
 
@@ -266,10 +289,14 @@ class CatalogWriter:
                 (self.set_ids[printing.set_external_id], printing.external_id)
             ]
             stored[(printing.set_external_id, printing.external_id)] = printing_id
-            names += [
+            printing_names = [
                 {"card_id": card_id, "printing_id": printing_id, "lang": lang, "name": name}
                 for lang, name in printing.names.items()
             ]
+            names += printing_names
+            if not partial:
+                replacing += printing_names
+        await self._drop_replaced_names(replacing)
         await self._insert_names(names)
         return stored
 
@@ -313,6 +340,22 @@ class CatalogWriter:
             )
         return ids
 
+    async def _drop_replaced_names(self, names: list[dict[str, Any]]) -> None:
+        """Delete stored names of the same (card, printing, language) with another text."""
+        printing = func.coalesce(CardName.printing_id, 0)
+        for chunk in _chunks(names):
+            keys = [(n["card_id"], n["printing_id"] or 0, n["lang"]) for n in chunk]
+            await self.session.execute(
+                delete(CardName).where(
+                    and_(
+                        tuple_(CardName.card_id, printing, CardName.lang).in_(keys),
+                        tuple_(CardName.card_id, printing, CardName.lang, CardName.name).not_in(
+                            [(*key, n["name"]) for key, n in zip(keys, chunk, strict=True)]
+                        ),
+                    )
+                )
+            )
+
     async def _insert_names(self, names: list[dict[str, Any]]) -> None:
         for chunk in _chunks(names):
             await self.session.execute(insert(CardName).values(chunk).on_conflict_do_nothing())
@@ -342,3 +385,60 @@ async def sync_catalog(
     )
     await session.commit()
     return writer.report
+
+
+@dataclass
+class ResetReport:
+    printings: int = 0
+    cards: int = 0
+    sets: int = 0
+    # Printings kept because someone owns them (with their card and set).
+    kept: int = 0
+
+
+def _remove_image_files(
+    root: Path, game_id: str, kept_printings: set[int], kept_sets: set[int]
+) -> None:
+    """Cached card images (`<game>/<set>/<printing>-<lang>.<ext>`) and set icons
+    (`sets/<game>/<set>.<ext>`) of removed printings and sets."""
+    for path in (root / game_id).glob("*/*") if (root / game_id).is_dir() else []:
+        printing = path.name.split("-", 1)[0]
+        if printing.isdigit() and int(printing) not in kept_printings:
+            path.unlink(missing_ok=True)
+    for path in (root / "sets" / game_id).glob("*") if (root / "sets" / game_id).is_dir() else []:
+        if path.stem.isdigit() and int(path.stem) not in kept_sets:
+            path.unlink(missing_ok=True)
+
+
+async def reset_catalog(session: AsyncSession, game_id: str) -> ResetReport:
+    """Delete the game's catalog (names, prices, cross-check differences and cached
+    images go with it) except the printings in collections, to sync it again from
+    scratch. Committed."""
+    from app.models import CatalogDiscrepancy, CollectionItem
+    from app.services.images import image_root
+
+    report = ResetReport()
+    in_game = select(Printing.id).join(CardSet).where(CardSet.game_id == game_id)
+    owned = select(CollectionItem.printing_id).where(CollectionItem.printing_id.in_(in_game))
+    await session.execute(delete(CatalogDiscrepancy).where(CatalogDiscrepancy.game_id == game_id))
+    removed = await session.execute(
+        delete(Printing).where(Printing.id.in_(in_game), Printing.id.not_in(owned))
+    )
+    report.printings = removed.rowcount
+    removed = await session.execute(
+        delete(Card).where(Card.game_id == game_id, ~exists().where(Printing.card_id == Card.id))
+    )
+    report.cards = removed.rowcount
+    removed = await session.execute(
+        delete(CardSet).where(
+            CardSet.game_id == game_id, ~exists().where(Printing.set_id == CardSet.id)
+        )
+    )
+    report.sets = removed.rowcount
+    kept = set(await session.scalars(in_game))
+    report.kept = len(kept)
+    kept_sets = set(await session.scalars(select(CardSet.id).where(CardSet.game_id == game_id)))
+    await session.execute(update(Game).where(Game.id == game_id).values(last_catalog_sync=None))
+    await session.commit()
+    await asyncio.to_thread(_remove_image_files, image_root(), game_id, kept, kept_sets)
+    return report

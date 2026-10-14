@@ -109,6 +109,10 @@ _VALUES_TTL = 3600
 _values: dict[str, tuple[float, dict[str, list[str]]]] = {}
 
 
+def clear_filter_values(game_id: str) -> None:
+    _values.pop(game_id, None)
+
+
 async def filter_values(session: SessionDep, game_id: str) -> dict[str, list[str]]:
     cached = _values.get(game_id)
     if cached and time.monotonic() - cached[0] < _VALUES_TTL:

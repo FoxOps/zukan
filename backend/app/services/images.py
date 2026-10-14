@@ -58,6 +58,8 @@ class ImageReport:
     # Set icons and card back faces downloaded.
     icons: int = 0
     backs: int = 0
+    # Set icons and back faces the source did not give.
+    assets_failed: int = 0
 
 
 def image_root() -> Path:
@@ -268,7 +270,9 @@ async def cache_images(
         if not url or asset_file(stem) is not None:
             return False
         async with semaphore:
-            return await cached_asset(http, url, stem) is not None
+            stored = await cached_asset(http, url, stem) is not None
+        report.assets_failed += not stored
+        return stored
 
     backs = await asyncio.gather(
         *(asset(p.attributes.get("back_image_url"), back_stem(game_id, p)) for p in printings)

@@ -158,6 +158,8 @@ class StoredPrinting:
     card_name: str
     image_languages: tuple[str, ...]
     market_ids: dict[str, Any]
+    # Languages the printing exists in.
+    languages: tuple[str, ...] = ()
 
 
 @dataclass

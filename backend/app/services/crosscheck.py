@@ -68,6 +68,7 @@ async def build_index(session: AsyncSession, game_id: str) -> CatalogIndex:
             card_name=card_name,
             image_languages=tuple(p.image_urls),
             market_ids=dict(p.attributes.get("market_ids") or {}),
+            languages=tuple(p.languages),
         )
         for p, set_ext, card_ext, card_name in rows
     }
