@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useGames, useSets, type Game } from '../api/queries'
 import { languageName } from '../lib/format'
 import { ColorSymbol } from './ColorBadges'
+import { Select } from './Select'
 
 type GameTabsProps = {
   value: string
@@ -53,15 +54,19 @@ export function SetSelect({ game, value, onChange }: { game: string; value: stri
   const { data: sets = [] } = useSets(game || null)
   if (!game) return null
   return (
-    <select className="select w-full sm:w-64" value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">{t('All sets')}</option>
-      {sets.map((s) => (
-        <option key={s.id} value={s.id}>
-          {s.code} - {s.name}
-          {s.lang ? ` (${languageName(s.lang)})` : ''}
-        </option>
-      ))}
-    </select>
+    <Select
+      className="w-full sm:w-64"
+      value={value}
+      onChange={onChange}
+      aria-label={t('Set')}
+      options={[
+        { value: '', label: t('All sets') },
+        ...sets.map((s) => ({
+          value: String(s.id),
+          label: `${s.code} - ${s.name}${s.lang ? ` (${languageName(s.lang)})` : ''}`,
+        })),
+      ]}
+    />
   )
 }
 

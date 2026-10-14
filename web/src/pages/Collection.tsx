@@ -9,6 +9,7 @@ import { ConditionBadge, FinishBadge, LangFlag } from '../components/Badges'
 import { ColorFilter, GameTabs, SearchInput, SetSelect } from '../components/Filters'
 import { ItemDialog } from '../components/ItemDialog'
 import { Pagination } from '../components/Pagination'
+import { Select } from '../components/Select'
 import { CONDITIONS, finishName, formatMoney, languageName } from '../lib/format'
 import { useUrlState } from '../lib/hooks'
 
@@ -76,24 +77,33 @@ export default function Collection() {
         <SearchInput value={url.get('q')} onChange={(v) => url.set({ q: v })} placeholder={t('Search your cards')} />
         <SetSelect game={game} value={url.get('set')} onChange={(v) => url.set({ set: v })} />
         {gameInfo && (
-          <select className="select w-40" value={url.get('finish')} onChange={(e) => url.set({ finish: e.target.value })}>
-            <option value="">{t('All finishes')}</option>
-            {gameInfo.finishes.map((f) => <option key={f.code} value={f.code}>{finishName(gameInfo, f.code)}</option>)}
-          </select>
+          <Select
+            className="w-40"
+            value={url.get('finish')}
+            onChange={(v) => url.set({ finish: v })}
+            options={[{ value: '', label: t('All finishes') }, ...gameInfo.finishes.map((f) => ({ value: f.code, label: finishName(gameInfo, f.code) }))]}
+          />
         )}
-        <select className="select w-44" value={url.get('condition')} onChange={(e) => url.set({ condition: e.target.value })}>
-          <option value="">{t('All conditions')}</option>
-          {CONDITIONS.map((c) => <option key={c.code} value={c.code}>{c.code} - {t(c.name)}</option>)}
-        </select>
+        <Select
+          className="w-44"
+          value={url.get('condition')}
+          onChange={(v) => url.set({ condition: v })}
+          options={[{ value: '', label: t('All conditions') }, ...CONDITIONS.map((c) => ({ value: c.code, label: `${c.code} - ${t(c.name)}` }))]}
+        />
         {gameInfo && (
-          <select className="select w-40" value={url.get('language')} onChange={(e) => url.set({ language: e.target.value })}>
-            <option value="">{t('All languages')}</option>
-            {gameInfo.languages.map((l) => <option key={l} value={l}>{languageName(l)}</option>)}
-          </select>
+          <Select
+            className="w-40"
+            value={url.get('language')}
+            onChange={(v) => url.set({ language: v })}
+            options={[{ value: '', label: t('All languages') }, ...gameInfo.languages.map((l) => ({ value: l, label: languageName(l) }))]}
+          />
         )}
-        <select className="select w-44" value={filters.sort} onChange={(e) => url.set({ sort: e.target.value })}>
-          {Object.entries(SORTS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
-        </select>
+        <Select
+          className="w-44"
+          value={filters.sort}
+          onChange={(v) => url.set({ sort: v })}
+          options={Object.entries(SORTS).map(([k, v]) => ({ value: k, label: t(v) }))}
+        />
         <ColorFilter game={gameInfo} value={url.getAll('color')} onChange={(v) => url.set({ color: v })} />
       </div>
 
@@ -167,7 +177,7 @@ export default function Collection() {
             </table>
           </div>
           <div className="flex justify-center">
-            <Pagination page={url.page} pageSize={PAGE_SIZE} total={items.data.total} onChange={(p) => url.set({ page: p }, false)} />
+            <Pagination page={url.page} pageSize={PAGE_SIZE} total={items.data.total} onChange={url.goToPage} />
           </div>
         </>
       )}

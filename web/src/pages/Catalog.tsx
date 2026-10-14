@@ -92,7 +92,7 @@ export default function Catalog() {
             ))}
           </div>
           <div className="flex justify-center">
-            <Pagination page={url.page} pageSize={PAGE_SIZE} total={cards.data.total} onChange={(p) => url.set({ page: p }, false)} />
+            <Pagination page={url.page} pageSize={PAGE_SIZE} total={cards.data.total} onChange={url.goToPage} />
           </div>
         </>
       )}

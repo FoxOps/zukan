@@ -5,6 +5,7 @@ import { Navigate } from 'react-router'
 import { api, call } from '../../api/client'
 import { useGames, useMe } from '../../api/queries'
 import { useToast } from '../../components/toast'
+import { Select } from '../../components/Select'
 import { formatDateTime } from '../../lib/format'
 
 const KINDS = ['catalog', 'prices', 'images'] as const
@@ -113,21 +114,13 @@ export default function Jobs() {
             (<code>./import</code>), {t('then import it here.')}
           </p>
           <div className="flex flex-wrap gap-2">
-            <select className="select w-56" value={imageGame} onChange={(e) => setImageGame(e.target.value)}>
-              {games.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
-            <select className="select w-56" value={folder} onChange={(e) => setFolder(e.target.value)}>
-              <option value="">{t('Choose a folder')}</option>
-              {folders.data?.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
+            <Select className="w-56" value={imageGame} onChange={setImageGame} options={games.map((g) => ({ value: g.id, label: g.name }))} />
+            <Select
+              className="w-56"
+              value={folder}
+              onChange={setFolder}
+              options={[{ value: '', label: t('Choose a folder') }, ...(folders.data ?? []).map((f) => ({ value: f, label: f }))]}
+            />
             <button className="btn btn-primary" disabled={!folder || importImages.isPending} onClick={() => importImages.mutate()}>
               {importImages.isPending && <span className="loading loading-spinner loading-sm" />}
               {t('Import')}

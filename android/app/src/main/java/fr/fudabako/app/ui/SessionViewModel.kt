@@ -34,6 +34,7 @@ data class SessionState(
     val providers: ProvidersOut? = null,
     val username: String? = null,
     val games: List<GameOut> = emptyList(),
+    val serverVersion: String? = null,
     val error: String? = null,
 ) {
     val loggedIn get() = username != null
@@ -54,6 +55,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
             if (saved.serverUrl.isNotEmpty()) {
                 val client = app.connect(saved.serverUrl)
                 runCatching { client.api.providers() }.onSuccess { p -> _state.update { it.copy(providers = p) } }
+                runCatching { client.api.health() }.onSuccess { h -> _state.update { it.copy(serverVersion = h["version"]) } }
                 if (app.store.tokens != null) loadAccount(client)
             }
             _state.update { it.copy(loading = false) }
@@ -74,10 +76,10 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     fun connect(input: String) = work {
         val url = ServerUrl.normalize(input)
         val client = app.connect(url)
-        client.api.health()
+        val health = client.api.health()
         val providers = client.api.providers()
         app.store.update { it.copy(serverUrl = url) }
-        _state.update { it.copy(serverUrl = url, providers = providers) }
+        _state.update { it.copy(serverUrl = url, providers = providers, serverVersion = health["version"]) }
     }
 
     fun login(username: String, password: String) = work {

@@ -10,8 +10,10 @@ import { CardImage } from '../components/CardImage'
 import { ColorBadges } from '../components/ColorBadges'
 import { PriceChart } from '../components/PriceChart'
 import { StockDialog, type StockTarget } from '../components/StockDialog'
+import { Select } from '../components/Select'
 import { hasVisibleAttributes } from '../lib/attributes'
-import { cardmarketUrl, finishName, formatDate, formatMoney, languageName } from '../lib/format'
+import { useUrlState } from '../lib/hooks'
+import { cardmarketUrl, finishName, formatDate, formatMoney, languageName, normalize } from '../lib/format'
 
 type PrintingOut = Schemas['PrintingOut']
 
@@ -36,9 +38,45 @@ function PriceHistory({ printing, finishLabel }: { printing: PrintingOut; finish
   return <PriceChart data={data} series={series} />
 }
 
-/** Lower case without accents, to filter sets the way the catalog search works. */
-function normalize(text: string): string {
-  return text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase()
+// Printing orders; the API order (owned first, then newest) is the default.
+const PRINTING_SORTS = {
+  owned: 'Owned first',
+  newest: 'Newest sets',
+  oldest: 'Oldest sets',
+  set: 'Set name',
+  number: 'Collector number',
+  price_desc: 'Price: high to low',
+  price_asc: 'Price: low to high',
+} as const
+type PrintingSort = keyof typeof PRINTING_SORTS
+
+function lowestTrend(p: PrintingOut): number | null {
+  const trends = p.prices.filter((x) => x.trend !== null).map((x) => Number(x.trend))
+  return trends.length ? Math.min(...trends) : null
+}
+
+function sortPrintings(printings: PrintingOut[], sort: PrintingSort): PrintingOut[] {
+  const date = (p: PrintingOut) => p.set.release_date ?? ''
+  const number = (a: PrintingOut, b: PrintingOut) =>
+    (a.collector_number ?? '').localeCompare(b.collector_number ?? '', undefined, { numeric: true })
+  // Printings without a price stay last in both price orders.
+  const price = (a: PrintingOut, b: PrintingOut, sign: number) => {
+    const x = lowestTrend(a)
+    const y = lowestTrend(b)
+    if (x === null || y === null) return (x === null ? 1 : 0) - (y === null ? 1 : 0)
+    return sign * (x - y)
+  }
+  const compare: Record<PrintingSort, ((a: PrintingOut, b: PrintingOut) => number) | null> = {
+    owned: null,
+    newest: (a, b) => date(b).localeCompare(date(a)) || number(a, b),
+    oldest: (a, b) => date(a).localeCompare(date(b)) || number(a, b),
+    set: (a, b) => a.set.name.localeCompare(b.set.name) || number(a, b),
+    number: (a, b) => number(a, b) || a.set.name.localeCompare(b.set.name),
+    price_desc: (a, b) => price(a, b, -1),
+    price_asc: (a, b) => price(a, b, 1),
+  }
+  const fn = compare[sort]
+  return fn ? [...printings].sort(fn) : printings
 }
 
 export default function CardDetail() {
@@ -52,6 +90,9 @@ export default function CardDetail() {
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [target, setTarget] = useState<StockTarget | null>(null)
   const [setFilter, setSetFilter] = useState('')
+  const url = useUrlState()
+  const sortParam = url.get('sort')
+  const sort: PrintingSort = sortParam in PRINTING_SORTS ? (sortParam as PrintingSort) : 'owned'
   const finishLabel = useMemo(() => (code: string) => finishName(game, code), [game])
 
   if (card.isPending) return <span className="loading loading-spinner loading-lg" />
@@ -78,12 +119,15 @@ export default function CardDetail() {
     })
   // The API lists owned printings first.
   const words = normalize(setFilter).split(/\s+/).filter(Boolean)
-  const printings = words.length
-    ? c.printings.filter((p) => {
-        const text = normalize(`${p.set.name} ${p.set.code} ${p.collector_number ?? ''} ${p.set.release_date?.slice(0, 4) ?? ''}`)
-        return words.every((w) => text.includes(w))
-      })
-    : c.printings
+  const printings = sortPrintings(
+    words.length
+      ? c.printings.filter((p) => {
+          const text = normalize(`${p.set.name} ${p.set.code} ${p.collector_number ?? ''} ${p.set.release_date?.slice(0, 4) ?? ''}`)
+          return words.every((w) => text.includes(w))
+        })
+      : c.printings,
+    sort,
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -179,6 +223,14 @@ export default function CardDetail() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold">{t('{{count}} printings', { count: c.printings.length })}</h2>
           {c.printings.length > 1 && (
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <Select
+              className="select-sm w-full sm:w-48"
+              aria-label={t('Sort')}
+              value={sort}
+              onChange={(v) => url.set({ sort: v === 'owned' ? null : v }, false)}
+              options={Object.entries(PRINTING_SORTS).map(([value, label]) => ({ value, label: t(label) }))}
+            />
             <label className="input input-sm w-full sm:w-72">
               <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2 opacity-60"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
               <input
@@ -188,6 +240,7 @@ export default function CardDetail() {
                 onChange={(e) => setSetFilter(e.target.value)}
               />
             </label>
+            </div>
           )}
         </div>
         <div className="overflow-x-auto rounded-box border border-base-300">

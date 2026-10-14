@@ -30,7 +30,7 @@
 
     <!-- Résultat -->
     <string name="no_picture">Pas d\'image</string>
-    <string name="printing_position">Impression %1$d / %2$d</string>
+    <string name="printing_position">Version %1$d / %2$d</string>
     <string name="condition">État</string>
     <string name="language">Langue</string>
     <string name="less">Moins</string>
@@ -45,9 +45,9 @@
     <!-- Recherche -->
     <string name="search_hint">Nom de la carte, toute langue</string>
     <plurals name="printing_count">
-        <item quantity="one">%1$s · %2$d impression</item>
-        <item quantity="many">%1$s · %2$d impressions</item>
-        <item quantity="other">%1$s · %2$d impressions</item>
+        <item quantity="one">%1$s · %2$d version</item>
+        <item quantity="many">%1$s · %2$d versions</item>
+        <item quantity="other">%1$s · %2$d versions</item>
     </plurals>
 
     <!-- Réglages -->
@@ -61,7 +61,7 @@
     <string name="script_korean">Coréen</string>
     <string name="default_condition">État par défaut</string>
     <string name="default_language">Langue par défaut (si la carte ne l\'indique pas)</string>
-    <string name="printing_language">Celle de l\'impression</string>
+    <string name="printing_language">Celle de la version</string>
     <string name="log_out">Se déconnecter</string>
 
     <!-- Erreurs -->
@@ -85,7 +85,8 @@
     <string name="price_value">%1$s €</string>
     <string name="price_from">dès %1$s €</string>
     <string name="cardmarket">Cardmarket</string>
-    <string name="choose_printing">Choisir l\'impression</string>
+    <string name="app_version">Application %1$s · serveur %2$s</string>
+    <string name="choose_printing">Choisir la version</string>
     <string name="filter_printings">Nom, code d\'extension ou numéro</string>
     <string name="detected">Lu :</string>
     <string name="not_owned">Absente de votre collection</string>

@@ -168,6 +168,14 @@ async def test_search_and_card_detail(client, session, synced):
         == f"/api/printings/{card['printings'][0]['id']}/image?lang=en"
     )
     assert card["attributes"]["thresholds"]["water"] >= 1
+    # With a set chosen, the image is the printing of that set.
+    for printing in card["printings"]:
+        found = (
+            await client.get(
+                "/api/cards", params={"q": "abun", "set_id": printing["set"]["id"]}, headers=headers
+            )
+        ).json()
+        assert found["items"][0]["image"] == printing["image"]
     assert (await client.get("/api/cards/999999", headers=headers)).status_code == 404
 
 

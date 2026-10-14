@@ -3,6 +3,8 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app import __version__
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="TCG_", env_file=".env", extra="ignore")
@@ -40,7 +42,7 @@ class Settings(BaseSettings):
     catalog_interval_hours: int = 7 * 24
     sync_interval_hours: int = 24
     worker_games: list[str] = []
-    user_agent: str = "Fudabako/0.4"
+    user_agent: str = f"Fudabako/{__version__}"
 
 
 @lru_cache

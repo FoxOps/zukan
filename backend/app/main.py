@@ -11,6 +11,7 @@ from sqlalchemy import exists, select
 from sqlalchemy.dialects.postgresql import insert
 from starlette.types import Scope
 
+from app import __version__
 from app.api import admin, auth, catalog, collection, games, scan, users
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
@@ -69,7 +70,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="Fudabako", lifespan=lifespan, docs_url="/api/docs", openapi_url="/api/openapi.json"
+        title="Fudabako",
+        version=__version__,
+        lifespan=lifespan,
+        docs_url="/api/docs",
+        openapi_url="/api/openapi.json",
     )
     api = APIRouter(prefix="/api")
     api.include_router(auth.router)
@@ -82,7 +87,7 @@ def create_app() -> FastAPI:
 
     @api.get("/health", tags=["meta"])
     async def health() -> dict[str, str]:
-        return {"status": "ok"}
+        return {"status": "ok", "version": __version__}
 
     app.include_router(api)
     mount_web(app, get_settings().web_dir)

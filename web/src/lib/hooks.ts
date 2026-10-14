@@ -15,5 +15,10 @@ export function useUrlState() {
     if (resetPage && !('page' in changes)) next.delete('page')
     setParams(next, { replace: true })
   }
-  return { get, getAll, set, page: Number(params.get('page')) || 1 }
+  // A new page starts at its top, like a page load would.
+  const goToPage = (page: number) => {
+    set({ page }, false)
+    window.scrollTo({ top: 0 })
+  }
+  return { get, getAll, set, goToPage, page: Number(params.get('page')) || 1 }
 }

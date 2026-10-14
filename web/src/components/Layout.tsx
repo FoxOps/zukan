@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { api, onSessionExpired } from '../api/client'
-import { useMe } from '../api/queries'
+import { useHealth, useMe } from '../api/queries'
 import { useServerLanguage } from '../i18n'
 import { LanguageMenu } from './I18n'
 
@@ -38,6 +38,7 @@ export function Layout() {
   const navigate = useNavigate()
   const client = useQueryClient()
   const [dark, setDark] = useTheme()
+  const health = useHealth()
   useServerLanguage(me.data?.language)
 
   useEffect(
@@ -101,7 +102,7 @@ export function Layout() {
       </div>
       <div className="drawer-side z-40">
         <label htmlFor="nav-drawer" className="drawer-overlay" aria-label={t('Close menu')} />
-        <aside className="min-h-full w-60 bg-base-200">
+        <aside className="flex min-h-full w-60 flex-col bg-base-200">
           <div className="px-6 py-5">
             <div className="text-xl font-bold">Fudabako</div>
             <div className="text-xs text-base-content/50"><span lang="ja">札箱</span> · {t('card box')}</div>
@@ -119,6 +120,9 @@ export function Layout() {
               </>
             )}
           </ul>
+          {health.data?.version && (
+            <div className="mt-auto px-6 py-4 text-xs text-base-content/40">v{health.data.version}</div>
+          )}
         </aside>
       </div>
     </div>

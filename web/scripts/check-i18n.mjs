@@ -10,6 +10,7 @@ const DYNAMIC = [
   // Navigation labels, sort options, conditions, job kinds and states, roles, sources.
   'Dashboard', 'Collection', 'Catalog', 'Import / export', 'Settings', 'Users', 'Data sync',
   'Name', 'Newest sets', 'Recently changed', 'Quantity', 'Price: low to high', 'Price: high to low',
+  'Owned first', 'Oldest sets', 'Set name', 'Collector number',
   'Mint', 'Near Mint', 'Excellent', 'Good', 'Light Played', 'Played', 'Poor',
   'catalog', 'prices', 'images', 'running', 'success', 'failed', 'user', 'admin', 'web', 'scan', 'import',
   // Names from the game plugins.

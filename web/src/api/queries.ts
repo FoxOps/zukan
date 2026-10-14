@@ -36,6 +36,14 @@ export function useSets(gameId: string | null | undefined) {
   })
 }
 
+export function useHealth() {
+  return useQuery({
+    queryKey: ['health'],
+    queryFn: () => call(api.GET('/api/health')),
+    staleTime: Infinity,
+  })
+}
+
 export function useProviders() {
   return useQuery({
     queryKey: ['providers'],

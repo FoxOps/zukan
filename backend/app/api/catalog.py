@@ -274,12 +274,18 @@ async def search_cards(
     by_printing = {p.id: c.id for c in cards for p in c.printings}
     for (printing_id, _), point in latest.items():
         card_prices.setdefault(by_printing[printing_id], []).append(point.trend)
+    # Images show the chosen set (set filter or code search) when the card is in it.
+    shown_sets = {set_id} if set_id is not None else set(code.set_ids if code else ())
     items = []
     for card in cards:
-        # A printing that has the user's language, then one already cached.
+        # A printing of the chosen set, with the user's language, already cached.
         printings = sorted(
             card.printings,
-            key=lambda p: (user.language not in p.image_urls, not any(p.image_paths.values())),
+            key=lambda p: (
+                p.set_id not in shown_sets,
+                user.language not in p.image_urls,
+                not any(p.image_paths.values()),
+            ),
         )
         items.append(
             CardSummaryOut(

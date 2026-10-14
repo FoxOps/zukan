@@ -7,6 +7,7 @@ import { useGames } from '../api/queries'
 import { ConditionBadge, FinishBadge, LangFlag } from '../components/Badges'
 import { useInvalidateStock } from '../api/stock'
 import { PriceChart } from '../components/PriceChart'
+import { Select } from '../components/Select'
 import { useToast } from '../components/toast'
 import { formatDateTime, formatMoney } from '../lib/format'
 
@@ -68,10 +69,12 @@ export default function Dashboard() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="card-title">{t('Value over time')}</h2>
             <div className="flex flex-wrap gap-2">
-              <select className="select select-sm w-40" value={game} onChange={(e) => setGame(e.target.value)}>
-                <option value="">{t('All games')}</option>
-                {games.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-              </select>
+              <Select
+                className="select-sm w-40"
+                value={game}
+                onChange={setGame}
+                options={[{ value: '', label: t('All games') }, ...games.map((g) => ({ value: g.id, label: g.name }))]}
+              />
               <div className="join">
                 {RANGES.map((r) => (
                   <button key={r} className={`join-item btn btn-sm ${days === r ? 'btn-active' : ''}`} onClick={() => setDays(r)}>

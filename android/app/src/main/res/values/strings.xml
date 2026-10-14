@@ -85,6 +85,7 @@
     <string name="price_value">%1$s €</string>
     <string name="price_from">from %1$s €</string>
     <string name="cardmarket">Cardmarket</string>
+    <string name="app_version">App %1$s · server %2$s</string>
     <string name="choose_printing">Choose printing</string>
     <string name="filter_printings">Set name, code or number</string>
     <string name="detected">Read:</string>

@@ -68,6 +68,7 @@ jobs:
           platforms: linux/amd64
           load: true
           tags: fudabako:ci
+          build-args: FUDABAKO_VERSION=${{ inputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Container smoke test
@@ -80,6 +81,7 @@ jobs:
           platforms: ${{ inputs.platforms }}
           push: true
           tags: ${{ steps.names.outputs.tags }}
+          build-args: FUDABAKO_VERSION=${{ inputs.version }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}

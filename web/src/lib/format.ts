@@ -82,3 +82,8 @@ export const LANGUAGE_FLAGS: Record<string, string> = {
   'zh-hant': 'tw',
   ru: 'ru',
 }
+
+/** Lower case without accents, to filter lists the way the catalog search works. */
+export function normalize(text: string): string {
+  return text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase()
+}

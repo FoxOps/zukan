@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import fr.fudabako.app.BuildConfig
 import fr.fudabako.app.R
 import fr.fudabako.app.data.OcrScript
 import fr.fudabako.app.data.Settings
@@ -71,6 +72,11 @@ fun SettingsScreen(session: SessionViewModel, state: SessionState, settings: Set
         HorizontalDivider()
         OutlinedButton(onClick = session::logout) { Text(stringResource(R.string.log_out)) }
         OutlinedButton(onClick = session::disconnect) { Text(stringResource(R.string.change_server)) }
+        Text(
+            stringResource(R.string.app_version, BuildConfig.VERSION_NAME, state.serverVersion ?: "?"),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

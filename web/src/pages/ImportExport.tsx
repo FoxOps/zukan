@@ -4,6 +4,7 @@ import { upload, type Schemas } from '../api/client'
 import { useGames } from '../api/queries'
 import { useInvalidateStock } from '../api/stock'
 import { useToast } from '../components/toast'
+import { Select } from '../components/Select'
 
 type Report = Schemas['ImportOut']
 
@@ -48,14 +49,12 @@ export default function ImportExport() {
           <h2 className="card-title">{t('Export')}</h2>
           <p className="text-sm">{t('Download your collection as CSV (spreadsheet-friendly, re-importable).')}</p>
           <div className="flex flex-wrap gap-2">
-            <select className="select w-48" value={exportGame} onChange={(e) => setExportGame(e.target.value)}>
-              <option value="">{t('All games')}</option>
-              {games.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
+            <Select
+              className="w-48"
+              value={exportGame}
+              onChange={setExportGame}
+              options={[{ value: '', label: t('All games') }, ...games.map((g) => ({ value: g.id, label: g.name }))]}
+            />
             <a
               className="btn btn-primary"
               href={`/api/collection/export.csv${exportGame ? `?game=${exportGame}` : ''}`}
