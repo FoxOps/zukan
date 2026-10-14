@@ -221,6 +221,35 @@ async def test_search_by_set_code_and_number(client, session, tcgdex):
         assert [c["name"] for c in page["items"]] == ["Furret"], query
 
 
+async def test_collection_names_as_printed(client, session, tcgdex):
+    await sync_pokemon(session)
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    for set_id, local_id in (("swsh3", "136"), ("SV1a", "001")):
+        body = {
+            "printing_id": await printing_id(session, set_id, local_id),
+            "finish": "normal",
+            "language": "en",
+            "delta": 1,
+        }
+        response = await client.post("/api/collection/adjust", json=body, headers=headers)
+        assert response.status_code == 200, response.text
+
+    # Each copy is named as printed in its set: Japanese printings with a translation.
+    items = (await client.get("/api/collection", headers=headers)).json()["items"]
+    assert sorted((i["name"], i["translation"]) for i in items) == [
+        ("Furret", None),
+        ("トロピウス", "Tropius"),
+    ]
+    tropius = next(i for i in items if i["translation"])
+    assert tropius["image"].endswith("?lang=ja")
+    moves = (await client.get("/api/collection/transactions", headers=headers)).json()
+    assert sorted((t["name"], t["translation"]) for t in moves) == [
+        ("Furret", None),
+        ("トロピウス", "Tropius"),
+    ]
+
+
 async def test_search_by_printed_language(client, session, tcgdex):
     await sync_pokemon(session)
     await make_user(session)

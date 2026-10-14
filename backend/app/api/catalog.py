@@ -227,6 +227,24 @@ async def load_names(session: SessionDep, card_ids: Iterable[int]) -> tuple[Name
     return card_names, printing_names
 
 
+def show_printing(
+    printing: Printing,
+    card_names: Names,
+    printing_names: Names,
+    ui_lang: str,
+    default_name: str = "",
+) -> tuple[ShownName, str | None]:
+    """Name and image link of a printing (set loaded), shown as printed in its own set
+    (see `display`). `default_name` when no name is known."""
+    names = {**card_names.get(printing.card_id, {}), **printing_names.get(printing.id, {})}
+    latin, set_lang = printing_is_latin(printing), printing_lang(printing)
+    picked = pick_image([printing], ui_lang, latin, set_lang)
+    return (
+        pick_name(names, ui_lang, latin, set_lang, default=default_name),
+        image_link(printing, picked[1]) if picked else None,
+    )
+
+
 @dataclass
 class ShownCard:
     name: ShownName
@@ -596,10 +614,7 @@ async def describe_printings(
     described = []
     for p in printings:
         names = {**card_names.get(p.card_id, {}), **printing_names.get(p.id, {})}
-        # Shown as printed in its own set (see `display`).
-        latin, set_lang = printing_is_latin(p), printing_lang(p)
-        picked = pick_image([p], user.language, latin, set_lang)
-        shown = pick_name(names, user.language, latin, set_lang)
+        shown, image = show_printing(p, card_names, printing_names, user.language)
         described.append(
             PrintingOut(
                 id=p.id,
@@ -609,7 +624,7 @@ async def describe_printings(
                 artist=p.artist,
                 finishes=p.finishes,
                 languages=p.languages,
-                image=image_link(p, picked[1]) if picked else None,
+                image=image,
                 back_image=f"/api/printings/{p.id}/image?face=back"
                 if p.attributes.get("back_image_url")
                 else None,

@@ -5,9 +5,9 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, File, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy import case, exists, func, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import contains_eager, selectinload
 
-from app.api.catalog import image_link, name_matches
+from app.api.catalog import load_names, name_matches, show_printing
 from app.api.deps import CurrentUser, SessionDep
 from app.games.base import registry
 from app.models import (
@@ -23,7 +23,7 @@ from app.models import (
 from app.prices.base import price_sources
 from app.services import collection, csv_io
 from app.services.collection import StockError, Variant
-from app.services.names import display_name, display_names
+from app.services.names import display_name
 
 router = APIRouter(prefix="/collection", tags=["collection"])
 
@@ -42,7 +42,9 @@ class ItemOut(BaseModel):
     printing_id: int
     card_id: int
     game_id: str
+    # Named as printed in its set; Latin `translation` of non-Latin names.
     name: str
+    translation: str | None = None
     colors: list[str]
     set: ItemSetOut
     collector_number: str | None
@@ -99,6 +101,7 @@ class TransactionOut(BaseModel):
     created_at: datetime
     game_id: str
     name: str
+    translation: str | None = None
     set_code: str
     finish: str
     condition: str
@@ -169,10 +172,11 @@ async def _items_out(
     prices = await collection.user_prices(
         session, wanted, {i.printing_id: i.printing.set.game_id for i in items}
     )
-    names = await display_names(session, (i.printing.card_id for i in items), lang)
+    card_names, printing_names = await load_names(session, (i.printing.card_id for i in items))
     out = []
     for item in items:
         printing = item.printing
+        shown, image = show_printing(printing, card_names, printing_names, lang, printing.card.name)
         point = prices.get((item.printing_id, item.finish))
         unit = collection.unit_price(item, prices)
         out.append(
@@ -181,12 +185,13 @@ async def _items_out(
                 printing_id=printing.id,
                 card_id=printing.card_id,
                 game_id=printing.set.game_id,
-                name=names[printing.card_id],
+                name=shown.name,
+                translation=shown.translation,
                 colors=printing.card.colors,
                 set=ItemSetOut(id=printing.set.id, code=printing.set.code, name=printing.set.name),
                 collector_number=printing.collector_number,
                 rarity=printing.rarity,
-                image=image_link(printing, lang),
+                image=image,
                 finish=item.finish,
                 condition=item.condition,
                 language=item.language,
@@ -377,40 +382,41 @@ async def list_transactions(
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> list[TransactionOut]:
     query = (
-        select(
-            StockTransaction,
-            CollectionItem,
-            display_name(user.language),
-            CardSet.code,
-            CardSet.game_id,
-        )
+        select(StockTransaction, CollectionItem, Printing, Card.name)
         .join(CollectionItem, StockTransaction.item_id == CollectionItem.id)
         .join(Printing, CollectionItem.printing_id == Printing.id)
         .join(Card, Printing.card_id == Card.id)
         .join(CardSet, Printing.set_id == CardSet.id)
+        .options(contains_eager(Printing.set))
         .where(StockTransaction.user_id == user.id)
         .order_by(StockTransaction.id.desc())
         .limit(limit)
     )
     if item_id is not None:
         query = query.where(StockTransaction.item_id == item_id)
-    return [
-        TransactionOut(
-            id=t.id,
-            item_id=t.item_id,
-            delta=t.delta,
-            source=t.source,
-            undone=t.undone,
-            created_at=t.created_at,
-            game_id=game_id,
-            name=name,
-            set_code=code,
-            finish=item.finish,
-            condition=item.condition,
-            language=item.language,
+    rows = (await session.execute(query)).all()
+    card_names, printing_names = await load_names(session, (p.card_id for _, _, p, _ in rows))
+    out = []
+    for t, item, printing, canonical in rows:
+        shown, _ = show_printing(printing, card_names, printing_names, user.language, canonical)
+        out.append(
+            TransactionOut(
+                id=t.id,
+                item_id=t.item_id,
+                delta=t.delta,
+                source=t.source,
+                undone=t.undone,
+                created_at=t.created_at,
+                game_id=printing.set.game_id,
+                name=shown.name,
+                translation=shown.translation,
+                set_code=printing.set.code,
+                finish=item.finish,
+                condition=item.condition,
+                language=item.language,
+            )
         )
-        for t, item, name, code, game_id in await session.execute(query)
-    ]
+    return out
 
 
 @router.post("/transactions/{transaction_id}/undo")
