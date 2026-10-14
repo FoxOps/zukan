@@ -81,8 +81,9 @@ def check_cards(
             continue
         seen.add(key)
         matched += 1
+        # Front face names: the sources disagree on naming reversible cards "A // A".
         for field_name, primary, secondary in (
-            ("name", stored.card_name, name),
+            ("name", stored.card_name.split(" // ")[0], name.split(" // ")[0]),
             ("rarity", stored.rarity, rarity),
         ):
             if (d := compare(key[0], number, field_name, primary, secondary)) is not None:

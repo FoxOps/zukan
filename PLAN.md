@@ -312,7 +312,7 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
     and the one that found its own script wins (`ScriptPicker`). Needs a real phone
     check with Japanese and old-frame cards.
 
-- [ ] Feedback batch 3 (started 2026-10-14), branch `feedback-batch-3`: server 0.5.0,
+- [x] Feedback batch 3 (2026-10-14), branch `feedback-batch-3`: server 0.5.0,
   Android 0.4.0. Plan below; phases ticked as they land.
   - [x] A quick fixes: version (`FUDABAKO_VERSION` build arg in images, else package
     version) in `/api/health`, web sidebar, Android settings; `Select` component
@@ -362,6 +362,15 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
     market with currency (`Format.kt`), market links, OCR: CJK character pairs in the
     stabilizer, AUTO mode reads every 3rd frame with one Asian model (own stabilizer),
     recognition errors logged. Real-phone check of JA/KO/ZH cards still needed.
+  - Live check (2026-10-14, API from the venv on port 8010, fresh database): Sorcery 1601
+    printings + 1516 images; Pokémon EN 21k printings, pokemontcg data 165/176 sets
+    matched, 20k printings cross-checked; MTG 530k printings, MTGJSON 103k cross-checked.
+    Discrepancies after spelling-insensitive comparison: MTG 2, Pokémon 1126 (mostly
+    rarity vocabularies: "Secret Rare" vs "Rare Rainbow"; real finds such as BLK 060).
+    Browser: version, searchable selects, advanced search, scroll on page change, FR
+    "versions", printings sort, jobs reports, data checks. "eigh" on Forest (870
+    printings) finds the 8 Eighth Edition ones in 51 ms. Links from the server open only
+    when http(s) (web and app).
 
 ## Feedback batch 3 plan
 

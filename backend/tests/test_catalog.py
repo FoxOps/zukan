@@ -599,3 +599,15 @@ async def test_advanced_search_filters(client, session, synced):
     assert bad.status_code == 422
     bad = await client.get("/api/cards", params={"attr": "type:Avatar"}, headers=headers)
     assert bad.status_code == 422
+
+
+def test_cross_check_comparison_ignores_spelling():
+    from app.games.base import compare
+
+    for a, b in (("Genesect EX", "Genesect-EX"), ("Vaporeon ☆", "Vaporeon ★"), ("Forêt", "foret")):
+        assert compare("s", "1", "name", a, b) is None
+    assert compare("s", "1", "name", "Uxie", "Uxie LV.X") is not None
+    assert compare("s", "1", "rarity", "Holo Rare", "Rare Holo", words=True) is None
+    assert compare("s", "1", "rarity", "Rare", "Rare Holo EX", words=True) is None
+    assert compare("s", "1", "rarity", "Common", "Promo", words=True) is not None
+    assert compare("s", "1", "rarity", None, "Promo") is None

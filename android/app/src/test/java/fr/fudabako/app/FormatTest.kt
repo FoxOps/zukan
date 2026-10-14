@@ -21,4 +21,11 @@ class FormatTest {
         val text = moneyByCurrency(listOf("1.00" to "EUR", "2.50" to "EUR", "4.00" to "USD"), Locale.US)
         assertEquals("€3.50 + $4.00", text)
     }
+
+    @Test
+    fun onlyWebLinksAreOpened() {
+        assertEquals(true, fr.fudabako.app.ui.isWebLink("https://www.cardmarket.com/en/Magic/Products?idProduct=1"))
+        assertEquals(false, fr.fudabako.app.ui.isWebLink("intent://evil#Intent;end"))
+        assertEquals(false, fr.fudabako.app.ui.isWebLink("javascript:alert(1)"))
+    }
 }

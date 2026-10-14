@@ -55,6 +55,9 @@ import java.util.Locale
 fun languageName(code: String): String =
     Locale.forLanguageTag(code).getDisplayName(Locale.getDefault()).ifEmpty { code }
 
+/** Only web pages are opened from links the server sends (no intents, files...). */
+fun isWebLink(url: String): Boolean = url.startsWith("https://") || url.startsWith("http://")
+
 /** Prices of the user's price source (the server lists it first). */
 fun mainPrices(printing: PrintingOut) = printing.prices.filter { it.source == printing.prices.firstOrNull()?.source }
 
@@ -141,7 +144,7 @@ fun ResultPanel(
                         )
                     }
                 }
-                printing.links.forEach { link ->
+                printing.links.filter { isWebLink(it.url) }.forEach { link ->
                     TextButton(onClick = { uriHandler.openUri(link.url) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
                         Text(link.name)
                         Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.padding(start = 4.dp).size(16.dp))

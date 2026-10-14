@@ -317,7 +317,7 @@ export default function CardDetail() {
                     {p.prices.map((price, i) => (
                       <div key={`${price.source}-${price.finish}`} className="text-xs">
                         {/* Each source's prices under its name. */}
-                        {(i === 0 || p.prices[i - 1].source !== price.source) && (
+                        {(game?.price_sources.length ?? 0) > 1 && (i === 0 || p.prices[i - 1].source !== price.source) && (
                           <div className={`font-semibold text-base-content/70 ${i > 0 ? 'mt-1' : ''}`}>{sourceName(price.source)}</div>
                         )}
                         <span className="text-base-content/60">{finishLabel(price.finish)}</span>{' '}
@@ -331,7 +331,8 @@ export default function CardDetail() {
                       </div>
                     ))}
                     <div className="flex flex-wrap gap-x-2">
-                      {p.links.map((l) => (
+                      {/* Only web pages: never javascript: or other schemes from data. */}
+                      {p.links.filter((l) => /^https?:\/\//.test(l.url)).map((l) => (
                         <a
                           key={l.source}
                           className="link link-primary text-xs"

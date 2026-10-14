@@ -204,20 +204,41 @@ class CatalogSource(Protocol):
 
 
 def compare(
-    set_ext: str, printing_ext: str | None, field: str, primary: Any, secondary: Any
+    set_ext: str,
+    printing_ext: str | None,
+    field: str,
+    primary: Any,
+    secondary: Any,
+    words: bool = False,
 ) -> Discrepancy | None:
-    """A discrepancy when both sources have a value and they differ (case, accents and
-    spacing aside)."""
+    """A discrepancy when both sources have a value and they differ. Case, accents,
+    punctuation and spacing do not count ("Genesect EX" = "Genesect-EX"). `words`: the
+    values are sets of words in any order, one may say more ("Holo Rare" = "Rare Holo",
+    "Rare" = "Rare Holo EX"), as for rarity vocabularies."""
     if primary in (None, "") or secondary in (None, ""):
         return None
-    if _comparable(primary) == _comparable(secondary):
+    if words:
+        a, b = _words(primary), _words(secondary)
+        same = a <= b or b <= a
+    else:
+        same = _squash(primary) == _squash(secondary)
+    if same:
         return None
     return Discrepancy(set_ext, printing_ext, field, str(primary), str(secondary))
 
 
-def _comparable(value: Any) -> str:
-    text = unicodedata.normalize("NFKD", str(value))
-    return " ".join("".join(c for c in text if not unicodedata.combining(c)).casefold().split())
+def _plain(value: Any) -> str:
+    text = unicodedata.normalize("NFKD", str(value).replace("☆", "★"))
+    return "".join(c for c in text if not unicodedata.combining(c)).casefold()
+
+
+def _squash(value: Any) -> str:
+    """Letters, digits and symbols such as ★ or ♀, nothing else."""
+    return "".join(c for c in _plain(value) if c.isalnum() or unicodedata.category(c) == "So")
+
+
+def _words(value: Any) -> set[str]:
+    return set("".join(c if c.isalnum() else " " for c in _plain(value)).split())
 
 
 @dataclass(frozen=True)

@@ -95,13 +95,14 @@ def check_cards(
         if printing is None:
             continue
         batch.matched += 1
-        for name, primary, secondary in (
-            ("name", printing.card_name, raw.get("name")),
-            ("rarity", printing.rarity, raw.get("rarity")),
-        ):
-            d = compare(set_ext, printing.external_id, name, primary, secondary)
-            if d is not None:
-                batch.discrepancies.append(d)
+        checks = (
+            compare(set_ext, printing.external_id, "name", printing.card_name, raw.get("name")),
+            # Rarity names differ between the two ("Holo Rare" / "Rare Holo").
+            compare(
+                set_ext, printing.external_id, "rarity", printing.rarity, raw.get("rarity"), True
+            ),
+        )
+        batch.discrepancies += [d for d in checks if d is not None]
         image = (raw.get("images") or {}).get("large")
         images = {"en": image} if image and "en" not in printing.image_languages else {}
         gaps = (not printing.rarity and raw.get("rarity")) or (
