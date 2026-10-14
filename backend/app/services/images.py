@@ -14,6 +14,7 @@ import asyncio
 import io
 import logging
 import shutil
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.games.base import GameProvider, get_provider
-from app.models import Card, CollectionItem, Printing
+from app.models import Card, CardSet, CollectionItem, Printing
 
 log = logging.getLogger(__name__)
 
@@ -44,9 +45,19 @@ FALLBACK_LANGUAGES = ("en", "ja")
 
 @dataclass
 class ImageReport:
+    # Printings looked at; each one lands in exactly one of the counters below.
+    printings: int = 0
     stored: int = 0
+    # Already on disk.
+    cached: int = 0
+    # No image source (no URL, nothing imported).
     missing: int = 0
+    # Every source answered 404 earlier: not tried again.
+    refused: int = 0
     failed: int = 0
+    # Set icons and card back faces downloaded.
+    icons: int = 0
+    backs: int = 0
 
 
 def image_root() -> Path:
@@ -144,6 +155,55 @@ async def download_image(
     return True
 
 
+# Small pictures besides card fronts (set icons, MTG back faces): SVG allowed.
+_ASSET_EXTENSIONS = {**_EXTENSIONS, "image/svg+xml": ".svg"}
+# Assets that could not be downloaded, not tried again before this many seconds.
+_ASSET_RETRY = 3600.0
+_asset_failures: dict[str, float] = {}
+
+
+def asset_file(stem: str) -> Path | None:
+    """Cached asset `stem` (relative path without extension), any extension."""
+    target = image_root() / stem
+    for path in sorted(target.parent.glob(f"{target.name}.*")) if target.parent.is_dir() else []:
+        if path.suffix in _ASSET_EXTENSIONS.values():
+            return path
+    return None
+
+
+async def cached_asset(http: httpx.AsyncClient, url: str | None, stem: str) -> Path | None:
+    """A picture from `url`, downloaded once to `stem.<ext>` under the image folder, so
+    clients never load it from the source."""
+    if (existing := asset_file(stem)) is not None:
+        return existing
+    if not url or time.monotonic() - _asset_failures.get(stem, -_ASSET_RETRY) < _ASSET_RETRY:
+        return None
+    try:
+        response = await http.get(url, headers={"Accept": "image/*"})
+        response.raise_for_status()
+    except httpx.HTTPError as exc:
+        log.warning("Download of %s failed: %s", url, exc)
+        _asset_failures[stem] = time.monotonic()
+        return None
+    content_type = response.headers.get("content-type", "").split(";")[0].strip()
+    extension = _ASSET_EXTENSIONS.get(content_type)
+    if extension is None or len(response.content) > _MAX_IMAGE_BYTES:
+        log.warning("Rejected %s (%s)", url, content_type)
+        _asset_failures[stem] = time.monotonic()
+        return None
+    path = image_root() / f"{stem}{extension}"
+    await asyncio.to_thread(_write_atomic, path, response.content)
+    return path
+
+
+def back_stem(game_id: str, printing: Printing) -> str:
+    return f"{game_id}/{printing.set_id}/{printing.id}-back"
+
+
+def set_icon_stem(card_set: CardSet) -> str:
+    return f"sets/{card_set.game_id}/{card_set.id}"
+
+
 async def get_or_fetch(
     session: AsyncSession, http: httpx.AsyncClient, printing: Printing, wanted: str | None
 ) -> Path | None:
@@ -178,7 +238,7 @@ async def cache_images(
         # Be gentle with servers that were not made for bulk downloads.
         concurrency = 2
     printings = (await session.scalars(query)).all()
-    report = ImageReport()
+    report = ImageReport(printings=len(printings))
     semaphore = asyncio.Semaphore(concurrency)
 
     async def fetch(printing: Printing) -> None:
@@ -188,9 +248,11 @@ async def cache_images(
             report.missing += 1
             return
         if any(cached_file(printing, lang) for lang in languages):
+            report.cached += 1
             return
         lang = next((lang for lang in languages if printing.image_paths.get(lang) != ""), None)
         if lang is None:
+            report.refused += 1
             return
         async with semaphore:
             if await download_image(http, game_id, printing, lang):
@@ -200,6 +262,21 @@ async def cache_images(
 
     await asyncio.gather(*(fetch(p) for p in printings))
     await session.commit()
+
+    # Back faces of the same printings, and every set icon.
+    async def asset(url: str | None, stem: str) -> bool:
+        if not url or asset_file(stem) is not None:
+            return False
+        async with semaphore:
+            return await cached_asset(http, url, stem) is not None
+
+    backs = await asyncio.gather(
+        *(asset(p.attributes.get("back_image_url"), back_stem(game_id, p)) for p in printings)
+    )
+    report.backs = sum(backs)
+    sets = (await session.scalars(select(CardSet).where(CardSet.game_id == game_id))).all()
+    icons = await asyncio.gather(*(asset(s.icon_url, set_icon_stem(s)) for s in sets))
+    report.icons = sum(icons)
     if report.missing and report.missing == len(printings):
         log.warning(
             "No image source for any of %s %s printings: run the catalog job first",

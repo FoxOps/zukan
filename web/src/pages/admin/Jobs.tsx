@@ -5,13 +5,49 @@ import { Navigate } from 'react-router'
 import { api, call } from '../../api/client'
 import { useGames, useMe } from '../../api/queries'
 import { useToast } from '../../components/toast'
+import { Select } from '../../components/Select'
 import { formatDateTime } from '../../lib/format'
 
-const KINDS = ['catalog', 'prices', 'images'] as const
+const KINDS = ['catalog', 'prices', 'images', 'refresh'] as const
 const STATUS: Record<string, string> = {
   running: 'badge-info',
   success: 'badge-success',
   failed: 'badge-error',
+  cancelled: 'badge-warning',
+}
+// Report counters in display order, with their labels; others are internal.
+const REPORT: Record<string, string> = {
+  sets: 'sets',
+  cards: 'cards',
+  printings: 'printings',
+  names: 'names',
+  targets: 'owned printings',
+  quotes: 'prices received',
+  prices: 'prices',
+  stored: 'stored',
+  cached: 'already cached',
+  skipped: 'skipped',
+  missing: 'without source',
+  refused: 'refused by source',
+  failed: 'failed',
+  icons: 'set icons',
+  backs: 'card backs',
+  pruned: 'old prices removed',
+  pruned_prices: 'old prices removed',
+  pruned_cards: 'empty cards removed',
+  cross_checked: 'cross-checked',
+  discrepancies: 'differences',
+  checked: 'outdated cards',
+  updated: 'updated',
+  not_found: 'not found at the source',
+}
+
+function Report({ report }: { report: Record<string, unknown> }) {
+  const { t } = useTranslation()
+  const counters = Object.keys(REPORT)
+    .filter((k) => typeof report[k] === 'number' && report[k] !== 0)
+    .map((k) => `${t(REPORT[k])} ${(report[k] as number).toLocaleString()}`)
+  return <>{counters.length ? counters.join(' · ') : t('Nothing to do')}</>
 }
 
 function duration(start: string, end: string | null): string {
@@ -65,7 +101,7 @@ export default function Jobs() {
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">{t('Data sync')}</h1>
       <p className="text-sm text-base-content/70">
-        {t('The worker refreshes catalogs weekly and prices and images daily. Start a job by hand here.')}
+        {t('The worker refreshes catalogs weekly, prices and images daily, and outdated cards every two days. A job started here runs at once, stopping an automatic run of the same job.')}
       </p>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -90,12 +126,14 @@ export default function Jobs() {
                         )}
                       </div>
                     </div>
+                    {/* A manual run takes over a running automatic one. */}
                     <button
                       className="btn btn-sm"
-                      disabled={start.isPending || run?.status === 'running'}
+                      disabled={start.isPending || (run?.status === 'running' && run.trigger === 'manual')}
+                      title={run?.status === 'running' && run.trigger === 'auto' ? t('Stops the automatic run and starts again now') : undefined}
                       onClick={() => start.mutate({ game: g.id, kind })}
                     >
-                      {run?.status === 'running' ? <span className="loading loading-spinner loading-xs" /> : t('Run')}
+                      {run?.status === 'running' && run.trigger === 'manual' ? <span className="loading loading-spinner loading-xs" /> : t('Run')}
                     </button>
                   </div>
                 )
@@ -113,21 +151,13 @@ export default function Jobs() {
             (<code>./import</code>), {t('then import it here.')}
           </p>
           <div className="flex flex-wrap gap-2">
-            <select className="select w-56" value={imageGame} onChange={(e) => setImageGame(e.target.value)}>
-              {games.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
-            <select className="select w-56" value={folder} onChange={(e) => setFolder(e.target.value)}>
-              <option value="">{t('Choose a folder')}</option>
-              {folders.data?.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
+            <Select className="w-56" value={imageGame} onChange={setImageGame} options={games.map((g) => ({ value: g.id, label: g.name }))} />
+            <Select
+              className="w-56"
+              value={folder}
+              onChange={setFolder}
+              options={[{ value: '', label: t('Choose a folder') }, ...(folders.data ?? []).map((f) => ({ value: f, label: f }))]}
+            />
             <button className="btn btn-primary" disabled={!folder || importImages.isPending} onClick={() => importImages.mutate()}>
               {importImages.isPending && <span className="loading loading-spinner loading-sm" />}
               {t('Import')}
@@ -153,18 +183,17 @@ export default function Jobs() {
               <tr key={j.id}>
                 <td>{j.game_id}</td>
                 <td>{t(j.kind)}</td>
-                <td>
-                  <span className={`badge badge-sm ${STATUS[j.status]}`}>{t(j.status)}</span>
+                <td className="whitespace-nowrap">
+                  <span className={`badge badge-sm ${STATUS[j.status]}`}>{t(j.status)}</span>{' '}
+                  <span className="text-xs text-base-content/60">{t(j.trigger)}</span>
                 </td>
                 <td className="whitespace-nowrap">{formatDateTime(j.started_at)}</td>
                 <td>{duration(j.started_at, j.finished_at)}</td>
                 <td className="max-w-md text-xs">
                   {j.error ? (
                     <span className="text-error">{j.error}</span>
-                  ) : (
-                    Object.entries(j.report)
-                      .map(([k, v]) => `${k} ${v}`)
-                      .join(' · ')
+                  ) : j.status === 'running' ? null : (
+                    <Report report={j.report} />
                   )}
                 </td>
               </tr>

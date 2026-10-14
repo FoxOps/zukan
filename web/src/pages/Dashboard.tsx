@@ -7,6 +7,7 @@ import { useGames } from '../api/queries'
 import { ConditionBadge, FinishBadge, LangFlag } from '../components/Badges'
 import { useInvalidateStock } from '../api/stock'
 import { PriceChart } from '../components/PriceChart'
+import { Select } from '../components/Select'
 import { useToast } from '../components/toast'
 import { formatDateTime, formatMoney } from '../lib/format'
 
@@ -48,13 +49,19 @@ export default function Dashboard() {
       <div className="stats stats-vertical w-full bg-base-200 shadow sm:stats-horizontal">
         <div className="stat">
           <div className="stat-title">{t('Collection value')}</div>
-          <div className="stat-value text-primary">{formatMoney(value.data?.total ?? 0)}</div>
-          <div className="stat-desc">{t('{{count}} cards', { count: value.data?.quantity ?? 0 })}</div>
+          <div className="stat-value text-primary">{formatMoney(value.data?.total ?? 0, value.data?.currency)}</div>
+          <div className="stat-desc">
+            {t('{{count}} cards', { count: value.data?.quantity ?? 0 })}
+            {/* Games priced in another currency: never added up. */}
+            {value.data?.totals
+              .filter((x) => x.currency !== value.data.currency)
+              .map((x) => ` · + ${formatMoney(x.total, x.currency)}`)}
+          </div>
         </div>
         {value.data?.games.map((g) => (
           <div key={g.game_id} className="stat">
             <div className="stat-title">{gameName(g.game_id)}</div>
-            <div className="stat-value text-2xl">{formatMoney(g.total)}</div>
+            <div className="stat-value text-2xl">{formatMoney(g.total, g.currency)}</div>
             <div className="stat-desc">
               {t('{{count}} cards', { count: g.quantity })}
               {g.unpriced > 0 && ` · ${t('{{count}} without price', { count: g.unpriced })}`}
@@ -68,10 +75,12 @@ export default function Dashboard() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="card-title">{t('Value over time')}</h2>
             <div className="flex flex-wrap gap-2">
-              <select className="select select-sm w-40" value={game} onChange={(e) => setGame(e.target.value)}>
-                <option value="">{t('All games')}</option>
-                {games.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-              </select>
+              <Select
+                className="select-sm w-40"
+                value={game}
+                onChange={setGame}
+                options={[{ value: '', label: t('All games') }, ...games.map((g) => ({ value: g.id, label: g.name }))]}
+              />
               <div className="join">
                 {RANGES.map((r) => (
                   <button key={r} className={`join-item btn btn-sm ${days === r ? 'btn-active' : ''}`} onClick={() => setDays(r)}>
@@ -82,12 +91,13 @@ export default function Dashboard() {
             </div>
           </div>
           <PriceChart
-            data={(history.data ?? [])
+            data={(history.data?.points ?? [])
               // Days before the first known value carry no information.
-              .slice(Math.max(0, (history.data ?? []).findIndex((p) => Number(p.value) > 0)))
+              .slice(Math.max(0, (history.data?.points ?? []).findIndex((p) => Number(p.value) > 0)))
               .map((p) => ({ date: p.date, [t('Value')]: Number(p.value) }))}
             series={[t('Value')]}
             height={260}
+            currency={history.data?.currency}
           />
           <p className="text-xs text-base-content/60">{t("Current holdings priced with each day's market prices.")}</p>
         </div>

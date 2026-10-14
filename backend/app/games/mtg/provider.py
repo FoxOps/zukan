@@ -1,5 +1,8 @@
 """Magic: The Gathering, data from Scryfall (https://scryfall.com/docs/api).
 
+Stale cards are fetched again with a search by oracle id (every printing in every
+language, 175 per page).
+
 The catalog comes from the `all_cards` bulk file (every printing in every language,
 about 400 MB gzipped, streamed line by line). Scryfall stores one object per printing
 and language; they are merged here into one printing per set and collector number.
@@ -11,6 +14,7 @@ daily price job adds Cardmarket's own price guide (lowest offer, average), match
 the Cardmarket product id Scryfall gives.
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -27,8 +31,10 @@ from app.core.http import get_with_retry
 from app.games import cardmarket
 from app.games.base import (
     CardData,
+    CardRef,
     CatalogBatch,
     ColorDef,
+    FilterDef,
     FinishDef,
     OcrHints,
     OcrLine,
@@ -37,6 +43,7 @@ from app.games.base import (
     PrintingData,
     SetData,
 )
+from app.games.mtg import mtgjson
 from app.games.ocr import (
     bottom_part,
     by_position,
@@ -51,6 +58,7 @@ log = logging.getLogger(__name__)
 
 API_URL = "https://api.scryfall.com"
 BATCH_SIZE = 2000
+REQUEST_DELAY = 0.1
 
 # Scryfall language codes to ours; other languages (Phyrexian, Hebrew...) are skipped.
 LANGUAGES = {
@@ -67,6 +75,7 @@ LANGUAGES = {
     "ru": "ru",
 }
 PRICE_FIELDS = {"nonfoil": "eur", "foil": "eur_foil"}
+USD_FIELDS = {"nonfoil": "usd", "foil": "usd_foil", "etched": "usd_etched"}
 # Price guide field suffix per finish.
 GUIDE_SUFFIXES = {"nonfoil": "", "foil": "-foil"}
 CARDMARKET_GAME = 1
@@ -132,6 +141,18 @@ def _printed_name(raw: dict[str, Any]) -> str | None:
     return None
 
 
+def parse_type_line(type_line: str) -> tuple[list[str], list[str]]:
+    """Types (with supertypes) and subtypes of every face: "Legendary Creature — Elf
+    Druid" gives (["Legendary", "Creature"], ["Elf", "Druid"])."""
+    types: dict[str, None] = {}
+    subtypes: dict[str, None] = {}
+    for face in type_line.split(" // "):
+        left, _, right = face.partition("—")
+        types |= dict.fromkeys(left.split())
+        subtypes |= dict.fromkeys(right.split())
+    return list(types), list(subtypes)
+
+
 _CARD_FIELDS = ("mana_cost", "cmc", "type_line", "oracle_text", "power", "toughness", "loyalty")
 _FACE_FIELDS = ("name", "mana_cost", "type_line", "oracle_text", "power", "toughness", "loyalty")
 
@@ -144,6 +165,7 @@ def parse_card(raw: dict[str, Any]) -> CardData | None:
         return None
 
     attributes: dict[str, Any] = {k: raw[k] for k in _CARD_FIELDS if raw.get(k) is not None}
+    attributes["types"], attributes["subtypes"] = parse_type_line(raw.get("type_line") or "")
     attributes["layout"] = raw.get("layout")
     attributes["color_identity"] = raw.get("color_identity", [])
     if raw.get("card_faces"):
@@ -157,8 +179,13 @@ def parse_card(raw: dict[str, Any]) -> CardData | None:
     printing_attributes: dict[str, Any] = {}
     if english:
         printing_attributes["scryfall_id"] = raw["id"]
-        if raw.get("cardmarket_id"):
-            printing_attributes["cardmarket_id"] = raw["cardmarket_id"]
+        market_ids = {
+            source: raw[key]
+            for source, key in (("cardmarket", "cardmarket_id"), ("tcgplayer", "tcgplayer_id"))
+            if raw.get(key)
+        }
+        if market_ids:
+            printing_attributes["market_ids"] = market_ids
     if len(images) > 1:
         printing_attributes["back_image_url"] = images[1]
 
@@ -189,8 +216,8 @@ def parse_card(raw: dict[str, Any]) -> CardData | None:
 def parse_prices(
     raw: dict[str, Any], guides: dict[int, cardmarket.Guide] | None = None
 ) -> list[PriceQuote]:
-    """Scryfall's trend price, with lowest offer and average from Cardmarket's price
-    guide when given."""
+    """Scryfall's Cardmarket trend price, with lowest offer and average from Cardmarket's
+    price guide when given, and TCGplayer's market price."""
     prices = raw.get("prices") or {}
     guide = (guides or {}).get(raw.get("cardmarket_id") or 0)
     quotes = []
@@ -203,7 +230,27 @@ def parse_prices(
             trend = trend or guide_trend
         if trend is not None:
             quotes.append(
-                PriceQuote(raw["set"], raw["collector_number"], finish, trend, low=low, avg=avg)
+                PriceQuote(
+                    raw["set"],
+                    raw["collector_number"],
+                    finish,
+                    trend,
+                    low=low,
+                    avg=avg,
+                    source="cardmarket",
+                )
+            )
+    for finish, field in USD_FIELDS.items():
+        if finish in raw.get("finishes", []) and (usd := _decimal(prices.get(field))):
+            quotes.append(
+                PriceQuote(
+                    raw["set"],
+                    raw["collector_number"],
+                    finish,
+                    usd,
+                    currency="USD",
+                    source="tcgplayer",
+                )
             )
     return quotes
 
@@ -299,8 +346,16 @@ class MtgProvider:
         FinishDef("etched", "Etched foil"),
     ]
     languages = list(LANGUAGES.values())
-    price_source = "scryfall-cardmarket"
+    price_sources = ["cardmarket", "tcgplayer"]
     cardmarket_path = "Magic"
+    secondary_sources = [mtgjson.source]
+    filters = [
+        FilterDef("types", "Type", "types"),
+        FilterDef("subtypes", "Subtype", "subtypes"),
+        FilterDef("rarity", "Rarity"),
+    ]
+    # 2: card types and subtypes (advanced search).
+    catalog_version = 2
     short_names = ["mtg", "magic"]
 
     async def _bulk(self, http: httpx.AsyncClient, kind: str) -> AsyncIterator[dict[str, Any]]:
@@ -312,9 +367,81 @@ class MtgProvider:
             async for raw in iter_jsonl_gz(response):
                 yield raw
 
-    async def fetch_catalog(self, http: httpx.AsyncClient) -> AsyncIterator[CatalogBatch]:
+    async def _sets(self, http: httpx.AsyncClient) -> list[SetData]:
         raw_sets = (await get_with_retry(http, f"{API_URL}/sets")).json()["data"]
-        sets = [parse_set(s) for s in raw_sets if not s.get("digital")]
+        return [parse_set(s) for s in raw_sets if not s.get("digital")]
+
+    async def _search(self, http: httpx.AsyncClient, query: str) -> AsyncIterator[dict[str, Any]]:
+        """Every printing, in every language, matching a Scryfall search."""
+        url: str | None = f"{API_URL}/cards/search"
+        params: dict[str, str] | None = {
+            "q": query,
+            "unique": "prints",
+            "include_multilingual": "true",
+        }
+        while url:
+            try:
+                page = (await get_with_retry(http, url, params=params)).json()
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code == 404:  # no match
+                    return
+                raise
+            for raw in page.get("data", []):
+                yield raw
+            url, params = (page.get("next_page"), None) if page.get("has_more") else (None, None)
+            # Scryfall asks for 50-100 ms between requests.
+            await asyncio.sleep(REQUEST_DELAY)
+
+    def _batch(self, raws: list[dict[str, Any]], sets: dict[str, SetData]) -> CatalogBatch:
+        batch = CatalogBatch()
+        used: set[str] = set()
+        for raw in raws:
+            card = parse_card(raw)
+            if card is None or raw["set"] not in sets:
+                continue
+            batch.cards.append(card)
+            batch.prices += parse_prices(raw)
+            used.add(raw["set"])
+        batch.sets = [sets[code] for code in sorted(used)]
+        return batch
+
+    async def fetch_cards(
+        self, http: httpx.AsyncClient, cards: list[CardRef]
+    ) -> AsyncIterator[CatalogBatch]:
+        sets = {s.external_id: s for s in await self._sets(http)}
+        for ref in cards:
+            raws = [raw async for raw in self._search(http, f"oracleid:{ref.external_id}")]
+            batch = self._batch(raws, sets)
+            if batch.cards:
+                yield batch
+
+    async def lookup(self, http: httpx.AsyncClient, hints: OcrHints) -> CatalogBatch | None:
+        """A scanned card missing from the catalog: by set and number, else by English
+        name; then every printing of it."""
+        raw = None
+        if hints.set_code and hints.collector_number:
+            raw = await self._card(
+                http, f"{API_URL}/cards/{hints.set_code.lower()}/{hints.collector_number}"
+            )
+        if raw is None and hints.name:
+            raw = await self._card(http, f"{API_URL}/cards/named", params={"fuzzy": hints.name})
+        oracle = _oracle_id(raw) if raw else None
+        if oracle is None:
+            return None
+        sets = {s.external_id: s for s in await self._sets(http)}
+        raws = [r async for r in self._search(http, f"oracleid:{oracle}")]
+        return self._batch(raws, sets)
+
+    async def _card(self, http: httpx.AsyncClient, url: str, **kwargs: Any) -> dict | None:
+        try:
+            return (await get_with_retry(http, url, **kwargs)).json()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                return None
+            raise
+
+    async def fetch_catalog(self, http: httpx.AsyncClient) -> AsyncIterator[CatalogBatch]:
+        sets = await self._sets(http)
         known = {s.external_id for s in sets}
         yield CatalogBatch(sets=sets)
 

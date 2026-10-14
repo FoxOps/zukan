@@ -2,6 +2,7 @@ package fr.fudabako.app.data
 
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -27,6 +28,9 @@ interface FudabakoApi {
 
     @GET("api/auth/me")
     suspend fun me(): MeOut
+
+    @PATCH("api/auth/me")
+    suspend fun updateMe(@Body body: SettingsIn): MeOut
 
     @GET("api/games")
     suspend fun games(): List<GameOut>
@@ -71,4 +75,7 @@ interface FudabakoApi {
 
     @GET("api/cards/{id}")
     suspend fun card(@Path("id") cardId: Int): CardOut
+
+    @GET("api/cards/{id}/printings")
+    suspend fun printings(@Path("id") cardId: Int, @Query("q") query: String, @Query("limit") limit: Int = 50): List<PrintingOut>
 }

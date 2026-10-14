@@ -37,6 +37,7 @@ async def create_admin(username: str, password: str) -> None:
 
 
 async def sync(game_id: str, kind: JobKind) -> None:
+    jobs.set_process_role("cli")
     await register_games()
     run_id = await jobs.run_job(game_id, kind)
     print(f"{kind} sync for {game_id} done (run {run_id})")

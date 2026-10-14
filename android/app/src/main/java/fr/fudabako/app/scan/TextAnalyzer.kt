@@ -1,6 +1,7 @@
 package fr.fudabako.app.scan
 
 import android.graphics.Rect
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
@@ -35,19 +36,27 @@ fun recognizer(script: OcrScript): TextRecognizer = TextRecognition.getClient(
  * whether the card is steady enough to identify. In [OcrScript.AUTO] mode the Latin
  * model reads the frames; the frame to identify is then read by every Asian model too
  * and the best fitting reading ([ScriptPicker]) goes to [onIdentify].
+ *
+ * The Latin model reads little but noise on Japanese, Korean or Chinese cards, so it may
+ * never find them steady: in AUTO mode every [ASIAN_EVERY]th frame is also read by one
+ * Asian model (the last one that found its script, else each in turn) and offered to
+ * [onAsianFrame], with its own steadiness check.
  */
 class TextAnalyzer(
     private val script: OcrScript,
     private val onFrame: (List<OcrLineIn>) -> Boolean,
     private val onIdentify: (List<OcrLineIn>) -> Unit,
+    private val onAsianFrame: (List<OcrLineIn>) -> Boolean = { false },
 ) : ImageAnalysis.Analyzer {
     @Volatile
     var paused = false
 
     private val main = recognizer(script)
     private val others: Map<OcrScript, TextRecognizer> by lazy {
-        listOf(OcrScript.JAPANESE, OcrScript.KOREAN, OcrScript.CHINESE).associateWith(::recognizer)
+        ASIAN.associateWith(::recognizer)
     }
+    private var frames = 0
+    private var asian = OcrScript.JAPANESE
 
     @OptIn(ExperimentalGetImage::class)
     override fun analyze(proxy: ImageProxy) {
@@ -61,7 +70,10 @@ class TextAnalyzer(
         try {
             val input = InputImage.fromMediaImage(image, proxy.imageInfo.rotationDegrees)
             val lines = toLines(Tasks.await(main.process(input)))
-            if (!onFrame(lines)) return
+            if (!onFrame(lines)) {
+                if (script == OcrScript.AUTO && ++frames % ASIAN_EVERY == 0) readAsian(input)
+                return
+            }
             if (script != OcrScript.AUTO) {
                 onIdentify(lines)
                 return
@@ -69,11 +81,24 @@ class TextAnalyzer(
             val readings = others.mapValues { (_, model) -> toLines(Tasks.await(model.process(input))) }
             val best = ScriptPicker.pick(readings.mapValues { (_, l) -> l.map { it.text } } + (OcrScript.LATIN to lines.map { it.text }))
             onIdentify(readings[best] ?: lines)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // A failed recognition only loses this frame.
+            Log.w(TAG, "Text recognition failed", e)
         } finally {
             proxy.close()
         }
+    }
+
+    /** One Asian model reads the frame; a steady reading is identified. */
+    private fun readAsian(input: InputImage) {
+        val lines = toLines(Tasks.await(others.getValue(asian).process(input)))
+        val found = ScriptPicker.pick(mapOf(asian to lines.map { it.text }))
+        if (found != asian) {
+            // Not this script: try the next model on the next round.
+            asian = ASIAN[(ASIAN.indexOf(asian) + 1) % ASIAN.size]
+            return
+        }
+        if (onAsianFrame(lines)) onIdentify(lines)
     }
 
     fun close() {
@@ -82,6 +107,10 @@ class TextAnalyzer(
     }
 
     companion object {
+        private const val TAG = "TextAnalyzer"
+        const val ASIAN_EVERY = 3
+        private val ASIAN = listOf(OcrScript.JAPANESE, OcrScript.KOREAN, OcrScript.CHINESE)
+
         private fun toLines(text: Text): List<OcrLineIn> = relativeToText(
             text.textBlocks.flatMap { it.lines }.mapNotNull { line -> line.boundingBox?.let { box -> line.text to box } },
         )

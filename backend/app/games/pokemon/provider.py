@@ -28,17 +28,21 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.core.http import get_with_retry
 from app.games.base import (
     CardData,
+    CardRef,
     CatalogBatch,
     ColorDef,
+    FilterDef,
     FinishDef,
     OcrHints,
     OcrLine,
     PriceQuote,
     PriceTarget,
     PrintingData,
+    PrintingRef,
     SetData,
 )
 from app.games.ocr import bottom_part, by_position, clean, letter_ratio, script_language
+from app.games.pokemon import pokemontcg
 from app.games.pokemon.species import derive_names
 from app.models import Printing
 
@@ -130,9 +134,9 @@ def parse_card(raw: dict[str, Any], set_id: str, lang: str) -> CardData:
         for k in ("regulationMark", "attacks", "abilities", "effect")
         if raw.get(k) is not None
     }
-    cardmarket = (raw.get("pricing") or {}).get("cardmarket") or {}
-    if cardmarket.get("idProduct"):
-        printing_attributes["cardmarket_id"] = cardmarket["idProduct"]
+    market_ids = _market_ids(raw)
+    if market_ids:
+        printing_attributes["market_ids"] = market_ids
     printing = PrintingData(
         external_id=raw["localId"],
         set_external_id=set_id,
@@ -157,6 +161,26 @@ def parse_card(raw: dict[str, Any], set_id: str, lang: str) -> CardData:
     )
 
 
+def _translation(key: str, raw: dict[str, Any], printing: PrintingRef, lang: str) -> CardData:
+    """Name and image of a printing in another language, for the card `key`."""
+    ours = LANGUAGES[lang]
+    return CardData(
+        external_id=key,
+        name=raw["name"],
+        printings=[
+            PrintingData(
+                external_id=printing.external_id,
+                set_external_id=printing.set_external_id,
+                collector_number=printing.external_id,
+                languages=[ours],
+                images=_images(raw, ours),
+                names={ours: raw["name"]},
+            )
+        ],
+        partial=True,
+    )
+
+
 def join_english(card: CardData, english_cards: set[str]) -> CardData:
     """Attach a card fetched in another language to the English card of the same name
     (known from species names): the printing stays full, card fields stay English."""
@@ -171,12 +195,60 @@ def join_english(card: CardData, english_cards: set[str]) -> CardData:
     return card
 
 
+# TCGplayer price variants to finishes ("1stEditionHolofoil", "unlimitedHolofoil"...).
+TCGPLAYER_VARIANTS = {
+    "normal": "normal",
+    "holofoil": "holo",
+    "reverse-holofoil": "reverse",
+    "1stEditionNormal": "first_edition",
+    "1stEditionHolofoil": "first_edition",
+    "unlimitedNormal": "normal",
+    "unlimitedHolofoil": "holo",
+}
+
+
+def _market_ids(raw: dict[str, Any]) -> dict[str, int]:
+    pricing = raw.get("pricing") or {}
+    ids = {}
+    if (pricing.get("cardmarket") or {}).get("idProduct"):
+        ids["cardmarket"] = pricing["cardmarket"]["idProduct"]
+    for variant in (pricing.get("tcgplayer") or {}).values():
+        if isinstance(variant, dict) and variant.get("productId"):
+            ids["tcgplayer"] = variant["productId"]
+            break
+    return ids
+
+
+def _tcgplayer_prices(raw: dict[str, Any], set_id: str) -> list[PriceQuote]:
+    tcgplayer = (raw.get("pricing") or {}).get("tcgplayer") or {}
+    quotes: dict[str, PriceQuote] = {}
+    for variant, finish in TCGPLAYER_VARIANTS.items():
+        data = tcgplayer.get(variant)
+        if not isinstance(data, dict) or finish in quotes:
+            continue
+        trend = _decimal(data.get("marketPrice")) or _decimal(data.get("midPrice"))
+        if trend:
+            quotes[finish] = PriceQuote(
+                set_id,
+                raw["localId"],
+                finish,
+                trend=trend,
+                low=_decimal(data.get("lowPrice")),
+                avg=_decimal(data.get("midPrice")),
+                currency=tcgplayer.get("unit") or "USD",
+                source="tcgplayer",
+            )
+    return list(quotes.values())
+
+
 def parse_prices(raw: dict[str, Any], set_id: str) -> list[PriceQuote]:
     """Cardmarket lists one product per card; its `-holo` prices are the reverse holo
-    (or holo, when the card also exists without holo) version."""
+    (or holo, when the card also exists without holo) version. TCGplayer lists a price
+    per variant."""
+    tcgplayer = _tcgplayer_prices(raw, set_id)
     cardmarket = (raw.get("pricing") or {}).get("cardmarket") or {}
     if not cardmarket:
-        return []
+        return tcgplayer
     finishes = _finishes(raw)
     base = "normal" if "normal" in finishes else "holo" if "holo" in finishes else None
     if "reverse" in finishes:
@@ -197,10 +269,11 @@ def parse_prices(raw: dict[str, Any], set_id: str) -> list[PriceQuote]:
             low=_decimal(cardmarket.get(f"low{suffix}")),
             avg=_decimal(cardmarket.get(f"avg{suffix}")),
             currency=cardmarket.get("unit") or "EUR",
+            source="cardmarket",
         )
         if quote.trend or quote.low or quote.avg:
             quotes.append(quote)
-    return quotes
+    return quotes + tcgplayer
 
 
 PRINTED_LANGUAGES = {"EN": "en", "FR": "fr", "DE": "de", "IT": "it", "ES": "es", "PT": "pt"}
@@ -233,7 +306,12 @@ _SKIP = re.compile(
     r"^(trainer|dresseur|trainer-?karte|allenatore|entrenador|treinador|supporter|"
     r"supporters|item|objet|stadium|stade|energy|énergie|energie|tool|outil|"
     r"evolves from|évolue de|entwickelt sich aus|si evolve da|evoluciona de|evolui de|"
-    r"pokémon|pokemon)\b",
+    r"pokémon|pokemon)\b|"
+    # Asian trainer and energy labels, alone on their line (card names such as
+    # "エネルギーつけかえ" start with the same words).
+    r"^(トレーナーズ|サポート|グッズ|スタジアム|ポケモンのどうぐ|基本エネルギー|特殊エネルギー|"
+    r"エネルギー|트레이너스|서포트|아이템|스타디움|포켓몬의 도구|기본 에너지|특수 에너지|에너지|"
+    r"訓練家|训练家|支援者|物品|竞技场|競技場|宝可梦道具|寶可夢道具|基本能量|特殊能量|能量)$",
     re.IGNORECASE,
 )
 
@@ -295,8 +373,15 @@ class PokemonProvider:
         FinishDef("first_edition", "1st edition"),
     ]
     languages = list(LANGUAGES.values())
-    price_source = "tcgdex-cardmarket"
+    price_sources = ["cardmarket", "tcgplayer"]
     cardmarket_path = "Pokemon"
+    secondary_sources = [pokemontcg.source]
+    filters = [
+        FilterDef("category", "Category", "category"),
+        FilterDef("trainer_type", "Trainer type", "trainerType"),
+        FilterDef("stage", "Stage", "stage"),
+        FilterDef("rarity", "Rarity"),
+    ]
     short_names = ["pkm", "pokemon", "poke", "ptcg"]
     # 2: one set per set id across Asian languages, names from species names.
     catalog_version = 2
@@ -404,6 +489,73 @@ class PokemonProvider:
             batch.cards.append(card)
             batch.prices += parse_prices(raw, set_id)
         return batch
+
+    async def fetch_cards(
+        self, http: httpx.AsyncClient, cards: list[CardRef]
+    ) -> AsyncIterator[CatalogBatch]:
+        """Each printing again in its base language, plus the languages it has no image
+        in yet (names and images only)."""
+        reverse = {ours: theirs for theirs, ours in LANGUAGES.items()}
+        for ref in cards:
+            batch = CatalogBatch()
+            for printing in ref.printings:
+                card_id = f"{printing.set_external_id}-{printing.external_id}"
+                base = reverse.get(printing.set_lang or "en", "en")
+                for raw in await self._cards(http, base, [card_id]):
+                    card = parse_card(raw, printing.set_external_id, base)
+                    if card.external_id != ref.external_id:
+                        # Joined to another card (English one): keep it there.
+                        for p in card.printings:
+                            p.partial = False
+                        card.external_id, card.partial = ref.external_id, True
+                    batch.cards.append(card)
+                    batch.prices += parse_prices(raw, printing.set_external_id)
+                missing = [
+                    reverse[lang]
+                    for lang in printing.languages
+                    if lang in reverse
+                    and lang not in printing.image_languages
+                    and reverse[lang] != base
+                ]
+                for lang in missing:
+                    for raw in await self._cards(http, lang, [card_id]):
+                        batch.cards.append(_translation(ref.external_id, raw, printing, lang))
+            if batch.cards:
+                yield batch
+
+    async def lookup(self, http: httpx.AsyncClient, hints: OcrHints) -> CatalogBatch | None:
+        """A scanned card missing from the catalog, by set id and number (English listing
+        first: international sets are stored from it)."""
+        if not (hints.set_code and hints.collector_number):
+            return None
+        reverse = {ours: theirs for theirs, ours in LANGUAGES.items()}
+        number = hints.collector_number.lstrip("0") or "0"
+        for lang in dict.fromkeys(["en", reverse.get(hints.lang or "", "en")]):
+            try:
+                raw_set = await self._get(http, f"/{lang}/sets/{quote(hints.set_code, safe='')}")
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code != 404:
+                    raise
+                continue
+            if _digital(raw_set):
+                return None
+            brief = next(
+                (
+                    c
+                    for c in raw_set.get("cards", [])
+                    if (c["localId"].lstrip("0") or "0").casefold() == number.casefold()
+                ),
+                None,
+            )
+            if brief is None:
+                continue
+            card_set = parse_set(raw_set, None if lang == "en" else LANGUAGES[lang])
+            batch = CatalogBatch(sets=[card_set])
+            for raw in await self._cards(http, lang, [brief["id"]]):
+                batch.cards.append(parse_card(raw, card_set.external_id, lang))
+                batch.prices += parse_prices(raw, card_set.external_id)
+            return batch
+        return None
 
     async def fetch_prices(
         self, http: httpx.AsyncClient, owned: list[PriceTarget]

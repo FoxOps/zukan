@@ -4,11 +4,12 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, File, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel, Field
-from sqlalchemy import exists, func, select
+from sqlalchemy import case, exists, func, select
 from sqlalchemy.orm import selectinload
 
 from app.api.catalog import image_link, name_matches
 from app.api.deps import CurrentUser, SessionDep
+from app.games.base import registry
 from app.models import (
     Card,
     CardName,
@@ -19,6 +20,7 @@ from app.models import (
     Printing,
     StockTransaction,
 )
+from app.prices.base import price_sources
 from app.services import collection, csv_io
 from app.services.collection import StockError, Variant
 from app.services.names import display_name, display_names
@@ -52,6 +54,8 @@ class ItemOut(BaseModel):
     quantity: int
     manual_price: Decimal | None
     market_price: Decimal | None
+    # Of market and manual prices: the user's price source for this game.
+    currency: str
     price_date: date | None
     unit_price: Decimal | None
     total: Decimal | None
@@ -103,15 +107,24 @@ class TransactionOut(BaseModel):
 
 class GameValueOut(BaseModel):
     game_id: str
+    currency: str
     total: Decimal
     quantity: int
     priced: int
     unpriced: int
 
 
-class ValueOut(BaseModel):
-    currency: str = "EUR"
+class CurrencyTotalOut(BaseModel):
+    currency: str
     total: Decimal
+
+
+class ValueOut(BaseModel):
+    # Total in the user's price source currency; games priced in another one are only in
+    # `totals` (per currency, never added up).
+    currency: str
+    total: Decimal
+    totals: list[CurrencyTotalOut]
     quantity: int
     games: list[GameValueOut]
 
@@ -119,6 +132,11 @@ class ValueOut(BaseModel):
 class ValuePointOut(BaseModel):
     date: date
     value: Decimal
+
+
+class ValueHistoryOut(BaseModel):
+    currency: str
+    points: list[ValuePointOut]
 
 
 class ImportErrorOut(BaseModel):
@@ -133,6 +151,11 @@ class ImportOut(BaseModel):
     errors: list[ImportErrorOut]
 
 
+def currency(game_id: str, wanted: str) -> str:
+    chosen = collection.pricing(game_id, wanted)
+    return chosen.currency if chosen else price_sources()[wanted].currency
+
+
 def _item_query():
     return select(CollectionItem).options(
         selectinload(CollectionItem.printing).selectinload(Printing.card),
@@ -140,8 +163,12 @@ def _item_query():
     )
 
 
-async def _items_out(session: SessionDep, items: list[CollectionItem], lang: str) -> list[ItemOut]:
-    prices = await collection.latest_prices(session, (i.printing_id for i in items))
+async def _items_out(
+    session: SessionDep, items: list[CollectionItem], lang: str, wanted: str
+) -> list[ItemOut]:
+    prices = await collection.user_prices(
+        session, wanted, {i.printing_id: i.printing.set.game_id for i in items}
+    )
     names = await display_names(session, (i.printing.card_id for i in items), lang)
     out = []
     for item in items:
@@ -166,6 +193,7 @@ async def _items_out(session: SessionDep, items: list[CollectionItem], lang: str
                 quantity=item.quantity,
                 manual_price=item.manual_price,
                 market_price=point.trend if point else None,
+                currency=currency(item.printing.set.game_id, wanted),
                 price_date=point.date if point else None,
                 unit_price=unit,
                 total=None if unit is None else unit * item.quantity,
@@ -176,10 +204,10 @@ async def _items_out(session: SessionDep, items: list[CollectionItem], lang: str
     return out
 
 
-async def _item_out(session: SessionDep, item_id: int, lang: str) -> ItemOut:
+async def _item_out(session: SessionDep, item_id: int, lang: str, wanted: str) -> ItemOut:
     session.expire_all()
     item = await session.scalar(_item_query().where(CollectionItem.id == item_id))
-    return (await _items_out(session, [item], lang))[0]
+    return (await _items_out(session, [item], lang, wanted))[0]
 
 
 async def _own_item(session: SessionDep, user_id: int, item_id: int) -> CollectionItem:
@@ -241,11 +269,17 @@ async def list_items(
     total = await session.scalar(select(func.count()).select_from(query.subquery()))
     name = display_name(user.language)
     # Unit price as shown: manual price, else latest market price of that finish.
+    sources = {
+        game_id: chosen.source
+        for game_id in registry()
+        if (chosen := collection.pricing(game_id, user.price_source)) is not None
+    }
     market = (
         select(PriceSnapshot.trend)
         .where(
             PriceSnapshot.printing_id == CollectionItem.printing_id,
             PriceSnapshot.finish == CollectionItem.finish,
+            PriceSnapshot.source == case(sources, value=CardSet.game_id, else_=""),
             PriceSnapshot.trend.is_not(None),
         )
         .order_by(PriceSnapshot.date.desc())
@@ -270,7 +304,7 @@ async def list_items(
         )
     ).all()
     return ItemPageOut(
-        items=await _items_out(session, list(items), user.language),
+        items=await _items_out(session, list(items), user.language, user.price_source),
         total=total or 0,
         page=page,
         page_size=page_size,
@@ -294,14 +328,15 @@ async def adjust(body: AdjustIn, user: CurrentUser, session: SessionDep) -> Adju
     item_id, transaction_id = item.id, transaction.id
     await session.commit()
     return AdjustOut(
-        item=await _item_out(session, item_id, user.language), transaction_id=transaction_id
+        item=await _item_out(session, item_id, user.language, user.price_source),
+        transaction_id=transaction_id,
     )
 
 
 @router.get("/items/{item_id}")
 async def get_item(item_id: int, user: CurrentUser, session: SessionDep) -> ItemOut:
     await _own_item(session, user.id, item_id)
-    return await _item_out(session, item_id, user.language)
+    return await _item_out(session, item_id, user.language, user.price_source)
 
 
 @router.patch("/items/{item_id}")
@@ -323,7 +358,7 @@ async def update_item(
             await session.rollback()
             raise _conflict(exc) from exc
     await session.commit()
-    return await _item_out(session, item_id, user.language)
+    return await _item_out(session, item_id, user.language, user.price_source)
 
 
 @router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -389,15 +424,21 @@ async def undo_transaction(transaction_id: int, user: CurrentUser, session: Sess
         raise _conflict(exc) from exc
     item_id = item.id
     await session.commit()
-    return await _item_out(session, item_id, user.language)
+    return await _item_out(session, item_id, user.language, user.price_source)
 
 
 @router.get("/value")
 async def value(user: CurrentUser, session: SessionDep) -> ValueOut:
     """Current collection value, per game and overall."""
-    games = await collection.value_by_game(session, user.id)
+    games = await collection.value_by_game(session, user.id, user.price_source)
+    totals: dict[str, Decimal] = {}
+    for game in games:
+        totals[game.currency] = totals.get(game.currency, Decimal(0)) + game.total
+    main = price_sources()[user.price_source].currency
     return ValueOut(
-        total=sum((g.total for g in games), Decimal(0)),
+        currency=main,
+        total=totals.get(main, Decimal(0)),
+        totals=[CurrencyTotalOut(currency=c, total=t) for c, t in totals.items()],
         quantity=sum(g.quantity for g in games),
         games=[GameValueOut.model_validate(g, from_attributes=True) for g in games],
     )
@@ -409,13 +450,16 @@ async def value_history(
     session: SessionDep,
     game: str | None = None,
     days: Annotated[int, Query(ge=1, le=3650)] = 90,
-) -> list[ValuePointOut]:
-    """Daily value of current holdings over the last `days` days."""
+) -> ValueHistoryOut:
+    """Daily value of current holdings over the last `days` days. Without a game, games
+    priced in another currency than the user's price source are left out."""
     end = date.today()
-    history = await collection.value_history(
-        session, user.id, game, end - timedelta(days=days - 1), end
+    currency, history = await collection.value_history(
+        session, user.id, user.price_source, game, end - timedelta(days=days - 1), end
     )
-    return [ValuePointOut(date=d, value=v) for d, v in history]
+    return ValueHistoryOut(
+        currency=currency, points=[ValuePointOut(date=d, value=v) for d, v in history]
+    )
 
 
 @router.get("/export.csv")

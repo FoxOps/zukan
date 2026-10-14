@@ -13,6 +13,7 @@ import fr.fudabako.app.data.HintsOut
 import fr.fudabako.app.data.IdentifyIn
 import fr.fudabako.app.data.IdentifyOut
 import fr.fudabako.app.data.OcrLineIn
+import fr.fudabako.app.data.PrintingOut
 import fr.fudabako.app.data.userMessage
 import fr.fudabako.app.scan.ScanStabilizer
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,6 +44,8 @@ data class ScanState(
 class ScanViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as FudabakoApp
     private val stabilizer = ScanStabilizer()
+    // Readings of Asian models in automatic mode come every 3rd frame: 2 in a row suffice.
+    private val asianStabilizer = ScanStabilizer(framesNeeded = 2)
     private val _state = MutableStateFlow(ScanState())
     val state: StateFlow<ScanState> = _state.asStateFlow()
     var game: String? = null
@@ -56,6 +59,9 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     @Synchronized
     fun onFrame(lines: List<OcrLineIn>): Boolean = scanning && stabilizer.offer(lines.map { it.text })
 
+    @Synchronized
+    fun onAsianFrame(lines: List<OcrLineIn>): Boolean = scanning && asianStabilizer.offer(lines.map { it.text })
+
     fun identify(lines: List<OcrLineIn>) {
         val client = app.client.value ?: return
         _state.update { it.copy(phase = Phase.IDENTIFYING, message = null) }
@@ -68,6 +74,8 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                             result = result,
                             candidate = 0,
                             printing = 0,
+                            // Missing from the server catalog: fetched from its source.
+                            message = if (result.fetched) app.getString(R.string.card_fetched) else it.message,
                         )
                     }
                 }
@@ -85,7 +93,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
             runCatching { client.api.card(cardId) }
                 .onSuccess { card ->
                     val printings = card.printings.sortedBy { if (it.id == printingId) 0 else 1 }
-                    val candidate = CandidateOut(1.0, "manual", CardRef(card.id, card.gameId, card.name, card.colors), printings)
+                    val candidate = CandidateOut(1.0, "manual", CardRef(card.id, card.gameId, card.name, card.colors), printings, printings.size)
                     _state.update {
                         ScanState(
                             phase = Phase.RESULT,
@@ -101,7 +109,20 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectCandidate(index: Int) = _state.update { it.copy(candidate = index, printing = 0) }
 
-    fun selectPrinting(index: Int) = _state.update { it.copy(printing = index) }
+    /** Show `printing`; one found by a search is added to the candidate's printings. */
+    fun selectPrinting(printing: PrintingOut) = _state.update { s ->
+        val result = s.result ?: return@update s
+        val candidate = s.current ?: return@update s
+        val index = candidate.printings.indexOfFirst { it.id == printing.id }
+        if (index >= 0) return@update s.copy(printing = index)
+        val grown = candidate.copy(printings = candidate.printings + printing)
+        val candidates = result.candidates.toMutableList().also { it[s.candidate] = grown }
+        s.copy(result = result.copy(candidates = candidates), printing = grown.printings.lastIndex)
+    }
+
+    /** Printings of a card beyond those a scan loaded (set name, code, number, year). */
+    suspend fun searchPrintings(cardId: Int, query: String): List<PrintingOut> =
+        app.client.value?.api?.printings(cardId, query) ?: emptyList()
 
     fun adjust(finish: String, condition: String, language: String, delta: Int) {
         val state = _state.value
@@ -172,7 +193,10 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Back to the camera. The same card is not identified again until it changes. */
     fun resume(forgetCard: Boolean = false) {
-        if (forgetCard) stabilizer.reset()
+        if (forgetCard) {
+            stabilizer.reset()
+            asianStabilizer.reset()
+        }
         _state.update { it.copy(phase = Phase.SCANNING, result = null) }
     }
 

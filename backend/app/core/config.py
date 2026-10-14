@@ -1,7 +1,11 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
+from dotenv import dotenv_values
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app import __version__
 
 
 class Settings(BaseSettings):
@@ -39,10 +43,30 @@ class Settings(BaseSettings):
     # hours between price/image refreshes, and games to refresh (empty = all installed).
     catalog_interval_hours: int = 7 * 24
     sync_interval_hours: int = 24
+    # Hours between refreshes of stale cards (missed by the last catalog sync, or with
+    # missing data), fetched again one by one.
+    refresh_interval_hours: int = 48
     worker_games: list[str] = []
-    user_agent: str = "Fudabako/0.4"
+    user_agent: str = f"Fudabako/{__version__}"
 
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def api_token(kind: str, name: str, category: str | None = None) -> str | None:
+    """Token of an external API, from `TCG_APITOKEN_<KIND>_[<CATEGORY>_]<NAME>`.
+
+    `kind` is the plugin type (GAMES, PRICES...), `category` narrows it (the game's short
+    code for game sources: MTG, PKM, SOR), `name` is the API. Examples:
+    TCG_APITOKEN_GAMES_PKM_POKEMONTCG, TCG_APITOKEN_PRICES_CARDNEXUS. Read from the
+    environment, else from `.env`. None when unset or empty."""
+    parts = ["TCG_APITOKEN", kind, *([category] if category else []), name]
+    key = "_".join(part.upper().replace("-", "_") for part in parts)
+    value = os.environ.get(key)
+    if value is None:
+        env = Path(".env")
+        if env.is_file():
+            value = dotenv_values(env).get(key)
+    return value or None

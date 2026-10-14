@@ -3,19 +3,29 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
 import { api, call, type Schemas } from '../api/client'
-import { useGame } from '../api/queries'
+import { useGame, useMe } from '../api/queries'
 import { Attributes } from '../components/Attributes'
 import { ConditionBadge, FinishBadge, LangFlag } from '../components/Badges'
 import { CardImage } from '../components/CardImage'
 import { ColorBadges } from '../components/ColorBadges'
 import { PriceChart } from '../components/PriceChart'
 import { StockDialog, type StockTarget } from '../components/StockDialog'
+import { Select } from '../components/Select'
 import { hasVisibleAttributes } from '../lib/attributes'
-import { cardmarketUrl, finishName, formatDate, formatMoney, languageName } from '../lib/format'
+import { useUrlState } from '../lib/hooks'
+import { finishName, formatDate, formatMoney, languageName, normalize } from '../lib/format'
 
 type PrintingOut = Schemas['PrintingOut']
 
-function PriceHistory({ printing, finishLabel }: { printing: PrintingOut; finishLabel: (f: string) => string }) {
+function PriceHistory({
+  printing,
+  finishLabel,
+  source,
+}: {
+  printing: PrintingOut
+  finishLabel: (f: string) => string
+  source: { id: string; currency: string } | undefined
+}) {
   const history = useQuery({
     queryKey: ['prices', printing.id],
     queryFn: () => call(api.GET('/api/printings/{printing_id}/prices', { params: { path: { printing_id: printing.id } } })),
@@ -24,6 +34,7 @@ function PriceHistory({ printing, finishLabel }: { printing: PrintingOut; finish
     const byDate = new Map<string, Record<string, number | string | null>>()
     const names = new Set<string>()
     for (const point of history.data ?? []) {
+      if (point.source !== source?.id) continue
       const name = finishLabel(point.finish)
       names.add(name)
       const row = byDate.get(point.date) ?? { date: point.date }
@@ -31,14 +42,50 @@ function PriceHistory({ printing, finishLabel }: { printing: PrintingOut; finish
       byDate.set(point.date, row)
     }
     return { data: [...byDate.values()] as { date: string }[], series: [...names] }
-  }, [history.data, finishLabel])
+  }, [history.data, finishLabel, source])
   if (history.isPending) return <span className="loading loading-dots" />
-  return <PriceChart data={data} series={series} />
+  return <PriceChart data={data} series={series} currency={source?.currency} />
 }
 
-/** Lower case without accents, to filter sets the way the catalog search works. */
-function normalize(text: string): string {
-  return text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase()
+// Printing orders; the API order (owned first, then newest) is the default.
+const PRINTING_SORTS = {
+  owned: 'Owned first',
+  newest: 'Newest sets',
+  oldest: 'Oldest sets',
+  set: 'Set name',
+  number: 'Collector number',
+  price_desc: 'Price: high to low',
+  price_asc: 'Price: low to high',
+} as const
+type PrintingSort = keyof typeof PRINTING_SORTS
+
+function lowestTrend(p: PrintingOut, source: string | undefined): number | null {
+  const trends = p.prices.filter((x) => x.source === source && x.trend !== null).map((x) => Number(x.trend))
+  return trends.length ? Math.min(...trends) : null
+}
+
+function sortPrintings(printings: PrintingOut[], sort: PrintingSort, source: string | undefined): PrintingOut[] {
+  const date = (p: PrintingOut) => p.set.release_date ?? ''
+  const number = (a: PrintingOut, b: PrintingOut) =>
+    (a.collector_number ?? '').localeCompare(b.collector_number ?? '', undefined, { numeric: true })
+  // Printings without a price stay last in both price orders.
+  const price = (a: PrintingOut, b: PrintingOut, sign: number) => {
+    const x = lowestTrend(a, source)
+    const y = lowestTrend(b, source)
+    if (x === null || y === null) return (x === null ? 1 : 0) - (y === null ? 1 : 0)
+    return sign * (x - y)
+  }
+  const compare: Record<PrintingSort, ((a: PrintingOut, b: PrintingOut) => number) | null> = {
+    owned: null,
+    newest: (a, b) => date(b).localeCompare(date(a)) || number(a, b),
+    oldest: (a, b) => date(a).localeCompare(date(b)) || number(a, b),
+    set: (a, b) => a.set.name.localeCompare(b.set.name) || number(a, b),
+    number: (a, b) => number(a, b) || a.set.name.localeCompare(b.set.name),
+    price_desc: (a, b) => price(a, b, -1),
+    price_asc: (a, b) => price(a, b, 1),
+  }
+  const fn = compare[sort]
+  return fn ? [...printings].sort(fn) : printings
 }
 
 export default function CardDetail() {
@@ -47,11 +94,17 @@ export default function CardDetail() {
   const card = useQuery({
     queryKey: ['card', Number(cardId)],
     queryFn: () => call(api.GET('/api/cards/{card_id}', { params: { path: { card_id: Number(cardId) } } })),
+    // Outdated data is being fetched again by the server: load the card again.
+    refetchInterval: (query) => (query.state.data?.refreshing ? 5000 : false),
   })
   const game = useGame(card.data?.game_id)
+  const me = useMe()
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [target, setTarget] = useState<StockTarget | null>(null)
   const [setFilter, setSetFilter] = useState('')
+  const url = useUrlState()
+  const sortParam = url.get('sort')
+  const sort: PrintingSort = sortParam in PRINTING_SORTS ? (sortParam as PrintingSort) : 'owned'
   const finishLabel = useMemo(() => (code: string) => finishName(game, code), [game])
 
   if (card.isPending) return <span className="loading loading-spinner loading-lg" />
@@ -61,8 +114,14 @@ export default function CardDetail() {
   const selected = c.printings.find((p) => p.id === selectedId) ?? c.printings[0]
   const localNames = Object.entries(selected?.names ?? {}).filter(([, n]) => n !== c.name)
   const owned = c.printings.reduce((sum, p) => sum + p.owned.reduce((s, o) => s + o.quantity, 0), 0)
+  // Prices of the user's source (the game's first source when it has not that one).
+  const mainSource = game?.price_sources.find((s) => s.id === me.data?.price_source) ?? game?.price_sources[0]
+  const sourceName = (id: string) => game?.price_sources.find((s) => s.id === id)?.name ?? id
+  const money = (value: string | number | null) => formatMoney(value, mainSource?.currency)
   // Cheapest and most expensive version of the card, over every printing and finish.
-  const offers = c.printings.flatMap((p) => p.prices.map((price) => ({ printing: p, price, trend: Number(price.trend) })))
+  const offers = c.printings.flatMap((p) =>
+    p.prices.filter((price) => price.source === mainSource?.id).map((price) => ({ printing: p, price, trend: Number(price.trend) })),
+  )
   const cheapest = offers.length ? offers.reduce((a, b) => (b.trend < a.trend ? b : a)) : null
   const dearest = offers.length ? offers.reduce((a, b) => (b.trend > a.trend ? b : a)) : null
   const lowestOffer = offers
@@ -78,12 +137,16 @@ export default function CardDetail() {
     })
   // The API lists owned printings first.
   const words = normalize(setFilter).split(/\s+/).filter(Boolean)
-  const printings = words.length
-    ? c.printings.filter((p) => {
-        const text = normalize(`${p.set.name} ${p.set.code} ${p.collector_number ?? ''} ${p.set.release_date?.slice(0, 4) ?? ''}`)
-        return words.every((w) => text.includes(w))
-      })
-    : c.printings
+  const printings = sortPrintings(
+    words.length
+      ? c.printings.filter((p) => {
+          const text = normalize(`${p.set.name} ${p.set.code} ${p.collector_number ?? ''} ${p.set.release_date?.slice(0, 4) ?? ''}`)
+          return words.every((w) => text.includes(w))
+        })
+      : c.printings,
+    sort,
+    mainSource?.id,
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -100,7 +163,7 @@ export default function CardDetail() {
             <CardImage
               key={selected.id}
               src={selected.image}
-              back={(selected.attributes.back_image_url as string | undefined) ?? null}
+              back={selected.back_image ?? null}
               alt={c.name}
               className="w-full max-w-xs shadow-xl rounded-[4.5%]"
             />
@@ -134,18 +197,18 @@ export default function CardDetail() {
             <div className="stats stats-vertical bg-base-200 sm:stats-horizontal">
               <div className="stat py-3">
                 <div className="stat-title">{t('Cheapest version')}</div>
-                <div className="stat-value text-xl">{formatMoney(cheapest.trend)}</div>
+                <div className="stat-value text-xl">{money(cheapest.trend)}</div>
                 <div className="stat-desc">{offerLabel(cheapest)}</div>
               </div>
               <div className="stat py-3">
                 <div className="stat-title">{t('Most expensive version')}</div>
-                <div className="stat-value text-xl">{formatMoney(dearest.trend)}</div>
+                <div className="stat-value text-xl">{money(dearest.trend)}</div>
                 <div className="stat-desc">{offerLabel(dearest)}</div>
               </div>
               {lowestOffer && (
                 <div className="stat py-3">
                   <div className="stat-title">{t('Lowest offer')}</div>
-                  <div className="stat-value text-xl">{formatMoney(lowestOffer.price.low)}</div>
+                  <div className="stat-value text-xl">{money(lowestOffer.price.low)}</div>
                   <div className="stat-desc">{offerLabel(lowestOffer)}</div>
                 </div>
               )}
@@ -167,8 +230,9 @@ export default function CardDetail() {
               <div className="card-body p-4">
                 <h2 className="card-title text-base">
                   {t('Price history')} - {selected.set.code} {selected.collector_number}
+                  {mainSource && <span className="text-sm font-normal text-base-content/60">({mainSource.name})</span>}
                 </h2>
-                <PriceHistory printing={selected} finishLabel={finishLabel} />
+                <PriceHistory printing={selected} finishLabel={finishLabel} source={mainSource} />
               </div>
             </div>
           )}
@@ -179,6 +243,14 @@ export default function CardDetail() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold">{t('{{count}} printings', { count: c.printings.length })}</h2>
           {c.printings.length > 1 && (
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <Select
+              className="select-sm w-full sm:w-48"
+              aria-label={t('Sort')}
+              value={sort}
+              onChange={(v) => url.set({ sort: v === 'owned' ? null : v }, false)}
+              options={Object.entries(PRINTING_SORTS).map(([value, label]) => ({ value, label: t(label) }))}
+            />
             <label className="input input-sm w-full sm:w-72">
               <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2 opacity-60"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
               <input
@@ -188,6 +260,7 @@ export default function CardDetail() {
                 onChange={(e) => setSetFilter(e.target.value)}
               />
             </label>
+            </div>
           )}
         </div>
         <div className="overflow-x-auto rounded-box border border-base-300">
@@ -216,7 +289,12 @@ export default function CardDetail() {
                   onClick={() => setSelectedId(p.id)}
                 >
                   <td className={p.owned.length ? 'border-l-4 border-success' : 'border-l-4 border-transparent'}>
-                    <div className="font-medium">{p.set.name}</div>
+                    <div className="flex items-center gap-1.5 font-medium">
+                      {p.set.icon && (
+                        <img src={p.set.icon} alt="" loading="lazy" className="h-4 w-4 object-contain dark:rounded-sm dark:bg-white/85 dark:p-px" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                      )}
+                      {p.set.name}
+                    </div>
                     <div className="text-xs text-base-content/60">
                       {p.set.code} · {formatDate(p.set.release_date)}
                       {p.set.lang && (
@@ -236,29 +314,37 @@ export default function CardDetail() {
                   </td>
                   <td className="whitespace-nowrap">
                     {p.prices.length === 0 && '—'}
-                    {p.prices.map((price) => (
-                      <div key={price.finish} className="text-xs">
+                    {p.prices.map((price, i) => (
+                      <div key={`${price.source}-${price.finish}`} className="text-xs">
+                        {/* Each source's prices under its name. */}
+                        {(game?.price_sources.length ?? 0) > 1 && (i === 0 || p.prices[i - 1].source !== price.source) && (
+                          <div className={`font-semibold text-base-content/70 ${i > 0 ? 'mt-1' : ''}`}>{sourceName(price.source)}</div>
+                        )}
                         <span className="text-base-content/60">{finishLabel(price.finish)}</span>{' '}
-                        <span className="font-medium" title={t('Cardmarket trend price')}>{formatMoney(price.trend)}</span>
+                        <span className="font-medium" title={t('Trend price')}>{formatMoney(price.trend, price.currency)}</span>
                         {price.low !== null && (
-                          <span className="text-base-content/60" title={t('Lowest offer on Cardmarket')}>
+                          <span className="text-base-content/60" title={t('Lowest offer')}>
                             {' '}
-                            ({t('from {{price}}', { price: formatMoney(price.low) })})
+                            ({t('from {{price}}', { price: formatMoney(price.low, price.currency) })})
                           </span>
                         )}
                       </div>
                     ))}
-                    {cardmarketUrl(game, p.cardmarket_id) && (
-                      <a
-                        className="link link-primary text-xs"
-                        href={cardmarketUrl(game, p.cardmarket_id)!}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        Cardmarket ↗
-                      </a>
-                    )}
+                    <div className="flex flex-wrap gap-x-2">
+                      {/* Only web pages: never javascript: or other schemes from data. */}
+                      {p.links.filter((l) => /^https?:\/\//.test(l.url)).map((l) => (
+                        <a
+                          key={l.source}
+                          className="link link-primary text-xs"
+                          href={l.url}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {l.name} ↗
+                        </a>
+                      ))}
+                    </div>
                   </td>
                   <td>
                     {p.owned.map((o) => (

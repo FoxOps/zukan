@@ -6,10 +6,11 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-from sqlalchemy import delete, exists, literal_column, update
+from sqlalchemy import delete, exists, func, literal_column, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.progress import progress
 from app.games.base import (
     CardData,
     CatalogBatch,
@@ -116,6 +117,20 @@ def _dedupe_printings(
     return list(merged.values())
 
 
+def _merge_attributes(first: str, second: str) -> str:
+    """`first || second` (second wins), market ids merged key by key so a source that
+    knows only some markets keeps the others'."""
+    markets = (
+        f"coalesce({first} -> 'market_ids', '{{}}'::jsonb) || "
+        f"coalesce({second} -> 'market_ids', '{{}}'::jsonb)"
+    )
+    return (
+        f"CASE WHEN {first} ? 'market_ids' OR {second} ? 'market_ids' "
+        f"THEN {first} || {second} || jsonb_build_object('market_ids', {markets}) "
+        f"ELSE {first} || {second} END"
+    )
+
+
 # On conflict, full data replaces stored fields while partial data only fills gaps.
 _PRINTING_FULL = {
     "card_id": "excluded.card_id",
@@ -123,32 +138,45 @@ _PRINTING_FULL = {
     "rarity": "excluded.rarity",
     "artist": "excluded.artist",
     "image_urls": "printing.image_urls || excluded.image_urls",
-    "attributes": "printing.attributes || excluded.attributes",
+    "attributes": _merge_attributes("printing.attributes", "excluded.attributes"),
 }
 _PRINTING_PARTIAL = {
     "collector_number": "coalesce(printing.collector_number, excluded.collector_number)",
     "rarity": "coalesce(printing.rarity, excluded.rarity)",
     "artist": "coalesce(printing.artist, excluded.artist)",
     "image_urls": "excluded.image_urls || printing.image_urls",
-    "attributes": "excluded.attributes || printing.attributes",
+    "attributes": _merge_attributes("excluded.attributes", "printing.attributes"),
 }
 
 
 class CatalogWriter:
-    def __init__(self, session: AsyncSession, game_id: str, price_source: str | None = None):
+    def __init__(self, session: AsyncSession, game_id: str, mark_seen: bool = True):
         self.session = session
         self.game_id = game_id
-        self.price_source = price_source
+        # Secondary sources fill gaps but do not count as the primary source seeing a
+        # card (stale data detection).
+        self.mark_seen = mark_seen
         self.set_ids: dict[str, int] = {}
         self.report = SyncReport()
+
+    async def load_sets(self) -> None:
+        """Know the game's stored sets, for batches that only bring cards."""
+        rows = await self.session.execute(
+            select(CardSet.id, CardSet.external_id).where(CardSet.game_id == self.game_id)
+        )
+        self.set_ids |= {external_id: set_id for set_id, external_id in rows}
+
+    async def write_cards(self, cards: list[CardData]) -> None:
+        """Cards of already stored sets, without prices."""
+        await self._upsert_cards(_dedupe_cards(cards))
 
     async def write(self, batch: CatalogBatch) -> None:
         await self._upsert_sets(batch.sets)
         ids = await self._upsert_cards(_dedupe_cards(batch.cards))
-        if batch.prices and self.price_source:
+        if batch.prices:
             # Prices refer to printings of the same batch.
             self.report.prices += await prices.store_quotes(
-                self.session, self.price_source, batch.prices, prices.today(), ids
+                self.session, batch.prices, prices.today(), ids
             )
 
     async def _upsert_sets(self, sets: list[SetData]) -> None:
@@ -195,11 +223,11 @@ class CatalogWriter:
                     for c in chunk
                 ]
             )
-            if partial:
-                # No-op update so RETURNING also yields ids of existing cards.
-                set_ = {"name": literal_column("card.name")}
-            else:
-                set_ = {col: stmt.excluded[col] for col in ("name", "colors", "attributes")}
+            # Partial data only marks the card as seen; the update also makes RETURNING
+            # yield ids of existing cards.
+            set_ = {"last_seen_at": func.now() if self.mark_seen else Card.last_seen_at}
+            if not partial:
+                set_ |= {col: stmt.excluded[col] for col in ("name", "colors", "attributes")}
             stmt = stmt.on_conflict_do_update(
                 index_elements=[Card.game_id, Card.external_id], set_=set_
             ).returning(Card.id, Card.external_id)
@@ -276,6 +304,7 @@ class CatalogWriter:
                 set_={
                     "finishes": _array_union("finishes"),
                     "languages": _array_union("languages"),
+                    "last_seen_at": func.now() if self.mark_seen else Printing.last_seen_at,
                     **{col: literal_column(sql) for col, sql in on_conflict.items()},
                 },
             ).returning(Printing.id, Printing.set_id, Printing.external_id)
@@ -294,14 +323,13 @@ async def sync_catalog(
     session: AsyncSession, provider: GameProvider, http: httpx.AsyncClient
 ) -> SyncReport:
     """Fetch and store the provider catalog, committing after each batch."""
-    writer = CatalogWriter(session, provider.id, provider.price_source)
+    writer = CatalogWriter(session, provider.id)
     async for batch in provider.fetch_catalog(http):
         await writer.write(batch)
         await session.commit()
-    if provider.price_source and writer.report.prices:
-        writer.report.pruned_prices = await prices.prune_history(
-            session, provider.id, provider.price_source
-        )
+        await progress()
+    if writer.report.prices:
+        writer.report.pruned_prices = await prices.prune_history(session, provider.id)
     pruned = await session.execute(
         delete(Card).where(
             Card.game_id == provider.id, ~exists().where(Printing.card_id == Card.id)

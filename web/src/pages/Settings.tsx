@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { api, call, type Schemas } from '../api/client'
 import { useGames, useMe, useProviders } from '../api/queries'
 import { useToast } from '../components/toast'
+import { Select } from '../components/Select'
 import { LANGUAGES, useChangeLanguage } from '../i18n'
 
 type SettingsIn = Schemas['SettingsIn']
@@ -15,12 +16,15 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
   const toast = useToast()
   const client = useQueryClient()
   const shown = me.catalog_games ?? games.map((g) => g.id)
+  // Every market any game has prices from.
+  const sources = [...new Map(games.flatMap((g) => g.price_sources).map((s) => [s.id, s])).values()]
 
   const save = useMutation({
     mutationFn: (body: SettingsIn) => call(api.PATCH('/api/auth/me', { body })),
     onSuccess: (data) => {
       client.setQueryData(['me'], data)
-      return client.invalidateQueries({ queryKey: ['cards'] })
+      // Prices shown everywhere follow the price source.
+      return Promise.all(['cards', 'card', 'collection', 'value'].map((key) => client.invalidateQueries({ queryKey: [key] })))
     },
     onError: (e) => toast(e.message, 'error'),
   })
@@ -36,19 +40,27 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
         <h2 className="card-title">{t('Preferences')}</h2>
         <label className="fieldset">
           <span className="fieldset-legend">{t('Language')}</span>
-          <select
-            className="select w-56"
-            value={i18n.resolvedLanguage}
-            onChange={(e) => changeLanguage(e.target.value as (typeof LANGUAGES)[number]['code'])}
-          >
-            {LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code} lang={l.code}>
-                {l.label}
-              </option>
-            ))}
-          </select>
+          <Select
+            className="w-56"
+            value={i18n.resolvedLanguage ?? ''}
+            onChange={(v) => changeLanguage(v as (typeof LANGUAGES)[number]['code'])}
+            options={LANGUAGES.map((l) => ({ value: l.code, label: l.label, lang: l.code }))}
+          />
           <span className="label whitespace-normal">
             {t('Card images are shown in this language when available, else in English, else in Japanese.')}
+          </span>
+        </label>
+        <label className="fieldset">
+          <span className="fieldset-legend">{t('Price source')}</span>
+          <Select
+            className="w-56"
+            value={me.price_source}
+            disabled={save.isPending}
+            onChange={(v) => save.mutate({ price_source: v })}
+            options={sources.map((s) => ({ value: s.id, label: `${s.name} (${s.currency})` }))}
+          />
+          <span className="label whitespace-normal">
+            {t('Used for values, price ranges and sorting. Games without it use their own market; other currencies are never added up.')}
           </span>
         </label>
         <fieldset className="fieldset">

@@ -9,6 +9,7 @@ import { ConditionBadge, FinishBadge, LangFlag } from '../components/Badges'
 import { ColorFilter, GameTabs, SearchInput, SetSelect } from '../components/Filters'
 import { ItemDialog } from '../components/ItemDialog'
 import { Pagination } from '../components/Pagination'
+import { Select } from '../components/Select'
 import { CONDITIONS, finishName, formatMoney, languageName } from '../lib/format'
 import { useUrlState } from '../lib/hooks'
 
@@ -63,7 +64,10 @@ export default function Collection() {
       source: 'web',
     })
 
-  const pageValue = (items.data?.items ?? []).reduce((sum, i) => sum + Number(i.total ?? 0), 0)
+  // Per currency: prices of different markets are never added up.
+  const pageValues = new Map<string, number>()
+  for (const i of items.data?.items ?? []) pageValues.set(i.currency, (pageValues.get(i.currency) ?? 0) + Number(i.total ?? 0))
+  const pageValue = [...pageValues].map(([currency, total]) => formatMoney(total, currency)).join(' + ') || formatMoney(0)
 
   return (
     <div className="flex flex-col gap-4">
@@ -76,24 +80,33 @@ export default function Collection() {
         <SearchInput value={url.get('q')} onChange={(v) => url.set({ q: v })} placeholder={t('Search your cards')} />
         <SetSelect game={game} value={url.get('set')} onChange={(v) => url.set({ set: v })} />
         {gameInfo && (
-          <select className="select w-40" value={url.get('finish')} onChange={(e) => url.set({ finish: e.target.value })}>
-            <option value="">{t('All finishes')}</option>
-            {gameInfo.finishes.map((f) => <option key={f.code} value={f.code}>{finishName(gameInfo, f.code)}</option>)}
-          </select>
+          <Select
+            className="w-40"
+            value={url.get('finish')}
+            onChange={(v) => url.set({ finish: v })}
+            options={[{ value: '', label: t('All finishes') }, ...gameInfo.finishes.map((f) => ({ value: f.code, label: finishName(gameInfo, f.code) }))]}
+          />
         )}
-        <select className="select w-44" value={url.get('condition')} onChange={(e) => url.set({ condition: e.target.value })}>
-          <option value="">{t('All conditions')}</option>
-          {CONDITIONS.map((c) => <option key={c.code} value={c.code}>{c.code} - {t(c.name)}</option>)}
-        </select>
+        <Select
+          className="w-44"
+          value={url.get('condition')}
+          onChange={(v) => url.set({ condition: v })}
+          options={[{ value: '', label: t('All conditions') }, ...CONDITIONS.map((c) => ({ value: c.code, label: `${c.code} - ${t(c.name)}` }))]}
+        />
         {gameInfo && (
-          <select className="select w-40" value={url.get('language')} onChange={(e) => url.set({ language: e.target.value })}>
-            <option value="">{t('All languages')}</option>
-            {gameInfo.languages.map((l) => <option key={l} value={l}>{languageName(l)}</option>)}
-          </select>
+          <Select
+            className="w-40"
+            value={url.get('language')}
+            onChange={(v) => url.set({ language: v })}
+            options={[{ value: '', label: t('All languages') }, ...gameInfo.languages.map((l) => ({ value: l, label: languageName(l) }))]}
+          />
         )}
-        <select className="select w-44" value={filters.sort} onChange={(e) => url.set({ sort: e.target.value })}>
-          {Object.entries(SORTS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
-        </select>
+        <Select
+          className="w-44"
+          value={filters.sort}
+          onChange={(v) => url.set({ sort: v })}
+          options={Object.entries(SORTS).map(([k, v]) => ({ value: k, label: t(v) }))}
+        />
         <ColorFilter game={gameInfo} value={url.getAll('color')} onChange={(v) => url.set({ color: v })} />
       </div>
 
@@ -111,7 +124,7 @@ export default function Collection() {
       {items.data && items.data.total > 0 && (
         <>
           <div className="text-sm text-base-content/60">
-            {t('{{count}} items', { count: items.data.total })} · {t('this page {{value}}', { value: formatMoney(pageValue) })}
+            {t('{{count}} items', { count: items.data.total })} · {t('this page {{value}}', { value: pageValue })}
           </div>
           <div className={`overflow-x-auto rounded-box border border-base-300 ${items.isPlaceholderData ? 'opacity-60' : ''}`}>
             <table className="table table-sm">
@@ -153,10 +166,10 @@ export default function Collection() {
                         </div>
                       </td>
                       <td className="text-right whitespace-nowrap">
-                        {formatMoney(item.unit_price)}
+                        {formatMoney(item.unit_price, item.currency)}
                         {item.manual_price !== null && <span className="badge badge-xs badge-info ml-1" title={t('Manual price')}>M</span>}
                       </td>
-                      <td className="text-right font-medium whitespace-nowrap">{formatMoney(item.total)}</td>
+                      <td className="text-right font-medium whitespace-nowrap">{formatMoney(item.total, item.currency)}</td>
                       <td>
                         <button className="btn btn-ghost btn-xs" onClick={() => setEditing(item)}>{t('Edit')}</button>
                       </td>
@@ -167,7 +180,7 @@ export default function Collection() {
             </table>
           </div>
           <div className="flex justify-center">
-            <Pagination page={url.page} pageSize={PAGE_SIZE} total={items.data.total} onChange={(p) => url.set({ page: p }, false)} />
+            <Pagination page={url.page} pageSize={PAGE_SIZE} total={items.data.total} onChange={url.goToPage} />
           </div>
         </>
       )}

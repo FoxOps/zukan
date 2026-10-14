@@ -5,7 +5,7 @@ import i18n, { currentLanguage } from '../i18n'
 function formatters() {
   const locale = currentLanguage()
   return {
-    money: new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }),
+    money: new Map<string, Intl.NumberFormat>(),
     day: new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }),
     moment: new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' }),
     languages: new Intl.DisplayNames([locale], { type: 'language' }),
@@ -17,10 +17,16 @@ function format() {
   return cache.value
 }
 
-/** API decimals arrive as strings ("12.50"). */
-export function formatMoney(value: string | number | null | undefined): string {
+/** API decimals arrive as strings ("12.50"). Currency: ISO code of the price source. */
+export function formatMoney(value: string | number | null | undefined, currency = 'EUR'): string {
   if (value === null || value === undefined || value === '') return '—'
-  return format().money.format(Number(value))
+  const { money } = format()
+  let formatter = money.get(currency)
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(currentLanguage(), { style: 'currency', currency })
+    money.set(currency, formatter)
+  }
+  return formatter.format(Number(value))
 }
 
 export function formatDate(value: string | null | undefined): string {
@@ -53,11 +59,6 @@ export const CONDITIONS = [
 
 /** Cardmarket page of a product, in the interface language (Cardmarket redirects the
  * product id to the product page). */
-export function cardmarketUrl(game: Game | undefined, productId: number | null | undefined): string | null {
-  if (!game?.cardmarket || !productId) return null
-  return `https://www.cardmarket.com/${currentLanguage()}/${game.cardmarket}/Products?idProduct=${productId}`
-}
-
 /** Finish name from the game plugin, translated when the dictionary knows it. */
 export function finishName(game: Game | undefined, code: string): string {
   return i18n.t(game?.finishes.find((f) => f.code === code)?.name ?? code)
@@ -81,4 +82,9 @@ export const LANGUAGE_FLAGS: Record<string, string> = {
   'zh-hans': 'cn',
   'zh-hant': 'tw',
   ru: 'ru',
+}
+
+/** Lower case without accents, to filter lists the way the catalog search works. */
+export function normalize(text: string): string {
+  return text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase()
 }

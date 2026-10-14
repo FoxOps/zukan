@@ -4,6 +4,7 @@ from typing import Any
 import httpx
 
 from app.core.config import get_settings
+from app.core.progress import progress
 
 _RETRY_STATUSES = {429, 500, 502, 503, 504}
 
@@ -13,7 +14,13 @@ def http_client(timeout: float = 60) -> httpx.AsyncClient:
         timeout=timeout,
         follow_redirects=True,
         headers={"User-Agent": get_settings().user_agent, "Accept": "application/json"},
+        # Every answer counts as progress for the running job (stall detection).
+        event_hooks={"response": [_answered]},
     )
+
+
+async def _answered(_: httpx.Response) -> None:
+    await progress()
 
 
 async def get_with_retry(

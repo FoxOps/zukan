@@ -5,6 +5,7 @@ import { Navigate } from 'react-router'
 import { api, call, type Schemas } from '../../api/client'
 import { useMe } from '../../api/queries'
 import { useToast } from '../../components/toast'
+import { Select } from '../../components/Select'
 
 type User = Schemas['UserOut']
 type Update = Schemas['UserUpdateIn']
@@ -95,15 +96,16 @@ export default function Users() {
                     <div className="text-xs text-base-content/60">{u.email}</div>
                   </td>
                   <td>
-                    <select
-                      className="select select-sm w-28"
+                    <Select
+                      className="select-sm w-28"
                       value={u.role}
                       disabled={self}
-                      onChange={(e) => update.mutate({ id: u.id, body: { role: e.target.value as User['role'] } })}
-                    >
-                      <option value="user">{t('user')}</option>
-                      <option value="admin">{t('admin')}</option>
-                    </select>
+                      onChange={(v) => update.mutate({ id: u.id, body: { role: v as User['role'] } })}
+                      options={[
+                        { value: 'user', label: t('user') },
+                        { value: 'admin', label: t('admin') },
+                      ]}
+                    />
                   </td>
                   <td className="text-sm">{u.has_password ? t('Password') : t('SSO only')}</td>
                   <td>

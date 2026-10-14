@@ -252,6 +252,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/games/{game_id}/filters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Filter Values
+         * @description Values of each advanced search filter of the game, by filter key.
+         */
+        get: operations["list_filter_values_api_games__game_id__filters_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sets/{set_id}/icon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Set Icon */
+        get: operations["set_icon_api_sets__set_id__icon_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/games/{game_id}/sets": {
         parameters: {
             query?: never;
@@ -281,6 +318,9 @@ export interface paths {
          * @description Search cards by name in any language (substring match, case and accents
          *     ignored), set and colors. Exact name matches come first, then names starting with
          *     `q`. Without `game`, only the games chosen in the user's settings are searched.
+         *
+         *     `attr=<filter key>:<value>` (repeatable, all must match) uses the game's advanced
+         *     filters (GameOut.filters); it needs `game`.
          */
         get: operations["search_cards_api_cards_get"];
         put?: never;
@@ -300,6 +340,27 @@ export interface paths {
         };
         /** Get Card */
         get: operations["get_card_api_cards__card_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cards/{card_id}/printings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Printings
+         * @description The card's printings whose set name, set code, collector number or release year
+         *     contain every word of `q` (case and accents ignored), newest first.
+         */
+        get: operations["search_printings_api_cards__card_id__printings_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -338,7 +399,7 @@ export interface paths {
         /**
          * Printing Image
          * @description Card image in `lang` (default: the user's language), else English, else
-         *     Japanese, else any language there is.
+         *     Japanese, else any language there is. `face=back`: the back of double-faced cards.
          */
         get: operations["printing_image_api_printings__printing_id__image_get"];
         put?: never;
@@ -478,7 +539,8 @@ export interface paths {
         };
         /**
          * Value History
-         * @description Daily value of current holdings over the last `days` days.
+         * @description Daily value of current holdings over the last `days` days. Without a game, games
+         *     priced in another currency than the user's price source are left out.
          */
         get: operations["value_history_api_collection_value_history_get"];
         put?: never;
@@ -615,6 +677,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/discrepancies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Discrepancies
+         * @description Where secondary catalog sources disagree with the primary one (kept).
+         */
+        get: operations["list_discrepancies_api_admin_discrepancies_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -686,6 +768,8 @@ export interface components {
             card: components["schemas"]["CandidateCardOut"];
             /** Printings */
             printings: components["schemas"]["PrintingOut"][];
+            /** Printing Count */
+            printing_count: number;
         };
         /** CardOut */
         CardOut: {
@@ -703,6 +787,11 @@ export interface components {
             };
             /** Printings */
             printings: components["schemas"]["PrintingOut"][];
+            /**
+             * Refreshing
+             * @default false
+             */
+            refreshing: boolean;
         };
         /** CardPageOut */
         CardPageOut: {
@@ -733,6 +822,8 @@ export interface components {
             price_min: string | null;
             /** Price Max */
             price_max: string | null;
+            /** Currency */
+            currency?: string | null;
         };
         /** ColorOut */
         ColorOut: {
@@ -751,6 +842,70 @@ export interface components {
          * @enum {string}
          */
         Condition: "MT" | "NM" | "EX" | "GD" | "LP" | "PL" | "PO";
+        /** CurrencyTotalOut */
+        CurrencyTotalOut: {
+            /** Currency */
+            currency: string;
+            /** Total */
+            total: string;
+        };
+        /** DiscrepancyCountOut */
+        DiscrepancyCountOut: {
+            /** Game Id */
+            game_id: string;
+            /** Source */
+            source: string;
+            /** Field */
+            field: string;
+            /** Count */
+            count: number;
+        };
+        /** DiscrepancyOut */
+        DiscrepancyOut: {
+            /** Id */
+            id: number;
+            /** Game Id */
+            game_id: string;
+            /** Source */
+            source: string;
+            /** Set Code */
+            set_code: string;
+            /** Set Name */
+            set_name: string;
+            /** Card Id */
+            card_id: number | null;
+            /** Card Name */
+            card_name: string | null;
+            /** Collector Number */
+            collector_number: string | null;
+            /** Field */
+            field: string;
+            /** Primary Value */
+            primary_value: string | null;
+            /** Secondary Value */
+            secondary_value: string | null;
+            /**
+             * First Seen
+             * Format: date-time
+             */
+            first_seen: string;
+        };
+        /** DiscrepancyPageOut */
+        DiscrepancyPageOut: {
+            /** Items */
+            items: components["schemas"]["DiscrepancyOut"][];
+            /** Total */
+            total: number;
+            /** Counts */
+            counts: components["schemas"]["DiscrepancyCountOut"][];
+        };
+        /** FilterOut */
+        FilterOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
         /** FinishOut */
         FinishOut: {
             /** Code */
@@ -770,6 +925,10 @@ export interface components {
             finishes: components["schemas"]["FinishOut"][];
             /** Languages */
             languages: string[];
+            /** Filters */
+            filters: components["schemas"]["FilterOut"][];
+            /** Price Sources */
+            price_sources: components["schemas"]["PriceSourceOut"][];
             /** Has Prices */
             has_prices: boolean;
             /** Cardmarket */
@@ -779,6 +938,8 @@ export interface components {
         GameValueOut: {
             /** Game Id */
             game_id: string;
+            /** Currency */
+            currency: string;
             /** Total */
             total: string;
             /** Quantity */
@@ -818,6 +979,11 @@ export interface components {
             detected: components["schemas"]["HintsOut"];
             /** Candidates */
             candidates: components["schemas"]["CandidateOut"][];
+            /**
+             * Fetched
+             * @default false
+             */
+            fetched: boolean;
         };
         /** IdentityOut */
         IdentityOut: {
@@ -891,6 +1057,8 @@ export interface components {
             manual_price: string | null;
             /** Market Price */
             market_price: string | null;
+            /** Currency */
+            currency: string;
             /** Price Date */
             price_date: string | null;
             /** Unit Price */
@@ -938,7 +1106,7 @@ export interface components {
          * JobKind
          * @enum {string}
          */
-        JobKind: "catalog" | "prices" | "images";
+        JobKind: "catalog" | "prices" | "images" | "refresh";
         /** JobOut */
         JobOut: {
             /** Id */
@@ -947,6 +1115,7 @@ export interface components {
             game_id: string;
             kind: components["schemas"]["JobKind"];
             status: components["schemas"]["JobStatus"];
+            trigger: components["schemas"]["JobTrigger"];
             /**
              * Started At
              * Format: date-time
@@ -965,7 +1134,21 @@ export interface components {
          * JobStatus
          * @enum {string}
          */
-        JobStatus: "running" | "success" | "failed";
+        JobStatus: "running" | "success" | "failed" | "cancelled";
+        /**
+         * JobTrigger
+         * @enum {string}
+         */
+        JobTrigger: "auto" | "manual";
+        /** LinkOut */
+        LinkOut: {
+            /** Source */
+            source: string;
+            /** Name */
+            name: string;
+            /** Url */
+            url: string;
+        };
         /** LoginIn */
         LoginIn: {
             /** Username */
@@ -1001,6 +1184,8 @@ export interface components {
             language: "en" | "fr";
             /** Catalog Games */
             catalog_games: string[] | null;
+            /** Price Source */
+            price_source: string;
         };
         /** OcrLineIn */
         OcrLineIn: {
@@ -1068,6 +1253,10 @@ export interface components {
         PriceOut: {
             /** Finish */
             finish: string;
+            /** Source */
+            source: string;
+            /** Currency */
+            currency: string;
             /** Trend */
             trend: string;
             /** Low */
@@ -1077,6 +1266,15 @@ export interface components {
              * Format: date
              */
             date: string;
+        };
+        /** PriceSourceOut */
+        PriceSourceOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Currency */
+            currency: string;
         };
         /** PrintingOut */
         PrintingOut: {
@@ -1095,6 +1293,8 @@ export interface components {
             languages: string[];
             /** Image */
             image: string | null;
+            /** Back Image */
+            back_image?: string | null;
             /** Names */
             names: {
                 [key: string]: string;
@@ -1105,6 +1305,8 @@ export interface components {
             };
             /** Cardmarket Id */
             cardmarket_id: number | null;
+            /** Links */
+            links: components["schemas"]["LinkOut"][];
             /** Prices */
             prices: components["schemas"]["PriceOut"][];
             /** Owned */
@@ -1154,8 +1356,8 @@ export interface components {
             release_date: string | null;
             /** Total */
             total: number | null;
-            /** Icon Url */
-            icon_url: string | null;
+            /** Icon */
+            icon: string | null;
         };
         /**
          * SettingsIn
@@ -1166,6 +1368,8 @@ export interface components {
             language?: ("en" | "fr") | null;
             /** Catalog Games */
             catalog_games?: string[] | null;
+            /** Price Source */
+            price_source?: string | null;
         };
         /**
          * TokenOut
@@ -1263,15 +1467,21 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** ValueHistoryOut */
+        ValueHistoryOut: {
+            /** Currency */
+            currency: string;
+            /** Points */
+            points: components["schemas"]["ValuePointOut"][];
+        };
         /** ValueOut */
         ValueOut: {
-            /**
-             * Currency
-             * @default EUR
-             */
+            /** Currency */
             currency: string;
             /** Total */
             total: string;
+            /** Totals */
+            totals: components["schemas"]["CurrencyTotalOut"][];
             /** Quantity */
             quantity: number;
             /** Games */
@@ -1802,6 +2012,70 @@ export interface operations {
             };
         };
     };
+    list_filter_values_api_games__game_id__filters_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string[];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_icon_api_sets__set_id__icon_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                set_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_sets_api_games__game_id__sets_get: {
         parameters: {
             query?: never;
@@ -1841,6 +2115,7 @@ export interface operations {
                 set_id?: number | null;
                 color?: string[] | null;
                 lang?: string | null;
+                attr?: string[] | null;
                 page?: number;
                 page_size?: number;
             };
@@ -1901,6 +2176,40 @@ export interface operations {
             };
         };
     };
+    search_printings_api_cards__card_id__printings_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintingOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     price_history_api_printings__printing_id__prices_get: {
         parameters: {
             query?: {
@@ -1938,6 +2247,7 @@ export interface operations {
         parameters: {
             query?: {
                 lang?: string | null;
+                face?: "front" | "back";
             };
             header?: never;
             path: {
@@ -2237,7 +2547,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ValuePointOut"][];
+                    "application/json": components["schemas"]["ValueHistoryOut"];
                 };
             };
             /** @description Validation Error */
@@ -2459,6 +2769,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImageImportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_discrepancies_api_admin_discrepancies_get: {
+        parameters: {
+            query?: {
+                game?: string | null;
+                source?: string | null;
+                field?: string | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscrepancyPageOut"];
                 };
             };
             /** @description Validation Error */

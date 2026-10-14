@@ -21,6 +21,10 @@ COPY backend/alembic.ini ./
 COPY backend/alembic ./alembic
 COPY --from=web /web/dist ./web
 
+# Release version (CI passes the image version); empty: the package version.
+ARG FUDABAKO_VERSION=
+ENV FUDABAKO_VERSION=$FUDABAKO_VERSION
+
 RUN useradd --create-home tcg && mkdir -p /data/images && chown tcg /data/images
 COPY deploy/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 ENV TCG_IMAGE_DIR=/data/images TCG_IMPORT_DIR=/data/import TCG_WEB_DIR=/app/web

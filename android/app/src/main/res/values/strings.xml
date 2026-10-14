@@ -82,9 +82,12 @@
 
     <!-- Collection, search filters, printing picker -->
     <string name="tab_collection">Collection</string>
-    <string name="price_value">%1$s €</string>
-    <string name="price_from">from %1$s €</string>
-    <string name="cardmarket">Cardmarket</string>
+    <string name="price_from">from %1$s</string>
+    <string name="app_version">App %1$s · server %2$s</string>
+    <string name="printings_partial">Shown: %1$d / %2$d. Type to search them all.</string>
+    <string name="card_fetched">New card: added to the catalog from its source</string>
+    <string name="price_source">Price source</string>
+    <string name="price_source_help">Used for values and prices shown first, here and on the web. Games without it use their own market.</string>
     <string name="choose_printing">Choose printing</string>
     <string name="filter_printings">Set name, code or number</string>
     <string name="detected">Read:</string>
@@ -101,8 +104,8 @@
     <string name="load_more">Load more (%1$d)</string>
     <string name="search_collection">Search your cards</string>
     <plurals name="collection_value">
-        <item quantity="one">%1$s € · %2$d card</item>
-        <item quantity="other">%1$s € · %2$d cards</item>
+        <item quantity="one">%1$s · %2$d card</item>
+        <item quantity="other">%1$s · %2$d cards</item>
     </plurals>
     <string name="collection_empty">No cards here yet</string>
     <string name="sort">Sort</string>

@@ -55,14 +55,11 @@ import java.util.Locale
 fun languageName(code: String): String =
     Locale.forLanguageTag(code).getDisplayName(Locale.getDefault()).ifEmpty { code }
 
-/** Cardmarket page of a printing, in the app language (Cardmarket redirects the product
- * id to the product page). */
-fun cardmarketUrl(game: GameOut?, printing: PrintingOut): String? {
-    val segment = game?.cardmarket ?: return null
-    val product = printing.cardmarketId ?: return null
-    val lang = if (Locale.getDefault().language == "fr") "fr" else "en"
-    return "https://www.cardmarket.com/$lang/$segment/Products?idProduct=$product"
-}
+/** Only web pages are opened from links the server sends (no intents, files...). */
+fun isWebLink(url: String): Boolean = url.startsWith("https://") || url.startsWith("http://")
+
+/** Prices of the user's price source (the server lists it first). */
+fun mainPrices(printing: PrintingOut) = printing.prices.filter { it.source == printing.prices.firstOrNull()?.source }
 
 /**
  * The identified card: what was read, the card and its price, the copies owned, then
@@ -76,7 +73,8 @@ fun ResultPanel(
     imageUrl: (String?) -> String?,
     imageLoader: ImageLoader,
     onCandidate: (Int) -> Unit,
-    onPrinting: (Int) -> Unit,
+    onPrinting: (PrintingOut) -> Unit,
+    searchPrintings: suspend (cardId: Int, query: String) -> List<PrintingOut>,
     onAdjust: (finish: String, condition: String, language: String, delta: Int) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
@@ -124,16 +122,31 @@ fun ResultPanel(
                     Text(it, style = MaterialTheme.typography.bodyMedium)
                 }
                 printing.rarity?.let { Text(it.replaceFirstChar(Char::uppercase), style = MaterialTheme.typography.bodySmall) }
-                printing.prices.forEach { price ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        FinishBadge(game, price.finish)
-                        Text(stringResource(R.string.price_value, price.trend), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                        price.low?.let { Text(stringResource(R.string.price_from, it), style = MaterialTheme.typography.bodySmall) }
+                val sourceName = { id: String -> game?.priceSources?.firstOrNull { it.id == id }?.name ?: id }
+                printing.prices.groupBy { it.source }.entries.forEachIndexed { index, (source, prices) ->
+                    // The user's market in full, the others on one line each.
+                    if (index == 0) {
+                        if (printing.prices.map { it.source }.distinct().size > 1) {
+                            Text(sourceName(source), style = MaterialTheme.typography.labelSmall)
+                        }
+                        prices.forEach { price ->
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                FinishBadge(game, price.finish)
+                                Text(money(price.trend, price.currency), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                price.low?.let { Text(stringResource(R.string.price_from, money(it, price.currency)), style = MaterialTheme.typography.bodySmall) }
+                            }
+                        }
+                    } else {
+                        Text(
+                            "${sourceName(source)}: " + prices.joinToString(" · ") { money(it.trend, it.currency) },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
-                cardmarketUrl(game, printing)?.let { url ->
-                    TextButton(onClick = { uriHandler.openUri(url) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
-                        Text(stringResource(R.string.cardmarket))
+                printing.links.filter { isWebLink(it.url) }.forEach { link ->
+                    TextButton(onClick = { uriHandler.openUri(link.url) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                        Text(link.name)
                         Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.padding(start = 4.dp).size(16.dp))
                     }
                 }
@@ -158,8 +171,8 @@ fun ResultPanel(
                 )
             }
             printing.set.lang?.let { LangFlag(it) }
-            if (candidate.printings.size > 1) {
-                Text(stringResource(R.string.printing_position, state.printing + 1, candidate.printings.size), style = MaterialTheme.typography.bodySmall)
+            if (candidate.printingCount > 1) {
+                Text(stringResource(R.string.printing_position, state.printing + 1, maxOf(candidate.printingCount, candidate.printings.size)), style = MaterialTheme.typography.bodySmall)
                 Icon(Icons.Default.ArrowDropDown, stringResource(R.string.choose_printing))
             }
         }
@@ -191,7 +204,9 @@ fun ResultPanel(
     if (pickPrinting) {
         PrintingPicker(
             printings = candidate.printings,
-            selected = state.printing,
+            total = candidate.printingCount,
+            selectedId = printing.id,
+            search = { q -> searchPrintings(candidate.card.id, q) },
             imageUrl = imageUrl,
             imageLoader = imageLoader,
             onPick = { onPrinting(it); pickPrinting = false },

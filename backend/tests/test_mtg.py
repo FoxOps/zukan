@@ -1,13 +1,13 @@
 import gzip
 import json
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
 import httpx
 import pytest
 import respx
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.core.http import http_client
 from app.games.base import get_provider
@@ -20,8 +20,10 @@ from app.models import (
     CardSet,
     CollectionItem,
     JobKind,
+    JobStatus,
     PriceSnapshot,
     Printing,
+    Role,
     SyncRun,
 )
 from app.services import jobs
@@ -128,6 +130,11 @@ async def test_sync_merges_languages(client, session, scryfall):
 
     elves = await printing(session, "dom", "168")
     elves_id = elves.id
+    card = await session.get(Card, elves.card_id)
+    assert (card.attributes["types"], card.attributes["subtypes"]) == (
+        ["Creature"],
+        ["Elf", "Druid"],
+    )
     assert set(elves.languages) == {"en", "fr", "de"}
     # One scan per language, whatever the order of the objects.
     assert elves.image_urls == {
@@ -148,7 +155,16 @@ async def test_sync_merges_languages(client, session, scryfall):
         )
     )
     assert snapshot.trend == Decimal("0.39") and snapshot.date == today()
-    assert report.prices == 6  # elves, delver and ajani, nonfoil and foil
+    # Elves, delver and ajani, nonfoil and foil, on Cardmarket and TCGplayer.
+    assert report.prices == 12
+    tcgplayer = await session.scalar(
+        select(PriceSnapshot).where(
+            PriceSnapshot.printing_id == elves_id,
+            PriceSnapshot.finish == "nonfoil",
+            PriceSnapshot.source == "tcgplayer",
+        )
+    )
+    assert tcgplayer.currency == "USD" and tcgplayer.trend > 0
 
     counts = [
         await session.scalar(select(func.count()).select_from(m))
@@ -198,21 +214,23 @@ async def test_price_job_keeps_history_of_owned_cards(session, scryfall):
                 printing_id=printing_id,
                 finish="nonfoil",
                 date=yesterday,
-                source="scryfall-cardmarket",
+                source="cardmarket",
                 trend=Decimal("9.99"),
             )
         )
     await session.commit()
 
     run = await session.get(SyncRun, await jobs.run_job("mtg", JobKind.prices))
-    assert run.report["stored"] == 6
+    assert run.report["stored"] == 12
     assert run.report["pruned"] == 1
     # Scryfall's trend, Cardmarket's lowest offer and average.
     latest = {
         s.finish: (s.trend, s.low, s.avg)
         for s in await session.scalars(
             select(PriceSnapshot).where(
-                PriceSnapshot.printing_id == elves, PriceSnapshot.date == today()
+                PriceSnapshot.printing_id == elves,
+                PriceSnapshot.date == today(),
+                PriceSnapshot.source == "cardmarket",
             )
         )
     }
@@ -225,3 +243,161 @@ async def test_price_job_keeps_history_of_owned_cards(session, scryfall):
         select(PriceSnapshot.printing_id).where(PriceSnapshot.date == yesterday)
     )
     assert list(old) == [elves]  # delver is not owned: only its latest price is kept
+
+
+async def test_stale_card_is_refreshed(client, session, scryfall):
+    await sync_mtg(session)
+    elves = raw("en", "dom")
+    oracle = elves["oracle_id"]
+    prints = [c for c in RAW if c.get("oracle_id") == oracle]
+    # Two result pages, as Scryfall pages its searches.
+    search = scryfall.get(f"{API_URL}/cards/search")
+    search.side_effect = [
+        httpx.Response(
+            200, json={"data": prints[:1], "has_more": True, "next_page": f"{API_URL}/p2"}
+        ),
+    ]
+    scryfall.get(f"{API_URL}/p2").respond(json={"data": prints[1:], "has_more": False})
+
+    # Image URLs lost (an older catalog): the card is stale.
+    card = await session.scalar(select(Card).where(Card.external_id == oracle))
+    card_id = card.id
+    await session.execute(update(Printing).where(Printing.card_id == card_id).values(image_urls={}))
+    await session.commit()
+
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    detail = (await client.get(f"/api/cards/{card_id}", headers=headers)).json()
+    assert detail["refreshing"] is True
+    assert search.calls[0].request.url.params["q"] == f"oracleid:{oracle}"
+    # The refresh ran after the answer: images are back, and no new refresh for a while.
+    assert (await printing(session, "dom", "168")).image_urls["en"]
+    detail = (await client.get(f"/api/cards/{card_id}", headers=headers)).json()
+    assert detail["refreshing"] is False
+
+
+async def test_refresh_job_fetches_cards_missed_by_the_last_sync(session, scryfall):
+    await sync_mtg(session)
+    now = datetime.now(UTC)
+    session.add(
+        SyncRun(
+            game_id="mtg",
+            kind=JobKind.catalog,
+            status=JobStatus.success,
+            started_at=now - timedelta(hours=26),
+            finished_at=now - timedelta(hours=25),
+        )
+    )
+    elves = raw("en", "dom")
+    await session.execute(
+        update(Card)
+        .where(Card.external_id == elves["oracle_id"])
+        .values(last_seen_at=now - timedelta(days=3))
+    )
+    await session.commit()
+    scryfall.get(f"{API_URL}/cards/search").respond(
+        json={"data": [c for c in RAW if c.get("oracle_id") == elves["oracle_id"]]}
+    )
+
+    run = await session.get(SyncRun, await jobs.run_job("mtg", JobKind.refresh))
+    assert run.report == {"checked": 1, "updated": 1, "not_found": 0}
+    session.expire_all()
+    card = await session.scalar(select(Card).where(Card.external_id == elves["oracle_id"]))
+    assert card.last_seen_at > now - timedelta(minutes=1)
+    # Fresh again: the next run has nothing to do.
+    run = await session.get(SyncRun, await jobs.run_job("mtg", JobKind.refresh))
+    assert run.report == {"checked": 0, "updated": 0, "not_found": 0}
+
+
+def csv_gz(header: str, *rows: str) -> bytes:
+    return gzip.compress(("\n".join([header, *rows]) + "\n").encode())
+
+
+async def test_mtgjson_fills_gaps_and_reports_discrepancies(client, session, scryfall):
+    from app.games.mtg.mtgjson import CSV_URL
+
+    scryfall.get(f"{CSV_URL}/sets.csv.gz").respond(
+        content=csv_gz(
+            "code,name,releaseDate",
+            "DOM,Dominaria,2018-04-27",
+            "ISD,Innistrad,2011-09-29",  # one day off
+        )
+    )
+    scryfall.get(f"{CSV_URL}/cardIdentifiers.csv.gz").respond(
+        content=csv_gz("uuid,mcmId,tcgplayerProductId", "u-elves,999,162231", "u-delver,,55")
+    )
+    scryfall.get(f"{CSV_URL}/cards.csv.gz").respond(
+        content=csv_gz(
+            "setCode,number,name,rarity,artist,uuid,side",
+            "DOM,168,Llanowar Elves,uncommon,Chris Rahn,u-elves,",
+            "ISD,51,Delver of Secrets // Insectile Aberration,common,Nils Hamm,u-delver,a",
+            "ISD,51,Delver of Secrets // Insectile Aberration,common,Nils Hamm,u-delver,b",
+            "XXX,1,Unknown,common,Nobody,u-x,",
+        )
+    )
+    run = await session.get(SyncRun, await jobs.run_job("mtg", JobKind.catalog))
+    assert run.report["cross_checked"] == 2
+    assert run.report["discrepancies"] == 2  # elves rarity, isd release date
+
+    elves = await printing(session, "dom", "168")
+    # Scryfall's Cardmarket id is kept, the TCGplayer id it lacked is added.
+    assert elves.attributes["market_ids"] == {"cardmarket": 319744, "tcgplayer": 162231}
+    assert elves.rarity == "common"  # the primary source wins
+    delver = await printing(session, "isd", "51")
+    assert delver.attributes["market_ids"] == {"cardmarket": 250620, "tcgplayer": 55}
+
+    await make_user(session, "root", role=Role.admin)
+    admin = await bearer(client, "root")
+    page = (await client.get("/api/admin/discrepancies", headers=admin)).json()
+    found = {(d["set_code"], d["collector_number"], d["field"]): d for d in page["items"]}
+    assert set(found) == {("DOM", "168", "rarity"), ("ISD", None, "release date")}
+    assert found["DOM", "168", "rarity"]["secondary_value"] == "uncommon"
+    assert page["counts"] == [
+        {"game_id": "mtg", "source": "mtgjson", "field": "rarity", "count": 1},
+        {"game_id": "mtg", "source": "mtgjson", "field": "release date", "count": 1},
+    ]
+
+    # Fixed upstream: the next run drops the discrepancy.
+    scryfall.get(f"{CSV_URL}/cards.csv.gz").respond(
+        content=csv_gz(
+            "setCode,number,name,rarity,artist,uuid,side",
+            "DOM,168,Llanowar Elves,common,Chris Rahn,u-elves,",
+        )
+    )
+    await jobs.run_job("mtg", JobKind.catalog)
+    page = (await client.get("/api/admin/discrepancies", headers=admin)).json()
+    assert [d["field"] for d in page["items"]] == ["release date"]
+
+
+async def test_set_icons_and_back_faces_are_served_locally(
+    client, session, scryfall, tmp_path, monkeypatch
+):
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "image_dir", tmp_path)
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg"/>'
+    icon = scryfall.get(url__startswith="https://svgs.scryfall.io/sets/").respond(
+        content=svg, headers={"content-type": "image/svg+xml"}
+    )
+    back = scryfall.get(url__startswith="https://cards.scryfall.io/").respond(
+        content=b"\x89PNG\r\n\x1a\n0000", headers={"content-type": "image/png"}
+    )
+    await sync_mtg(session)
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    delver = await printing(session, "isd", "51")
+    card = (await client.get(f"/api/cards/{delver.card_id}", headers=headers)).json()
+    ours = card["printings"][0]
+    assert ours["set"]["icon"] == f"/api/sets/{ours['set']['id']}/icon"
+    assert ours["back_image"] == f"/api/printings/{ours['id']}/image?face=back"
+
+    for _ in range(2):  # downloaded once, then from the cache
+        response = await client.get(ours["set"]["icon"], headers=headers)
+        assert response.content == svg
+        assert "default-src 'none'" in response.headers["content-security-policy"]
+    assert icon.call_count == 1
+    response = await client.get(ours["back_image"], headers=headers)
+    assert response.status_code == 200 and back.call_count == 1
+    elves = await printing(session, "dom", "168")
+    no_back = await client.get(f"/api/printings/{elves.id}/image?face=back", headers=headers)
+    assert no_back.status_code == 404

@@ -16,6 +16,7 @@ Prices: Cardmarket publishes daily product and price guide files per game
 
 import logging
 import re
+import time
 import unicodedata
 from collections import defaultdict
 from collections.abc import AsyncIterator
@@ -28,8 +29,10 @@ from app.core.http import get_with_retry
 from app.games import cardmarket
 from app.games.base import (
     CardData,
+    CardRef,
     CatalogBatch,
     ColorDef,
+    FilterDef,
     FinishDef,
     OcrHints,
     OcrLine,
@@ -166,14 +169,16 @@ def _name_key(name: str) -> str:
 
 def _guide_quote(set_code: str, printing_id: str, finish: str, guide: Guide) -> PriceQuote:
     trend, low, avg = cardmarket.prices(guide, "" if finish == "standard" else "-foil")
-    return PriceQuote(set_code, printing_id, finish, trend=trend, low=low, avg=avg)
+    return PriceQuote(
+        set_code, printing_id, finish, trend=trend, low=low, avg=avg, source="cardmarket"
+    )
 
 
 def match_cardmarket(
     catalog: CatalogBatch, products: list[dict[str, Any]], guides: dict[int, Guide]
 ) -> list[PriceQuote]:
     """Price quotes for catalog printings from Cardmarket's product list and price guide.
-    Matched printings also get their `cardmarket_id` attribute (product page link).
+    Matched printings also get their Cardmarket product id (`market_ids`, page link).
 
     Products are matched by expansion and card name. When one name has several products
     in an expansion (box toppers, preconstructed decks), they are paired in order with
@@ -212,7 +217,7 @@ def match_cardmarket(
             same_name[_name_key(product["name"])].append(product)
         for key, matches in same_name.items():
             for product, printing in zip(matches, ours.get((set_code, key), []), strict=False):
-                printing.attributes["cardmarket_id"] = product["idProduct"]
+                printing.attributes["market_ids"] = {"cardmarket": product["idProduct"]}
                 guide = guides.get(product["idProduct"])
                 if guide is not None:
                     quotes += [
@@ -220,6 +225,11 @@ def match_cardmarket(
                         for finish in printing.finishes
                     ]
     return quotes
+
+
+# Catalog kept for card refreshes: (time.monotonic() of download, catalog).
+CATALOG_TTL = 3600
+_cached_catalog: tuple[float, CatalogBatch] | None = None
 
 
 class SorceryProvider:
@@ -237,7 +247,13 @@ class SorceryProvider:
         FinishDef("rainbow", "Rainbow foil"),
     ]
     languages = ["en"]
-    price_source = "cardmarket"
+    price_sources = ["cardmarket"]
+    filters = [
+        FilterDef("category", "Category", "category"),
+        FilterDef("type", "Type", "type"),
+        FilterDef("subtypes", "Subtype", "subtypes"),
+        FilterDef("rarity", "Rarity"),
+    ]
     cardmarket_path = "Sorcery"
     short_names = ["sorcery", "sor", "sct"]
     # Set codes are numbers; these are the abbreviations players use.
@@ -257,6 +273,33 @@ class SorceryProvider:
     async def _catalog(self, http: httpx.AsyncClient) -> CatalogBatch:
         # Whole catalog in one call (API limit: 30 requests/minute).
         return parse_cards((await get_with_retry(http, API_URL)).json())
+
+    async def _cached(self, http: httpx.AsyncClient) -> CatalogBatch:
+        # No single card endpoint: the whole catalog (one call), kept a while so
+        # refreshing cards one by one does not download it every time.
+        global _cached_catalog
+        if _cached_catalog is None or time.monotonic() - _cached_catalog[0] > CATALOG_TTL:
+            _cached_catalog = (time.monotonic(), await self._catalog(http))
+        return _cached_catalog[1]
+
+    async def lookup(self, http: httpx.AsyncClient, hints: OcrHints) -> CatalogBatch | None:
+        """A scanned card missing from the catalog, by exact name (accents, case and
+        punctuation aside)."""
+        if not hints.name:
+            return None
+        catalog = await self._cached(http)
+        key = _name_key(hints.name)
+        found = [card for card in catalog.cards if _name_key(card.name) == key]
+        return CatalogBatch(sets=catalog.sets, cards=found) if found else None
+
+    async def fetch_cards(
+        self, http: httpx.AsyncClient, cards: list[CardRef]
+    ) -> AsyncIterator[CatalogBatch]:
+        catalog = await self._cached(http)
+        wanted = {ref.external_id for ref in cards}
+        found = [card for card in catalog.cards if card.external_id in wanted]
+        if found:
+            yield CatalogBatch(sets=catalog.sets, cards=found)
 
     async def _cardmarket_quotes(
         self, http: httpx.AsyncClient, catalog: CatalogBatch

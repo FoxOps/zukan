@@ -312,6 +312,265 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
     and the one that found its own script wins (`ScriptPicker`). Needs a real phone
     check with Japanese and old-frame cards.
 
+- [x] Feedback batch 3 (2026-10-14), branch `feedback-batch-3`: server 0.5.0,
+  Android 0.4.0. Plan below; phases ticked as they land.
+  - [x] A quick fixes: version (`FUDABAKO_VERSION` build arg in images, else package
+    version) in `/api/health`, web sidebar, Android settings; `Select` component
+    (searchable from 11 options); card page printings sort; catalog image follows set;
+    scroll to top on page change; FR "versions".
+  - [x] B jobs: progress heartbeat (HTTP answers + stored batches), 15 min stall and
+    per-kind time limits, restart reaping by owner, manual takes over auto (cancel flag
+    polled every 5 s), worker schedule from auto runs only, complete job reports.
+  - [x] C last_seen_at on card/printing, `services/refresh.py` stale rule (missed by last
+    successful catalog sync + 24 h, or no image source / no attributes; prices left
+    out: many printings are legitimately unpriced), provider `fetch_cards` (Scryfall
+    `oracleid:` search, TCGdex per printing + missing-image languages, Sorcery cached
+    catalog), refresh on card view (BackgroundTasks, once an hour), `refresh` job (48 h).
+  - [x] D price sources: `fudabako.prices` plugins (`app/prices`: Cardmarket EUR,
+    TCGplayer USD from Scryfall `usd*` and TCGdex `pricing.tcgplayer`), quotes tagged with
+    `source`, `attributes.market_ids`, sources with their own API (`fetch`, called by the
+    prices job after the provider). Deviation: one prices job per game (not per source):
+    provider data carries several sources in one download. User `price_source` (fallback:
+    game's first source); per-currency values, never added up; card page shows every
+    source + links; `TCG_APITOKEN_*` helper (`api_token`). Docs: `docs/price-sources.md`.
+  - [x] E secondary catalog sources (`secondary_sources` on providers, `CatalogSource`
+    protocol, `services/crosscheck.py` run by the catalog job after the primary):
+    MTGJSON CSV files (market ids, rarity/artist gaps; name, rarity, set name, release
+    date compared) and the Pokémon TCG API **data files on GitHub** (the pokemontcg.io API
+    answered 500, it is being replaced by the paid Scrydex; same data, no key): English
+    images, rarity/artist gaps; set matched by id/ptcgoCode/name+date. Secondary writes
+    do not touch `last_seen_at`; market ids merge key by key. `catalog_discrepancy`
+    table, `GET /api/admin/discrepancies`, web "Data checks" page. A failing secondary
+    never fails the catalog job.
+  - [x] F advanced search: provider `filters` (`FilterDef`: card attribute or printing
+    rarity). MTG `types`/`subtypes` parsed from the type line (catalog_version 2), Pokémon
+    category / trainer type / stage, Sorcery category / type / subtypes, rarity
+    everywhere. `GET /api/games/{id}/filters` (distinct values, 1 h cache),
+    `/api/cards?attr=key:value` (`@>` on a GIN `jsonb_path_ops` index), catalog
+    "Advanced search" panel.
+  - [x] G local assets: `images.cached_asset` (download once to `stem.<ext>`, SVG allowed,
+    failures retried after an hour), MTG back faces `/api/printings/{id}/image?face=back`
+    (`PrintingOut.back_image`), set icons `/api/sets/{id}/icon` (`SetOut.icon`, raw URL no
+    longer in the API), both prefetched by the images job; SVG served with
+    `Content-Security-Policy: default-src 'none'` (color icons too).
+  - [x] H scan + Android 0.4.0: server `printing_count` on candidates,
+    `GET /api/cards/{id}/printings?q=`, unknown-card lookup (`services/lookup.py`,
+    provider `lookup`: Scryfall set/number or fuzzy name, TCGdex set/number with English
+    listing first, Sorcery exact name; misses cached 1 h; `IdentifyOut.fetched`), CJK
+    name containment scoring + Asian label skipping. App: picker searches the server past
+    the 30 loaded printings, version in settings, price source setting, prices per
+    market with currency (`Format.kt`), market links, OCR: CJK character pairs in the
+    stabilizer, AUTO mode reads every 3rd frame with one Asian model (own stabilizer),
+    recognition errors logged. Real-phone check of JA/KO/ZH cards still needed.
+  - Live check (2026-10-14, API from the venv on port 8010, fresh database): Sorcery 1601
+    printings + 1516 images; Pokémon EN 21k printings, pokemontcg data 165/176 sets
+    matched, 20k printings cross-checked; MTG 530k printings, MTGJSON 103k cross-checked.
+    Discrepancies after spelling-insensitive comparison: MTG 2, Pokémon 1126 (mostly
+    rarity vocabularies: "Secret Rare" vs "Rare Rainbow"; real finds such as BLK 060).
+    Browser: version, searchable selects, advanced search, scroll on page change, FR
+    "versions", printings sort, jobs reports, data checks. "eigh" on Forest (870
+    printings) finds the 8 Eighth Edition ones in 51 ms. Links from the server open only
+    when http(s) (web and app).
+
+## Feedback batch 3 plan
+
+### Context
+User feedback list (server + Android). Every item studied for feasibility. All can be done
+except **CardNexus** (API keys need manual approval by CardNexus) — **dropped by user**, may come
+back later; the price source plugin system below makes it a drop-in addition.
+Decisions from Q&A:
+- Secondary catalog sources: **MTGJSON** (MTG), **pokemontcg.io** (Pokémon). Sorcery: none exists.
+  Secondaries fill missing fields; disagreements logged for admins; primary wins.
+- Manual sync **cancels** a running auto run of same game + kind, starts at once; manual runs never shift worker schedule.
+- Preferred price source: **per-user setting** (default Cardmarket); card page shows all sources.
+- Stale = card missed by last successful full catalog sync (checked once that sync finished + 24 h), or missing image / price / attributes.
+
+Second price source (proves modularity without CardNexus): **TCGplayer (USD)**, already present
+in data we download (Scryfall `prices.usd*` + `tcgplayer_id`, TCGdex `pricing.tcgplayer`,
+pokemontcg.io `tcgplayer`). No new API.
+
+Branch `feedback-batch-3` off `main`. Keep `PLAN.md` progress section updated (memory rule).
+
+### Phase A — quick fixes (web + small server)
+1. **Catalog page change scrolls to top**: `web/src/lib/hooks.ts` `useUrlState.set` — add scroll
+   option; Catalog.tsx:95 and Collection.tsx:158 pass it (`window.scrollTo({top:0})`, check
+   drawer scroll container in browser).
+2. **i18n FR "Versions"**: `web/src/locales/fr.json` every "impression(s)" meaning printing →
+   "version(s)" (`{{count}} printings_*`, Jobs image import message, ImportExport text, any other
+   hit from `grep -i impression`); same in `android/app/src/main/res/values-fr/strings.xml`.
+3. **App version**: single source = `backend/pyproject.toml`. `app/__init__.py`
+   `__version__ = importlib.metadata.version("fudabako")`; `user_agent` default built from it
+   (`core/config.py:43`); `FastAPI(version=...)`; `/api/health` returns `{"status","version"}`.
+   Web: `useHealth()` query, Layout.tsx aside becomes `flex flex-col`, version `mt-auto` bottom-left
+   (`v0.5.0`, small muted text). Android: `BuildConfig.VERSION_NAME` line in SettingsScreen.kt
+   (+ server version from `/api/health` beneath).
+4. **Searchable selects, n = 10**: >10 options is where scanning a list gets slow (Hick's law,
+   common combobox threshold); all small lists here (conditions 7, sorts, roles, ≤10 languages)
+   stay native. New `web/src/components/Select.tsx`: same props as a select (`value, onChange,
+   options[{value,label}]`); ≤10 → daisyUI `<select>`; >10 → daisyUI dropdown with filter input
+   (accent-insensitive, reuse `normalize()` from CardDetail.tsx:40), keyboard ↑↓/Enter/Esc. Replace
+   all selects in pages (list in exploration: Filters.tsx `SetSelect`, Collection, Dashboard,
+   ImportExport, Settings, admin) so the rule applies everywhere automatically.
+5. **Card page printings sort**: CardDetail.tsx — select (uses `Select`) next to set filter box,
+   client-side on `c.printings`: Owned first (default, current order), Newest, Oldest, Set name,
+   Collector number, Price high→low, Price low→high. In URL `?sort=`. New labels added to
+   `DYNAMIC` in `web/scripts/check-i18n.mjs` + fr.json.
+6. **Catalog images follow selected set**: `api/catalog.py:279-293` — when `set_id` given, prefer
+   printings of that set in image choice. Web: `useQuery` with `placeholderData: keepPreviousData`
+   so grid stays and only images swap.
+
+### Phase B — jobs: timeout, manual vs auto, empty reports
+Migration on `sync_run`: `trigger` (`auto`|`manual`), `heartbeat_at`, `cancel_requested bool`.
+1. **Heartbeat + timeout** (`services/jobs.py`): job runner passes a `JobContext` to services;
+   `services/catalog.py`, `prices.py`, `images.py` call `ctx.tick()` per batch → updates
+   `heartbeat_at`, raises `JobCancelled` if `cancel_requested`. Watchdog: run with no heartbeat
+   for 15 min → `failed`, error "Stuck: no progress for 15 min". Hard limit per kind via
+   `asyncio.timeout` (catalog 6 h, prices 2 h, images 6 h, refresh 2 h) → `failed` "Timed out".
+   Watchdog runs on API start, worker start, each worker tick and in `start_job` (replaces lazy
+   6 h `STALE_AFTER`).
+2. **Manual cancels auto**: `POST /api/admin/jobs/{game}/{kind}` → if an `auto` run is running,
+   set `cancel_requested`, wait ≤ 60 s for it to stop (poll), else mark it failed "Cancelled by
+   manual run"; then start manual run. Manual vs manual still 409. Worker `is_due`/`RETRY_AFTER`
+   (`worker.py:53-80`) read only `trigger='auto'` runs; manual runs ignore intervals and retry
+   delay (already true), only provider rate limits apply. Cancelled auto run status `cancelled`
+   (new enum value), retried at next tick.
+3. **"failed 0 · stored 0 · missing 0"**: from images job when nothing to do (cached printings not
+   counted, `images.py:190-194`) and prices job edge cases. Fix: `ImageReport` adds `cached`,
+   `refused`; `PriceReport` adds `targets`, `unmatched`; admin endpoint refuses price job for a game
+   without price source (400). Web Jobs.tsx: translated labels per key, "Nothing to do" when
+   all counters 0.
+
+### Phase C — last seen, staleness, on-demand + periodic refresh
+1. Migration: `card.last_seen_at`, `printing.last_seen_at`, `card.refresh_attempted_at`
+   (timestamptz, indexed on `(game_id, last_seen_at)`). Catalog upsert (`services/catalog.py`
+   all `ON CONFLICT` sets) writes `now()` — every row a sync touches gets it, changed or not.
+   Backfill: set to last successful catalog run start.
+2. `services/staleness.py`: `stale_cards(game)` query = `last_seen_at < start of last successful
+   full catalog sync` AND now > that sync's `finished_at + 24 h`, OR no printing with an image
+   URL, OR empty card attributes, OR (game has prices) no price snapshot. Internal only, not in
+   API schemas.
+3. Provider protocol (`games/base.py`): optional `fetch_cards(http, refs) -> AsyncIterator[CatalogBatch]`
+   (refs = card + printing external ids/attributes). MTG: Scryfall `POST /cards/collection` by
+   `scryfall_id`, 75 per call, 100 ms spacing. Pokémon: TCGdex `/{lang}/cards/{id}` (existing
+   `_cards`). Sorcery: whole `/api/cards` (single call, cached in memory 1 h) filtered.
+4. **Card page refresh**: `GET /api/cards/{id}` — if card stale and `refresh_attempted_at` older
+   than 1 h, set it and schedule refresh in `BackgroundTasks`; response gets `refreshing: true`;
+   web refetches once after ~5 s.
+5. **Stale job every 48 h**: new job kind `refresh` in worker (`TCG_REFRESH_INTERVAL_HOURS=48`),
+   chunks of stale cards through `fetch_cards`; report `checked, updated, not_found`. Admin page
+   gets the button too.
+
+### Phase D — modular price sources
+1. New plugin type, entry point group `fudabako.prices` (pyproject.toml). `app/prices/base.py`:
+   `PriceSource` protocol: `id`, `name`, `currency`, `games: set[str]`, `link(printing) -> str|None`,
+   `fetch(http, game_id, targets) -> AsyncIterator[list[PriceQuote]]`; optional `token` via
+   helper below. Same features as Cardmarket today: trend, low, avg, history, min/max, links.
+2. `app/prices/cardmarket.py`: move `games/cardmarket.py` + per-game Cardmarket code out of
+   providers (MTG guide by `cardmarket_id`, Pokémon TCGdex `pricing.cardmarket`, Sorcery product
+   matching). `app/prices/tcgplayer.py`: Scryfall `usd/usd_foil/usd_etched`, TCGdex/pokemontcg.io
+   `tcgplayer` (market/low/mid → trend/low/avg). Providers keep yielding raw source data in
+   `CatalogBatch.prices` tagged with source id.
+3. Generic market ids: `printing.attributes["market_ids"] = {"cardmarket": id, "tcgplayer": id}`
+   (migration moves `cardmarket_id`). API: `PrintingOut.links[{source,name,url}]`,
+   `PriceOut.source, currency`; `GameOut.price_sources[]` replaces `cardmarket`/`has_prices`.
+4. Price data: snapshot `source` values normalized to `cardmarket` / `tcgplayer` (migration).
+   `services/collection.py:169` `latest_prices` filters by source (fixes arbitrary pick between
+   sources). Jobs: `sync_run.source` column, price jobs per (game, source).
+5. User setting `price_source` (default `cardmarket`, `PATCH /api/auth/me`, Settings page,
+   Android settings). Values, min/max, sort and collection totals use it; no currency mixing —
+   items without a price in that source count as unpriced. Card detail shows every source
+   (table per source with currency). Web `format.ts` money uses price currency; Android same.
+6. **API tokens**: `core/config.py` helper `api_token(kind, name, category=None)` reading
+   `TCG_APITOKEN_{KIND}_[{CATEGORY}_]{NAME}` (e.g. `TCG_APITOKEN_GAMES_PKM_POKEMONTCG`,
+   `TCG_APITOKEN_PRICES_CARDNEXUS` later). Category for games = short game code (MTG, PKM, SOR).
+   `.env.example` new "API keys" section documenting the rule and each used variable. Token sent
+   only by the source that owns it.
+
+### Phase E — secondary catalog sources + cross-check
+1. Protocol: game package exposes optional `secondary_sources: list[CatalogSource]`
+   (`id`, `fetch(http, ids) -> AsyncIterator[CatalogBatch]` with `partial=True` data keyed on
+   primary external ids). Catalog job runs primary, then each secondary (report per source).
+   Existing partial merge (`services/catalog.py:65-134`) fills gaps only.
+2. **MTGJSON** (`games/mtg/mtgjson.py`): `AllPrintingsCSVFiles` (cards.csv, cardIdentifiers.csv,
+   cardForeignData.csv, sets.csv) streamed; join on `scryfallId`. Fills foreign names, missing
+   `cardmarket`/`tcgplayer` ids, rarity, artist.
+3. **pokemontcg.io** (`games/pokemon/pokemontcg.py`): `/v2/sets`, `/v2/cards?pageSize=250`,
+   optional key `TCG_APITOKEN_GAMES_PKM_POKEMONTCG` (header `X-Api-Key`; without key lower limits).
+   Set mapping to TCGdex by `ptcgoCode`/name + release date, card by collector number. Fills
+   images (EN), rarity, artist, tcgplayer prices/ids.
+4. **Cross-check**: table `catalog_discrepancy` (game, printing/card/set id, field, primary value,
+   secondary value, source, first_seen, last_seen; unique per entity+field+source). Compared:
+   name, rarity, collector number, set total, release date. Admin page "Data checks" (list + filter
+   by game/source). Primary value kept.
+5. Recorded fixtures for both sources (tests refuse network).
+
+### Phase F — advanced catalog search per game
+1. Provider declares `filters: list[FilterDef(key, label, field)]`, `field` = `rarity` (printing
+   column) or card attribute key (string or list).
+   - MTG: `types` (new card attribute parsed from `type_line`: supertypes + types, e.g.
+     Legendary, Creature), `subtypes`, rarity. `catalog_version` 2 → resync at once.
+   - Pokémon: `category`, `trainerType`, rarity. Sorcery: `type`, `subtypes`, rarity.
+2. `GET /api/games/{id}/filters` → distinct values per filter (cached in memory, cleared after
+   catalog sync). `/api/cards` accepts `attr=key:value` (repeatable, AND) and `rarity`; GIN
+   `jsonb_path_ops` index on `card.attributes`.
+3. Web Catalog: "Advanced" collapsible panel under game tabs (colors + these filters with
+   `Select`), state in URL, cleared on game change. Labels translated.
+
+### Phase G — local visual assets
+Card front images already proxied + cached. Remaining external:
+- MTG back face (`attributes.back_image_url`, loaded directly by CardDetail.tsx:103): served by
+  `/api/printings/{id}/image?face=back`, cached same way (`images.py`).
+- Set icons (`CardSet.icon_url`, Scryfall SVG / TCGdex PNG): cached by images job into
+  `images/sets/`, served `/api/sets/{id}/icon`; `SetOut.icon` local link (raw URL removed from API).
+  Shown next to set names on card page and set select.
+- Color symbols: already local. Flags: bundled.
+
+### Phase H — Android
+1. **Printing search beyond 30**: identify response gains `printing_count`. New
+   `GET /api/cards/{id}/printings?q=&limit=50` (server-side filter on set name/code, number,
+   year; reuse `_escape_like`, `f_unaccent` from catalog.py:105-116; same printing shape).
+   PrintingPicker.kt: local filter first; when `printing_count > loaded` and query ≥ 2 chars,
+   debounced (300 ms) server query, results merged. Counter shows "x / 870".
+2. **Unknown card fallback** (server side; app holds no external keys): identify with no
+   candidates but recognized hints → optional provider `lookup(http, hints)`:
+   MTG Scryfall `/cards/{set}/{number}/{lang}` else `/cards/named?fuzzy=`; Pokémon TCGdex
+   `/v2/{lang}/sets/{set}/{number}` else name search; Sorcery cached full catalog + name match.
+   Found → upsert via catalog service, re-run identify, response `fetched: true`. Negative
+   results cached 1 h per hint set (no API hammering). App: toast "Card added from {source}".
+3. **App version** in settings (Phase A3).
+4. **OCR JA/KO/ZH** (Pokémon tested, all CJK affected):
+   - `ScanStabilizer.words()`: CJK runs split into character bigrams so one misread glyph does
+     not break stability (today whole line = one token).
+   - AUTO mode: today CJK models run only after Latin model is stable — never on CJK cards.
+     Add second stabilizer fed every 3rd frame by the CJK model last picked by `ScriptPicker`
+     (round-robin JA/KO/ZH until one finds its script); first stabilizer to fire wins.
+   - `TextAnalyzer.kt:72`: log exceptions instead of swallowing.
+   - Server `pokemon/provider.py` `_SKIP`: Asian trainer/energy labels (サポート, グッズ,
+     トレーナーズ, スタジアム, エネルギー, 서포트, 아이템, 支援者, 物品…).
+   - `identify.py` CJK names: pg_trgm weak on 2-5 glyph names → for CJK queries add substring
+     match (`search_name LIKE`) and `word_similarity`, lower threshold. Check prod `SHOW lc_ctype`.
+   - Fixtures: KO + ZH Pokémon cards, JA name-only test.
+   Needs real-phone check by user (emulator camera can't).
+
+### Order and versions
+A → B → C → D → E → F → G → H (H1/H3 can go early). Server 0.5.0 (pyproject), Android 0.4.0
+(build.gradle.kts default). After each phase: tests, PLAN.md progress line, commit.
+
+### Verification
+- `cd backend && pytest` (new tests: heartbeat/watchdog/timeout, manual cancels auto, reports,
+  last_seen + stale query, fetch_cards per provider with fixtures, price sources + user
+  preference + no currency mixing, MTGJSON/pokemontcg.io merge + discrepancies, attribute
+  filters, set icon cache, printings endpoint, identify lookup fallback, CJK name matching).
+- `cd web && npm run gen:api && npm run build && npm run lint && npm run check:i18n`.
+- Browser (dev compose, Playwright): catalog scroll on page change, set → images swap, advanced
+  filters per game, searchable set select (>10) vs native (≤10), card page sort, FR "Versions",
+  version bottom-left, admin jobs: manual during auto run, report labels, Data checks page,
+  price source switch in Settings.
+- Live syncs: MTG + MTGJSON, Pokémon + pokemontcg.io; check discrepancy counts sane, refresh job.
+- Android: `./gradlew testDebugUnitTest lint assembleDebug`; emulator: settings version, picker
+  server search ("eigh" on Forest finds Eighth Edition). Real phone (user): JA/KO/ZH Pokémon scan.
+
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.

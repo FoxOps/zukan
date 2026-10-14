@@ -1,11 +1,12 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { api, call } from '../api/client'
 import { useGame, useGames, useMe } from '../api/queries'
 import { CardImage } from '../components/CardImage'
 import { ColorBadges } from '../components/ColorBadges'
-import { ColorFilter, GameTabs, SearchInput, SetSelect } from '../components/Filters'
+import { AdvancedFilters, ColorFilter, GameTabs, SearchInput, SetSelect } from '../components/Filters'
 import { Pagination } from '../components/Pagination'
 import { formatMoney } from '../lib/format'
 import { useUrlState } from '../lib/hooks'
@@ -22,11 +23,13 @@ export default function Catalog() {
   const q = url.get('q')
   const setId = url.get('set')
   const colors = url.getAll('color')
+  const attrs = url.getAll('attr')
+  const [advanced, setAdvanced] = useState(attrs.length > 0)
   const gameInfo = useGame(game)
   const { data: games = [] } = useGames()
 
   const cards = useQuery({
-    queryKey: ['cards', game, q, setId, colors, url.page],
+    queryKey: ['cards', game, q, setId, colors, attrs, url.page],
     queryFn: () =>
       call(
         api.GET('/api/cards', {
@@ -36,6 +39,7 @@ export default function Catalog() {
               q: q || undefined,
               set_id: setId ? Number(setId) : undefined,
               color: colors.length ? colors : undefined,
+              attr: game && attrs.length ? attrs : undefined,
               page: url.page,
               page_size: PAGE_SIZE,
             },
@@ -54,13 +58,24 @@ export default function Catalog() {
       {only?.length === 0 ? (
         <div className="alert">{t('No game is selected in your settings.')}</div>
       ) : (
-        <GameTabs value={game} only={only} onChange={(id) => url.set({ game: id, set: null, color: null })} />
+        <GameTabs value={game} only={only} onChange={(id) => url.set({ game: id, set: null, color: null, attr: null })} />
       )}
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput value={q} onChange={(v) => url.set({ q: v })} placeholder={t('Name in any language')} />
         <SetSelect game={game} value={setId} onChange={(v) => url.set({ set: v })} />
         <ColorFilter game={gameInfo} value={colors} onChange={(v) => url.set({ color: v })} />
+        {!!gameInfo?.filters.length && (
+          <button className={`btn btn-sm ${advanced ? 'btn-active' : 'btn-ghost'}`} aria-expanded={advanced} onClick={() => setAdvanced(!advanced)}>
+            {t('Advanced search')}
+            {attrs.length > 0 && <span className="badge badge-primary badge-sm">{attrs.length}</span>}
+          </button>
+        )}
       </div>
+      {advanced && (
+        <div className="rounded-box bg-base-200 p-3 animate-in fade-in slide-in-from-top-1 duration-150">
+          <AdvancedFilters game={gameInfo} value={attrs} onChange={(v) => url.set({ attr: v })} />
+        </div>
+      )}
       {cards.isError && <div className="alert alert-error">{cards.error.message}</div>}
       {cards.data && (
         <>
@@ -82,8 +97,8 @@ export default function Catalog() {
                   {card.price_min !== null && (
                     <span className="text-xs font-medium">
                       {card.price_min === card.price_max
-                        ? formatMoney(card.price_min)
-                        : `${formatMoney(card.price_min)} - ${formatMoney(card.price_max)}`}
+                        ? formatMoney(card.price_min, card.currency ?? undefined)
+                        : `${formatMoney(card.price_min, card.currency ?? undefined)} - ${formatMoney(card.price_max, card.currency ?? undefined)}`}
                     </span>
                   )}
                   <ColorBadges game={games.find((g) => g.id === card.game_id)} colors={card.colors} />
@@ -92,7 +107,7 @@ export default function Catalog() {
             ))}
           </div>
           <div className="flex justify-center">
-            <Pagination page={url.page} pageSize={PAGE_SIZE} total={cards.data.total} onChange={(p) => url.set({ page: p }, false)} />
+            <Pagination page={url.page} pageSize={PAGE_SIZE} total={cards.data.total} onChange={url.goToPage} />
           </div>
         </>
       )}

@@ -116,7 +116,7 @@ async def test_undo(client, session, alice):
 async def add_price(session, printing, finish, day, trend):
     session.add(
         PriceSnapshot(
-            printing_id=printing, finish=finish, date=day, source="manual-test", trend=trend
+            printing_id=printing, finish=finish, date=day, source="cardmarket", trend=trend
         )
     )
     await session.commit()
@@ -149,14 +149,37 @@ async def test_prices_value_and_history(client, session, alice):
     # 3 x 2.50 + 1 x 10 + 2 x 4.20
     assert value["total"] == "25.90"
     assert value["games"] == [
-        {"game_id": "sorcery", "total": "25.90", "quantity": 6, "priced": 6, "unpriced": 0}
+        {
+            "game_id": "sorcery",
+            "currency": "EUR",
+            "total": "25.90",
+            "quantity": 6,
+            "priced": 6,
+            "unpriced": 0,
+        }
     ]
 
     history = (
         await client.get("/api/collection/value/history", params={"days": 3}, headers=alice)
     ).json()
     # Day -2: manual price only; day -1: abundance standard known (1.00); today: all prices.
-    assert [p["value"] for p in history] == ["8.40", "11.40", "25.90"]
+    assert history["currency"] == "EUR"
+    assert [p["value"] for p in history["points"]] == ["8.40", "11.40", "25.90"]
+
+    # TCGplayer preferred: Sorcery has no TCGplayer prices and stays on Cardmarket, in
+    # euros, never added to dollar totals.
+    me = await client.patch("/api/auth/me", json={"price_source": "tcgplayer"}, headers=alice)
+    assert me.json()["price_source"] == "tcgplayer"
+    value = (await client.get("/api/collection/value", headers=alice)).json()
+    assert (value["currency"], value["total"]) == ("USD", "0")
+    assert value["totals"] == [{"currency": "EUR", "total": "25.90"}]
+    history = (
+        await client.get("/api/collection/value/history", params={"days": 1}, headers=alice)
+    ).json()
+    assert history == {"currency": "USD", "points": [{"date": str(date.today()), "value": "0"}]}
+    bad = await client.patch("/api/auth/me", json={"price_source": "nope"}, headers=alice)
+    assert bad.status_code == 422
+    await client.patch("/api/auth/me", json={"price_source": "cardmarket"}, headers=alice)
 
     reset = await client.patch(
         f"/api/collection/items/{other['item']['id']}", json={"manual_price": None}, headers=alice

@@ -6,11 +6,12 @@ from urllib.parse import unquote
 import httpx
 import pytest
 import respx
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.core.http import http_client
 from app.games.base import get_provider
-from app.games.pokemon.provider import API_URL, parse_prices
+from app.games.pokemon.pokemontcg import DATA_URL as POKEMONTCG_URL
+from app.games.pokemon.provider import API_URL, parse_card, parse_prices
 from app.main import register_games
 from app.models import (
     Card,
@@ -24,8 +25,10 @@ from app.models import (
 )
 from app.services import jobs
 from app.services.catalog import sync_catalog
+from app.services.refresh import refresh_cards
 from tests.conftest import bearer, make_user
 
+POKEMONTCG: dict[str, object] = {}
 API = json.loads((Path(__file__).parent / "fixtures" / "pokemon_api.json").read_text())
 
 
@@ -46,6 +49,14 @@ def tcgdex():
 
     with respx.mock(assert_all_called=False) as router:
         route = router.get(url__startswith=API_URL).mock(side_effect=respond)
+        # Second source (pokemontcg data files): nothing unless a test adds files.
+        router.get(url__startswith=POKEMONTCG_URL).mock(
+            side_effect=lambda request: (
+                httpx.Response(200, json=POKEMONTCG[str(request.url).removeprefix(POKEMONTCG_URL)])
+                if str(request.url).removeprefix(POKEMONTCG_URL) in POKEMONTCG
+                else httpx.Response(404)
+            )
+        )
         yield route
 
 
@@ -214,3 +225,83 @@ async def test_search_by_printed_language(client, session, tcgdex):
     assert "Furret" in await names("fr")
     assert "Tropius" not in await names("fr")
     assert {"Furret", "Tropius"} <= await names("ja")
+
+
+async def test_refresh_fetches_printings_again(session, tcgdex):
+    await sync_pokemon(session)
+    furret = await printing_id(session, "swsh3", "136")
+    ropiusu = await printing_id(session, "SV1a", "001")
+    await session.execute(
+        update(Printing).where(Printing.id.in_([furret, ropiusu])).values(image_urls={})
+    )
+    await session.commit()
+    card_ids = list(
+        await session.scalars(
+            select(Printing.card_id).where(Printing.id.in_([furret, ropiusu])).distinct()
+        )
+    )
+    async with http_client() as http:
+        report = await refresh_cards(session, get_provider("pokemon"), http, card_ids)
+    assert report.updated == len(card_ids) and report.not_found == 0
+    session.expire_all()
+    assert (await session.get(Printing, furret)).image_urls["en"].startswith("https://")
+    # A Japanese printing joined to an English card stays on that card.
+    japanese = await session.get(Printing, ropiusu)
+    assert japanese.image_urls["ja"] and japanese.card_id in card_ids
+
+
+def test_tcgplayer_prices_and_product_ids():
+    raw = {
+        "localId": "136",
+        "variants": {"normal": True, "reverse": True},
+        "pricing": {
+            "tcgplayer": {
+                "unit": "USD",
+                "normal": {"productId": 219333, "lowPrice": 0.02, "midPrice": 0.25,
+                           "marketPrice": 0.26},
+                "reverse-holofoil": {"productId": 219333, "lowPrice": 0.17, "midPrice": 0.43,
+                                     "marketPrice": None},
+            }
+        },
+    }  # fmt: skip
+    quotes = {(q.source, q.finish): q for q in parse_prices(raw, "swsh3")}
+    assert set(quotes) == {("tcgplayer", "normal"), ("tcgplayer", "reverse")}
+    assert quotes["tcgplayer", "normal"].trend == Decimal("0.26")
+    assert quotes["tcgplayer", "reverse"].trend == Decimal("0.43")  # mid when no market
+    assert quotes["tcgplayer", "normal"].currency == "USD"
+    card = parse_card(raw | {"name": "Furret", "category": "Pokemon"}, "swsh3", "en")
+    assert card.printings[0].attributes["market_ids"] == {"tcgplayer": 219333}
+
+
+async def test_pokemontcg_fills_images_and_checks(session, tcgdex, monkeypatch):
+    from app.services.crosscheck import cross_check
+
+    monkeypatch.setitem(
+        POKEMONTCG,
+        "/sets/en.json",
+        [
+            {"id": "swsh3", "name": "Darkness Ablaze", "ptcgoCode": "DAA",
+             "releaseDate": "2020/08/14", "total": 201},
+            {"id": "zzz", "name": "Not ours", "releaseDate": "2000/01/01", "total": 1},
+        ],
+    )  # fmt: skip
+    image = "https://images.pokemontcg.io/swsh3/136_hires.png"
+    monkeypatch.setitem(
+        POKEMONTCG,
+        "/cards/en/swsh3.json",
+        [
+            {"number": "136", "name": "Furret", "rarity": "Rare", "artist": "tetsuya koizumi",
+             "images": {"large": image}},
+            {"number": "025", "name": "Heatran", "rarity": None},
+        ],
+    )  # fmt: skip
+    await sync_pokemon(session)
+    furret = await printing_id(session, "swsh3", "136")
+    await session.execute(update(Printing).where(Printing.id == furret).values(image_urls={}))
+    await session.commit()
+    async with http_client() as http:
+        report = await cross_check(session, get_provider("pokemon"), http)
+    assert report.matched == 2 and not report.failed_sources
+    assert report.discrepancies == 1  # Furret's rarity
+    session.expire_all()
+    assert (await session.get(Printing, furret)).image_urls == {"en": image}

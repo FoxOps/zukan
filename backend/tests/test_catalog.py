@@ -1,5 +1,7 @@
+import asyncio
 import json
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import httpx
 import pytest
@@ -8,10 +10,21 @@ from sqlalchemy import func, select, update
 
 from app.core.config import get_settings
 from app.core.http import http_client
+from app.core.progress import progress
 from app.games.base import get_provider
 from app.games.sorcery.provider import IMAGE_URL, parse_cards
-from app.models import Card, CardName, CardSet, JobKind, JobStatus, Printing, Role, SyncRun
-from app.services import images, jobs
+from app.models import (
+    Card,
+    CardName,
+    CardSet,
+    JobKind,
+    JobStatus,
+    JobTrigger,
+    Printing,
+    Role,
+    SyncRun,
+)
+from app.services import images, jobs, refresh
 from app.worker import is_due
 from tests.conftest import SORCERY_CARDS as FIXTURE
 from tests.conftest import bearer, make_user, sync_sorcery
@@ -168,6 +181,14 @@ async def test_search_and_card_detail(client, session, synced):
         == f"/api/printings/{card['printings'][0]['id']}/image?lang=en"
     )
     assert card["attributes"]["thresholds"]["water"] >= 1
+    # With a set chosen, the image is the printing of that set.
+    for printing in card["printings"]:
+        found = (
+            await client.get(
+                "/api/cards", params={"q": "abun", "set_id": printing["set"]["id"]}, headers=headers
+            )
+        ).json()
+        assert found["items"][0]["image"] == printing["image"]
     assert (await client.get("/api/cards/999999", headers=headers)).status_code == 404
 
 
@@ -263,16 +284,101 @@ async def test_jobs_record_runs_and_block_overlap(session, sorcery_api):
     # Another kind or game is not blocked.
     await jobs.start_job("sorcery", JobKind.images)
 
-    # A job stuck for hours is considered dead.
+    # A job without heartbeat for longer than a stall is considered dead.
     await session.execute(
         update(SyncRun)
         .where(SyncRun.id == running)
-        .values(started_at=datetime.now(UTC) - timedelta(hours=7))
+        .values(heartbeat_at=datetime.now(UTC) - timedelta(minutes=25))
     )
     await session.commit()
-    await jobs.start_job("sorcery", JobKind.catalog)
+    restarted = await jobs.start_job("sorcery", JobKind.catalog)
     session.expire_all()
     assert (await session.get(SyncRun, running)).status == JobStatus.failed
+
+    # Runs of an earlier instance of this process are failed when it starts again.
+    await session.execute(
+        update(SyncRun).where(SyncRun.id == restarted).values(owner="api:earlier")
+    )
+    await session.commit()
+    assert await jobs.reap_runs() == 1
+    session.expire_all()
+    assert "stopped" in (await session.get(SyncRun, restarted)).error
+
+
+@pytest.fixture
+def quick_jobs(monkeypatch):
+    """Jobs checked often, with a fake job body (`body` is replaced by tests)."""
+    monkeypatch.setattr(jobs, "CHECK_EVERY", 0.05)
+    monkeypatch.setattr(jobs, "TAKEOVER_WAIT", 5)
+    state = {"body": None, "started": asyncio.Event()}
+
+    async def execute(game_id, kind):
+        state["started"].set()
+        return await state["body"]()
+
+    monkeypatch.setattr(jobs, "_execute", execute)
+    return state
+
+
+async def _busy() -> dict:
+    while True:
+        await progress()
+        await asyncio.sleep(0.01)
+
+
+async def test_stuck_job_is_stopped(session, quick_jobs, monkeypatch):
+    from app.main import register_games
+
+    await register_games()
+    monkeypatch.setattr(jobs, "STALL_AFTER", timedelta(seconds=0.2))
+
+    async def hang() -> dict:
+        await asyncio.sleep(3600)
+        return {}
+
+    quick_jobs["body"] = hang
+    with pytest.raises(jobs.JobStopped):
+        await jobs.run_job("sorcery", JobKind.catalog)
+    run = await session.scalar(select(SyncRun))
+    assert run.status == JobStatus.failed and run.error.startswith("Stuck")
+
+    # Progress keeps a job alive, up to its time limit.
+    monkeypatch.setitem(jobs.TIME_LIMITS, JobKind.images, timedelta(seconds=0.5))
+    quick_jobs["body"] = _busy
+    with pytest.raises(jobs.JobStopped):
+        await jobs.run_job("sorcery", JobKind.images)
+    run = await session.scalar(select(SyncRun).where(SyncRun.kind == JobKind.images))
+    assert run.status == JobStatus.failed and run.error.startswith("Timed out")
+
+
+async def test_manual_run_takes_over_auto_run(session, quick_jobs):
+    from app.main import register_games
+
+    await register_games()
+    quick_jobs["body"] = _busy
+    auto = asyncio.create_task(jobs.run_job("sorcery", JobKind.catalog, JobTrigger.auto))
+    await quick_jobs["started"].wait()
+
+    async def done() -> dict:
+        return {"cards": 1}
+
+    quick_jobs["body"] = done
+    manual = await jobs.run_job("sorcery", JobKind.catalog)
+    with pytest.raises(jobs.JobStopped):
+        await auto
+    runs = {r.trigger: r for r in await session.scalars(select(SyncRun))}
+    assert runs[JobTrigger.auto].status == JobStatus.cancelled
+    assert runs[JobTrigger.manual].id == manual
+    assert runs[JobTrigger.manual].status == JobStatus.success
+
+    # An auto run never takes over.
+    quick_jobs["body"] = _busy
+    quick_jobs["started"].clear()
+    running = asyncio.create_task(jobs.run_job("sorcery", JobKind.images))
+    await quick_jobs["started"].wait()
+    with pytest.raises(jobs.JobAlreadyRunning):
+        await jobs.start_job("sorcery", JobKind.images, JobTrigger.auto)
+    running.cancel()
 
 
 async def test_failed_job_is_recorded(session, sorcery_api):
@@ -314,32 +420,39 @@ async def test_worker_schedule(session):
     now = datetime.now(UTC)
     assert await is_due("sorcery", JobKind.catalog, now)
 
+    def auto(**values) -> SyncRun:
+        return SyncRun(game_id="sorcery", trigger=JobTrigger.auto, **values)
+
+    # Manual runs do not count.
     session.add(SyncRun(game_id="sorcery", kind=JobKind.catalog, status=JobStatus.failed))
+    await session.commit()
+    assert await is_due("sorcery", JobKind.catalog, now)
+    session.add(auto(kind=JobKind.catalog, status=JobStatus.cancelled))
+    await session.commit()
+    assert await is_due("sorcery", JobKind.catalog, now)  # cancelled: retried at once
+
+    session.add(auto(kind=JobKind.catalog, status=JobStatus.failed))
     await session.commit()
     assert not await is_due("sorcery", JobKind.catalog, now)  # retry waits an hour
     assert await is_due("sorcery", JobKind.catalog, now + timedelta(hours=2))
 
     # A catalog synced by an older version of the provider is synced again at once.
-    session.add(SyncRun(game_id="sorcery", kind=JobKind.catalog, status=JobStatus.success))
+    session.add(auto(kind=JobKind.catalog, status=JobStatus.success))
     await session.commit()
     assert await is_due("sorcery", JobKind.catalog, now + timedelta(hours=2))
     current = {"catalog_version": get_provider("sorcery").catalog_version}
-    session.add(
-        SyncRun(game_id="sorcery", kind=JobKind.catalog, status=JobStatus.success, report=current)
-    )
+    session.add(auto(kind=JobKind.catalog, status=JobStatus.success, report=current))
     await session.commit()
     assert not await is_due("sorcery", JobKind.catalog, now + timedelta(hours=2))
     # Catalogs refresh weekly, prices and images daily.
     assert not await is_due("sorcery", JobKind.catalog, now + timedelta(hours=25))
     assert await is_due("sorcery", JobKind.catalog, now + timedelta(hours=169))
-    session.add(SyncRun(game_id="sorcery", kind=JobKind.images, status=JobStatus.success))
+    session.add(auto(kind=JobKind.images, status=JobStatus.success))
     await session.commit()
     assert not await is_due("sorcery", JobKind.images, now + timedelta(hours=2))
     assert await is_due("sorcery", JobKind.images, now + timedelta(hours=25))
     # A newer catalog may bring new image URLs.
-    session.add(
-        SyncRun(game_id="sorcery", kind=JobKind.catalog, status=JobStatus.success, report=current)
-    )
+    session.add(auto(kind=JobKind.catalog, status=JobStatus.success, report=current))
     await session.commit()
     assert await is_due("sorcery", JobKind.images, now + timedelta(hours=2))
 
@@ -352,6 +465,20 @@ async def test_image_job_reports_printings_without_source(session, synced):
     async with http_client() as http:
         report = await images.cache_images(session, http, "sorcery")
     assert (report.stored, report.failed, report.missing) == (0, 0, total)
+
+
+async def test_image_job_counts_every_printing(session, synced):
+    total = await session.scalar(select(func.count()).select_from(Printing))
+    with respx.mock(assert_all_mocked=False) as router:
+        router.get(url__startswith=IMAGE_URL).respond(
+            200, content=PNG, headers={"content-type": "image/png"}
+        )
+        async with http_client() as http:
+            first = await images.cache_images(session, http, "sorcery")
+            # Nothing left to download: a second run says why it did nothing.
+            second = await images.cache_images(session, http, "sorcery")
+    assert (first.printings, first.stored) == (total, total)
+    assert (second.printings, second.cached, second.stored) == (total, total, 0)
 
 
 async def test_catalog_sync_prunes_cards_without_printings(session, synced):
@@ -372,3 +499,115 @@ async def test_search_by_set_abbreviation(client, session, synced):
         by_set[query] = {c["name"] for c in page["items"]}
         assert by_set[query], query
     assert by_set["sorcery ALP"] == by_set["alp"] == by_set["sorcery 001"]
+
+
+async def test_sorcery_refresh_downloads_the_catalog_once(session, synced, sorcery_api):
+    from app.games.sorcery import provider as sorcery
+
+    sorcery._cached_catalog = None
+    calls = sorcery_api.call_count
+    card_ids = list(await session.scalars(select(Card.id).order_by(Card.id).limit(2)))
+    await session.execute(update(Card).where(Card.id.in_(card_ids)).values(attributes={}))
+    await session.commit()
+    async with http_client() as http:
+        for card_id in card_ids:
+            report = await refresh.refresh_cards(session, get_provider("sorcery"), http, [card_id])
+            assert (report.updated, report.not_found) == (1, 0)
+    assert sorcery_api.call_count == calls + 1
+    session.expire_all()
+    for card_id in card_ids:
+        assert (await session.get(Card, card_id)).attributes
+
+
+async def test_price_source_plugin_with_its_own_api(client, session, synced, monkeypatch):
+    """A market plugin fetching its own prices, matched through market ids."""
+    from app.games.base import PriceQuote
+    from app.prices import base as price_base
+
+    printing = await session.scalar(select(Printing).order_by(Printing.id).limit(1))
+    printing.attributes = {**printing.attributes, "market_ids": {"nexus": 42}}
+    await session.commit()
+
+    class Nexus:
+        id = "nexus"
+        name = "Nexus"
+        currency = "EUR"
+        games = {"sorcery"}
+
+        def link(self, game_id, market_id, lang):
+            return f"https://nexus.example/p/{market_id}"
+
+        async def fetch(self, http, game_id, targets):
+            yield [
+                PriceQuote(t.set_external_id, t.printing_external_id, t.finishes[0],
+                           Decimal("3.30"), source="nexus")
+                for t in targets
+                if t.market_ids.get("nexus") == 42
+            ]  # fmt: skip
+
+    sources = dict(price_base.price_sources()) | {"nexus": Nexus()}
+    monkeypatch.setattr(price_base, "price_sources", lambda: sources)
+    from app.services import prices
+
+    monkeypatch.setattr(prices, "price_sources", lambda: sources)
+    monkeypatch.setattr("app.api.catalog.price_sources", lambda: sources)
+
+    async def no_cardmarket(self, http, owned):
+        return
+        yield
+
+    monkeypatch.setattr(type(get_provider("sorcery")), "fetch_prices", no_cardmarket)
+    async with http_client() as http:
+        report = await prices.sync_prices(session, get_provider("sorcery"), http)
+    assert report.stored == 1
+
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    games = (await client.get("/api/games", headers=headers)).json()
+    sorcery = next(g for g in games if g["id"] == "sorcery")
+    assert [s["id"] for s in sorcery["price_sources"]] == ["cardmarket", "nexus"]
+    card = (await client.get(f"/api/cards/{printing.card_id}", headers=headers)).json()
+    ours = next(p for p in card["printings"] if p["id"] == printing.id)
+    assert {"source": "nexus", "name": "Nexus", "url": "https://nexus.example/p/42"} in ours[
+        "links"
+    ]
+    assert any(p["source"] == "nexus" and p["trend"] == "3.30" for p in ours["prices"])
+
+
+async def test_advanced_search_filters(client, session, synced):
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    games = (await client.get("/api/games", headers=headers)).json()
+    sorcery = next(g for g in games if g["id"] == "sorcery")
+    assert [f["key"] for f in sorcery["filters"]] == ["category", "type", "subtypes", "rarity"]
+    values = (await client.get("/api/games/sorcery/filters", headers=headers)).json()
+    assert values["type"] == ["Artifact", "Aura", "Avatar", "Minion", "Site"]
+    assert values["subtypes"] == ["Mortal", "Relic"]
+    assert "Elite" in values["rarity"]
+
+    async def names(*attrs: str) -> set[str]:
+        page = await client.get(
+            "/api/cards", params={"game": "sorcery", "attr": list(attrs)}, headers=headers
+        )
+        return {c["name"] for c in page.json()["items"]}
+
+    assert await names("type:Avatar") == {"Archimago", "Druid", "Avatar of Air"}
+    assert await names("subtypes:Relic") == {"13 Treasures of Britain"}
+    assert await names("category:Spell", "subtypes:Mortal") == {"Amazon Warriors"}
+    assert await names("rarity:Elite") == {"Abundance"}
+    bad = await client.get("/api/cards", params={"game": "sorcery", "attr": "x:y"}, headers=headers)
+    assert bad.status_code == 422
+    bad = await client.get("/api/cards", params={"attr": "type:Avatar"}, headers=headers)
+    assert bad.status_code == 422
+
+
+def test_cross_check_comparison_ignores_spelling():
+    from app.games.base import compare
+
+    for a, b in (("Genesect EX", "Genesect-EX"), ("Vaporeon ☆", "Vaporeon ★"), ("Forêt", "foret")):
+        assert compare("s", "1", "name", a, b) is None
+    assert compare("s", "1", "name", "Uxie", "Uxie LV.X") is not None
+    assert compare("s", "1", "rarity", "Holo Rare", "Rare Holo", words=True) is None
+    assert compare("s", "1", "rarity", "Rare", "Rare Holo EX", words=True) is None
+    assert compare("s", "1", "rarity", "Common", "Promo", words=True) is not None
+    assert compare("s", "1", "rarity", None, "Promo") is None

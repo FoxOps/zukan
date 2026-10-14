@@ -9,9 +9,17 @@ const LOCALES = { en: 'locales/en.json', fr: 'locales/fr.json' }
 const DYNAMIC = [
   // Navigation labels, sort options, conditions, job kinds and states, roles, sources.
   'Dashboard', 'Collection', 'Catalog', 'Import / export', 'Settings', 'Users', 'Data sync',
+  'Data checks', 'Type', 'Subtype', 'Rarity', 'Category', 'Trainer type', 'Stage', 'name', 'rarity', 'set name', 'release date', 'card count',
+  'cross-checked', 'differences',
   'Name', 'Newest sets', 'Recently changed', 'Quantity', 'Price: low to high', 'Price: high to low',
+  'Owned first', 'Oldest sets', 'Set name', 'Collector number',
   'Mint', 'Near Mint', 'Excellent', 'Good', 'Light Played', 'Played', 'Poor',
   'catalog', 'prices', 'images', 'running', 'success', 'failed', 'user', 'admin', 'web', 'scan', 'import',
+  'cancelled', 'auto', 'manual',
+  // Job report counters.
+  'sets', 'cards', 'printings', 'names', 'owned printings', 'prices received', 'stored',
+  'already cached', 'skipped', 'without source', 'refused by source', 'old prices removed',
+  'empty cards removed', 'set icons', 'card backs', 'refresh', 'outdated cards', 'updated', 'not found at the source',
   // Names from the game plugins.
   'White', 'Blue', 'Black', 'Red', 'Green', 'Colorless', 'Grass', 'Fire', 'Water', 'Lightning',
   'Psychic', 'Fighting', 'Darkness', 'Metal', 'Fairy', 'Dragon', 'Air', 'Earth',

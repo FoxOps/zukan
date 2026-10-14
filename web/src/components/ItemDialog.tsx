@@ -82,8 +82,8 @@ function ItemForm({ item, close }: { item: Item; close: () => void }) {
             <input type="number" min={0} className="input w-32" value={quantity} onChange={(e) => setQuantity(Math.max(0, Number(e.target.value) || 0))} />
           </label>
           <label className="fieldset">
-            <span className="fieldset-legend">{t('Manual price (€)')}</span>
-            <input inputMode="decimal" className="input w-40" placeholder={item.market_price ? t('Market {{price}}', { price: formatMoney(item.market_price) }) : t('No market price')} value={price} onChange={(e) => setPrice(e.target.value)} />
+            <span className="fieldset-legend">{t('Manual price ({{currency}})', { currency: item.currency })}</span>
+            <input inputMode="decimal" className="input w-40" placeholder={item.market_price ? t('Market {{price}}', { price: formatMoney(item.market_price, item.currency) }) : t('No market price')} value={price} onChange={(e) => setPrice(e.target.value)} />
             <span className="label">{t('Empty = use the market price')}</span>
           </label>
           <label className="fieldset">
