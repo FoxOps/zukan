@@ -1202,6 +1202,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Game Id */
+            game_id: string;
             /** Name */
             name: string;
             /** Set Code */
@@ -1838,6 +1840,7 @@ export interface operations {
                 q?: string | null;
                 set_id?: number | null;
                 color?: string[] | null;
+                lang?: string | null;
                 page?: number;
                 page_size?: number;
             };
@@ -1975,7 +1978,7 @@ export interface operations {
                 condition?: components["schemas"]["Condition"] | null;
                 language?: string | null;
                 include_empty?: boolean;
-                sort?: "name" | "set" | "updated" | "quantity";
+                sort?: "name" | "set" | "updated" | "quantity" | "price_asc" | "price_desc";
                 page?: number;
                 page_size?: number;
             };

@@ -82,6 +82,31 @@ def test_mtg_parser():
         ]
     )
     assert (boxed.name, boxed.collector_number, boxed.set_code) == ("Forest", "280", "BLB")
+    # 8th Edition white border: number at the end of the copyright line, no set code.
+    eighth = mtg.parse_ocr(
+        [
+            OcrLine("Serra Angel 3WW", 0.07, 0.04),
+            OcrLine("Creature — Angel", 0.07, 0.56),
+            OcrLine("Flying, vigilance", 0.08, 0.62),
+            OcrLine("Illus. Douglas Shuler", 0.05, 0.91),
+            OcrLine("4/4", 0.84, 0.90),
+            OcrLine("™ & © 1993-2003 Wizards of the Coast, Inc. 47/350", 0.12, 0.95),
+        ]
+    )
+    assert (eighth.name, eighth.collector_number, eighth.set_code) == ("Serra Angel", "47", None)
+    assert eighth.recognized
+    # The number read as its own block on the right, the year must not be taken.
+    split = mtg.parse_ocr(
+        [
+            OcrLine("Serra Angel", 0.07, 0.04),
+            OcrLine("Illus. Douglas Shuler", 0.05, 0.91),
+            OcrLine("™ & © 2003 Wizards of the Coast, Inc.", 0.10, 0.95),
+            OcrLine("47/350", 0.78, 0.95),
+        ]
+    )
+    assert split.collector_number == "47"
+    year_only = mtg.parse_ocr(ocr("Serra Angel", "Creature", "™ & © 2003 Wizards of the Coast"))
+    assert year_only.collector_number is None
 
 
 def test_pokemon_parser():
@@ -95,6 +120,12 @@ def test_pokemon_parser():
         "001",
         "ja",
     )
+    # Japanese text has no spaces: stage and HP labels touch the name.
+    packed = pokemon.parse_ocr(ocr("たねトロピウスHP110", "リーフドレイン 20", "SV1a 001/073 C"))
+    assert packed.name == "トロピウス"
+    # The set code box read as its own line.
+    boxed = pokemon.parse_ocr(ocr("2進化 ドゴーム HP100", "G", "SV4K", "078/066 U"))
+    assert (boxed.name, boxed.set_code, boxed.collector_number) == ("ドゴーム", "SV4K", "078")
     sv = pokemon.parse_ocr(ocr("Basic Pikachu 70 HP", "Gnaw 20", "G PAL EN 063/193"))
     assert (sv.name, sv.set_code, sv.lang, sv.collector_number) == ("Pikachu", "PAL", "en", "063")
 
@@ -188,7 +219,7 @@ async def test_identify_number_and_name(client, alice):
 
     tropius = (await scan(client, alice, TROPIUS_JA))["candidates"][0]
     assert tropius["match"] == "set_number"
-    assert tropius["card"]["name"] == "トロピウス"
+    assert tropius["card"]["name"] == "Tropius"  # interface language (English)
 
 
 async def test_identify_ignores_accents_and_case(client, alice):

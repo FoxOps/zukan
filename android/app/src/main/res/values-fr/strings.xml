@@ -30,14 +30,9 @@
 
     <!-- Résultat -->
     <string name="no_picture">Pas d\'image</string>
-    <string name="price">%1$s : %2$s €</string>
-    <string name="owned">Possédé %1$d× %2$s %3$s %4$s</string>
-    <string name="previous_printing">Impression précédente</string>
-    <string name="next_printing">Impression suivante</string>
     <string name="printing_position">Impression %1$d / %2$d</string>
     <string name="condition">État</string>
     <string name="language">Langue</string>
-    <string name="picker_value">%1$s : %2$s</string>
     <string name="less">Moins</string>
     <string name="more">Plus</string>
     <string name="remove">Retirer</string>
@@ -59,7 +54,7 @@
     <string name="settings">Réglages</string>
     <string name="signed_in_as">Connecté en tant que %1$s sur %2$s</string>
     <string name="text_recognition">Reconnaissance de texte</string>
-    <string name="text_recognition_help">Choisissez l\'écriture imprimée sur les cartes scannées. Chacune lit aussi l\'alphabet latin.</string>
+    <string name="text_recognition_help">Automatique lit toutes les écritures et garde celle de la carte. Choisissez-en une pour la forcer ; chacune lit aussi l\'alphabet latin.</string>
     <string name="script_latin">Latin</string>
     <string name="script_japanese">Japonais</string>
     <string name="script_chinese">Chinois</string>
@@ -84,4 +79,38 @@
     <string name="error_sso_token">Échec de la demande de jeton</string>
     <string name="error_sso_no_id_token">Le fournisseur d\'identité n\'a renvoyé aucun jeton d\'identité</string>
     <string name="error_sso_no_nonce">Nonce manquant</string>
+
+    <!-- Collection, search filters, printing picker -->
+    <string name="tab_collection">Collection</string>
+    <string name="price_value">%1$s €</string>
+    <string name="price_from">dès %1$s €</string>
+    <string name="cardmarket">Cardmarket</string>
+    <string name="choose_printing">Choisir l\'impression</string>
+    <string name="filter_printings">Nom, code d\'extension ou numéro</string>
+    <string name="detected">Lu :</string>
+    <string name="not_owned">Absente de votre collection</string>
+    <string name="owned_quantity">%1$d× possédée(s)</string>
+    <string name="script_auto">Automatique</string>
+    <string name="after_add">Après un ajout</string>
+    <string name="after_add_stay">Rester sur la carte</string>
+    <string name="after_add_next">Scanner la carte suivante</string>
+    <string name="filters">Filtres</string>
+    <string name="any_set">Toutes les extensions</string>
+    <string name="any_language">Toutes les langues</string>
+    <string name="filter_sets">Nom ou code d\'extension</string>
+    <string name="load_more">Voir plus (%1$d)</string>
+    <string name="search_collection">Chercher dans vos cartes</string>
+    <plurals name="collection_value">
+        <item quantity="one">%1$s € · %2$d carte</item>
+        <item quantity="many">%1$s € · %2$d cartes</item>
+        <item quantity="other">%1$s € · %2$d cartes</item>
+    </plurals>
+    <string name="collection_empty">Aucune carte ici pour l\'instant</string>
+    <string name="sort">Trier</string>
+    <string name="sort_name">Nom</string>
+    <string name="sort_set">Extensions récentes</string>
+    <string name="sort_updated">Modifiées récemment</string>
+    <string name="sort_quantity">Quantité</string>
+    <string name="sort_price_asc">Prix croissant</string>
+    <string name="sort_price_desc">Prix décroissant</string>
 </resources>

@@ -41,10 +41,10 @@ data class TokenOut(
 )
 
 @Serializable
-data class MeOut(val id: Int, val username: String, val role: String)
+data class MeOut(val id: Int, val username: String, val role: String, val language: String = "en")
 
 @Serializable
-data class ColorOut(val code: String, val name: String, val hex: String)
+data class ColorOut(val code: String, val name: String, val hex: String, val icon: String? = null)
 
 @Serializable
 data class FinishOut(val code: String, val name: String)
@@ -57,6 +57,8 @@ data class GameOut(
     val finishes: List<FinishOut>,
     val languages: List<String>,
     @SerialName("has_prices") val hasPrices: Boolean,
+    // Cardmarket URL segment ("Magic"), null when the game has no Cardmarket links.
+    val cardmarket: String? = null,
 )
 
 @Serializable
@@ -92,7 +94,7 @@ data class SetOut(
 )
 
 @Serializable
-data class PriceOut(val finish: String, val trend: String, val date: String)
+data class PriceOut(val finish: String, val trend: String, val low: String? = null, val date: String)
 
 @Serializable
 data class OwnedOut(
@@ -113,6 +115,7 @@ data class PrintingOut(
     val languages: List<String>,
     val image: String? = null,
     val names: Map<String, String> = emptyMap(),
+    @SerialName("cardmarket_id") val cardmarketId: Int? = null,
     val prices: List<PriceOut> = emptyList(),
     val owned: List<OwnedOut> = emptyList(),
 )
@@ -138,7 +141,34 @@ data class AdjustIn(
 )
 
 @Serializable
-data class ItemOut(val id: Int, val name: String, val quantity: Int)
+data class ItemSetOut(val id: Int, val code: String, val name: String)
+
+@Serializable
+data class ItemOut(
+    val id: Int,
+    val name: String,
+    val quantity: Int,
+    @SerialName("printing_id") val printingId: Int = 0,
+    @SerialName("card_id") val cardId: Int = 0,
+    @SerialName("game_id") val gameId: String = "",
+    val set: ItemSetOut? = null,
+    @SerialName("collector_number") val collectorNumber: String? = null,
+    val image: String? = null,
+    val finish: String = "",
+    val condition: String = "",
+    val language: String = "",
+    @SerialName("unit_price") val unitPrice: String? = null,
+    val total: String? = null,
+)
+
+@Serializable
+data class ItemPageOut(val items: List<ItemOut>, val total: Int, val page: Int, @SerialName("page_size") val pageSize: Int)
+
+@Serializable
+data class GameValueOut(@SerialName("game_id") val gameId: String, val total: String, val quantity: Int)
+
+@Serializable
+data class ValueOut(val currency: String = "EUR", val total: String, val quantity: Int, val games: List<GameValueOut> = emptyList())
 
 @Serializable
 data class AdjustOut(val item: ItemOut, @SerialName("transaction_id") val transactionId: Int)
@@ -151,10 +181,12 @@ data class CardSummaryOut(
     val colors: List<String>,
     @SerialName("printing_count") val printingCount: Int,
     val image: String? = null,
+    @SerialName("price_min") val priceMin: String? = null,
+    @SerialName("price_max") val priceMax: String? = null,
 )
 
 @Serializable
-data class CardPageOut(val items: List<CardSummaryOut>, val total: Int)
+data class CardPageOut(val items: List<CardSummaryOut>, val total: Int, val page: Int = 1)
 
 @Serializable
 data class CardOut(

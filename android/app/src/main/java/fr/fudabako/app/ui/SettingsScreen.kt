@@ -43,10 +43,16 @@ fun SettingsScreen(session: SessionViewModel, state: SessionState, settings: Set
                 }
             }
         }
-        Section(stringResource(R.string.default_condition)) {
+        Section(stringResource(R.string.after_add)) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FilterChip(selected = !settings.autoNext, onClick = { session.updateSettings { it.copy(autoNext = false) } }, label = { Text(stringResource(R.string.after_add_stay)) })
+                FilterChip(selected = settings.autoNext, onClick = { session.updateSettings { it.copy(autoNext = true) } }, label = { Text(stringResource(R.string.after_add_next)) })
+            }
+        }
+        Section(stringResource(R.string.default_condition)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 CONDITIONS.forEach { c ->
-                    FilterChip(selected = settings.condition == c, onClick = { session.updateSettings { it.copy(condition = c) } }, label = { Text(c) })
+                    ConditionChoice(c, selected = settings.condition == c) { session.updateSettings { it.copy(condition = c) } }
                 }
             }
         }
@@ -54,7 +60,11 @@ fun SettingsScreen(session: SessionViewModel, state: SessionState, settings: Set
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 FilterChip(selected = settings.language == null, onClick = { session.updateSettings { it.copy(language = null) } }, label = { Text(stringResource(R.string.printing_language)) })
                 languages.forEach { l ->
-                    FilterChip(selected = settings.language == l, onClick = { session.updateSettings { it.copy(language = l) } }, label = { Text(languageName(l)) })
+                    FilterChip(
+                        selected = settings.language == l,
+                        onClick = { session.updateSettings { it.copy(language = l) } },
+                        label = { Text("${languageFlag(l) ?: ""} ${languageName(l)}".trim()) },
+                    )
                 }
             }
         }
@@ -66,6 +76,7 @@ fun SettingsScreen(session: SessionViewModel, state: SessionState, settings: Set
 
 private val OcrScript.label
     @StringRes get() = when (this) {
+        OcrScript.AUTO -> R.string.script_auto
         OcrScript.LATIN -> R.string.script_latin
         OcrScript.JAPANESE -> R.string.script_japanese
         OcrScript.CHINESE -> R.string.script_chinese

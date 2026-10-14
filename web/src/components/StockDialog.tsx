@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Game } from '../api/queries'
 import { useAdjust } from '../api/stock'
+import { currentLanguage } from '../i18n'
 import { CONDITIONS, conditionName, finishName, languageName } from '../lib/format'
+import { LangFlag } from './Badges'
 
 export type StockTarget = {
   printingId: number
@@ -39,9 +41,11 @@ function StockForm({ game, target, close }: { game: Game; target: StockTarget; c
   const finishes = target.finishes.length ? target.finishes : game.finishes.map((f) => f.code)
   const [finish, setFinish] = useState(finishes[0] ?? '')
   const [condition, setCondition] = useState<(typeof CONDITIONS)[number]['code']>('NM')
+  // Languages the printing exists in (all of the game's when the catalog does not say).
+  const languages = target.languages.length ? target.languages : game.languages
   const [language, setLanguage] = useState(() => {
-    const preferred = localStorage.getItem('tcg.language')
-    return preferred && game.languages.includes(preferred) ? preferred : (target.languages[0] ?? 'en')
+    const preferred = [localStorage.getItem('tcg.language'), currentLanguage()]
+    return preferred.find((l) => l && languages.includes(l)) ?? languages[0] ?? 'en'
   })
   const [quantity, setQuantity] = useState(1)
 
@@ -93,17 +97,26 @@ function StockForm({ game, target, close }: { game: Game; target: StockTarget; c
             ))}
           </div>
         </div>
-        <label className="fieldset">
-          <span className="fieldset-legend">{t('Language')}</span>
-          <select className="select select-sm" value={language} onChange={(e) => setLanguage(e.target.value)}>
-            {game.languages.map((l) => (
-              <option key={l} value={l}>
-                {languageName(l)}
-                {target.languages.includes(l) ? '' : ` (${t('not listed')})`}
-              </option>
+        <div className="fieldset">
+          <span className="fieldset-legend">
+            {t('Language')}: {languageName(language)}
+          </span>
+          <div className="flex flex-wrap gap-1">
+            {languages.map((l) => (
+              <button
+                key={l}
+                type="button"
+                title={languageName(l)}
+                aria-label={languageName(l)}
+                aria-pressed={language === l}
+                className={`btn btn-sm btn-ghost px-1.5 ${language === l ? 'ring-2 ring-base-content ring-offset-2 ring-offset-base-100' : 'opacity-60 hover:opacity-100'}`}
+                onClick={() => setLanguage(l)}
+              >
+                <LangFlag lang={l} className="h-5" />
+              </button>
             ))}
-          </select>
-        </label>
+          </div>
+        </div>
         <label className="fieldset">
           <span className="fieldset-legend">{t('Quantity')}</span>
           <input

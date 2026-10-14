@@ -1,5 +1,16 @@
 import type { Game } from '../api/queries'
-import { CONDITIONS, conditionName, finishName } from '../lib/format'
+import { CONDITIONS, LANGUAGE_FLAGS, conditionName, finishName, languageName } from '../lib/format'
+import cn from 'flag-icons/flags/4x3/cn.svg'
+import de from 'flag-icons/flags/4x3/de.svg'
+import es from 'flag-icons/flags/4x3/es.svg'
+import fr from 'flag-icons/flags/4x3/fr.svg'
+import gb from 'flag-icons/flags/4x3/gb.svg'
+import it from 'flag-icons/flags/4x3/it.svg'
+import jp from 'flag-icons/flags/4x3/jp.svg'
+import kr from 'flag-icons/flags/4x3/kr.svg'
+import pt from 'flag-icons/flags/4x3/pt.svg'
+import ru from 'flag-icons/flags/4x3/ru.svg'
+import tw from 'flag-icons/flags/4x3/tw.svg'
 
 // Special finishes stand out from the game's base finish (non-foil, normal, standard).
 const FINISH_STYLES: Record<string, string> = {
@@ -27,5 +38,22 @@ export function ConditionBadge({ condition, size = 'badge-sm' }: { condition: st
     >
       {condition}
     </span>
+  )
+}
+
+const FLAGS: Record<string, string> = { cn, de, es, fr, gb, it, jp, kr, pt, ru, tw }
+
+/** Flag of a card language, its name as tooltip; the code when no flag is known. */
+export function LangFlag({ lang, className = 'h-3.5' }: { lang: string; className?: string }) {
+  const country = LANGUAGE_FLAGS[lang]
+  const src = country && FLAGS[country]
+  if (!src) return <span className="badge badge-ghost badge-sm" title={languageName(lang)}>{lang}</span>
+  return (
+    <img
+      src={src}
+      alt={languageName(lang)}
+      title={languageName(lang)}
+      className={`inline-block aspect-[4/3] rounded-[2px] shadow-sm ring-1 ring-base-content/10 ${className}`}
+    />
   )
 }

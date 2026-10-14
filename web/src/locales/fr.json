@@ -137,10 +137,7 @@
   "No market price": "Pas de prix du marché",
   "No price data yet": "Pas encore de prix",
   "No set matches “{{q}}”.": "Aucune extension ne correspond à « {{q}} ».",
-  "Non-foil": "Non foil",
-  "Normal": "Normale",
   "Not found": "Page introuvable",
-  "not listed": "non répertoriée",
   "Notes": "Notes",
   "Nothing was imported.": "Rien n’a été importé.",
   "Nothing yet.": "Rien pour l’instant.",
@@ -212,5 +209,11 @@
   "Version": "Version",
   "Water": "Eau",
   "web": "web",
-  "White": "Blanc"
+  "White": "Blanc",
+  "Price: low to high": "Prix croissant",
+  "Price: high to low": "Prix décroissant",
+  "Previous page": "Page précédente",
+  "Next page": "Page suivante",
+  "Go to page": "Aller à la page",
+  "Go": "Aller"
 }

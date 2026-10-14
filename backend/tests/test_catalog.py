@@ -7,9 +7,11 @@ import respx
 from sqlalchemy import func, select, update
 
 from app.core.config import get_settings
+from app.core.http import http_client
+from app.games.base import get_provider
 from app.games.sorcery.provider import IMAGE_URL, parse_cards
 from app.models import Card, CardName, CardSet, JobKind, JobStatus, Printing, Role, SyncRun
-from app.services import jobs
+from app.services import images, jobs
 from app.worker import is_due
 from tests.conftest import SORCERY_CARDS as FIXTURE
 from tests.conftest import bearer, make_user, sync_sorcery
@@ -317,7 +319,14 @@ async def test_worker_schedule(session):
     assert not await is_due("sorcery", JobKind.catalog, now)  # retry waits an hour
     assert await is_due("sorcery", JobKind.catalog, now + timedelta(hours=2))
 
+    # A catalog synced by an older version of the provider is synced again at once.
     session.add(SyncRun(game_id="sorcery", kind=JobKind.catalog, status=JobStatus.success))
+    await session.commit()
+    assert await is_due("sorcery", JobKind.catalog, now + timedelta(hours=2))
+    current = {"catalog_version": get_provider("sorcery").catalog_version}
+    session.add(
+        SyncRun(game_id="sorcery", kind=JobKind.catalog, status=JobStatus.success, report=current)
+    )
     await session.commit()
     assert not await is_due("sorcery", JobKind.catalog, now + timedelta(hours=2))
     # Catalogs refresh weekly, prices and images daily.
@@ -327,3 +336,39 @@ async def test_worker_schedule(session):
     await session.commit()
     assert not await is_due("sorcery", JobKind.images, now + timedelta(hours=2))
     assert await is_due("sorcery", JobKind.images, now + timedelta(hours=25))
+    # A newer catalog may bring new image URLs.
+    session.add(
+        SyncRun(game_id="sorcery", kind=JobKind.catalog, status=JobStatus.success, report=current)
+    )
+    await session.commit()
+    assert await is_due("sorcery", JobKind.images, now + timedelta(hours=2))
+
+
+async def test_image_job_reports_printings_without_source(session, synced):
+    total = await session.scalar(select(func.count()).select_from(Printing))
+    # A database upgraded from 0.2: no image URL until the catalog is synced again.
+    await session.execute(update(Printing).values(image_urls={}))
+    await session.commit()
+    async with http_client() as http:
+        report = await images.cache_images(session, http, "sorcery")
+    assert (report.stored, report.failed, report.missing) == (0, 0, total)
+
+
+async def test_catalog_sync_prunes_cards_without_printings(session, synced):
+    report = await sync_sorcery(session)
+    assert report.catalog_version == get_provider("sorcery").catalog_version
+    session.add(Card(game_id="sorcery", external_id="orphan", name="Orphan", colors=[]))
+    await session.commit()
+    assert (await sync_sorcery(session)).pruned_cards == 1
+    assert await session.scalar(select(Card).where(Card.external_id == "orphan")) is None
+
+
+async def test_search_by_set_abbreviation(client, session, synced):
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    by_set = {}
+    for query in ("sorcery ALP", "alp", "sorcery 001"):
+        page = (await client.get("/api/cards", params={"q": query}, headers=headers)).json()
+        by_set[query] = {c["name"] for c in page["items"]}
+        assert by_set[query], query
+    assert by_set["sorcery ALP"] == by_set["alp"] == by_set["sorcery 001"]

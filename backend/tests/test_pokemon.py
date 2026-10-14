@@ -31,7 +31,7 @@ API = json.loads((Path(__file__).parent / "fixtures" / "pokemon_api.json").read_
 
 @pytest.fixture(autouse=True)
 def languages(monkeypatch):
-    monkeypatch.setenv("TCG_POKEMON_LANGUAGES", '["en", "fr", "ja"]')
+    monkeypatch.setenv("TCG_POKEMON_LANGUAGES", '["en", "fr", "ja", "ko"]')
 
 
 @pytest.fixture
@@ -109,10 +109,22 @@ async def test_sync_sets_translations_and_exclusive_sets(client, session, tcgdex
         "fr": "https://assets.tcgdex.net/fr/swsh/swsh3/136/high.webp",
     }
     assert furret.rarity == "Uncommon"  # translation did not clear details
-    assert (
-        len([p for p in await session.scalars(select(Printing)) if p.card_id == furret.card_id])
-        == 2
-    )
+    # The Japanese Furret (オオタチ) joined the English card through species names.
+    furret_printings = [
+        p for p in await session.scalars(select(Printing)) if p.card_id == furret.card_id
+    ]
+    assert len(furret_printings) == 3
+
+    # SV1a is listed in Japanese and Korean: one Japanese set, Korean adds names and images.
+    tropius = await session.get(Printing, await printing_id(session, "SV1a", "001"))
+    assert tropius.card_id == cards["ja:トロピウス"].id
+    assert tropius.languages == ["ja", "ko"]
+    assert set(tropius.image_urls) == {"ja", "ko"}
+    assert tropius.attributes["attacks"][0]["name"] == "リーフドレイン"
+    assert sets["SV1a"].name == "トリプレットビート"
+    japanese_furret = await session.get(Printing, await printing_id(session, "SV1a", "002"))
+    assert japanese_furret.card_id == furret.card_id
+    assert set(japanese_furret.image_urls) == {"ja"}
 
     assert report.prices > 0
     counts = [
@@ -131,7 +143,18 @@ async def test_sync_sets_translations_and_exclusive_sets(client, session, tcgdex
     assert [c["name"] for c in page["items"]] == ["Furret"]
     detail = (await client.get(f"/api/cards/{page['items'][0]['id']}", headers=headers)).json()
     swsh3 = next(p for p in detail["printings"] if p["set"]["code"] == "DAA")
-    assert swsh3["names"] == {"en": "Furret", "fr": "Fouinar"}
+    assert swsh3["names"]["fr"] == "Fouinar"
+    assert swsh3["names"]["ja"] == "オオタチ"
+    sv1a = next(p for p in detail["printings"] if p["set"]["code"] == "SV1a")
+    assert sv1a["names"]["ja"] == "オオタチ" and sv1a["names"]["ko"] == "다꼬리"
+
+    # Names in every language: species names give the ones TCGdex does not.
+    for query in ("オオタチ", "Wiesenior"):
+        page = (await client.get("/api/cards", params={"q": query}, headers=headers)).json()
+        assert [c["name"] for c in page["items"]] == ["Furret"], query
+    # Shown in the interface language (English here) when the name is known in it.
+    page = (await client.get("/api/cards", params={"q": "トロピウス"}, headers=headers)).json()
+    assert [c["name"] for c in page["items"]] == ["Tropius"]
 
 
 async def test_price_job_fetches_owned_cards_only(session, tcgdex):
@@ -155,3 +178,39 @@ async def test_price_job_fetches_owned_cards_only(session, tcgdex):
     assert paths == ["/v2/en/cards/swsh3-136", "/v2/ja/cards/SV1a-001"]
     report = (await session.get(SyncRun, run_id)).report
     assert report["stored"] >= 2
+
+
+async def test_card_names_follow_interface_language(client, session, tcgdex):
+    await sync_pokemon(session)
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    response = await client.patch("/api/auth/me", json={"language": "fr"}, headers=headers)
+    assert response.status_code == 200, response.text
+    page = (await client.get("/api/cards", params={"q": "furret"}, headers=headers)).json()
+    assert [c["name"] for c in page["items"]] == ["Fouinar"]
+    detail = (await client.get(f"/api/cards/{page['items'][0]['id']}", headers=headers)).json()
+    assert detail["name"] == "Fouinar"
+
+
+async def test_search_by_set_code_and_number(client, session, tcgdex):
+    await sync_pokemon(session)
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    for query in ("pkm daa 136", "DAA 136/189", "pokemon swsh3 136", "pkm furret"):
+        page = (await client.get("/api/cards", params={"q": query}, headers=headers)).json()
+        assert [c["name"] for c in page["items"]] == ["Furret"], query
+
+
+async def test_search_by_printed_language(client, session, tcgdex):
+    await sync_pokemon(session)
+    await make_user(session)
+    headers = await bearer(client, "alice")
+
+    async def names(lang):
+        params = {"game": "pokemon", "lang": lang}
+        page = (await client.get("/api/cards", params=params, headers=headers)).json()
+        return {c["name"] for c in page["items"]}
+
+    assert "Furret" in await names("fr")
+    assert "Tropius" not in await names("fr")
+    assert {"Furret", "Tropius"} <= await names("ja")

@@ -239,8 +239,20 @@ class SorceryProvider:
     languages = ["en"]
     price_source = "cardmarket"
     cardmarket_path = "Sorcery"
+    short_names = ["sorcery", "sor", "sct"]
+    # Set codes are numbers; these are the abbreviations players use.
+    set_aliases = {
+        "001": ["ALP", "alpha"],
+        "002": ["BET", "beta"],
+        "004": ["ART", "AL", "arthurian"],
+        "005": ["DRL", "DL", "dragonlord"],
+        "006": ["GTH", "gothic"],
+        "999": ["PRO", "promo"],
+    }
     # About 1600 printings: every image is cached, not only those of owned cards.
     cache_all_images = True
+    # 2: image URLs (databases upgraded from 0.2 had none).
+    catalog_version = 2
 
     async def _catalog(self, http: httpx.AsyncClient) -> CatalogBatch:
         # Whole catalog in one call (API limit: 30 requests/minute).

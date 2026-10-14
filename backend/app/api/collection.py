@@ -15,11 +15,13 @@ from app.models import (
     CardSet,
     CollectionItem,
     Condition,
+    PriceSnapshot,
     Printing,
     StockTransaction,
 )
 from app.services import collection, csv_io
 from app.services.collection import StockError, Variant
+from app.services.names import display_name, display_names
 
 router = APIRouter(prefix="/collection", tags=["collection"])
 
@@ -91,6 +93,7 @@ class TransactionOut(BaseModel):
     source: str
     undone: bool
     created_at: datetime
+    game_id: str
     name: str
     set_code: str
     finish: str
@@ -139,6 +142,7 @@ def _item_query():
 
 async def _items_out(session: SessionDep, items: list[CollectionItem], lang: str) -> list[ItemOut]:
     prices = await collection.latest_prices(session, (i.printing_id for i in items))
+    names = await display_names(session, (i.printing.card_id for i in items), lang)
     out = []
     for item in items:
         printing = item.printing
@@ -150,7 +154,7 @@ async def _items_out(session: SessionDep, items: list[CollectionItem], lang: str
                 printing_id=printing.id,
                 card_id=printing.card_id,
                 game_id=printing.set.game_id,
-                name=printing.card.name,
+                name=names[printing.card_id],
                 colors=printing.card.colors,
                 set=ItemSetOut(id=printing.set.id, code=printing.set.code, name=printing.set.name),
                 collector_number=printing.collector_number,
@@ -205,7 +209,7 @@ async def list_items(
     condition: Condition | None = None,
     language: str | None = None,
     include_empty: bool = False,
-    sort: Literal["name", "set", "updated", "quantity"] = "name",
+    sort: Literal["name", "set", "updated", "quantity", "price_asc", "price_desc"] = "name",
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> ItemPageOut:
@@ -235,11 +239,28 @@ async def list_items(
         query = query.where(CollectionItem.language == language)
 
     total = await session.scalar(select(func.count()).select_from(query.subquery()))
+    name = display_name(user.language)
+    # Unit price as shown: manual price, else latest market price of that finish.
+    market = (
+        select(PriceSnapshot.trend)
+        .where(
+            PriceSnapshot.printing_id == CollectionItem.printing_id,
+            PriceSnapshot.finish == CollectionItem.finish,
+            PriceSnapshot.trend.is_not(None),
+        )
+        .order_by(PriceSnapshot.date.desc())
+        .limit(1)
+        .correlate(CollectionItem)
+        .scalar_subquery()
+    )
+    price = func.coalesce(CollectionItem.manual_price, market)
     order = {
-        "name": (Card.name, CardSet.code, Printing.collector_number),
+        "price_asc": (price.asc().nulls_last(), name),
+        "price_desc": (price.desc().nulls_last(), name),
+        "name": (name, CardSet.code, Printing.collector_number),
         "set": (CardSet.release_date.desc().nulls_last(), CardSet.code, Printing.collector_number),
         "updated": (CollectionItem.updated_at.desc(),),
-        "quantity": (CollectionItem.quantity.desc(), Card.name),
+        "quantity": (CollectionItem.quantity.desc(), name),
     }[sort]
     items = (
         await session.scalars(
@@ -321,7 +342,13 @@ async def list_transactions(
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> list[TransactionOut]:
     query = (
-        select(StockTransaction, CollectionItem, Card.name, CardSet.code)
+        select(
+            StockTransaction,
+            CollectionItem,
+            display_name(user.language),
+            CardSet.code,
+            CardSet.game_id,
+        )
         .join(CollectionItem, StockTransaction.item_id == CollectionItem.id)
         .join(Printing, CollectionItem.printing_id == Printing.id)
         .join(Card, Printing.card_id == Card.id)
@@ -340,13 +367,14 @@ async def list_transactions(
             source=t.source,
             undone=t.undone,
             created_at=t.created_at,
+            game_id=game_id,
             name=name,
             set_code=code,
             finish=item.finish,
             condition=item.condition,
             language=item.language,
         )
-        for t, item, name, code in await session.execute(query)
+        for t, item, name, code, game_id in await session.execute(query)
     ]
 
 

@@ -9,13 +9,13 @@ const LOCALES = { en: 'locales/en.json', fr: 'locales/fr.json' }
 const DYNAMIC = [
   // Navigation labels, sort options, conditions, job kinds and states, roles, sources.
   'Dashboard', 'Collection', 'Catalog', 'Import / export', 'Settings', 'Users', 'Data sync',
-  'Name', 'Newest sets', 'Recently changed', 'Quantity',
+  'Name', 'Newest sets', 'Recently changed', 'Quantity', 'Price: low to high', 'Price: high to low',
   'Mint', 'Near Mint', 'Excellent', 'Good', 'Light Played', 'Played', 'Poor',
   'catalog', 'prices', 'images', 'running', 'success', 'failed', 'user', 'admin', 'web', 'scan', 'import',
   // Names from the game plugins.
   'White', 'Blue', 'Black', 'Red', 'Green', 'Colorless', 'Grass', 'Fire', 'Water', 'Lightning',
   'Psychic', 'Fighting', 'Darkness', 'Metal', 'Fairy', 'Dragon', 'Air', 'Earth',
-  'Non-foil', 'Foil', 'Etched foil', 'Normal', 'Holo', 'Reverse holo', '1st edition', 'Standard', 'Rainbow foil',
+  'Foil', 'Etched foil', 'Holo', 'Reverse holo', '1st edition', 'Standard', 'Rainbow foil',
 ]
 
 function files(dir) {

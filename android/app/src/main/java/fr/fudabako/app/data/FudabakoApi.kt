@@ -42,10 +42,32 @@ interface FudabakoApi {
 
     @GET("api/cards")
     suspend fun searchCards(
-        @Query("q") query: String,
+        @Query("q") query: String?,
         @Query("game") game: String?,
+        @Query("set_id") setId: Int? = null,
+        @Query("color") colors: List<String>? = null,
+        @Query("lang") lang: String? = null,
+        @Query("page") page: Int = 1,
         @Query("page_size") pageSize: Int = 30,
     ): CardPageOut
+
+    @GET("api/games/{game}/sets")
+    suspend fun sets(@Path("game") game: String): List<SetOut>
+
+    @GET("api/collection")
+    suspend fun collection(
+        @Query("game") game: String? = null,
+        @Query("q") query: String? = null,
+        @Query("set_id") setId: Int? = null,
+        @Query("condition") condition: String? = null,
+        @Query("language") language: String? = null,
+        @Query("sort") sort: String = "name",
+        @Query("page") page: Int = 1,
+        @Query("page_size") pageSize: Int = 50,
+    ): ItemPageOut
+
+    @GET("api/collection/value")
+    suspend fun collectionValue(): ValueOut
 
     @GET("api/cards/{id}")
     suspend fun card(@Path("id") cardId: Int): CardOut

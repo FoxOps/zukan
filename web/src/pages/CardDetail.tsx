@@ -5,7 +5,7 @@ import { Link, useParams } from 'react-router'
 import { api, call, type Schemas } from '../api/client'
 import { useGame } from '../api/queries'
 import { Attributes } from '../components/Attributes'
-import { ConditionBadge, FinishBadge } from '../components/Badges'
+import { ConditionBadge, FinishBadge, LangFlag } from '../components/Badges'
 import { CardImage } from '../components/CardImage'
 import { ColorBadges } from '../components/ColorBadges'
 import { PriceChart } from '../components/PriceChart'
@@ -118,8 +118,8 @@ export default function CardDetail() {
             {localNames.length > 0 && (
               <div className="mt-1 flex flex-wrap gap-2 text-sm text-base-content/70">
                 {localNames.map(([lang, name]) => (
-                  <span key={lang} title={languageName(lang)}>
-                    <span className="badge badge-ghost badge-sm mr-1">{lang}</span>
+                  <span key={lang} className="inline-flex items-center gap-1" title={languageName(lang)}>
+                    <LangFlag lang={lang} />
                     {name}
                   </span>
                 ))}
@@ -219,7 +219,12 @@ export default function CardDetail() {
                     <div className="font-medium">{p.set.name}</div>
                     <div className="text-xs text-base-content/60">
                       {p.set.code} · {formatDate(p.set.release_date)}
-                      {p.set.lang && ` · ${languageName(p.set.lang)}`}
+                      {p.set.lang && (
+                        <>
+                          {' · '}
+                          <LangFlag lang={p.set.lang} className="h-3" />
+                        </>
+                      )}
                     </div>
                   </td>
                   <td>{p.collector_number}</td>
@@ -261,7 +266,7 @@ export default function CardDetail() {
                         <span className="font-semibold">{o.quantity}×</span>
                         <FinishBadge game={game} finish={o.finish} size="badge-xs" />
                         <ConditionBadge condition={o.condition} size="badge-xs" />
-                        <span title={languageName(o.language)}>{o.language}</span>
+                        <LangFlag lang={o.language} className="h-3" />
                       </div>
                     ))}
                   </td>

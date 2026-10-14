@@ -10,9 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -20,7 +18,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -43,6 +44,7 @@ import fr.fudabako.app.R
 import fr.fudabako.app.data.GameOut
 import fr.fudabako.app.data.Settings
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScanScreen(
     scan: ScanViewModel,
@@ -59,11 +61,20 @@ fun ScanScreen(
     }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
     LaunchedEffect(Unit) { if (!granted) permission.launch(Manifest.permission.CAMERA) }
-    LaunchedEffect(settings.game) { scan.game = settings.game }
+    LaunchedEffect(settings.game, settings.autoNext) {
+        scan.game = settings.game
+        scan.autoNext = settings.autoNext
+    }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (granted) {
-            CameraPreview(settings.script, paused = state.phase != Phase.SCANNING, onLines = scan::onLines, modifier = Modifier.fillMaxSize())
+            CameraPreview(
+                settings.script,
+                paused = state.phase != Phase.SCANNING,
+                onFrame = scan::onFrame,
+                onIdentify = scan::identify,
+                modifier = Modifier.fillMaxSize(),
+            )
         } else {
             Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(stringResource(R.string.camera_needed), color = Color.White)
@@ -111,11 +122,8 @@ fun ScanScreen(
         }
 
         if (state.phase == Phase.RESULT) {
-            Surface(
-                Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.72f),
-                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                tonalElevation = 4.dp,
-            ) {
+            // Swiped down or tapped outside: just looking, back to the camera.
+            ModalBottomSheet(onDismissRequest = { scan.resume() }, sheetState = rememberModalBottomSheetState()) {
                 ResultPanel(
                     state = state,
                     games = games,

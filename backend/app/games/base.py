@@ -60,6 +60,9 @@ class PrintingData:
     attributes: dict[str, Any] = field(default_factory=dict)
     # Printed names by language, when they differ per printing (e.g. MTG localized cards).
     names: dict[str, str] = field(default_factory=dict)
+    # None: partial like its card. False: full printing data under a partial card (a
+    # printing from another source added to an existing card).
+    partial: bool | None = None
 
 
 @dataclass
@@ -139,7 +142,12 @@ class GameProvider(Protocol):
     - `cache_all_images = True`: the image job downloads every printing's image instead
       of only owned ones (small catalogs).
     - `cardmarket_path`: the game's Cardmarket URL segment ("Magic"); printings with a
-      `cardmarket_id` attribute then link to their Cardmarket page."""
+      `cardmarket_id` attribute then link to their Cardmarket page.
+    - `short_names`: words that select the game in a catalog search ("mtg j25 158").
+    - `set_aliases`: other codes people use for a set, by set code ({"001": ["ALP"]}).
+    - `catalog_version` (default 1): bump it when `fetch_catalog` output changes in a way
+      stored data must catch up with; the worker then syncs the catalog without waiting
+      for `TCG_CATALOG_INTERVAL_HOURS`."""
 
     id: str
     name: str
@@ -171,6 +179,10 @@ class GameProvider(Protocol):
 
 
 ENTRY_POINT_GROUP = "fudabako.games"
+
+
+def catalog_version(provider: GameProvider) -> int:
+    return getattr(provider, "catalog_version", 1)
 
 
 @lru_cache
