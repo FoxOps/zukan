@@ -111,6 +111,28 @@ class PriceTarget:
 
 
 @dataclass(frozen=True)
+class PrintingRef:
+    """A stored printing, as given to `fetch_cards`."""
+
+    set_external_id: str
+    external_id: str
+    set_lang: str | None
+    languages: tuple[str, ...]
+    # Languages that already have an image URL.
+    image_languages: tuple[str, ...]
+    attributes: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class CardRef:
+    """A stored card to refresh from the source."""
+
+    external_id: str
+    name: str
+    printings: tuple[PrintingRef, ...]
+
+
+@dataclass(frozen=True)
 class OcrLine:
     """A text line recognized on a card photo. Box coordinates are fractions of the card
     (or frame) size, 0 = left/top; unknown when the client does not send them."""
@@ -147,7 +169,10 @@ class GameProvider(Protocol):
     - `set_aliases`: other codes people use for a set, by set code ({"001": ["ALP"]}).
     - `catalog_version` (default 1): bump it when `fetch_catalog` output changes in a way
       stored data must catch up with; the worker then syncs the catalog without waiting
-      for `TCG_CATALOG_INTERVAL_HOURS`."""
+      for `TCG_CATALOG_INTERVAL_HOURS`.
+    - `fetch_cards(http, cards: list[CardRef]) -> AsyncIterator[CatalogBatch]`: fetch
+      these cards again (stale or incomplete data). Yielded cards keep the external ids
+      of the refs; cards the source no longer has are left out."""
 
     id: str
     name: str

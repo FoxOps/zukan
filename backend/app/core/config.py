@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # hours between price/image refreshes, and games to refresh (empty = all installed).
     catalog_interval_hours: int = 7 * 24
     sync_interval_hours: int = 24
+    # Hours between refreshes of stale cards (missed by the last catalog sync, or with
+    # missing data), fetched again one by one.
+    refresh_interval_hours: int = 48
     worker_games: list[str] = []
     user_agent: str = f"Fudabako/{__version__}"
 

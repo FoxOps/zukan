@@ -23,7 +23,7 @@ from app.models import (
     Role,
     SyncRun,
 )
-from app.services import images, jobs
+from app.services import images, jobs, refresh
 from app.worker import is_due
 from tests.conftest import SORCERY_CARDS as FIXTURE
 from tests.conftest import bearer, make_user, sync_sorcery
@@ -498,3 +498,21 @@ async def test_search_by_set_abbreviation(client, session, synced):
         by_set[query] = {c["name"] for c in page["items"]}
         assert by_set[query], query
     assert by_set["sorcery ALP"] == by_set["alp"] == by_set["sorcery 001"]
+
+
+async def test_sorcery_refresh_downloads_the_catalog_once(session, synced, sorcery_api):
+    from app.games.sorcery import provider as sorcery
+
+    sorcery._cached_catalog = None
+    calls = sorcery_api.call_count
+    card_ids = list(await session.scalars(select(Card.id).order_by(Card.id).limit(2)))
+    await session.execute(update(Card).where(Card.id.in_(card_ids)).values(attributes={}))
+    await session.commit()
+    async with http_client() as http:
+        for card_id in card_ids:
+            report = await refresh.refresh_cards(session, get_provider("sorcery"), http, [card_id])
+            assert (report.updated, report.not_found) == (1, 0)
+    assert sorcery_api.call_count == calls + 1
+    session.expire_all()
+    for card_id in card_ids:
+        assert (await session.get(Card, card_id)).attributes

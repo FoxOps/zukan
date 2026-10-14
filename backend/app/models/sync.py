@@ -13,6 +13,8 @@ class JobKind(enum.StrEnum):
     catalog = "catalog"
     prices = "prices"
     images = "images"
+    # Stale or incomplete cards fetched again one by one.
+    refresh = "refresh"
 
 
 class JobStatus(enum.StrEnum):

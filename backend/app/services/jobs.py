@@ -23,12 +23,13 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import false, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
+from app.core.config import get_settings
 from app.core.db import get_sessionmaker
 from app.core.http import http_client
 from app.core.progress import Progress, current
 from app.games.base import get_provider
 from app.models import JobKind, JobStatus, JobTrigger, SyncRun
-from app.services import images, prices
+from app.services import images, prices, refresh
 from app.services.catalog import sync_catalog
 
 log = logging.getLogger(__name__)
@@ -41,6 +42,7 @@ TIME_LIMITS = {
     JobKind.catalog: timedelta(hours=6),
     JobKind.prices: timedelta(hours=2),
     JobKind.images: timedelta(hours=6),
+    JobKind.refresh: timedelta(hours=2),
 }
 # How often the owner of a job checks for a cancel request and its own limits.
 CHECK_EVERY = 5.0
@@ -194,6 +196,9 @@ async def _execute(game_id: str, kind: JobKind) -> dict:
                 return asdict(await images.cache_images(session, http, game_id))
             case JobKind.prices:
                 return asdict(await prices.sync_prices(session, provider, http))
+            case JobKind.refresh:
+                every = timedelta(hours=get_settings().refresh_interval_hours)
+                return asdict(await refresh.refresh_stale(session, provider, http, every))
 
 
 async def _stop_reason(run_id: int, state: Progress, started: float, limit: timedelta):

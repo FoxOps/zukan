@@ -703,6 +703,11 @@ export interface components {
             };
             /** Printings */
             printings: components["schemas"]["PrintingOut"][];
+            /**
+             * Refreshing
+             * @default false
+             */
+            refreshing: boolean;
         };
         /** CardPageOut */
         CardPageOut: {
@@ -938,7 +943,7 @@ export interface components {
          * JobKind
          * @enum {string}
          */
-        JobKind: "catalog" | "prices" | "images";
+        JobKind: "catalog" | "prices" | "images" | "refresh";
         /** JobOut */
         JobOut: {
             /** Id */

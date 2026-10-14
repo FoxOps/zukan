@@ -28,6 +28,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.core.http import get_with_retry
 from app.games.base import (
     CardData,
+    CardRef,
     CatalogBatch,
     ColorDef,
     FinishDef,
@@ -36,6 +37,7 @@ from app.games.base import (
     PriceQuote,
     PriceTarget,
     PrintingData,
+    PrintingRef,
     SetData,
 )
 from app.games.ocr import bottom_part, by_position, clean, letter_ratio, script_language
@@ -154,6 +156,26 @@ def parse_card(raw: dict[str, Any], set_id: str, lang: str) -> CardData:
         attributes=attributes,
         printings=[printing],
         names=names,
+    )
+
+
+def _translation(key: str, raw: dict[str, Any], printing: PrintingRef, lang: str) -> CardData:
+    """Name and image of a printing in another language, for the card `key`."""
+    ours = LANGUAGES[lang]
+    return CardData(
+        external_id=key,
+        name=raw["name"],
+        printings=[
+            PrintingData(
+                external_id=printing.external_id,
+                set_external_id=printing.set_external_id,
+                collector_number=printing.external_id,
+                languages=[ours],
+                images=_images(raw, ours),
+                names={ours: raw["name"]},
+            )
+        ],
+        partial=True,
     )
 
 
@@ -404,6 +426,39 @@ class PokemonProvider:
             batch.cards.append(card)
             batch.prices += parse_prices(raw, set_id)
         return batch
+
+    async def fetch_cards(
+        self, http: httpx.AsyncClient, cards: list[CardRef]
+    ) -> AsyncIterator[CatalogBatch]:
+        """Each printing again in its base language, plus the languages it has no image
+        in yet (names and images only)."""
+        reverse = {ours: theirs for theirs, ours in LANGUAGES.items()}
+        for ref in cards:
+            batch = CatalogBatch()
+            for printing in ref.printings:
+                card_id = f"{printing.set_external_id}-{printing.external_id}"
+                base = reverse.get(printing.set_lang or "en", "en")
+                for raw in await self._cards(http, base, [card_id]):
+                    card = parse_card(raw, printing.set_external_id, base)
+                    if card.external_id != ref.external_id:
+                        # Joined to another card (English one): keep it there.
+                        for p in card.printings:
+                            p.partial = False
+                        card.external_id, card.partial = ref.external_id, True
+                    batch.cards.append(card)
+                    batch.prices += parse_prices(raw, printing.set_external_id)
+                missing = [
+                    reverse[lang]
+                    for lang in printing.languages
+                    if lang in reverse
+                    and lang not in printing.image_languages
+                    and reverse[lang] != base
+                ]
+                for lang in missing:
+                    for raw in await self._cards(http, lang, [card_id]):
+                        batch.cards.append(_translation(ref.external_id, raw, printing, lang))
+            if batch.cards:
+                yield batch
 
     async def fetch_prices(
         self, http: httpx.AsyncClient, owned: list[PriceTarget]

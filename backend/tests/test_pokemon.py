@@ -6,7 +6,7 @@ from urllib.parse import unquote
 import httpx
 import pytest
 import respx
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.core.http import http_client
 from app.games.base import get_provider
@@ -24,6 +24,7 @@ from app.models import (
 )
 from app.services import jobs
 from app.services.catalog import sync_catalog
+from app.services.refresh import refresh_cards
 from tests.conftest import bearer, make_user
 
 API = json.loads((Path(__file__).parent / "fixtures" / "pokemon_api.json").read_text())
@@ -214,3 +215,26 @@ async def test_search_by_printed_language(client, session, tcgdex):
     assert "Furret" in await names("fr")
     assert "Tropius" not in await names("fr")
     assert {"Furret", "Tropius"} <= await names("ja")
+
+
+async def test_refresh_fetches_printings_again(session, tcgdex):
+    await sync_pokemon(session)
+    furret = await printing_id(session, "swsh3", "136")
+    ropiusu = await printing_id(session, "SV1a", "001")
+    await session.execute(
+        update(Printing).where(Printing.id.in_([furret, ropiusu])).values(image_urls={})
+    )
+    await session.commit()
+    card_ids = list(
+        await session.scalars(
+            select(Printing.card_id).where(Printing.id.in_([furret, ropiusu])).distinct()
+        )
+    )
+    async with http_client() as http:
+        report = await refresh_cards(session, get_provider("pokemon"), http, card_ids)
+    assert report.updated == len(card_ids) and report.not_found == 0
+    session.expire_all()
+    assert (await session.get(Printing, furret)).image_urls["en"].startswith("https://")
+    # A Japanese printing joined to an English card stays on that card.
+    japanese = await session.get(Printing, ropiusu)
+    assert japanese.image_urls["ja"] and japanese.card_id in card_ids

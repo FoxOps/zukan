@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-from sqlalchemy import delete, exists, literal_column, update
+from sqlalchemy import delete, exists, func, literal_column, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -143,6 +143,13 @@ class CatalogWriter:
         self.set_ids: dict[str, int] = {}
         self.report = SyncReport()
 
+    async def load_sets(self) -> None:
+        """Know the game's stored sets, for batches that only bring cards."""
+        rows = await self.session.execute(
+            select(CardSet.id, CardSet.external_id).where(CardSet.game_id == self.game_id)
+        )
+        self.set_ids |= {external_id: set_id for set_id, external_id in rows}
+
     async def write(self, batch: CatalogBatch) -> None:
         await self._upsert_sets(batch.sets)
         ids = await self._upsert_cards(_dedupe_cards(batch.cards))
@@ -196,11 +203,11 @@ class CatalogWriter:
                     for c in chunk
                 ]
             )
-            if partial:
-                # No-op update so RETURNING also yields ids of existing cards.
-                set_ = {"name": literal_column("card.name")}
-            else:
-                set_ = {col: stmt.excluded[col] for col in ("name", "colors", "attributes")}
+            # Partial data only marks the card as seen; the update also makes RETURNING
+            # yield ids of existing cards.
+            set_ = {"last_seen_at": func.now()}
+            if not partial:
+                set_ |= {col: stmt.excluded[col] for col in ("name", "colors", "attributes")}
             stmt = stmt.on_conflict_do_update(
                 index_elements=[Card.game_id, Card.external_id], set_=set_
             ).returning(Card.id, Card.external_id)
@@ -277,6 +284,7 @@ class CatalogWriter:
                 set_={
                     "finishes": _array_union("finishes"),
                     "languages": _array_union("languages"),
+                    "last_seen_at": func.now(),
                     **{col: literal_column(sql) for col, sql in on_conflict.items()},
                 },
             ).returning(Printing.id, Printing.set_id, Printing.external_id)

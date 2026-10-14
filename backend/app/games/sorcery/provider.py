@@ -16,6 +16,7 @@ Prices: Cardmarket publishes daily product and price guide files per game
 
 import logging
 import re
+import time
 import unicodedata
 from collections import defaultdict
 from collections.abc import AsyncIterator
@@ -28,6 +29,7 @@ from app.core.http import get_with_retry
 from app.games import cardmarket
 from app.games.base import (
     CardData,
+    CardRef,
     CatalogBatch,
     ColorDef,
     FinishDef,
@@ -222,6 +224,11 @@ def match_cardmarket(
     return quotes
 
 
+# Catalog kept for card refreshes: (time.monotonic() of download, catalog).
+CATALOG_TTL = 3600
+_cached_catalog: tuple[float, CatalogBatch] | None = None
+
+
 class SorceryProvider:
     id = "sorcery"
     name = "Sorcery: Contested Realm"
@@ -257,6 +264,20 @@ class SorceryProvider:
     async def _catalog(self, http: httpx.AsyncClient) -> CatalogBatch:
         # Whole catalog in one call (API limit: 30 requests/minute).
         return parse_cards((await get_with_retry(http, API_URL)).json())
+
+    async def fetch_cards(
+        self, http: httpx.AsyncClient, cards: list[CardRef]
+    ) -> AsyncIterator[CatalogBatch]:
+        # No single card endpoint: the whole catalog (one call), kept a while so
+        # refreshing cards one by one on view does not download it every time.
+        global _cached_catalog
+        if _cached_catalog is None or time.monotonic() - _cached_catalog[0] > CATALOG_TTL:
+            _cached_catalog = (time.monotonic(), await self._catalog(http))
+        catalog = _cached_catalog[1]
+        wanted = {ref.external_id for ref in cards}
+        found = [card for card in catalog.cards if card.external_id in wanted]
+        if found:
+            yield CatalogBatch(sets=catalog.sets, cards=found)
 
     async def _cardmarket_quotes(
         self, http: httpx.AsyncClient, catalog: CatalogBatch

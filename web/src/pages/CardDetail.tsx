@@ -85,6 +85,8 @@ export default function CardDetail() {
   const card = useQuery({
     queryKey: ['card', Number(cardId)],
     queryFn: () => call(api.GET('/api/cards/{card_id}', { params: { path: { card_id: Number(cardId) } } })),
+    // Outdated data is being fetched again by the server: load the card again.
+    refetchInterval: (query) => (query.state.data?.refreshing ? 5000 : false),
   })
   const game = useGame(card.data?.game_id)
   const [selectedId, setSelectedId] = useState<number | null>(null)

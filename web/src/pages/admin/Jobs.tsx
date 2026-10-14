@@ -8,7 +8,7 @@ import { useToast } from '../../components/toast'
 import { Select } from '../../components/Select'
 import { formatDateTime } from '../../lib/format'
 
-const KINDS = ['catalog', 'prices', 'images'] as const
+const KINDS = ['catalog', 'prices', 'images', 'refresh'] as const
 const STATUS: Record<string, string> = {
   running: 'badge-info',
   success: 'badge-success',
@@ -33,6 +33,9 @@ const REPORT: Record<string, string> = {
   pruned: 'old prices removed',
   pruned_prices: 'old prices removed',
   pruned_cards: 'empty cards removed',
+  checked: 'outdated cards',
+  updated: 'updated',
+  not_found: 'not found at the source',
 }
 
 function Report({ report }: { report: Record<string, unknown> }) {
@@ -94,7 +97,7 @@ export default function Jobs() {
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">{t('Data sync')}</h1>
       <p className="text-sm text-base-content/70">
-        {t('The worker refreshes catalogs weekly and prices and images daily. Start a job by hand here.')}
+        {t('The worker refreshes catalogs weekly, prices and images daily, and outdated cards every two days. A job started here runs at once, stopping an automatic run of the same job.')}
       </p>
 
       <div className="grid gap-4 md:grid-cols-3">

@@ -17,7 +17,7 @@ const DYNAMIC = [
   // Job report counters.
   'sets', 'cards', 'printings', 'names', 'owned printings', 'prices received', 'stored',
   'already cached', 'skipped', 'without source', 'refused by source', 'old prices removed',
-  'empty cards removed',
+  'empty cards removed', 'refresh', 'outdated cards', 'updated', 'not found at the source',
   // Names from the game plugins.
   'White', 'Blue', 'Black', 'Red', 'Green', 'Colorless', 'Grass', 'Fire', 'Water', 'Lightning',
   'Psychic', 'Fighting', 'Darkness', 'Metal', 'Fairy', 'Dragon', 'Air', 'Earth',

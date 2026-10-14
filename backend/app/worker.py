@@ -22,6 +22,7 @@ from app.games.base import catalog_version, registry
 from app.main import register_games
 from app.models import JobKind, JobStatus, JobTrigger, SyncRun
 from app.services.jobs import JobAlreadyRunning, JobStopped, reap_runs, run_job, set_process_role
+from app.services.refresh import can_refresh
 
 log = logging.getLogger("fudabako.worker")
 
@@ -72,6 +73,8 @@ def interval(kind: JobKind) -> timedelta:
     settings = get_settings()
     if kind == JobKind.catalog:
         return timedelta(hours=settings.catalog_interval_hours)
+    if kind == JobKind.refresh:
+        return timedelta(hours=settings.refresh_interval_hours)
     return timedelta(hours=settings.sync_interval_hours)
 
 
@@ -92,6 +95,8 @@ def jobs_for(game_id: str) -> list[JobKind]:
     if registry()[game_id].price_source is not None:
         kinds.append(JobKind.prices)
     kinds.append(JobKind.images)
+    if can_refresh(registry()[game_id]):
+        kinds.append(JobKind.refresh)
     return kinds
 
 

@@ -1,13 +1,13 @@
 import gzip
 import json
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
 import httpx
 import pytest
 import respx
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.core.http import http_client
 from app.games.base import get_provider
@@ -20,6 +20,7 @@ from app.models import (
     CardSet,
     CollectionItem,
     JobKind,
+    JobStatus,
     PriceSnapshot,
     Printing,
     SyncRun,
@@ -225,3 +226,67 @@ async def test_price_job_keeps_history_of_owned_cards(session, scryfall):
         select(PriceSnapshot.printing_id).where(PriceSnapshot.date == yesterday)
     )
     assert list(old) == [elves]  # delver is not owned: only its latest price is kept
+
+
+async def test_stale_card_is_refreshed(client, session, scryfall):
+    await sync_mtg(session)
+    elves = raw("en", "dom")
+    oracle = elves["oracle_id"]
+    prints = [c for c in RAW if c.get("oracle_id") == oracle]
+    # Two result pages, as Scryfall pages its searches.
+    search = scryfall.get(f"{API_URL}/cards/search")
+    search.side_effect = [
+        httpx.Response(
+            200, json={"data": prints[:1], "has_more": True, "next_page": f"{API_URL}/p2"}
+        ),
+    ]
+    scryfall.get(f"{API_URL}/p2").respond(json={"data": prints[1:], "has_more": False})
+
+    # Image URLs lost (an older catalog): the card is stale.
+    card = await session.scalar(select(Card).where(Card.external_id == oracle))
+    card_id = card.id
+    await session.execute(update(Printing).where(Printing.card_id == card_id).values(image_urls={}))
+    await session.commit()
+
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    detail = (await client.get(f"/api/cards/{card_id}", headers=headers)).json()
+    assert detail["refreshing"] is True
+    assert search.calls[0].request.url.params["q"] == f"oracleid:{oracle}"
+    # The refresh ran after the answer: images are back, and no new refresh for a while.
+    assert (await printing(session, "dom", "168")).image_urls["en"]
+    detail = (await client.get(f"/api/cards/{card_id}", headers=headers)).json()
+    assert detail["refreshing"] is False
+
+
+async def test_refresh_job_fetches_cards_missed_by_the_last_sync(session, scryfall):
+    await sync_mtg(session)
+    now = datetime.now(UTC)
+    session.add(
+        SyncRun(
+            game_id="mtg",
+            kind=JobKind.catalog,
+            status=JobStatus.success,
+            started_at=now - timedelta(hours=26),
+            finished_at=now - timedelta(hours=25),
+        )
+    )
+    elves = raw("en", "dom")
+    await session.execute(
+        update(Card)
+        .where(Card.external_id == elves["oracle_id"])
+        .values(last_seen_at=now - timedelta(days=3))
+    )
+    await session.commit()
+    scryfall.get(f"{API_URL}/cards/search").respond(
+        json={"data": [c for c in RAW if c.get("oracle_id") == elves["oracle_id"]]}
+    )
+
+    run = await session.get(SyncRun, await jobs.run_job("mtg", JobKind.refresh))
+    assert run.report == {"checked": 1, "updated": 1, "not_found": 0}
+    session.expire_all()
+    card = await session.scalar(select(Card).where(Card.external_id == elves["oracle_id"]))
+    assert card.last_seen_at > now - timedelta(minutes=1)
+    # Fresh again: the next run has nothing to do.
+    run = await session.get(SyncRun, await jobs.run_job("mtg", JobKind.refresh))
+    assert run.report == {"checked": 0, "updated": 0, "not_found": 0}

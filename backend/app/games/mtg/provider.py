@@ -1,5 +1,8 @@
 """Magic: The Gathering, data from Scryfall (https://scryfall.com/docs/api).
 
+Stale cards are fetched again with a search by oracle id (every printing in every
+language, 175 per page).
+
 The catalog comes from the `all_cards` bulk file (every printing in every language,
 about 400 MB gzipped, streamed line by line). Scryfall stores one object per printing
 and language; they are merged here into one printing per set and collector number.
@@ -11,6 +14,7 @@ daily price job adds Cardmarket's own price guide (lowest offer, average), match
 the Cardmarket product id Scryfall gives.
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -27,6 +31,7 @@ from app.core.http import get_with_retry
 from app.games import cardmarket
 from app.games.base import (
     CardData,
+    CardRef,
     CatalogBatch,
     ColorDef,
     FinishDef,
@@ -51,6 +56,7 @@ log = logging.getLogger(__name__)
 
 API_URL = "https://api.scryfall.com"
 BATCH_SIZE = 2000
+REQUEST_DELAY = 0.1
 
 # Scryfall language codes to ours; other languages (Phyrexian, Hebrew...) are skipped.
 LANGUAGES = {
@@ -312,9 +318,56 @@ class MtgProvider:
             async for raw in iter_jsonl_gz(response):
                 yield raw
 
-    async def fetch_catalog(self, http: httpx.AsyncClient) -> AsyncIterator[CatalogBatch]:
+    async def _sets(self, http: httpx.AsyncClient) -> list[SetData]:
         raw_sets = (await get_with_retry(http, f"{API_URL}/sets")).json()["data"]
-        sets = [parse_set(s) for s in raw_sets if not s.get("digital")]
+        return [parse_set(s) for s in raw_sets if not s.get("digital")]
+
+    async def _search(self, http: httpx.AsyncClient, query: str) -> AsyncIterator[dict[str, Any]]:
+        """Every printing, in every language, matching a Scryfall search."""
+        url: str | None = f"{API_URL}/cards/search"
+        params: dict[str, str] | None = {
+            "q": query,
+            "unique": "prints",
+            "include_multilingual": "true",
+        }
+        while url:
+            try:
+                page = (await get_with_retry(http, url, params=params)).json()
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code == 404:  # no match
+                    return
+                raise
+            for raw in page.get("data", []):
+                yield raw
+            url, params = (page.get("next_page"), None) if page.get("has_more") else (None, None)
+            # Scryfall asks for 50-100 ms between requests.
+            await asyncio.sleep(REQUEST_DELAY)
+
+    def _batch(self, raws: list[dict[str, Any]], sets: dict[str, SetData]) -> CatalogBatch:
+        batch = CatalogBatch()
+        used: set[str] = set()
+        for raw in raws:
+            card = parse_card(raw)
+            if card is None or raw["set"] not in sets:
+                continue
+            batch.cards.append(card)
+            batch.prices += parse_prices(raw)
+            used.add(raw["set"])
+        batch.sets = [sets[code] for code in sorted(used)]
+        return batch
+
+    async def fetch_cards(
+        self, http: httpx.AsyncClient, cards: list[CardRef]
+    ) -> AsyncIterator[CatalogBatch]:
+        sets = {s.external_id: s for s in await self._sets(http)}
+        for ref in cards:
+            raws = [raw async for raw in self._search(http, f"oracleid:{ref.external_id}")]
+            batch = self._batch(raws, sets)
+            if batch.cards:
+                yield batch
+
+    async def fetch_catalog(self, http: httpx.AsyncClient) -> AsyncIterator[CatalogBatch]:
+        sets = await self._sets(http)
         known = {s.external_id for s in sets}
         yield CatalogBatch(sets=sets)
 

@@ -189,7 +189,6 @@
   "Started": "Début",
   "Status": "Statut",
   "success": "réussie",
-  "The worker refreshes catalogs weekly and prices and images daily. Start a job by hand here.": "Le worker met à jour les catalogues chaque semaine, les prix et les images chaque jour. Lancez une tâche manuellement ici.",
   "then import it here.": "puis importez-le ici.",
   "this page {{value}}": "cette page {{value}}",
   "Toggle theme": "Changer de thème",
@@ -240,5 +239,10 @@
   "old prices removed": "anciens prix supprimés",
   "empty cards removed": "cartes vides supprimées",
   "Nothing to do": "Rien à faire",
-  "Stops the automatic run and starts again now": "Arrête l’exécution automatique et relance maintenant"
+  "Stops the automatic run and starts again now": "Arrête l’exécution automatique et relance maintenant",
+  "refresh": "actualisation",
+  "outdated cards": "cartes obsolètes",
+  "updated": "mises à jour",
+  "not found at the source": "introuvables à la source",
+  "The worker refreshes catalogs weekly, prices and images daily, and outdated cards every two days. A job started here runs at once, stopping an automatic run of the same job.": "Le worker actualise les catalogues chaque semaine, les prix et les images chaque jour, et les cartes obsolètes tous les deux jours. Une tâche lancée ici démarre aussitôt et arrête une exécution automatique de la même tâche."
 }

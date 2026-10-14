@@ -314,6 +314,18 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
 
 - [ ] Feedback batch 3 (started 2026-10-14), branch `feedback-batch-3`: server 0.5.0,
   Android 0.4.0. Plan below; phases ticked as they land.
+  - [x] A quick fixes: version (`FUDABAKO_VERSION` build arg in images, else package
+    version) in `/api/health`, web sidebar, Android settings; `Select` component
+    (searchable from 11 options); card page printings sort; catalog image follows set;
+    scroll to top on page change; FR "versions".
+  - [x] B jobs: progress heartbeat (HTTP answers + stored batches), 15 min stall and
+    per-kind time limits, restart reaping by owner, manual takes over auto (cancel flag
+    polled every 5 s), worker schedule from auto runs only, complete job reports.
+  - [x] C last_seen_at on card/printing, `services/refresh.py` stale rule (missed by last
+    successful catalog sync + 24 h, or no image source / no attributes; prices left
+    out: many printings are legitimately unpriced), provider `fetch_cards` (Scryfall
+    `oracleid:` search, TCGdex per printing + missing-image languages, Sorcery cached
+    catalog), refresh on card view (BackgroundTasks, once an hour), `refresh` job (48 h).
 
 ## Feedback batch 3 plan
 

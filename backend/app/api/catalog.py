@@ -1,15 +1,17 @@
+import logging
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import ColumnElement, case, exists, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, SessionDep
+from app.core.db import get_sessionmaker
 from app.core.http import http_client
 from app.games.base import registry
 from app.models import (
@@ -21,10 +23,11 @@ from app.models import (
     Printing,
     User,
 )
-from app.services import collection, images
+from app.services import collection, images, refresh
 from app.services.identify import number_matches
 from app.services.names import display_name
 
+log = logging.getLogger(__name__)
 router = APIRouter(tags=["catalog"])
 
 SORT_BY_SHOWN_NAME_MAX = 5000
@@ -81,6 +84,9 @@ class CardOut(BaseModel):
     colors: list[str]
     attributes: dict[str, Any]
     printings: list[PrintingOut]
+    # The card's data was incomplete or outdated: it is being fetched again; load the
+    # card again in a few seconds.
+    refreshing: bool = False
 
 
 class CardSummaryOut(BaseModel):
@@ -304,8 +310,27 @@ async def search_cards(
     return CardPageOut(items=items, total=total or 0, page=page, page_size=page_size)
 
 
+async def _refresh_card(game_id: str, card_id: int) -> None:
+    try:
+        async with get_sessionmaker()() as session, http_client() as http:
+            await refresh.refresh_cards(session, registry()[game_id], http, [card_id])
+    except Exception:
+        log.exception("Refresh of card %s failed", card_id)
+
+
+async def _should_refresh(session: SessionDep, card: Card) -> bool:
+    if not refresh.can_refresh(registry()[card.game_id]):
+        return False
+    attempted = card.refresh_attempted_at
+    if attempted is not None and datetime.now(UTC) - attempted < refresh.RETRY_AFTER:
+        return False
+    return await refresh.is_stale(session, card)
+
+
 @router.get("/cards/{card_id}")
-async def get_card(card_id: int, user: CurrentUser, session: SessionDep) -> CardOut:
+async def get_card(
+    card_id: int, user: CurrentUser, session: SessionDep, background: BackgroundTasks
+) -> CardOut:
     row = (
         await session.execute(
             select(Card, display_name(user.language))
@@ -316,6 +341,10 @@ async def get_card(card_id: int, user: CurrentUser, session: SessionDep) -> Card
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Card not found")
     card, name = row
+    # Stale or incomplete data: fetch the card again after answering.
+    refreshing = await _should_refresh(session, card)
+    if refreshing:
+        background.add_task(_refresh_card, card.game_id, card.id)
     printings = sorted(
         card.printings,
         key=lambda p: (p.set.release_date or date.min, p.collector_number or ""),
@@ -331,6 +360,7 @@ async def get_card(card_id: int, user: CurrentUser, session: SessionDep) -> Card
         colors=card.colors,
         attributes=card.attributes,
         printings=described,
+        refreshing=refreshing,
     )
 
 

@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     event,
+    func,
     text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
@@ -49,7 +50,10 @@ class Card(Base):
     """Game-level card (same rules/name across all printings)."""
 
     __tablename__ = "card"
-    __table_args__ = (UniqueConstraint("game_id", "external_id"),)
+    __table_args__ = (
+        UniqueConstraint("game_id", "external_id"),
+        Index("ix_card_game_last_seen", "game_id", "last_seen_at"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     game_id: Mapped[str] = mapped_column(ForeignKey("game.id"), index=True)
@@ -58,6 +62,12 @@ class Card(Base):
     # Normalized color codes from the provider's color vocabulary.
     colors: Mapped[list[str]] = mapped_column(ARRAY(String(16)), default=list)
     attributes: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    # Internal: last time a catalog sync or a refresh got this card from its source,
+    # changed or not (stale data detection), and last refresh attempt.
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    refresh_attempted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     printings: Mapped[list["Printing"]] = relationship(back_populates="card")
 
@@ -87,6 +97,10 @@ class Printing(Base):
         JSONB, default=dict, server_default=text("'{}'::jsonb")
     )
     attributes: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    # Internal: last time a catalog sync or a refresh got this printing from its source.
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     card: Mapped[Card] = relationship(back_populates="printings")
     set: Mapped[CardSet] = relationship()
