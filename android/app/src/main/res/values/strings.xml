@@ -83,6 +83,10 @@
     <!-- Collection, search filters, printing picker -->
     <string name="tab_collection">Collection</string>
     <string name="price_from">from %1$s</string>
+    <string name="this_version">This version</string>
+    <string name="cheapest_version">Cheapest version</string>
+    <string name="most_expensive_version">Most expensive version</string>
+    <string name="lowest_offer">Lowest offer</string>
     <string name="app_version">App %1$s · server %2$s</string>
     <string name="printings_partial">Shown: %1$d / %2$d. Type to search them all.</string>
     <string name="card_fetched">New card: added to the catalog from its source</string>

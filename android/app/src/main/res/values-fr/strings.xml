@@ -83,6 +83,10 @@
     <!-- Collection, search filters, printing picker -->
     <string name="tab_collection">Collection</string>
     <string name="price_from">dès %1$s</string>
+    <string name="this_version">Cette version</string>
+    <string name="cheapest_version">Version la moins chère</string>
+    <string name="most_expensive_version">Version la plus chère</string>
+    <string name="lowest_offer">Offre la plus basse</string>
     <string name="app_version">Application %1$s · serveur %2$s</string>
     <string name="printings_partial">Affichées : %1$d / %2$d. Tapez pour chercher parmi toutes.</string>
     <string name="card_fetched">Nouvelle carte : ajoutée au catalogue depuis sa source</string>

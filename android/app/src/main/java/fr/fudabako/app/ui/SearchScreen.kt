@@ -136,7 +136,7 @@ fun SearchScreen(
                         modifier = Modifier.width(48.dp).aspectRatio(63f / 88f),
                     )
                     Column(Modifier.weight(1f)) {
-                        Text(card.name, style = MaterialTheme.typography.titleMedium)
+                        Text(shownName(card.name, card.translation), style = MaterialTheme.typography.titleMedium)
                         Text(
                             pluralStringResource(
                                 R.plurals.printing_count,

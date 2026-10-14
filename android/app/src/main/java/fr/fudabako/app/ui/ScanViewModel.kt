@@ -84,16 +84,18 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Show a card picked by hand (search or collection screen) in the result panel,
-     * `printingId` first when given. */
-    fun showCard(summary: CardSummaryOut) = showCard(summary.id)
+     * `printingId` first when given, else the printing the catalog shows. */
+    fun showCard(summary: CardSummaryOut) = showCard(summary.id, summary.printingId)
 
     fun showCard(cardId: Int, printingId: Int? = null) {
         val client = app.client.value ?: return
         viewModelScope.launch {
             runCatching { client.api.card(cardId) }
                 .onSuccess { card ->
-                    val printings = card.printings.sortedBy { if (it.id == printingId) 0 else 1 }
-                    val candidate = CandidateOut(1.0, "manual", CardRef(card.id, card.gameId, card.name, card.colors), printings, printings.size)
+                    val first = printingId ?: card.defaultPrintingId
+                    val printings = card.printings.sortedBy { if (it.id == first) 0 else 1 }
+                    val ref = CardRef(card.id, card.gameId, card.name, card.colors, card.translation)
+                    val candidate = CandidateOut(1.0, "manual", ref, printings, printings.size)
                     _state.update {
                         ScanState(
                             phase = Phase.RESULT,

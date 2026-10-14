@@ -96,13 +96,18 @@ fun ResultPanel(
     var pickPrinting by remember { mutableStateOf(false) }
     val finishName = { code: String -> game?.finishes?.firstOrNull { it.code == code }?.name ?: code }
     val uriHandler = LocalUriHandler.current
+    // Named as printed in its set ("ビードル (Aspicot)"); servers before 0.6 only name the card.
+    val name = printing.name.ifEmpty { candidate.card.name }
+    val translation = if (printing.name.isNotEmpty()) printing.translation else candidate.card.translation
+    // The finish chips also choose the price shown; card-wide prices need every printing.
+    val stats = priceStats(candidate.printings, printing, finish, complete = candidate.printings.size >= candidate.printingCount)
 
     Column(modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         DetectedRow(result.detected.name, result.detected.lang, result.detected.setCode, result.detected.collectorNumber)
         if (result.candidates.size > 1) {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 result.candidates.forEachIndexed { index, c ->
-                    FilterChip(selected = index == state.candidate, onClick = { onCandidate(index) }, label = { Text(c.card.name, maxLines = 1) })
+                    FilterChip(selected = index == state.candidate, onClick = { onCandidate(index) }, label = { Text(shownName(c.card.name, c.card.translation), maxLines = 1) })
                 }
             }
         }
@@ -113,12 +118,12 @@ fun ResultPanel(
                         Text(stringResource(R.string.no_picture), style = MaterialTheme.typography.bodySmall)
                     }
                 } else {
-                    AsyncImage(model = imageUrl(printing.image), contentDescription = candidate.card.name, imageLoader = imageLoader)
+                    AsyncImage(model = imageUrl(printing.image), contentDescription = name, imageLoader = imageLoader)
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(candidate.card.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                printing.names[language]?.takeIf { it != candidate.card.name }?.let {
+                Text(shownName(name, translation), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                printing.names[language]?.takeIf { it != name && it != translation }?.let {
                     Text(it, style = MaterialTheme.typography.bodyMedium)
                 }
                 printing.rarity?.let { Text(it.replaceFirstChar(Char::uppercase), style = MaterialTheme.typography.bodySmall) }
@@ -152,6 +157,7 @@ fun ResultPanel(
                 }
             }
         }
+        PriceStatsGrid(stats, finishName)
         OwnedSummary(game, printing)
 
         // Printing: tap to choose among all printings of the card.
@@ -212,6 +218,43 @@ fun ResultPanel(
             onPick = { onPrinting(it); pickPrinting = false },
             onDismiss = { pickPrinting = false },
         )
+    }
+}
+
+/** This version | Cheapest version, Most expensive version | Lowest offer. */
+@Composable
+private fun PriceStatsGrid(stats: PriceStats, finishName: (String) -> String) {
+    if (stats.thisVersion == null && stats.cheapest == null) return
+    val label = { o: Offer -> "${o.printing.set.name} · ${finishName(o.price.finish)}" }
+    val cells = listOfNotNull(
+        stats.thisVersion?.let {
+            Triple(stringResource(R.string.this_version), money(it.price.trend, it.price.currency),
+                listOfNotNull(finishName(it.price.finish), it.price.low?.let { low -> stringResource(R.string.price_from, money(low, it.price.currency)) }).joinToString(" · "))
+        },
+        stats.cheapest?.let { Triple(stringResource(R.string.cheapest_version), money(it.price.trend, it.price.currency), label(it)) },
+        stats.dearest?.let { Triple(stringResource(R.string.most_expensive_version), money(it.price.trend, it.price.currency), label(it)) },
+        stats.lowestOffer?.let { Triple(stringResource(R.string.lowest_offer), money(it.price.low, it.price.currency), label(it)) },
+    )
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        cells.chunked(2).forEachIndexed { row, pair ->
+            Row(Modifier.fillMaxWidth()) {
+                pair.forEachIndexed { column, (title, value, desc) ->
+                    val highlight = row == 0 && column == 0 && stats.thisVersion != null
+                    Column(
+                        Modifier.weight(1f)
+                            .then(if (highlight) Modifier.background(MaterialTheme.colorScheme.primaryContainer) else Modifier)
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    ) {
+                        Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(desc, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+                    }
+                }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
     }
 }
 
