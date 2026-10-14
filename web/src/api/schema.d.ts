@@ -643,6 +643,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/games/{game_id}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Catalog
+         * @description Delete the game's catalog except owned printings, then sync it again.
+         */
+        post: operations["reset_catalog_api_admin_games__game_id__reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/import-folders": {
         parameters: {
             query?: never;
@@ -1141,6 +1161,8 @@ export interface components {
             };
             /** Error */
             error: string | null;
+            /** Elapsed Seconds */
+            elapsed_seconds: number;
         };
         /**
          * JobStatus
@@ -1355,6 +1377,19 @@ export interface components {
         RefreshIn: {
             /** Refresh Token */
             refresh_token?: string | null;
+        };
+        /** ResetOut */
+        ResetOut: {
+            /** Printings */
+            printings: number;
+            /** Cards */
+            cards: number;
+            /** Sets */
+            sets: number;
+            /** Kept */
+            kept: number;
+            /** Run Id */
+            run_id: number;
         };
         /**
          * Role
@@ -2735,6 +2770,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: number;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_catalog_api_admin_games__game_id__reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResetOut"];
                 };
             };
             /** @description Validation Error */

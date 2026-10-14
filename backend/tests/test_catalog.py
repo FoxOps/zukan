@@ -23,6 +23,7 @@ from app.models import (
     Printing,
     Role,
     SyncRun,
+    User,
 )
 from app.services import images, jobs, refresh
 from app.worker import is_due
@@ -407,8 +408,11 @@ async def test_admin_job_endpoints(client, session, sorcery_api):
     runs = (await client.get("/api/admin/jobs", headers=admin)).json()
     assert runs[0]["status"] == "success"
     assert runs[0]["report"]["cards"] == 7
+    assert runs[0]["elapsed_seconds"] >= 0
 
     await jobs.start_job("sorcery", JobKind.catalog)
+    running = (await client.get("/api/admin/jobs", headers=admin)).json()[0]
+    assert running["status"] == "running" and running["elapsed_seconds"] >= 0
     response = await client.post("/api/admin/jobs/sorcery/catalog", headers=admin)
     assert response.status_code == 409
 
@@ -611,3 +615,41 @@ def test_cross_check_comparison_ignores_spelling():
     assert compare("s", "1", "rarity", "Rare", "Rare Holo EX", words=True) is None
     assert compare("s", "1", "rarity", "Common", "Promo", words=True) is not None
     assert compare("s", "1", "rarity", None, "Promo") is None
+
+
+async def test_reset_catalog_keeps_owned_printings(client, session, sorcery_api):
+    from app.models import CollectionItem
+
+    await make_user(session, "root", role=Role.admin)
+    admin = await bearer(client, "root")
+    await sync_sorcery(session)
+    printings = (await session.scalars(select(Printing).order_by(Printing.id))).all()
+    owned, other = printings[0], printings[1]
+    owned_id, other_id = owned.id, other.id
+    user_id = await session.scalar(select(User.id).where(User.username == "root"))
+    session.add(
+        CollectionItem(user_id=user_id, printing_id=owned_id, finish=owned.finishes[0],
+                       language="en", quantity=1)
+    )  # fmt: skip
+    root = get_settings().image_dir
+    files = [
+        root / "sorcery" / str(owned.set_id) / f"{owned_id}-en.webp",
+        root / "sorcery" / str(other.set_id) / f"{other_id}-en.webp",
+    ]
+    for path in files:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"x")
+    await session.commit()
+    total = len(printings)
+
+    response = await client.post("/api/admin/games/sorcery/reset", headers=admin)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["kept"] == 1 and body["printings"] == total - 1
+    assert files[0].exists() and not files[1].exists()
+    session.expire_all()
+    # The catalog job ran again (test client runs background tasks): everything is back.
+    assert await session.scalar(select(func.count()).select_from(Printing)) == total
+    assert await session.get(Printing, owned_id) is not None
+    runs = (await client.get("/api/admin/jobs", headers=admin)).json()
+    assert runs[0]["id"] == body["run_id"] and runs[0]["status"] == "success"

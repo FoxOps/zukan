@@ -1,10 +1,11 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
+from app.api import games
 from app.api.deps import AdminUser, SessionDep
 from app.core.config import get_settings
 from app.games.base import registry
@@ -18,7 +19,7 @@ from app.models import (
     Printing,
     SyncRun,
 )
-from app.services import images, jobs, prices
+from app.services import catalog, images, jobs, prices
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -33,6 +34,15 @@ class JobOut(BaseModel):
     finished_at: datetime | None
     report: dict[str, Any]
     error: str | None
+    # Run time so far (running jobs) or total, from the server clock.
+    elapsed_seconds: int
+
+
+def _job_out(run: SyncRun, now: datetime) -> JobOut:
+    end = run.finished_at or now
+    elapsed = max(0, int((end - run.started_at).total_seconds()))
+    fields = {name: getattr(run, name) for name in JobOut.model_fields if name != "elapsed_seconds"}
+    return JobOut(**fields, elapsed_seconds=elapsed)
 
 
 class ImageImportIn(BaseModel):
@@ -57,7 +67,8 @@ async def list_jobs(
     query = select(SyncRun).order_by(SyncRun.started_at.desc()).limit(min(limit, 500))
     if game:
         query = query.where(SyncRun.game_id == game)
-    return [JobOut.model_validate(r, from_attributes=True) for r in await session.scalars(query)]
+    now = datetime.now(UTC)
+    return [_job_out(run, now) for run in await session.scalars(query)]
 
 
 async def _complete_quietly(run_id: int, game_id: str, kind: JobKind) -> None:
@@ -81,6 +92,43 @@ async def start_job(
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     background.add_task(_complete_quietly, run_id, game_id, kind)
     return {"run_id": run_id}
+
+
+class ResetOut(BaseModel):
+    printings: int
+    cards: int
+    sets: int
+    # Printings kept because someone owns them.
+    kept: int
+    # Catalog job started to fill the catalog again.
+    run_id: int
+
+
+@router.post("/games/{game_id}/reset")
+async def reset_catalog(
+    game_id: str, _: AdminUser, session: SessionDep, background: BackgroundTasks
+) -> ResetOut:
+    """Delete the game's catalog except owned printings, then sync it again."""
+    _check_game(game_id)
+    await jobs.reap_runs()
+    running = await session.scalar(
+        select(SyncRun.kind).where(SyncRun.game_id == game_id, SyncRun.status == JobStatus.running)
+    )
+    if running is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, f"A {running} job of {game_id} is running: wait for it"
+        )
+    report = await catalog.reset_catalog(session, game_id)
+    games.clear_filter_values(game_id)
+    run_id = await jobs.start_job(game_id, JobKind.catalog)
+    background.add_task(_complete_quietly, run_id, game_id, JobKind.catalog)
+    return ResetOut(
+        printings=report.printings,
+        cards=report.cards,
+        sets=report.sets,
+        kept=report.kept,
+        run_id=run_id,
+    )
 
 
 @router.get("/import-folders")

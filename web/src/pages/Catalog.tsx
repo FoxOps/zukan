@@ -1,5 +1,4 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { api, call } from '../api/client'
@@ -25,7 +24,6 @@ export default function Catalog() {
   const setId = url.get('set')
   const colors = url.getAll('color')
   const attrs = url.getAll('attr')
-  const [advanced, setAdvanced] = useState(attrs.length > 0)
   const gameInfo = useGame(game)
   const { data: games = [] } = useGames()
 
@@ -65,15 +63,9 @@ export default function Catalog() {
         <SearchInput value={q} onChange={(v) => url.set({ q: v })} placeholder={t('Name in any language')} />
         <SetSelect game={game} value={setId} onChange={(v) => url.set({ set: v })} />
         <ColorFilter game={gameInfo} value={colors} onChange={(v) => url.set({ color: v })} />
-        {!!gameInfo?.filters.length && (
-          <button className={`btn btn-sm ${advanced ? 'btn-active' : 'btn-ghost'}`} aria-expanded={advanced} onClick={() => setAdvanced(!advanced)}>
-            {t('Advanced search')}
-            {attrs.length > 0 && <span className="badge badge-primary badge-sm">{attrs.length}</span>}
-          </button>
-        )}
       </div>
-      {advanced && (
-        <div className="rounded-box bg-base-200 p-3 animate-in fade-in slide-in-from-top-1 duration-150">
+      {!!gameInfo?.filters.length && (
+        <div className="rounded-box bg-base-200 p-3">
           <AdvancedFilters game={gameInfo} value={attrs} onChange={(v) => url.set({ attr: v })} />
         </div>
       )}
