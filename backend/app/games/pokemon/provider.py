@@ -31,6 +31,7 @@ from app.games.base import (
     CardRef,
     CatalogBatch,
     ColorDef,
+    FilterDef,
     FinishDef,
     OcrHints,
     OcrLine,
@@ -370,6 +371,12 @@ class PokemonProvider:
     price_sources = ["cardmarket", "tcgplayer"]
     cardmarket_path = "Pokemon"
     secondary_sources = [pokemontcg.source]
+    filters = [
+        FilterDef("category", "Category", "category"),
+        FilterDef("trainer_type", "Trainer type", "trainerType"),
+        FilterDef("stage", "Stage", "stage"),
+        FilterDef("rarity", "Rarity"),
+    ]
     short_names = ["pkm", "pokemon", "poke", "ptcg"]
     # 2: one set per set id across Asian languages, names from species names.
     catalog_version = 2

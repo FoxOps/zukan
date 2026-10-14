@@ -36,6 +36,16 @@ class FinishDef:
     name: str
 
 
+@dataclass(frozen=True)
+class FilterDef:
+    """An advanced catalog search filter. `attribute`: a card attribute key (a string or a
+    list of strings); None filters on the printings' rarity."""
+
+    key: str
+    label: str
+    attribute: str | None = None
+
+
 @dataclass
 class SetData:
     external_id: str
@@ -248,6 +258,7 @@ class GameProvider(Protocol):
     - `catalog_version` (default 1): bump it when `fetch_catalog` output changes in a way
       stored data must catch up with; the worker then syncs the catalog without waiting
       for `TCG_CATALOG_INTERVAL_HOURS`.
+    - `filters: list[FilterDef]`: advanced catalog search filters (types, rarity...).
     - `secondary_sources: list[CatalogSource]`: other sources of this game's catalog,
       cross-checked against it after each catalog sync.
     - `fetch_cards(http, cards: list[CardRef]) -> AsyncIterator[CatalogBatch]`: fetch

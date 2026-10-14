@@ -53,6 +53,13 @@ class Card(Base):
     __table_args__ = (
         UniqueConstraint("game_id", "external_id"),
         Index("ix_card_game_last_seen", "game_id", "last_seen_at"),
+        # Advanced search (`attributes @> {...}`).
+        Index(
+            "ix_card_attributes",
+            "attributes",
+            postgresql_using="gin",
+            postgresql_ops={"attributes": "jsonb_path_ops"},
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

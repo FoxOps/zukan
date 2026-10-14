@@ -9,7 +9,7 @@ const LOCALES = { en: 'locales/en.json', fr: 'locales/fr.json' }
 const DYNAMIC = [
   // Navigation labels, sort options, conditions, job kinds and states, roles, sources.
   'Dashboard', 'Collection', 'Catalog', 'Import / export', 'Settings', 'Users', 'Data sync',
-  'Data checks', 'name', 'rarity', 'set name', 'release date', 'card count',
+  'Data checks', 'Type', 'Subtype', 'Rarity', 'Category', 'Trainer type', 'Stage', 'name', 'rarity', 'set name', 'release date', 'card count',
   'cross-checked', 'differences',
   'Name', 'Newest sets', 'Recently changed', 'Quantity', 'Price: low to high', 'Price: high to low',
   'Owned first', 'Oldest sets', 'Set name', 'Collector number',

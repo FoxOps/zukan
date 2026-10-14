@@ -130,6 +130,11 @@ async def test_sync_merges_languages(client, session, scryfall):
 
     elves = await printing(session, "dom", "168")
     elves_id = elves.id
+    card = await session.get(Card, elves.card_id)
+    assert (card.attributes["types"], card.attributes["subtypes"]) == (
+        ["Creature"],
+        ["Elf", "Druid"],
+    )
     assert set(elves.languages) == {"en", "fr", "de"}
     # One scan per language, whatever the order of the objects.
     assert elves.image_urls == {

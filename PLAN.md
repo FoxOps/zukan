@@ -342,6 +342,12 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
     do not touch `last_seen_at`; market ids merge key by key. `catalog_discrepancy`
     table, `GET /api/admin/discrepancies`, web "Data checks" page. A failing secondary
     never fails the catalog job.
+  - [x] F advanced search: provider `filters` (`FilterDef`: card attribute or printing
+    rarity). MTG `types`/`subtypes` parsed from the type line (catalog_version 2), Pokémon
+    category / trainer type / stage, Sorcery category / type / subtypes, rarity
+    everywhere. `GET /api/games/{id}/filters` (distinct values, 1 h cache),
+    `/api/cards?attr=key:value` (`@>` on a GIN `jsonb_path_ops` index), catalog
+    "Advanced search" panel.
 
 ## Feedback batch 3 plan
 

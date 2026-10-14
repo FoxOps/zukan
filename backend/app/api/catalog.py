@@ -13,7 +13,7 @@ from sqlalchemy.orm import selectinload
 from app.api.deps import CurrentUser, SessionDep
 from app.core.db import get_sessionmaker
 from app.core.http import http_client
-from app.games.base import registry
+from app.games.base import FilterDef, registry
 from app.models import (
     Card,
     CardName,
@@ -219,12 +219,16 @@ async def search_cards(
     set_id: int | None = None,
     color: Annotated[list[str] | None, Query()] = None,
     lang: Annotated[str | None, Query(max_length=8)] = None,
+    attr: Annotated[list[str] | None, Query(max_length=200)] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> CardPageOut:
     """Search cards by name in any language (substring match, case and accents
     ignored), set and colors. Exact name matches come first, then names starting with
-    `q`. Without `game`, only the games chosen in the user's settings are searched."""
+    `q`. Without `game`, only the games chosen in the user's settings are searched.
+
+    `attr=<filter key>:<value>` (repeatable, all must match) uses the game's advanced
+    filters (GameOut.filters); it needs `game`."""
     # Cards without printings cannot be collected (left over by older catalog syncs).
     name = display_name(user.language)
     query = select(Card).where(exists().where(Printing.card_id == Card.id))
@@ -269,6 +273,17 @@ async def search_cards(
         query = query.where(exists().where(Printing.card_id == Card.id, Printing.set_id == set_id))
     if color:
         query = query.where(Card.colors.contains(color))
+    if attr:
+        if not game:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "attr needs a game")
+        filters = {f.key: f for f in getattr(registry()[game], "filters", [])}
+        for item in attr:
+            key, _, value = item.partition(":")
+            if key not in filters or not value:
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown filter {item!r}"
+                )
+            query = query.where(_filter_condition(filters[key], value))
     if lang:
         # Printed in that language.
         query = query.where(
@@ -462,6 +477,16 @@ async def describe_printings(
         )
         for p in printings
     ]
+
+
+def _filter_condition(f: FilterDef, value: str) -> ColumnElement[bool]:
+    if f.attribute is None:
+        return exists().where(Printing.card_id == Card.id, Printing.rarity == value)
+    # Containment works on string and list attributes and uses the GIN index.
+    return or_(
+        Card.attributes.contains({f.attribute: value}),
+        Card.attributes.contains({f.attribute: [value]}),
+    )
 
 
 def _currency(game_id: str, wanted: str) -> str | None:

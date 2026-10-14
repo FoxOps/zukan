@@ -252,6 +252,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/games/{game_id}/filters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Filter Values
+         * @description Values of each advanced search filter of the game, by filter key.
+         */
+        get: operations["list_filter_values_api_games__game_id__filters_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/games/{game_id}/sets": {
         parameters: {
             query?: never;
@@ -281,6 +301,9 @@ export interface paths {
          * @description Search cards by name in any language (substring match, case and accents
          *     ignored), set and colors. Exact name matches come first, then names starting with
          *     `q`. Without `game`, only the games chosen in the user's settings are searched.
+         *
+         *     `attr=<filter key>:<value>` (repeatable, all must match) uses the game's advanced
+         *     filters (GameOut.filters); it needs `game`.
          */
         get: operations["search_cards_api_cards_get"];
         put?: never;
@@ -836,6 +859,13 @@ export interface components {
             /** Counts */
             counts: components["schemas"]["DiscrepancyCountOut"][];
         };
+        /** FilterOut */
+        FilterOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
         /** FinishOut */
         FinishOut: {
             /** Code */
@@ -855,6 +885,8 @@ export interface components {
             finishes: components["schemas"]["FinishOut"][];
             /** Languages */
             languages: string[];
+            /** Filters */
+            filters: components["schemas"]["FilterOut"][];
             /** Price Sources */
             price_sources: components["schemas"]["PriceSourceOut"][];
             /** Has Prices */
@@ -1933,6 +1965,39 @@ export interface operations {
             };
         };
     };
+    list_filter_values_api_games__game_id__filters_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string[];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_sets_api_games__game_id__sets_get: {
         parameters: {
             query?: never;
@@ -1972,6 +2037,7 @@ export interface operations {
                 set_id?: number | null;
                 color?: string[] | null;
                 lang?: string | null;
+                attr?: string[] | null;
                 page?: number;
                 page_size?: number;
             };

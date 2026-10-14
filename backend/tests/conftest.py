@@ -47,6 +47,9 @@ async def database() -> AsyncIterator[None]:
 
 @pytest.fixture(autouse=True)
 async def clean_tables() -> AsyncIterator[None]:
+    from app.api import games
+
+    games._values.clear()
     yield
     tables = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
     async with get_engine().begin() as conn:

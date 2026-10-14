@@ -265,5 +265,13 @@
   "Kept (main source)": "Conservé (source principale)",
   "Second source": "Source secondaire",
   "Since": "Depuis",
-  "(set)": "(extension)"
+  "(set)": "(extension)",
+  "Type": "Type",
+  "Subtype": "Sous-type",
+  "Category": "Catégorie",
+  "Trainer type": "Type de dresseur",
+  "Stage": "Stade",
+  "Any": "Tous",
+  "Clear filters": "Effacer les filtres",
+  "Advanced search": "Recherche avancée"
 }

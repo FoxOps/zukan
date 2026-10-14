@@ -1,5 +1,7 @@
+import { useQuery } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { api, call } from '../api/client'
 import { useGames, useSets, type Game } from '../api/queries'
 import { languageName } from '../lib/format'
 import { ColorSymbol } from './ColorBadges'
@@ -103,6 +105,45 @@ export function ColorFilter({ game, value, onChange }: { game?: Game; value: str
           </button>
         )
       })}
+    </div>
+  )
+}
+
+/** Game-specific filters (types, rarity...), as `key:value` pairs. */
+export function AdvancedFilters({ game, value, onChange }: { game?: Game; value: string[]; onChange: (attrs: string[]) => void }) {
+  const { t } = useTranslation()
+  const values = useQuery({
+    queryKey: ['filters', game?.id],
+    queryFn: () => call(api.GET('/api/games/{game_id}/filters', { params: { path: { game_id: game!.id } } })),
+    enabled: !!game?.filters.length,
+    staleTime: 60 * 60_000,
+  })
+  if (!game?.filters.length) return null
+  const chosen = new Map(value.map((v) => [v.slice(0, v.indexOf(':')), v.slice(v.indexOf(':') + 1)]))
+  const pick = (key: string, picked: string) => {
+    const next = new Map(chosen)
+    if (picked) next.set(key, picked)
+    else next.delete(key)
+    onChange([...next].map(([k, v]) => `${k}:${v}`))
+  }
+  return (
+    <div className="flex flex-wrap items-end gap-3">
+      {game.filters.map((f) => (
+        <label key={f.key} className="fieldset py-0">
+          <span className="fieldset-legend pb-1 pt-0 text-xs">{t(f.label)}</span>
+          <Select
+            className="select-sm w-48"
+            value={chosen.get(f.key) ?? ''}
+            onChange={(v) => pick(f.key, v)}
+            options={[{ value: '', label: t('Any') }, ...(values.data?.[f.key] ?? []).map((v) => ({ value: v, label: v }))]}
+          />
+        </label>
+      ))}
+      {chosen.size > 0 && (
+        <button className="btn btn-ghost btn-sm" onClick={() => onChange([])}>
+          {t('Clear filters')}
+        </button>
+      )}
     </div>
   )
 }

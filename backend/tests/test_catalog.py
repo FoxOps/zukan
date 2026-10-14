@@ -572,3 +572,30 @@ async def test_price_source_plugin_with_its_own_api(client, session, synced, mon
         "links"
     ]
     assert any(p["source"] == "nexus" and p["trend"] == "3.30" for p in ours["prices"])
+
+
+async def test_advanced_search_filters(client, session, synced):
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    games = (await client.get("/api/games", headers=headers)).json()
+    sorcery = next(g for g in games if g["id"] == "sorcery")
+    assert [f["key"] for f in sorcery["filters"]] == ["category", "type", "subtypes", "rarity"]
+    values = (await client.get("/api/games/sorcery/filters", headers=headers)).json()
+    assert values["type"] == ["Artifact", "Aura", "Avatar", "Minion", "Site"]
+    assert values["subtypes"] == ["Mortal", "Relic"]
+    assert "Elite" in values["rarity"]
+
+    async def names(*attrs: str) -> set[str]:
+        page = await client.get(
+            "/api/cards", params={"game": "sorcery", "attr": list(attrs)}, headers=headers
+        )
+        return {c["name"] for c in page.json()["items"]}
+
+    assert await names("type:Avatar") == {"Archimago", "Druid", "Avatar of Air"}
+    assert await names("subtypes:Relic") == {"13 Treasures of Britain"}
+    assert await names("category:Spell", "subtypes:Mortal") == {"Amazon Warriors"}
+    assert await names("rarity:Elite") == {"Abundance"}
+    bad = await client.get("/api/cards", params={"game": "sorcery", "attr": "x:y"}, headers=headers)
+    assert bad.status_code == 422
+    bad = await client.get("/api/cards", params={"attr": "type:Avatar"}, headers=headers)
+    assert bad.status_code == 422

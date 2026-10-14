@@ -32,6 +32,7 @@ from app.games.base import (
     CardRef,
     CatalogBatch,
     ColorDef,
+    FilterDef,
     FinishDef,
     OcrHints,
     OcrLine,
@@ -247,6 +248,12 @@ class SorceryProvider:
     ]
     languages = ["en"]
     price_sources = ["cardmarket"]
+    filters = [
+        FilterDef("category", "Category", "category"),
+        FilterDef("type", "Type", "type"),
+        FilterDef("subtypes", "Subtype", "subtypes"),
+        FilterDef("rarity", "Rarity"),
+    ]
     cardmarket_path = "Sorcery"
     short_names = ["sorcery", "sor", "sct"]
     # Set codes are numbers; these are the abbreviations players use.

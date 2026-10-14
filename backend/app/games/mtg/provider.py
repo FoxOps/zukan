@@ -34,6 +34,7 @@ from app.games.base import (
     CardRef,
     CatalogBatch,
     ColorDef,
+    FilterDef,
     FinishDef,
     OcrHints,
     OcrLine,
@@ -140,6 +141,18 @@ def _printed_name(raw: dict[str, Any]) -> str | None:
     return None
 
 
+def parse_type_line(type_line: str) -> tuple[list[str], list[str]]:
+    """Types (with supertypes) and subtypes of every face: "Legendary Creature — Elf
+    Druid" gives (["Legendary", "Creature"], ["Elf", "Druid"])."""
+    types: dict[str, None] = {}
+    subtypes: dict[str, None] = {}
+    for face in type_line.split(" // "):
+        left, _, right = face.partition("—")
+        types |= dict.fromkeys(left.split())
+        subtypes |= dict.fromkeys(right.split())
+    return list(types), list(subtypes)
+
+
 _CARD_FIELDS = ("mana_cost", "cmc", "type_line", "oracle_text", "power", "toughness", "loyalty")
 _FACE_FIELDS = ("name", "mana_cost", "type_line", "oracle_text", "power", "toughness", "loyalty")
 
@@ -152,6 +165,7 @@ def parse_card(raw: dict[str, Any]) -> CardData | None:
         return None
 
     attributes: dict[str, Any] = {k: raw[k] for k in _CARD_FIELDS if raw.get(k) is not None}
+    attributes["types"], attributes["subtypes"] = parse_type_line(raw.get("type_line") or "")
     attributes["layout"] = raw.get("layout")
     attributes["color_identity"] = raw.get("color_identity", [])
     if raw.get("card_faces"):
@@ -335,6 +349,13 @@ class MtgProvider:
     price_sources = ["cardmarket", "tcgplayer"]
     cardmarket_path = "Magic"
     secondary_sources = [mtgjson.source]
+    filters = [
+        FilterDef("types", "Type", "types"),
+        FilterDef("subtypes", "Subtype", "subtypes"),
+        FilterDef("rarity", "Rarity"),
+    ]
+    # 2: card types and subtypes (advanced search).
+    catalog_version = 2
     short_names = ["mtg", "magic"]
 
     async def _bulk(self, http: httpx.AsyncClient, kind: str) -> AsyncIterator[dict[str, Any]]:
