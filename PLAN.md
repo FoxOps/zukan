@@ -571,6 +571,31 @@ A → B → C → D → E → F → G → H (H1/H3 can go early). Server 0.5.0 (
   server search ("eigh" on Forest finds Eighth Edition). Real phone (user): JA/KO/ZH Pokémon scan.
 
 
+## Catalog GUI rework (script-aware names and images, one page per printing)
+Mockups approved by the user 2026-10-14 (long catalog names wrap, never truncated).
+- [x] Server (`services/scripts.py`, `services/display.py`, `api/catalog.py`):
+  - Non-Latin = ja, ko, zh-*, th, ru, uk, el, ar, he… A card is non-Latin only if every
+    printing is in a non-Latin set (set lang; sets without a lang, e.g. MTG: every printing
+    language non-Latin). First available language order: en fr de it es pt ja ko zh-hant
+    zh-hans th ru, then alphabetical.
+  - Latin/mixed: image lang UI > en > first available; name UI > en > first available.
+  - Non-Latin: image lang UI if non-Latin > set lang > first non-Latin > en > first available;
+    name "Name (Translation)": name UI if non-Latin > set lang > first non-Latin, translation
+    UI if Latin > en > first Latin (dropped when missing or identical).
+  - Language first, then printing: latest set > first > any (undated last); refused
+    downloads (empty path) skipped; no image: placeholder.
+  - Set filter / code search: the card is shown as printed in that set (script, set lang,
+    images); falls back to all printings when that set has no image.
+  - Printings are named as printed in their own set. New fields (additive):
+    `CardSummaryOut.translation/printing_id`, `CardOut.translation/default_printing_id`,
+    `PrintingOut.name/translation`.
+- [x] Web: `/cards/:cardId/:printingId` (one page per printing; `/cards/:cardId` redirects to
+  `default_printing_id`), table rows navigate (sort kept), finish selector (`?finish=`,
+  default cheapest) drives "This version" stat and price history chart; catalog tiles link
+  to their printing and wrap long names; collection links open the printing.
+- [ ] Android: show `translation` next to names, open printing from catalog (not done).
+
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.

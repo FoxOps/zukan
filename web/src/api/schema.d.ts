@@ -779,6 +779,10 @@ export interface components {
             game_id: string;
             /** Name */
             name: string;
+            /** Translation */
+            translation?: string | null;
+            /** Default Printing Id */
+            default_printing_id?: number | null;
             /** Colors */
             colors: string[];
             /** Attributes */
@@ -812,12 +816,16 @@ export interface components {
             game_id: string;
             /** Name */
             name: string;
+            /** Translation */
+            translation?: string | null;
             /** Colors */
             colors: string[];
             /** Printing Count */
             printing_count: number;
             /** Image */
             image: string | null;
+            /** Printing Id */
+            printing_id?: number | null;
             /** Price Min */
             price_min: string | null;
             /** Price Max */
@@ -1295,6 +1303,13 @@ export interface components {
             image: string | null;
             /** Back Image */
             back_image?: string | null;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /** Translation */
+            translation?: string | null;
             /** Names */
             names: {
                 [key: string]: string;

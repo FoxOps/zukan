@@ -84,12 +84,15 @@ export default function Catalog() {
             {cards.data.items.map((card) => (
               <Link
                 key={card.id}
-                to={`/cards/${card.id}`}
+                to={card.printing_id ? `/cards/${card.id}/${card.printing_id}` : `/cards/${card.id}`}
                 className="group flex flex-col gap-2 animate-in fade-in duration-300"
               >
                 <CardImage src={card.image} alt={card.name} className="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
                 <div className="flex flex-col gap-1">
-                  <span className="truncate font-medium group-hover:text-primary">{card.name}</span>
+                  <span className="break-words font-medium group-hover:text-primary">
+                    {card.name}
+                    {card.translation && <span className="font-normal text-base-content/60"> ({card.translation})</span>}
+                  </span>
                   <span className="text-xs text-base-content/60">
                     {!game && `${games.find((g) => g.id === card.game_id)?.name ?? card.game_id} · `}
                     {t('{{count}} printings', { count: card.printing_count })}
