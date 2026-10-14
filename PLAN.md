@@ -593,7 +593,19 @@ Mockups approved by the user 2026-10-14 (long catalog names wrap, never truncate
   `default_printing_id`), table rows navigate (sort kept), finish selector (`?finish=`,
   default cheapest) drives "This version" stat and price history chart; catalog tiles link
   to their printing and wrap long names; collection links open the printing.
-- [ ] Android: show `translation` next to names, open printing from catalog (not done).
+- [x] Same naming everywhere: collection items, stock transactions (dashboard) and scan
+  candidates are named as printed in their own set (`show_printing`/`show_card`), with
+  `translation`; item images use the chosen language. Web shows it through `ShownName`.
+- [x] Android 0.5.0 (no card screen: the scan sheet `ResultPanel` is the card view):
+  Search and Collection rows show Name (Translation); Search opens the catalog's printing
+  (`printing_id`, else `default_printing_id`); sheet title is the printing's name; finish
+  chips drive This version, plus Cheapest / Most expensive / Lowest offer when every
+  printing is loaded (`PriceStats.kt`). No price chart. New fields optional (old servers OK).
+- [x] Versions: server 0.6.0 (`pyproject.toml`, README, `.env.example`), Android 0.5.0
+  (`build.gradle.kts`, README). 119 backend tests, 23 Android unit tests, debug build and
+  lint pass (JDK 27 locally).
+- [ ] Check on the real catalog: done by the user (Pokémon has 205 sets without a language,
+  MTG has no set languages: the printing's languages decide; Russian MTG printings).
 
 
 ## Build phases
