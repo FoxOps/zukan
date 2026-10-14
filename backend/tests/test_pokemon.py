@@ -163,9 +163,18 @@ async def test_sync_sets_translations_and_exclusive_sets(client, session, tcgdex
     for query in ("オオタチ", "Wiesenior"):
         page = (await client.get("/api/cards", params={"q": query}, headers=headers)).json()
         assert [c["name"] for c in page["items"]] == ["Furret"], query
-    # Shown in the interface language (English here) when the name is known in it.
+    # Printed only in Japanese: the Japanese name, translated in the interface language
+    # (English here).
     page = (await client.get("/api/cards", params={"q": "トロピウス"}, headers=headers)).json()
-    assert [c["name"] for c in page["items"]] == ["Tropius"]
+    assert [(c["name"], c["translation"]) for c in page["items"]] == [("トロピウス", "Tropius")]
+    # Furret is also printed in Latin sets: shown in the interface language.
+    furret = (await client.get("/api/cards", params={"q": "Furret"}, headers=headers)).json()
+    assert [(c["name"], c["translation"]) for c in furret["items"]] == [("Furret", None)]
+    detail = (await client.get(f"/api/cards/{furret['items'][0]['id']}", headers=headers)).json()
+    shown = {p["set"]["code"]: (p["name"], p["translation"]) for p in detail["printings"]}
+    # Each printing is named as printed in its own set.
+    assert shown["DAA"] == ("Furret", None) and shown["SV1a"] == ("オオタチ", "Furret")
+    assert detail["default_printing_id"] == furret["items"][0]["printing_id"]
 
 
 async def test_price_job_fetches_owned_cards_only(session, tcgdex):
@@ -224,7 +233,7 @@ async def test_search_by_printed_language(client, session, tcgdex):
 
     assert "Furret" in await names("fr")
     assert "Tropius" not in await names("fr")
-    assert {"Furret", "Tropius"} <= await names("ja")
+    assert {"Furret", "トロピウス"} <= await names("ja")
 
 
 async def test_refresh_fetches_printings_again(session, tcgdex):
