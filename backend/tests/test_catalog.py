@@ -160,6 +160,14 @@ async def test_search_and_card_detail(client, session, synced):
         await client.get("/api/cards", params={"color": ["earth", "water"]}, headers=headers)
     ).json()
     assert [c["name"] for c in both["items"]] == ["Aqueduct"]
+    exact = (
+        await client.get(
+            "/api/cards",
+            params={"game": "sorcery", "color": ["water"], "color_mode": "exact"},
+            headers=headers,
+        )
+    ).json()
+    assert [c["name"] for c in exact["items"]] == ["Abundance"]
 
     sets = (await client.get("/api/games/sorcery/sets", headers=headers)).json()
     promo = next(s for s in sets if s["code"] == "999")
@@ -167,6 +175,18 @@ async def test_search_and_card_detail(client, session, synced):
         await client.get("/api/cards", params={"set_id": promo["id"]}, headers=headers)
     ).json()
     assert in_promo["total"] == 4
+
+    async def order(**params) -> list[str]:
+        page = await client.get(
+            "/api/cards", params={"set_id": promo["id"], **params}, headers=headers
+        )
+        return [c["name"] for c in page.json()["items"]]
+
+    by_name = await order(sort="name")
+    assert by_name == sorted(by_name)
+    assert await order(sort="name", order="desc") == by_name[::-1]
+    by_number = await order(sort="number")
+    assert await order(sort="number", order="desc") == by_number[::-1]
 
     paged = (
         await client.get("/api/cards", params={"page_size": 3, "page": 3}, headers=headers)

@@ -52,7 +52,6 @@
   "Check file": "Vérifier le fichier",
   "Choose a folder": "Choisir un dossier",
   "Choose the games shown": "Choisir les jeux affichés",
-  "Click to flip": "Cliquer pour retourner",
   "close": "fermer",
   "Close menu": "Fermer le menu",
   "Collection": "Collection",
@@ -300,5 +299,18 @@
   "A new version is available": "Une nouvelle version est disponible",
   "Reload the page to use it.": "Rechargez la page pour l’utiliser.",
   "Something went wrong": "Un problème est survenu",
-  "This page could not be shown. Reload it, and report the problem if it happens again.": "Cette page n’a pas pu être affichée. Rechargez-la, et signalez le problème s’il se reproduit."
+  "This page could not be shown. Reload it, and report the problem if it happens again.": "Cette page n’a pas pu être affichée. Rechargez-la, et signalez le problème s’il se reproduit.",
+  "Show front": "Voir le recto",
+  "Show back": "Voir le verso",
+  "back": "verso",
+  "Clear search": "Effacer la recherche",
+  "Color match": "Correspondance des couleurs",
+  "Including these colors": "Incluant ces couleurs",
+  "Exactly these colors": "Exactement ces couleurs",
+  "Best match": "Pertinence",
+  "Card number (ascending)": "Numéro de carte (croissant)",
+  "Card number (descending)": "Numéro de carte (décroissant)",
+  "Name (A to Z)": "Nom (A à Z)",
+  "Name (Z to A)": "Nom (Z à A)",
+  "Loading": "Chargement"
 }

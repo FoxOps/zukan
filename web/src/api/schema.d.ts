@@ -321,6 +321,10 @@ export interface paths {
          *
          *     `attr=<filter key>:<value>` (repeatable, all must match) uses the game's advanced
          *     filters (GameOut.filters); it needs `game`.
+         *
+         *     `color_mode=exact`: cards of exactly the chosen colors (default: at least them).
+         *     `sort=name` orders by shown name, `sort=number` by collector number in `set_id`
+         *     (ignored without a set); `order` gives the direction.
          */
         get: operations["search_cards_api_cards_get"];
         put?: never;
@@ -849,6 +853,8 @@ export interface components {
             image: string | null;
             /** Printing Id */
             printing_id?: number | null;
+            /** Back Image */
+            back_image?: string | null;
             /** Price Min */
             price_min: string | null;
             /** Price Max */
@@ -1084,6 +1090,8 @@ export interface components {
             rarity: string | null;
             /** Image */
             image: string | null;
+            /** Back Image */
+            back_image?: string | null;
             /** Finish */
             finish: string;
             /** Condition */
@@ -2183,6 +2191,9 @@ export interface operations {
                 color?: string[] | null;
                 lang?: string | null;
                 attr?: string[] | null;
+                color_mode?: "include" | "exact";
+                sort?: "relevance" | "name" | "number";
+                order?: "asc" | "desc";
                 page?: number;
                 page_size?: number;
             };
@@ -2351,6 +2362,7 @@ export interface operations {
                 q?: string | null;
                 set_id?: number | null;
                 color?: string[] | null;
+                color_mode?: "include" | "exact";
                 finish?: string | null;
                 condition?: components["schemas"]["Condition"] | null;
                 language?: string | null;

@@ -7,7 +7,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import case, exists, func, select
 from sqlalchemy.orm import contains_eager, selectinload
 
-from app.api.catalog import load_names, name_matches, show_printing
+from app.api.catalog import (
+    back_image_link,
+    load_names,
+    name_matches,
+    number_sort_key,
+    show_printing,
+)
 from app.api.deps import CurrentUser, SessionDep
 from app.games.base import registry
 from app.models import (
@@ -50,6 +56,8 @@ class ItemOut(BaseModel):
     collector_number: str | None
     rarity: str | None
     image: str | None
+    # Back face of double-faced printings.
+    back_image: str | None = None
     finish: str
     condition: str
     language: str
@@ -192,6 +200,7 @@ async def _items_out(
                 collector_number=printing.collector_number,
                 rarity=printing.rarity,
                 image=image,
+                back_image=back_image_link(printing),
                 finish=item.finish,
                 condition=item.condition,
                 language=item.language,
@@ -238,6 +247,7 @@ async def list_items(
     q: Annotated[str | None, Query(max_length=200)] = None,
     set_id: int | None = None,
     color: Annotated[list[str] | None, Query()] = None,
+    color_mode: Literal["include", "exact"] = "include",
     finish: str | None = None,
     condition: Condition | None = None,
     language: str | None = None,
@@ -264,6 +274,8 @@ async def list_items(
         query = query.where(Printing.set_id == set_id)
     if color:
         query = query.where(Card.colors.contains(color))
+        if color_mode == "exact":
+            query = query.where(Card.colors.contained_by(color))
     if finish:
         query = query.where(CollectionItem.finish == finish)
     if condition:
@@ -296,8 +308,12 @@ async def list_items(
     order = {
         "price_asc": (price.asc().nulls_last(), name),
         "price_desc": (price.desc().nulls_last(), name),
-        "name": (name, CardSet.code, Printing.collector_number),
-        "set": (CardSet.release_date.desc().nulls_last(), CardSet.code, Printing.collector_number),
+        "name": (name, CardSet.code, number_sort_key(Printing.collector_number)),
+        "set": (
+            CardSet.release_date.desc().nulls_last(),
+            CardSet.code,
+            number_sort_key(Printing.collector_number),
+        ),
         "updated": (CollectionItem.updated_at.desc(),),
         "quantity": (CollectionItem.quantity.desc(), name),
     }[sort]

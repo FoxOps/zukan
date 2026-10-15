@@ -645,7 +645,14 @@ Progress (plan below):
   excluded), rotated refresh tokens accepted again for 60 s while the family is alive
   (`refresh_token.rotated_at`), access 1 h / refresh 90 days sliding, login loads `me` before
   leaving the page and older requests can no longer end the new session (`markSignedIn`).
-- [ ] B catalog GUI (grayed images, clear search, sort, advanced box + color mode, flip button)
+- [x] B catalog GUI: grayed images = Chrome keeping the dimmed paint of `backface-hidden`
+  layers after the grid's `opacity-60` was removed (computed opacity was 1, a hover repainted):
+  no more grid dimming (spinner next to the count), no per-tile fade-in, `backface-hidden`
+  only on double-faced cards. Search ✕ button + Esc (and follows the URL). Sort by card number
+  or name inside a set (`sort`, `order`; natural number key `number_sort_key`, also used by the
+  collection). Set, sort, colors and advanced filters in one box; `color_mode=exact`. Flip
+  button (`FlipIcon`) on every double-faced picture, catalog tiles flip in place
+  (`CardSummaryOut.back_image`, `ItemOut.back_image`), back loaded on first flip.
 - [ ] C account email
 - [ ] D stock dialog version switch
 - [ ] E collection trend column + views

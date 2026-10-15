@@ -217,6 +217,7 @@ export default function CardDetail() {
               src={selected.image}
               back={selected.back_image ?? null}
               alt={name}
+              flipOnClick
               className="w-full max-w-xs shadow-xl rounded-[4.5%]"
             />
           )}
