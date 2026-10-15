@@ -2,6 +2,9 @@
 
 import re
 import unicodedata
+from functools import cache
+
+from opencc import OpenCC
 
 from app.games.base import OcrLine
 
@@ -29,8 +32,28 @@ def script_language(lines: list[OcrLine]) -> str | None:
     if _HANGUL.search(text):
         return "ko"
     if _CJK.search(text):
-        return "zh-hant" if any(c in text for c in "對與為們這個") else "zh-hans"
+        # Traditional when converting it to Simplified changes something.
+        return "zh-hant" if _converter("t2s").convert(text) != text else "zh-hans"
     return None
+
+
+@cache
+def _converter(config: str) -> OpenCC:
+    return OpenCC(config)
+
+
+def chinese_variants(names: list[str]) -> list[str]:
+    """The names, plus their Simplified and Traditional Chinese spellings: a card may be
+    printed in either script, OCR models read both, catalogs store one."""
+    out = list(names)
+    for name in names:
+        if not _CJK.search(name) or _KANA.search(name) or _HANGUL.search(name):
+            continue
+        for config in ("t2s", "s2t"):
+            other = _converter(config).convert(name)
+            if other not in out:
+                out.append(other)
+    return out
 
 
 def by_position(lines: list[OcrLine]) -> list[OcrLine]:

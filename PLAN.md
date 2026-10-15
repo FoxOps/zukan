@@ -679,7 +679,15 @@ Progress (plan below):
   deviation from the plan's "skip when unchanged"). Empty sets pruned after each sync.
   Live data parsed: KO 263 sets / 20 029 cards (13 731 named in English), CN 232 / 14 162
   (9 888). Existing deployments: Reset catalog (Pokémon) drops the old TCGdex ko/zh-cn data.
-- [ ] H Android OCR: landscape, other game, Chinese
+- [x] H OCR. Server: `status: other_game` + `detected_game` when a game is chosen and another
+  game's markers are read (`identify.other_game`); name-only reads of 4+ lines count as
+  `not_found` (Sorcery prints no set code); Simplified/Traditional variants of Chinese names
+  (`opencc-python-reimplemented`, `ocr.chinese_variants`), `script_language` by conversion;
+  Pokémon `1阶进化` / `进化自` labels. App 0.7.0: `CardTurn` — sideways lines (ML Kit `angle`)
+  or 6 weak frames: the frame is read at 0/90/270° and the best turn kept (landscape cards);
+  pill "This is a {game} card" + Switch; AUTO: a model that found its script reads every frame
+  (3 misses to stop), the Japanese model reading only Han hands over to the Chinese one.
+  Real-phone check by the user: Sorcery sites, MTG card with Pokémon chosen, Chinese cards.
 
 ### Context
 User backlog after 0.7.0 / 0.6.0: 13 server items (session, email, collection trend + views,

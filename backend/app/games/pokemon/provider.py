@@ -393,7 +393,7 @@ _SET_BEFORE_NUMBER = re.compile(r"\b([A-Za-z]{1,4}\d{1,2}[a-zA-Z+]?)\s+[A-Z]{0,4
 # Asian labels are written without a space before the name: no word boundary there.
 _STAGE = re.compile(
     r"^((basic|stage ?\d|base|niveau ?\d|basis|phase ?\d|fase ?\d|livello ?\d|básico)\b|"
-    r"たね|\d進化|기본|\d진화|基础|基礎|\d阶|\d階)[\s:.-]*",
+    r"たね|\d進化|기본|\d진화|基础|基礎|\d阶进化|\d階進化|\d阶|\d階)[\s:.-]*",
     re.IGNORECASE,
 )
 _HP = re.compile(
@@ -411,6 +411,8 @@ _SKIP = re.compile(
     r"supporters|item|objet|stadium|stade|energy|énergie|energie|tool|outil|"
     r"evolves from|évolue de|entwickelt sich aus|si evolve da|evoluciona de|evolui de|"
     r"pokémon|pokemon)\b|"
+    # "进化自 …" / "從…進化" (evolves from) lines of Chinese cards.
+    r"^(进化自|進化自|从.{1,8}进化|從.{1,8}進化)|"
     # Asian trainer and energy labels, alone on their line (card names such as
     # "エネルギーつけかえ" start with the same words).
     r"^(トレーナーズ|サポート|グッズ|スタジアム|ポケモンのどうぐ|基本エネルギー|特殊エネルギー|"

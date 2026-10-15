@@ -106,12 +106,20 @@ fun ScanScreen(
         val status = when (state.phase) {
             Phase.SCANNING -> stringResource(R.string.point_at_card)
             Phase.IDENTIFYING -> stringResource(R.string.identifying)
-            Phase.NOT_FOUND -> stringResource(if (state.result?.notACard == true) R.string.not_a_card else R.string.card_not_found)
+            Phase.NOT_FOUND -> {
+                val other = state.result?.otherGame
+                when {
+                    other != null -> stringResource(R.string.card_of_other_game, games.find { it.id == other }?.name ?: other)
+                    state.result?.notACard == true -> stringResource(R.string.not_a_card)
+                    else -> stringResource(R.string.card_not_found)
+                }
+            }
             Phase.ERROR -> state.error ?: stringResource(R.string.error_identify)
             Phase.RESULT -> null
         }
         // What was read, so the user sees why nothing matched.
         val detail = when (state.phase) {
+            Phase.NOT_FOUND if state.result?.otherGame != null -> stringResource(R.string.card_of_other_game_help)
             Phase.NOT_FOUND -> state.result?.takeIf { !it.notACard }?.detected?.let { d ->
                 listOfNotNull(d.name, listOfNotNull(d.setCode, d.collectorNumber).joinToString(" ").ifEmpty { null })
                     .joinToString(" · ").ifEmpty { null }
@@ -134,7 +142,14 @@ fun ScanScreen(
                         )
                         detail?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                     }
-                    if (state.phase == Phase.NOT_FOUND || state.phase == Phase.ERROR) {
+                    val otherGame = state.result?.otherGame.takeIf { state.phase == Phase.NOT_FOUND }
+                    if (otherGame != null && games.any { it.id == otherGame }) {
+                        // Scan again with the card's game selected.
+                        TextButton(onClick = {
+                            onGame(otherGame)
+                            scan.resume(forgetCard = true)
+                        }) { Text(stringResource(R.string.switch_game)) }
+                    } else if (state.phase == Phase.NOT_FOUND || state.phase == Phase.ERROR) {
                         TextButton(onClick = { scan.resume(forgetCard = true) }) { Text(stringResource(R.string.try_again)) }
                     }
                 }

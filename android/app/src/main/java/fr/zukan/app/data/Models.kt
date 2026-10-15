@@ -182,10 +182,13 @@ data class IdentifyOut(
     val candidates: List<CandidateOut>,
     // The card was missing from the server catalog and was fetched from its source.
     val fetched: Boolean = false,
-    // found, not_found (looks like a card, none matches) or not_a_card; "" before 0.7.
+    // found, not_found (looks like a card, none matches), other_game (a card of
+    // `detectedGame`, not of the chosen game; server 0.8) or not_a_card; "" before 0.7.
     val status: String = "",
+    @SerialName("detected_game") val detectedGame: String? = null,
 ) {
     val notACard get() = status == "not_a_card"
+    val otherGame get() = detectedGame?.takeIf { status == "other_game" }
 }
 
 @Serializable
