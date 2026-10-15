@@ -1,6 +1,6 @@
 """Game provider plugin contract.
 
-Each trading card game is a provider registered under the `fudabako.games` entry point
+Each trading card game is a provider registered under the `zukan.games` entry point
 group. Providers only fetch and normalize data; core services store it. Core code and
 clients only talk to this interface, so adding a game never requires changes elsewhere.
 """
@@ -318,7 +318,7 @@ class GameProvider(Protocol):
         ...
 
 
-ENTRY_POINT_GROUP = "fudabako.games"
+ENTRY_POINT_GROUP = "zukan.games"
 
 
 def catalog_version(provider: GameProvider) -> int:

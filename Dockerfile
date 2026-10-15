@@ -22,8 +22,8 @@ COPY backend/alembic ./alembic
 COPY --from=web /web/dist ./web
 
 # Release version (CI passes the image version); empty: the package version.
-ARG FUDABAKO_VERSION=
-ENV FUDABAKO_VERSION=$FUDABAKO_VERSION
+ARG ZUKAN_VERSION=
+ENV ZUKAN_VERSION=$ZUKAN_VERSION
 
 RUN useradd --create-home tcg && mkdir -p /data/images && chown tcg /data/images
 COPY deploy/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

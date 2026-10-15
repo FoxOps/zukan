@@ -73,7 +73,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="Fudabako",
+        title="Zukan",
         version=__version__,
         lifespan=lifespan,
         docs_url="/api/docs",

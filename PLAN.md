@@ -1,8 +1,8 @@
-# Fudabako (札箱, "card box") — Plan
+# Zukan (図鑑, "illustrated encyclopedia") — Plan
 
-Self-hosted TCG collection manager. Named Fudabako on 2026-10-13 (was "TCG MGMT").
-Product name, CLI (`fudabako`), Python package and plugin entry point group
-(`fudabako.games`) use the new name. Configuration identifiers keep their short `TCG`
+Self-hosted TCG collection manager. Named Zukan on 2026-10-13 (was "TCG MGMT").
+Product name, CLI (`zukan`), Python package and plugin entry point group
+(`zukan.games`) use the new name. Configuration identifiers keep their short `TCG`
 prefix (`TCG_*` environment variables, `tcg_*` cookies, `tcg` database), so existing
 `.env` files keep working.
 
@@ -68,7 +68,7 @@ class GameProvider(Protocol):
     def image_url(self, printing) -> str | None
     def parse_ocr(self, lines: list[str]) -> OcrHints          # name, set code, collector number, lang
 ```
-Registry via Python entry points (`fudabako.games`), so new game = new package implementing protocol, no core change. Web/Android read game metadata (colors, finishes, languages) from `GET /games` — no hardcoded game logic in clients.
+Registry via Python entry points (`zukan.games`), so new game = new package implementing protocol, no core change. Web/Android read game metadata (colors, finishes, languages) from `GET /games` — no hardcoded game logic in clients.
 
 ## Data model (generic + JSONB for game-specific)
 - `game` (id, name)
@@ -108,7 +108,7 @@ Phone sends OCR text lines + bounding boxes + chosen game (or auto). Server:
 Phone shows best match; user can swipe other printings, choose finish/condition/language, tap Add / Remove. Endpoint `POST /collection/adjust` (delta), returns new quantity; undo via transaction.
 
 ## Android app
-Package `fr.fudabako.app`, app name "Fudabako", SSO redirect `fr.fudabako.app:/oauth2redirect`.
+Package `fr.zukan.app`, app name "Zukan", SSO redirect `fr.zukan.app:/oauth2redirect`.
 Screens: Login (server URL, then local credentials or SSO buttons from `/auth/providers` via AppAuth), Scan (CameraX preview + ML Kit analyzer, throttle, stability check: same parse over N frames before query), Result sheet (candidates, info, price, owned, Add/Remove, quantity stepper), Collection search (read-only light view), Settings (game, default condition/lang/finish, scan model language). ML Kit script models bundled for Latin + JA + ZH + KO; pick per user setting or run Latin + selected script.
 
 ## Web UI
@@ -129,7 +129,7 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
     languages are merged). `fetch_prices(http)` yields `PriceQuote` keyed by external ids.
   - Sorcery API lists one printing per finish; grouped per set + card + product.
     Images are not available from the API (CDN use forbidden): import the public Google
-    Drive folder (files named after printing slugs) via `fudabako import-images` or admin endpoint.
+    Drive folder (files named after printing slugs) via `zukan import-images` or admin endpoint.
   - Images cached on demand (`/api/printings/{id}/image`) plus worker pre-fetch of owned
     printings; caching every MTG printing would be ~10 GB.
   - Worker is a plain asyncio loop (no APScheduler); `sync_run` table records job history and
@@ -219,7 +219,7 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
   and app versioned independently). Shared: `_checks.yml`, `_docker-image.yml`.
   `docker-compose.yml` now runs GHCR images; `docker-compose-dev.yml` builds locally.
   `pytest -m smoke` marks 15 critical-path tests. Dev Android build = separate app
-  `fr.fudabako.app.dev` (own SSO redirect). Release keystore kept outside the repo,
+  `fr.zukan.app.dev` (own SSO redirect). Release keystore kept outside the repo,
   stored in `ANDROID_KEYSTORE_*` secrets.
 - [x] First start (2026-10-13): nobody could sign in on a fresh deployment. The API now
   creates the administrator `admin` / `changeme` on start while the user table is empty
@@ -228,7 +228,7 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
   entrypoint starts as root, chowns `/data/images` (Docker creates missing bind mount
   folders as root) and drops to `tcg` with `setpriv`.
   `.env` is now the only configuration entry point: `auth.yaml` dropped, SSO providers
-  come from `TCG_OIDC_PROVIDERS` + `TCG_OIDC_<NAME>_*`, host port from `FUDABAKO_PORT`.
+  come from `TCG_OIDC_PROVIDERS` + `TCG_OIDC_<NAME>_*`, host port from `ZUKAN_PORT`.
   `.env.example` documents every variable; only `POSTGRES_PASSWORD` and `TCG_SECRET_KEY`
   are left uncommented.
 - [x] Languages and UX batch (2026-10-13). 86 backend tests pass; checked in a browser on a
@@ -314,7 +314,7 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
 
 - [x] Feedback batch 3 (2026-10-14), branch `feedback-batch-3`: server 0.5.0,
   Android 0.4.0. Plan below; phases ticked as they land.
-  - [x] A quick fixes: version (`FUDABAKO_VERSION` build arg in images, else package
+  - [x] A quick fixes: version (`ZUKAN_VERSION` build arg in images, else package
     version) in `/api/health`, web sidebar, Android settings; `Select` component
     (searchable from 11 options); card page printings sort; catalog image follows set;
     scroll to top on page change; FR "versions".
@@ -326,7 +326,7 @@ Collection browser per game (filters: set, color, finish, condition, lang, owned
     out: many printings are legitimately unpriced), provider `fetch_cards` (Scryfall
     `oracleid:` search, TCGdex per printing + missing-image languages, Sorcery cached
     catalog), refresh on card view (BackgroundTasks, once an hour), `refresh` job (48 h).
-  - [x] D price sources: `fudabako.prices` plugins (`app/prices`: Cardmarket EUR,
+  - [x] D price sources: `zukan.prices` plugins (`app/prices`: Cardmarket EUR,
     TCGplayer USD from Scryfall `usd*` and TCGdex `pricing.tcgplayer`), quotes tagged with
     `source`, `attributes.market_ids`, sources with their own API (`fetch`, called by the
     prices job after the provider). Deviation: one prices job per game (not per source):
@@ -399,7 +399,7 @@ Branch `feedback-batch-3` off `main`. Keep `PLAN.md` progress section updated (m
    "version(s)" (`{{count}} printings_*`, Jobs image import message, ImportExport text, any other
    hit from `grep -i impression`); same in `android/app/src/main/res/values-fr/strings.xml`.
 3. **App version**: single source = `backend/pyproject.toml`. `app/__init__.py`
-   `__version__ = importlib.metadata.version("fudabako")`; `user_agent` default built from it
+   `__version__ = importlib.metadata.version("zukan")`; `user_agent` default built from it
    (`core/config.py:43`); `FastAPI(version=...)`; `/api/health` returns `{"status","version"}`.
    Web: `useHealth()` query, Layout.tsx aside becomes `flex flex-col`, version `mt-auto` bottom-left
    (`v0.5.0`, small muted text). Android: `BuildConfig.VERSION_NAME` line in SettingsScreen.kt
@@ -461,7 +461,7 @@ Migration on `sync_run`: `trigger` (`auto`|`manual`), `heartbeat_at`, `cancel_re
    gets the button too.
 
 ### Phase D — modular price sources
-1. New plugin type, entry point group `fudabako.prices` (pyproject.toml). `app/prices/base.py`:
+1. New plugin type, entry point group `zukan.prices` (pyproject.toml). `app/prices/base.py`:
    `PriceSource` protocol: `id`, `name`, `currency`, `games: set[str]`, `link(printing) -> str|None`,
    `fetch(http, game_id, targets) -> AsyncIterator[list[PriceQuote]]`; optional `token` via
    helper below. Same features as Cardmarket today: trend, low, avg, history, min/max, links.

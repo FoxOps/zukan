@@ -85,7 +85,7 @@ export function Layout() {
           <label htmlFor="nav-drawer" className="btn btn-square btn-ghost lg:hidden" aria-label={t('Menu')}>
             <svg viewBox="0 0 24 24" className="h-6 w-6 fill-none stroke-current stroke-2"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
           </label>
-          <span className="flex-1 px-2 text-lg font-semibold lg:hidden">Fudabako</span>
+          <span className="flex-1 px-2 text-lg font-semibold lg:hidden">Zukan</span>
           <div className="ml-auto flex items-center gap-2">
             <LanguageMenu />
             <label className="swap swap-rotate btn btn-ghost btn-circle" title={t('Toggle theme')}>
@@ -110,8 +110,8 @@ export function Layout() {
         <label htmlFor="nav-drawer" className="drawer-overlay" aria-label={t('Close menu')} />
         <aside className="flex min-h-full w-60 flex-col bg-base-200">
           <div className="px-6 py-5">
-            <div className="text-xl font-bold">Fudabako</div>
-            <div className="text-xs text-base-content/50"><span lang="ja">札箱</span> · {t('card box')}</div>
+            <div className="text-xl font-bold">Zukan</div>
+            <div className="text-xs text-base-content/50"><span lang="ja">図鑑</span> · {t('card encyclopedia')}</div>
           </div>
           <ul className="menu w-full gap-1 px-3" onClick={closeDrawer}>
             {NAV.map((n) => (

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- English (default). French in values-fr. app_name comes from build.gradle.kts (per build type). -->
 <resources>
-    <string name="tagline">札箱 · card box</string>
+    <string name="tagline">図鑑 · card encyclopedia</string>
 
     <!-- Tabs -->
     <string name="tab_scan">Scan</string>

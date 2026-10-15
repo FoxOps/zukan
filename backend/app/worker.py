@@ -25,7 +25,7 @@ from app.services.jobs import JobAlreadyRunning, JobStopped, reap_runs, run_job,
 from app.services.prices import has_prices
 from app.services.refresh import can_refresh
 
-log = logging.getLogger("fudabako.worker")
+log = logging.getLogger("zukan.worker")
 
 TICK_SECONDS = 300
 RETRY_AFTER = timedelta(hours=1)

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="tagline">札箱 · boîte à cartes</string>
+    <string name="tagline">図鑑 · encyclopédie de cartes</string>
 
     <!-- Onglets -->
     <string name="tab_scan">Scanner</string>

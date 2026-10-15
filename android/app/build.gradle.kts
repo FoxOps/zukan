@@ -9,18 +9,18 @@ plugins {
 val keystorePath: String? = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
 
 android {
-    namespace = "fr.fudabako.app"
+    namespace = "fr.zukan.app"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "fr.fudabako.app"
+        applicationId = "fr.zukan.app"
         minSdk = 26
         targetSdk = 37
         // CI passes -PversionCode / -PversionName (prod: from the release version).
         versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
         versionName = providers.gradleProperty("versionName").orNull ?: "0.6.0"
-        resValue("string", "app_name", "Fudabako")
-        redirectScheme("fr.fudabako.app")
+        resValue("string", "app_name", "Zukan")
+        redirectScheme("fr.zukan.app")
     }
 
     signingConfigs {
@@ -41,12 +41,12 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("release")
         }
-        // Dev builds install next to the released app ("Fudabako dev").
+        // Dev builds install next to the released app ("Zukan dev").
         debug {
             applicationIdSuffix = ".dev"
             versionNameSuffix = providers.gradleProperty("versionNameSuffix").orNull ?: "-dev"
-            resValue("string", "app_name", "Fudabako dev")
-            redirectScheme("fr.fudabako.app.dev")
+            resValue("string", "app_name", "Zukan dev")
+            redirectScheme("fr.zukan.app.dev")
             // Same key as releases in CI, so successive dev builds update each other.
             signingConfigs.findByName("release")?.let { signingConfig = it }
         }

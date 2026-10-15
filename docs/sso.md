@@ -1,6 +1,6 @@
 # Single sign-on (OpenID Connect)
 
-Fudabako works with any OpenID Connect provider. Providers are configured in `.env`
+Zukan works with any OpenID Connect provider. Providers are configured in `.env`
 (documented in `.env.example`): list their names in `TCG_OIDC_PROVIDERS`, then set
 `TCG_OIDC_<NAME>_*` for each, e.g. for a provider named `home`:
 
@@ -22,7 +22,7 @@ Each provider needs two clients at the IdP:
 | Client | Type | Used by | Redirect URI |
 |---|---|---|---|
 | `tcg-web` | confidential, authorization code + PKCE (S256) | web UI | `https://<site>/api/auth/oidc/<name>/callback` |
-| `tcg-android` | public, authorization code + PKCE (S256) | Android app | `fr.fudabako.app:/oauth2redirect` (dev builds: `fr.fudabako.app.dev:/oauth2redirect`) |
+| `tcg-android` | public, authorization code + PKCE (S256) | Android app | `fr.zukan.app:/oauth2redirect` (dev builds: `fr.zukan.app.dev:/oauth2redirect`) |
 
 `<name>` is the provider name from `TCG_OIDC_PROVIDERS`. `<site>` is `TCG_PUBLIC_URL`.
 
@@ -31,14 +31,14 @@ Rules worth knowing:
 - Accounts are matched on issuer + subject, never on email. To attach SSO to an
   existing local account, sign in locally and use **Link SSO account** in settings.
 - When `TCG_OIDC_<NAME>_ADMIN_GROUPS` is set, the role is synced from the IdP groups on every SSO login.
-  Leave it empty to manage roles in Fudabako instead.
+  Leave it empty to manage roles in Zukan instead.
 - ID tokens must be signed with an asymmetric key (RS*/PS*/ES*/EdDSA). HS256 tokens
   are refused.
 - Both clients must share the same issuer, so web and mobile logins map to the same
   account.
 - Keep one administrator able to sign in locally until SSO is confirmed working, then
   optionally set `TCG_LOCAL_LOGIN_ENABLED=false`. Recovery: set it back to `true`, then
-  `fudabako create-admin NAME` inside the api container.
+  `zukan create-admin NAME` inside the api container.
 
 ## Keycloak
 
@@ -60,7 +60,7 @@ web secret `tcg-web-dev-secret` (`TCG_OIDC_<NAME>_CLIENT_SECRET`), users `admin`
    Authentik signs with HS256, which is refused), *Issuer mode: Same identifier is used
    for all providers*.
 2. Create a second provider for Android: client type *Public*, redirect URI
-   `fr.fudabako.app:/oauth2redirect` (and `fr.fudabako.app.dev:/oauth2redirect` for dev
+   `fr.zukan.app:/oauth2redirect` (and `fr.zukan.app.dev:/oauth2redirect` for dev
    builds), **same signing key**, same issuer mode.
 3. Create an application for each provider. Groups are included in the `profile` scope.
 4. `.env`: `TCG_OIDC_<NAME>_ISSUER=https://authentik.example.com/application/o/<web-app-slug>/`
@@ -73,7 +73,7 @@ identity_providers:
   oidc:
     clients:
       - client_id: tcg-web
-        client_name: Fudabako
+        client_name: Zukan
         client_secret: '$pbkdf2-sha512$...'   # authelia crypto hash generate
         public: false
         require_pkce: true
@@ -83,11 +83,11 @@ identity_providers:
         token_endpoint_auth_method: client_secret_basic
         authorization_policy: two_factor
       - client_id: tcg-android
-        client_name: Fudabako Android
+        client_name: Zukan Android
         public: true
         require_pkce: true
         pkce_challenge_method: S256
-        redirect_uris: ['fr.fudabako.app:/oauth2redirect', 'fr.fudabako.app.dev:/oauth2redirect']
+        redirect_uris: ['fr.zukan.app:/oauth2redirect', 'fr.zukan.app.dev:/oauth2redirect']
         scopes: [openid, profile, email, groups]
         token_endpoint_auth_method: none
         authorization_policy: two_factor
@@ -96,4 +96,4 @@ identity_providers:
 `.env`: `TCG_OIDC_<NAME>_ISSUER=https://auth.example.com`,
 `TCG_OIDC_<NAME>_SCOPES=["openid","profile","email","groups"]`.
 Authelia puts `groups` and `preferred_username` in the userinfo response by default;
-Fudabako reads userinfo automatically when they are missing from the ID token.
+Zukan reads userinfo automatically when they are missing from the ID token.

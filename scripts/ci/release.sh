@@ -18,8 +18,8 @@ version=${2:?version}
 note=${3:?note}
 shift 3
 case "$component" in
-    server) title="Fudabako server $version" ;;
-    android) title="Fudabako Android $version" ;;
+    server) title="Zukan server $version" ;;
+    android) title="Zukan Android $version" ;;
     *) echo "::error::Unknown component '$component'."; exit 1 ;;
 esac
 target=${TARGET_SHA:-$(git rev-parse HEAD)}

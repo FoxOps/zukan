@@ -1,7 +1,7 @@
 """Price source plugin contract.
 
 A price source is a market (Cardmarket, TCGplayer...) registered under the
-`fudabako.prices` entry point group. It names the market, its currency and how to link
+`zukan.prices` entry point group. It names the market, its currency and how to link
 to a product page. Prices reach it two ways:
 
 - game providers tag the quotes found in their own data with the source id (Scryfall
@@ -20,7 +20,7 @@ from functools import lru_cache
 from importlib.metadata import entry_points
 from typing import Any, Protocol, runtime_checkable
 
-ENTRY_POINT_GROUP = "fudabako.prices"
+ENTRY_POINT_GROUP = "zukan.prices"
 
 
 @dataclass(frozen=True)

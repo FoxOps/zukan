@@ -1015,6 +1015,12 @@ export interface components {
              * @default false
              */
             fetched: boolean;
+            /**
+             * Status
+             * @default found
+             * @enum {string}
+             */
+            status: "found" | "not_found" | "not_a_card";
         };
         /** IdentityOut */
         IdentityOut: {

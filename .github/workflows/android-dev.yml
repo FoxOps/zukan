@@ -1,5 +1,5 @@
 # Dev Android app from a development branch (pick it in "Use workflow from").
-# Unit tests and a debug build of "Fudabako dev" (fr.fudabako.app.dev, installs next to
+# Unit tests and a debug build of "Zukan dev" (fr.zukan.app.dev, installs next to
 # the released app). On success the Release workflow publishes it as pre-release
 # android-dev-<branch> (replaced by each new dev build of that branch).
 name: Android dev
@@ -68,8 +68,8 @@ jobs:
           echo android > release/component
           echo dev > release/channel
           echo "dev-$SLUG" > release/version
-          echo "Dev build of branch \`$GITHUB_REF_NAME\` at $SHORT_SHA: \`fudabako-dev-$SLUG-$SHORT_SHA.apk\` (Fudabako dev, installs next to the released app)." > release/notes.md
-          cp app/build/outputs/apk/debug/app-debug.apk "release/fudabako-dev-$SLUG-$SHORT_SHA.apk"
+          echo "Dev build of branch \`$GITHUB_REF_NAME\` at $SHORT_SHA: \`zukan-dev-$SLUG-$SHORT_SHA.apk\` (Zukan dev, installs next to the released app)." > release/notes.md
+          cp app/build/outputs/apk/debug/app-debug.apk "release/zukan-dev-$SLUG-$SHORT_SHA.apk"
       - name: Test reports
         if: failure()
         uses: actions/upload-artifact@v7
