@@ -47,7 +47,7 @@ export default function Login() {
         <div className="card-body gap-4">
           <div className="flex items-start justify-between">
             <h1 className="card-title text-2xl">
-              Fudabako <span className="text-base font-normal text-base-content/50" lang="ja">札箱</span>
+              Zukan <span className="text-base font-normal text-base-content/50" lang="ja">図鑑</span>
             </h1>
             <LanguageMenu signedIn={false} />
           </div>

@@ -169,7 +169,9 @@ async def test_prices_value_and_history(client, session, alice):
     # TCGplayer preferred: Sorcery has no TCGplayer prices and stays on Cardmarket, in
     # euros, never added to dollar totals.
     me = await client.patch("/api/auth/me", json={"price_source": "tcgplayer"}, headers=alice)
+    # The main source changes, the others stay shown.
     assert me.json()["price_source"] == "tcgplayer"
+    assert me.json()["price_sources"] == ["tcgplayer", "cardmarket"]
     value = (await client.get("/api/collection/value", headers=alice)).json()
     assert (value["currency"], value["total"]) == ("USD", "0")
     assert value["totals"] == [{"currency": "EUR", "total": "25.90"}]
@@ -331,3 +333,28 @@ async def test_sort_by_price(client, session, alice):
 
     assert await codes("price_asc") == ["001", "002"]
     assert await codes("price_desc") == ["002", "001"]
+
+
+async def test_quotes_without_low_keep_stored_low(session, catalog):
+    """The catalog's quotes (trend only) must not wipe the price guide's lowest price."""
+    from app.games.base import PriceQuote
+    from app.services.prices import printing_ids, store_quotes
+
+    abundance = await printing_id(session, "001", "abundance-b")
+    set_ext = await session.scalar(
+        select(CardSet.external_id).join(Printing).where(Printing.id == abundance)
+    )
+    ids = await printing_ids(session, "sorcery")
+    today = date.today()
+    guide = PriceQuote(set_ext, "abundance-b", "standard", Decimal("2"), Decimal("1"), Decimal("3"))
+    await store_quotes(session, [guide], today, ids)
+    catalog_quote = PriceQuote(set_ext, "abundance-b", "standard", Decimal("2.20"))
+    await store_quotes(session, [catalog_quote], today, ids)
+    await session.commit()
+    row = await session.scalar(
+        select(PriceSnapshot).where(
+            PriceSnapshot.printing_id == abundance, PriceSnapshot.date == today
+        )
+    )
+    await session.refresh(row)
+    assert (row.trend, row.low, row.avg) == (Decimal("2.20"), Decimal("1.00"), Decimal("3.00"))

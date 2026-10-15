@@ -1,6 +1,6 @@
-# Fudabako (札箱)
+# Zukan (図鑑)
 
-*Fudabako* means "card box" in Japanese.
+*Zukan* (図鑑) means "illustrated encyclopedia" in Japanese, like the Pokédex (ポケモン図鑑).
 
 Self-hosted trading card game collection manager: Magic: The Gathering, Pokémon TCG and
 Sorcery, with a plugin system for more games, and an Android scanner app.
@@ -8,7 +8,7 @@ See [PLAN.md](PLAN.md) for the full design and progress.
 
 ## Run with Docker
 
-`docker-compose.yml` runs the images built by CI from `ghcr.io/foxops/fudabako`. The
+`docker-compose.yml` runs the images built by CI from `ghcr.io/foxops/zukan`. The
 package is private: log in once with a GitHub token that has `read:packages`.
 
 ```sh
@@ -17,11 +17,18 @@ echo "$GITHUB_TOKEN" | docker login ghcr.io -u <github-user> --password-stdin
 docker compose pull && docker compose up -d
 ```
 
+Coming from Fudabako (the former name, up to server 0.7.0 / app 0.6.0): data and the
+`TCG_*` settings stay as they are. Use the new image `ghcr.io/foxops/zukan` (the compose
+project is now `zukan`), rename `FUDABAKO_PORT` / `FUDABAKO_TAG` in `.env` to
+`ZUKAN_PORT` / `ZUKAN_TAG`, and run the CLI as `zukan` instead of `fudabako`. The Android
+app is now `fr.zukan.app`: it installs as a new app (sign in again, then uninstall the old
+one), and SSO providers need the redirect URI `fr.zukan.app:/oauth2redirect`.
+
 First start creates the administrator **`admin`** / **`changeme`**
 (`TCG_DEFAULT_ADMIN_USERNAME` / `TCG_DEFAULT_ADMIN_PASSWORD` in `.env`). Sign in and change
 the password from the account page. The account is only created while the database has no
 user. Reset or add an administrator any time:
-`docker compose exec -e TCG_ADMIN_PASSWORD=... api fudabako create-admin NAME`.
+`docker compose exec -e TCG_ADMIN_PASSWORD=... api zukan create-admin NAME`.
 
 Data is stored next to the compose file, not in Docker volumes: `./data/postgres`
 (database) and `./data/images` (card image cache); the dev compose uses `./data-dev`.
@@ -32,15 +39,15 @@ two above are mandatory; the rest is commented out with its default). Serving th
 UI over plain HTTP (no TLS)? Set `TCG_COOKIE_SECURE=false` or web sign-in will not stick.
 
 Update: `docker compose pull && docker compose up -d` (migrations run on start).
-`FUDABAKO_TAG` in `.env` pins a version (`0.1.0`) or tries a dev build (`dev-<branch>`).
+`ZUKAN_TAG` in `.env` pins a version (`0.1.0`) or tries a dev build (`dev-<branch>`).
 To build from this checkout instead: `docker compose -f docker-compose-dev.yml up -d --build`
-(separate project `fudabako-dev`, with an optional Keycloak for SSO tests).
+(separate project `zukan-dev`, with an optional Keycloak for SSO tests).
 
 API docs: `http://localhost:8000/api/docs`. SSO setup: [docs/sso.md](docs/sso.md).
 
 The `worker` service syncs catalogs weekly (`TCG_CATALOG_INTERVAL_HOURS`) and prices and
 images daily (`TCG_SYNC_INTERVAL_HOURS`). Run a job now:
-`docker compose exec api fudabako sync mtg [--kind catalog|prices|images]`.
+`docker compose exec api zukan sync mtg [--kind catalog|prices|images]`.
 The first sync of each game takes a while: MTG streams Scryfall's ~400 MB `all_cards`
 file, Pokémon fetches every card from TCGdex one by one.
 
@@ -55,10 +62,15 @@ All prices are Cardmarket prices (EUR), never scraped from its website:
   printings by set and card name. Cards too new for a trend use the 7 or 30 day average,
   then the lowest offer.
 
-Card pages show the trend and lowest offer of each printing and finish, the cheapest and
+Each user picks the markets shown (Settings, several allowed); the first one gives values,
+sorts and price ranges. Card pages show the trend and lowest offer of each printing and finish, the cheapest and
 most expensive version of the card, and a link to each printing's Cardmarket page. A
 manual price on a collection item always wins. Price history is kept for cards somebody
 owns; other cards only keep their latest price.
+
+An admin can reset a game's catalog (Data sync page, "Reset catalog"): everything is
+deleted except the printings in collections, then synced again from scratch. Images
+imported from a folder must be imported again.
 
 ### Card images
 
@@ -71,7 +83,7 @@ addresses the [sorcerytcg.com card gallery](https://sorcerytcg.com/cards) uses, 
 from the local cache only. Large scans are stored as WebP. The
 [public image folder](https://drive.google.com/drive/folders/17IrJkRGmIU9fDSTU2JQEU9JlFzb5liLJ)
 can be imported instead: unzip it into `./import/sorcery`, then run
-`docker compose exec api fudabako import-images sorcery /data/import/sorcery`
+`docker compose exec api zukan import-images sorcery /data/import/sorcery`
 (or use the admin import endpoint `POST /api/admin/images/sorcery/import`).
 
 Game color symbols (Scryfall mana symbols, the energy types of pokemon.com's card
@@ -127,7 +139,7 @@ copies, ready for "add" or "remove".
 recognition with bundled Latin, Japanese, Chinese and Korean models, AppAuth for SSO).
 
 - Log in with the server address and a local account, or an SSO provider that has a
-  `mobile_client_id` (public client, redirect `fr.fudabako.app:/oauth2redirect`, see
+  `mobile_client_id` (public client, redirect `fr.zukan.app:/oauth2redirect`, see
   [docs/sso.md](docs/sso.md)).
 - Point the camera at a card: once the text is steady, the app asks the server, shows the
   card, its printings, prices and owned copies; pick finish, condition, language and
@@ -150,15 +162,15 @@ For a release build, create a signing key and add a `signingConfigs` block (or s
 ## CI and releases
 
 GitHub Actions workflows, all started by hand (Actions tab, "Run workflow"), except the
-release which follows successful prod builds:
+release which follows successful builds:
 
 | Workflow | Runs from | Does |
 |---|---|---|
 | Docker dev | any branch but main | ruff, smoke tests (`pytest -m smoke`), type check, container smoke test; pushes `dev-<branch>` and `dev-<branch>-<sha>` (amd64) |
 | Docker prod | main, server version `X.Y.Z` | ruff + format, migrations check, all tests, web lint/build, API types check, container smoke test; pushes `latest`, `X.Y.Z`, `sha-<sha>` (amd64 + arm64) |
-| Android dev | any branch but main | unit tests, "Fudabako dev" debug APK as artifact |
+| Android dev | any branch but main | unit tests, "Zukan dev" debug APK |
 | Android prod | main, app version `X.Y.Z` | lint, unit tests, signed R8 release APK |
-| Release | after a successful prod build | publishes GitHub Release `server-vX.Y.Z` (Docker tag) or `android-vX.Y.Z` (APK, R8 mapping) |
+| Release | after a successful build | prod: GitHub Release `server-vX.Y.Z` (Docker tag) or `android-vX.Y.Z` (APK, R8 mapping); dev: pre-release `server-dev-<branch>` (Docker tag) or `android-dev-<branch>` (dev APK), replaced by each dev build of the branch |
 
 The branch is chosen with "Use workflow from"; dev workflows refuse main and prod
 workflows refuse anything else. The server and the Android app have independent
@@ -170,11 +182,11 @@ From the command line:
 
 ```sh
 gh workflow run docker-dev.yml --ref my-branch
-gh workflow run docker-prod.yml --ref main -f version=0.6.0
-gh workflow run android-prod.yml --ref main -f version=0.5.0
+gh workflow run docker-prod.yml --ref main -f version=0.7.0
+gh workflow run android-prod.yml --ref main -f version=0.6.0
 ```
 
-The dev app (`fr.fudabako.app.dev`) installs next to the released one. Both are signed
+The dev app (`fr.zukan.app.dev`) installs next to the released one. Both are signed
 with the release key stored in the `ANDROID_KEYSTORE_*` secrets, so updates install over
 each other. Keep a backup of that keystore: without it the app cannot be updated.
 
@@ -211,5 +223,5 @@ SSO redirects come back to the Vite server.
 ### Adding a game
 
 Implement `app.games.base.GameProvider` in a package and register it in
-`pyproject.toml` under `[project.entry-points."fudabako.games"]` (or in your own
+`pyproject.toml` under `[project.entry-points."zukan.games"]` (or in your own
 package). No other code changes: web and mobile read game metadata from `/api/games`.

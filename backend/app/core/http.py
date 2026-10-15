@@ -26,9 +26,16 @@ async def _answered(_: httpx.Response) -> None:
 async def get_with_retry(
     http: httpx.AsyncClient, url: str, attempts: int = 4, **kwargs: Any
 ) -> httpx.Response:
-    """GET honoring Retry-After on 429 and backing off on transient server errors."""
+    """GET honoring Retry-After on 429 and backing off on transient server and network
+    errors (timeouts, refused connections)."""
     for attempt in range(attempts):
-        response = await http.get(url, **kwargs)
+        try:
+            response = await http.get(url, **kwargs)
+        except httpx.TransportError:
+            if attempt == attempts - 1:
+                raise
+            await asyncio.sleep(2**attempt)
+            continue
         if response.status_code not in _RETRY_STATUSES or attempt == attempts - 1:
             response.raise_for_status()
             return response

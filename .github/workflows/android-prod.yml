@@ -78,8 +78,8 @@ jobs:
           mkdir -p release
           echo android > release/component
           echo "$VERSION" > release/version
-          echo "Android app: \`fudabako-$VERSION.apk\` (version code $VERSION_CODE)" > release/notes.md
-          cp app/build/outputs/apk/release/app-release.apk "release/fudabako-$VERSION.apk"
+          echo "Android app: \`zukan-$VERSION.apk\` (version code $VERSION_CODE)" > release/notes.md
+          cp app/build/outputs/apk/release/app-release.apk "release/zukan-$VERSION.apk"
           cp app/build/outputs/mapping/release/mapping.txt "release/mapping-$VERSION.txt"
       - name: Test reports
         if: failure()

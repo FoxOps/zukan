@@ -35,3 +35,18 @@ async def test_no_web_build_means_api_only(tmp_path, monkeypatch):
     transport = httpx.ASGITransport(app=create_app())
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         assert (await client.get("/collection")).status_code == 404
+
+
+async def test_unexpected_errors_are_json(tmp_path, monkeypatch):
+    monkeypatch.setattr(get_settings(), "web_dir", tmp_path / "missing")
+    app = create_app()
+
+    @app.get("/api/boom")
+    async def boom() -> None:
+        raise RuntimeError("secret detail")
+
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/api/boom")
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Internal server error"}

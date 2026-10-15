@@ -343,3 +343,109 @@ async def test_pokemontcg_fills_images_and_checks(session, tcgdex, monkeypatch):
     assert report.discrepancies == 1  # Furret's rarity
     session.expire_all()
     assert (await session.get(Printing, furret)).image_urls == {"en": image}
+
+
+def _neo2(monkeypatch):
+    """Neo Discovery (English) and the Japanese "neo2", another set with the same id."""
+    symbol = "https://assets.tcgdex.net/univ/neo/neo2/symbol"
+    en_set = {"id": "neo2", "name": "Neo Discovery", "symbol": symbol,
+              "cardCount": {"total": 75, "official": 75}, "serie": {"id": "neo"},
+              "cards": [{"id": "neo2-30", "localId": "30", "name": "Smeargle",
+                         "image": "https://assets.tcgdex.net/en/neo/neo2/30"}]}  # fmt: skip
+    ja_set = {"id": "neo2", "name": "遺跡をこえて", "symbol": symbol,
+              "cardCount": {"total": 57, "official": 56}, "serie": {"id": "neo"},
+              "cards": [{"id": "neo2-030", "localId": "030", "name": "a"},
+                        {"id": "neo2-052", "localId": "052", "name": "Smeargle"}]}  # fmt: skip
+
+    def card(set_raw, local_id, name, dex, lang_image=None):
+        return {"category": "Pokemon", "id": f"neo2-{local_id}", "localId": local_id,
+                "name": name, "dexId": [dex], "types": ["Colorless"], "stage": "Basic",
+                "variants": {"normal": True}, "set": {"id": "neo2"},
+                **({"image": lang_image} if lang_image else {})}  # fmt: skip
+
+    entries = {
+        "/en/sets": API["/en/sets"] + [{"id": "neo2", "name": "Neo Discovery"}],
+        "/en/sets/neo2": en_set,
+        "/en/cards/neo2-30": card(en_set, "30", "Smeargle", 235, en_set["cards"][0]["image"]),
+        "/ja/sets": API["/ja/sets"] + [{"id": "neo2", "name": "遺跡をこえて"}],
+        "/ja/sets/neo2": ja_set,
+        "/ja/cards/neo2-030": card(ja_set, "030", "a", 201),
+        "/ja/cards/neo2-052": card(ja_set, "052", "Smeargle", 235),
+    }
+    for path, value in entries.items():
+        monkeypatch.setitem(API, path, value)
+
+
+async def test_asian_set_reusing_an_international_id(session, tcgdex, monkeypatch):
+    from app.services.crosscheck import cross_check
+
+    _neo2(monkeypatch)
+    monkeypatch.setitem(
+        POKEMONTCG, "/sets/en.json",
+        [{"id": "neo2", "name": "Neo Discovery", "releaseDate": "2001/06/01", "total": 75}],
+    )  # fmt: skip
+    english_image = "https://images.pokemontcg.io/neo2/30_hires.png"
+    monkeypatch.setitem(
+        POKEMONTCG, "/cards/en/neo2.json",
+        [{"number": "30", "name": "Smeargle", "images": {"large": english_image}}],
+    )  # fmt: skip
+    await sync_pokemon(session)
+    sets = {s.external_id: s for s in await session.scalars(select(CardSet))}
+    assert sets["neo2"].name == "Neo Discovery" and sets["neo2"].lang is None
+    assert sets["asia:neo2"].name == "遺跡をこえて" and sets["asia:neo2"].lang == "ja"
+    # Symbols come from the English asset path ("univ" is refused); not for the
+    # Japanese set, whose listed symbol is Neo Discovery's.
+    assert sets["neo2"].icon_url == "https://assets.tcgdex.net/en/neo/neo2/symbol.png"
+    assert sets["asia:neo2"].icon_url is None
+
+    unown = await session.get(Printing, await printing_id(session, "asia:neo2", "030"))
+    smeargle_ja = await session.get(Printing, await printing_id(session, "asia:neo2", "052"))
+    smeargle_en = await session.get(Printing, await printing_id(session, "neo2", "30"))
+    # TCGdex names "a" and "Smeargle" written in Japanese from the Pokédex number; the
+    # Japanese Smeargle joins the English card.
+    assert (await session.get(Card, unown.card_id)).name == "アンノーンA"
+    assert smeargle_ja.card_id == smeargle_en.card_id
+    assert "ドーブル" in set(
+        await session.scalars(select(CardName.name).where(CardName.printing_id == smeargle_ja.id))
+    )
+
+    english_id, unown_id = smeargle_en.id, unown.id
+    await session.execute(update(Printing).values(image_urls={}))
+    await session.commit()
+    async with http_client() as http:
+        await cross_check(session, get_provider("pokemon"), http)
+    session.expire_all()
+    # The English image goes to English #30 only, never to Japanese "030".
+    assert (await session.get(Printing, english_id)).image_urls == {"en": english_image}
+    assert (await session.get(Printing, unown_id)).image_urls == {}
+
+
+async def test_changed_image_url_and_name_replace_stored_ones(session, tcgdex):
+    await sync_pokemon(session)
+    furret = await printing_id(session, "swsh3", "136")
+    await session.execute(
+        update(Printing)
+        .where(Printing.id == furret)
+        .values(
+            image_urls={"en": "https://old.example/136.webp", "fr": API_URL},
+            image_paths={"en": "pokemon/1/old-en.webp", "fr": "pokemon/1/fr.webp", "de": ""},
+        )
+    )
+    card_id = (await session.get(Printing, furret)).card_id
+    session.add(CardName(card_id=card_id, printing_id=None, lang="de", name="Furet"))
+    await session.commit()
+    await sync_pokemon(session)
+    session.expire_all()
+    printing = await session.get(Printing, furret)
+    # Both URLs changed: their cached files are forgotten; the refused download in a
+    # language without URL is kept.
+    assert printing.image_paths == {"de": ""}
+    # A name corrected at the source replaces the stored one.
+    names = set(
+        await session.scalars(
+            select(CardName.name).where(
+                CardName.card_id == card_id, CardName.printing_id.is_(None), CardName.lang == "de"
+            )
+        )
+    )
+    assert names == {"Wiesenior"}

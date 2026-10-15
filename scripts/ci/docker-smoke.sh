@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start a Fudabako image against a PostgreSQL server and check it really works:
+# Start a Zukan image against a PostgreSQL server and check it really works:
 # migrations, API, web UI, admin bootstrap, login, game plugins.
 #
 #   scripts/ci/docker-smoke.sh IMAGE [DATABASE_URL]
@@ -10,7 +10,7 @@ set -euo pipefail
 
 image=${1:?usage: docker-smoke.sh IMAGE [DATABASE_URL]}
 database_url=${2:-postgresql+asyncpg://tcg:tcg@localhost:5432/tcg}
-name=fudabako-smoke-$$
+name=zukan-smoke-$$
 base=http://localhost:8000
 
 cleanup() {
@@ -38,7 +38,7 @@ done
 curl -sf "$base/api/health" | grep -q '"ok"' || { echo "API did not start"; exit 1; }
 
 echo "Web UI is served"
-curl -sf "$base/collection" | grep -q "<title>Fudabako</title>"
+curl -sf "$base/collection" | grep -q "<title>Zukan</title>"
 asset=$(curl -sf "$base/" | grep -o '/assets/index-[^"]*\.js' | head -1)
 curl -sf -o /dev/null "$base$asset"
 
@@ -47,7 +47,7 @@ curl -sf "$base/api/auth/login" -H 'Content-Type: application/json' \
     -d '{"username":"admin","password":"changeme"}' | grep -q access_token
 
 echo "Admin bootstrap and login"
-docker exec -e TCG_ADMIN_PASSWORD=smoke-password "$name" fudabako create-admin smoke >/dev/null
+docker exec -e TCG_ADMIN_PASSWORD=smoke-password "$name" zukan create-admin smoke >/dev/null
 token=$(curl -sf "$base/api/auth/login" -H 'Content-Type: application/json' \
     -d '{"username":"smoke","password":"smoke-password"}' |
     python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')

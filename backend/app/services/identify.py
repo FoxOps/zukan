@@ -202,7 +202,13 @@ async def identify(
     ranked = sorted(found.items(), key=lambda kv: kv[1].score, reverse=True)[:MAX_CARDS]
     if not ranked:
         only = providers[0].id if len(providers) == 1 else None
-        return Identification(only, hints_by_game.get(only, OcrHints()) if only else OcrHints(), [])
+        # What was read, from the game the text looks most like (shown to the user).
+        best = max(
+            hints_by_game.values(),
+            key=lambda h: (h.recognized, bool(h.set_code and h.collector_number), bool(h.name)),
+            default=OcrHints(),
+        )
+        return Identification(only, best, [])
 
     cards = {
         c.id: c

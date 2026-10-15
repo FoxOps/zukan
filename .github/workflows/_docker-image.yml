@@ -67,12 +67,12 @@ jobs:
           context: .
           platforms: linux/amd64
           load: true
-          tags: fudabako:ci
-          build-args: FUDABAKO_VERSION=${{ inputs.version }}
+          tags: zukan:ci
+          build-args: ZUKAN_VERSION=${{ inputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Container smoke test
-        run: scripts/ci/docker-smoke.sh fudabako:ci
+        run: scripts/ci/docker-smoke.sh zukan:ci
 
       - name: Push
         uses: docker/build-push-action@v7
@@ -81,12 +81,12 @@ jobs:
           platforms: ${{ inputs.platforms }}
           push: true
           tags: ${{ steps.names.outputs.tags }}
-          build-args: FUDABAKO_VERSION=${{ inputs.version }}
+          build-args: ZUKAN_VERSION=${{ inputs.version }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ inputs.version }}
-            org.opencontainers.image.title=Fudabako
+            org.opencontainers.image.title=Zukan
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

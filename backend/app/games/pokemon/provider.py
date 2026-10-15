@@ -4,6 +4,8 @@ TCGdex has no bulk export, so card details are fetched one by one:
 - English sets: every card in full (types, rarity, variants, Cardmarket prices).
 - Other languages: a set id listed in several languages is one set (international
   sets share English ids, Asian sets share ids between Japanese, Korean and Chinese).
+  A few Japanese sets reuse an international id for other cards (Japanese "neo2" is not
+  Neo Discovery): they are stored as `asia:<id>`.
   Its base language (English, else Japanese, Korean, Traditional then Simplified
   Chinese) is fetched in full; the other listings only add printed names and images
   (partial data).
@@ -43,7 +45,7 @@ from app.games.base import (
 )
 from app.games.ocr import bottom_part, by_position, clean, letter_ratio, script_language
 from app.games.pokemon import pokemontcg
-from app.games.pokemon.species import derive_names
+from app.games.pokemon.species import derive_names, species_names
 from app.models import Printing
 
 log = logging.getLogger(__name__)
@@ -71,6 +73,9 @@ LANGUAGES = {
 # Base language order for sets listed in several languages (zh-cn data partly comes in
 # Traditional characters, so it comes last).
 BASE_ORDER = ["en", "fr", "de", "it", "es", "pt", "ja", "ko", "zh-tw", "zh-cn"]
+ASIAN = {"ja", "ko", "zh-tw", "zh-cn"}
+# Prefix of Asian sets whose TCGdex id is also an international set's.
+ASIAN_PREFIX = "asia:"
 VARIANTS = {
     "normal": "normal",
     "holo": "holo",
@@ -94,17 +99,30 @@ def card_key(lang: str, name: str) -> str:
     return f"{lang}:{name.casefold()}"
 
 
-def parse_set(raw: dict[str, Any], lang: str | None) -> SetData:
+def tcgdex_set_id(external_id: str) -> str:
+    """TCGdex id of a stored set."""
+    return external_id.removeprefix(ASIAN_PREFIX)
+
+
+def parse_set(raw: dict[str, Any], lang: str | None, external_id: str | None = None) -> SetData:
     abbreviation = (raw.get("abbreviation") or {}).get("official")
     released = raw.get("releaseDate")
+    external_id = external_id or raw["id"]
+    symbol = raw.get("symbol")
+    # Symbols are listed under "univ/", which the asset server refuses; the English path
+    # serves them. The symbol of a renamed Asian set is the international set's.
+    if symbol and not external_id.startswith(ASIAN_PREFIX):
+        icon_url = f"{symbol.replace('/univ/', '/en/')}.png"
+    else:
+        icon_url = None
     return SetData(
-        external_id=raw["id"],
+        external_id=external_id,
         code=abbreviation or raw["id"],
         name=raw["name"],
         lang=lang,
         release_date=date.fromisoformat(released) if released else None,
         total=(raw.get("cardCount") or {}).get("total"),
-        icon_url=f"{raw['symbol']}.png" if raw.get("symbol") else None,
+        icon_url=icon_url,
     )
 
 
@@ -121,9 +139,28 @@ def _finishes(raw: dict[str, Any]) -> list[str]:
     return [finish for key, finish in VARIANTS.items() if variants.get(key)] or ["normal"]
 
 
+def _printed_name(raw: dict[str, Any], lang: str) -> str:
+    """The card name, with Asian Pokémon names left in English or cut to a letter by
+    TCGdex ("Smeargle", "a" for Unown A) written from their Pokédex number."""
+    name = raw["name"]
+    dex = raw.get("dexId") or []
+    if lang not in ASIAN or raw.get("category") != "Pokemon" or len(dex) != 1 or not name.isascii():
+        return name
+    names = species_names().get(dex[0]) or {}
+    local, english = names.get(LANGUAGES[lang]), names.get("en")
+    if not local or not english:
+        return name
+    if english.casefold() in name.casefold():
+        return re.sub(re.escape(english), local, name, count=1, flags=re.I)
+    if len(name.strip()) <= 2:  # Unown letters and signs
+        return f"{local}{name.strip().upper()}"
+    return name
+
+
 def parse_card(raw: dict[str, Any], set_id: str, lang: str) -> CardData:
     """A full card from a TCGdex card detail, in the language it was fetched in."""
     ours = LANGUAGES[lang]
+    raw = {**raw, "name": _printed_name(raw, lang)}
     attributes = {
         k: raw[k]
         for k in ("category", "hp", "stage", "trainerType", "energyType", "evolveFrom", "dexId")
@@ -384,7 +421,8 @@ class PokemonProvider:
     ]
     short_names = ["pkm", "pokemon", "poke", "ptcg"]
     # 2: one set per set id across Asian languages, names from species names.
-    catalog_version = 2
+    # 3: Asian sets reusing an international id stored apart, Asian names fixed.
+    catalog_version = 3
 
     async def _get(self, http: httpx.AsyncClient, path: str) -> Any:
         return (await get_with_retry(http, f"{API_URL}{path}")).json()
@@ -410,9 +448,14 @@ class PokemonProvider:
         return [r for r in results if r is not None]
 
     async def _full_set(
-        self, http: httpx.AsyncClient, lang: str, raw_set: dict[str, Any], set_lang: str | None
+        self,
+        http: httpx.AsyncClient,
+        lang: str,
+        raw_set: dict[str, Any],
+        set_lang: str | None,
+        external_id: str,
     ) -> CatalogBatch:
-        card_set = parse_set(raw_set, set_lang)
+        card_set = parse_set(raw_set, set_lang, external_id)
         batch = CatalogBatch(sets=[card_set])
         details = await self._cards(http, lang, (c["id"] for c in raw_set.get("cards", [])))
         for raw in details:
@@ -425,20 +468,25 @@ class PokemonProvider:
         languages = [lang for lang in BASE_ORDER if lang in wanted]
         # Card key of each printing of the sets fetched in full, to attach translations.
         keys: dict[tuple[str, str], str] = {}
-        fetched_sets: set[str] = set()
+        # Our set id of each TCGdex set id, per language family (international, Asian).
+        fetched_sets: dict[tuple[bool, str], str] = {}
         english_cards: set[str] = set()
         for lang in languages:
+            asian = lang in ASIAN
             for brief in await self._get(http, f"/{lang}/sets"):
                 raw_set = await self._get(http, f"/{lang}/sets/{quote(brief['id'], safe='')}")
                 if _digital(raw_set):
                     continue
-                if brief["id"] in fetched_sets:
-                    yield await self._translations(http, lang, raw_set, keys, english_cards)
+                if (asian, brief["id"]) in fetched_sets:
+                    set_id = fetched_sets[(asian, brief["id"])]
+                    yield await self._translations(http, lang, raw_set, set_id, keys, english_cards)
                     continue
-                fetched_sets.add(brief["id"])
+                taken = asian and (False, brief["id"]) in fetched_sets
+                set_id = f"{ASIAN_PREFIX}{brief['id']}" if taken else brief["id"]
+                fetched_sets[(asian, brief["id"])] = set_id
                 # International sets have no language: they are printed in many.
                 batch = await self._full_set(
-                    http, lang, raw_set, None if lang == "en" else LANGUAGES[lang]
+                    http, lang, raw_set, None if lang == "en" else LANGUAGES[lang], set_id
                 )
                 if lang == "en":
                     english_cards |= {card.external_id for card in batch.cards}
@@ -454,10 +502,10 @@ class PokemonProvider:
         http: httpx.AsyncClient,
         lang: str,
         raw_set: dict[str, Any],
+        set_id: str,
         keys: dict[tuple[str, str], str],
         english_cards: set[str],
     ) -> CatalogBatch:
-        set_id = raw_set["id"]
         ours = LANGUAGES[lang]
         batch = CatalogBatch()
         missing = []
@@ -499,7 +547,7 @@ class PokemonProvider:
         for ref in cards:
             batch = CatalogBatch()
             for printing in ref.printings:
-                card_id = f"{printing.set_external_id}-{printing.external_id}"
+                card_id = f"{tcgdex_set_id(printing.set_external_id)}-{printing.external_id}"
                 base = reverse.get(printing.set_lang or "en", "en")
                 for raw in await self._cards(http, base, [card_id]):
                     card = parse_card(raw, printing.set_external_id, base)
@@ -530,6 +578,7 @@ class PokemonProvider:
             return None
         reverse = {ours: theirs for theirs, ours in LANGUAGES.items()}
         number = hints.collector_number.lstrip("0") or "0"
+        international = False  # the id is an international set's
         for lang in dict.fromkeys(["en", reverse.get(hints.lang or "", "en")]):
             try:
                 raw_set = await self._get(http, f"/{lang}/sets/{quote(hints.set_code, safe='')}")
@@ -539,6 +588,7 @@ class PokemonProvider:
                 continue
             if _digital(raw_set):
                 return None
+            international = international or lang not in ASIAN
             brief = next(
                 (
                     c
@@ -549,7 +599,12 @@ class PokemonProvider:
             )
             if brief is None:
                 continue
-            card_set = parse_set(raw_set, None if lang == "en" else LANGUAGES[lang])
+            renamed = lang in ASIAN and international
+            card_set = parse_set(
+                raw_set,
+                None if lang == "en" else LANGUAGES[lang],
+                f"{ASIAN_PREFIX}{raw_set['id']}" if renamed else None,
+            )
             batch = CatalogBatch(sets=[card_set])
             for raw in await self._cards(http, lang, [brief["id"]]):
                 batch.cards.append(parse_card(raw, card_set.external_id, lang))
@@ -569,10 +624,16 @@ class PokemonProvider:
         for lang, targets in by_lang.items():
             for start in range(0, len(targets), 200):
                 chunk = targets[start : start + 200]
-                ids = [f"{t.set_external_id}-{t.printing_external_id}" for t in chunk]
+                # TCGdex card id -> our set id.
+                sets = {
+                    f"{tcgdex_set_id(t.set_external_id)}-{t.printing_external_id}": (
+                        t.set_external_id
+                    )
+                    for t in chunk
+                }
                 quotes: list[PriceQuote] = []
-                for raw in await self._cards(http, lang, ids):
-                    quotes += parse_prices(raw, raw["set"]["id"])
+                for raw in await self._cards(http, lang, sets):
+                    quotes += parse_prices(raw, sets.get(raw["id"], raw["set"]["id"]))
                 yield quotes
 
     def image_file_stems(self, printing: Printing) -> list[str]:

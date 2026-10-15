@@ -9,6 +9,8 @@ export function useMe() {
     queryKey: ['me'],
     queryFn: () => call(api.GET('/api/auth/me')),
     retry: false,
+    // The layout shows it.
+    meta: { inlineError: true },
     staleTime: 60_000,
   })
 }

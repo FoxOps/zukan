@@ -1,7 +1,7 @@
 # Price sources
 
 A price source is a market (Cardmarket, TCGplayer...). Each one is a plugin registered
-under the `fudabako.prices` entry point group (`backend/app/prices/base.py`). Users pick
+under the `zukan.prices` entry point group (`backend/app/prices/base.py`). Users pick
 their preferred source in Settings; values, price ranges and sorts use it, card pages
 show every source. Prices in different currencies are never added up.
 
@@ -23,7 +23,7 @@ show every source. Prices in different currencies are never added up.
 4. Register it in `pyproject.toml`:
 
    ```toml
-   [project.entry-points."fudabako.prices"]
+   [project.entry-points."zukan.prices"]
    mymarket = "my_package.prices:source"
    ```
 

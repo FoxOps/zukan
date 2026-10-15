@@ -4,8 +4,8 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import APIRouter, FastAPI, HTTPException, Response, status
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, FastAPI, HTTPException, Request, Response, status
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import exists, select
 from sqlalchemy.dialects.postgresql import insert
@@ -73,7 +73,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="Fudabako",
+        title="Zukan",
         version=__version__,
         lifespan=lifespan,
         docs_url="/api/docs",
@@ -91,6 +91,13 @@ def create_app() -> FastAPI:
     @api.get("/health", tags=["meta"])
     async def health() -> dict[str, str]:
         return {"status": "ok", "version": __version__}
+
+    @app.exception_handler(Exception)
+    async def unexpected_error(request: Request, exc: Exception) -> JSONResponse:
+        # Same shape as other errors, so clients show their own message; details only in
+        # the server log.
+        logger.error("Unhandled error on %s %s", request.method, request.url.path, exc_info=exc)
+        return JSONResponse({"detail": "Internal server error"}, status_code=500)
 
     app.include_router(api)
     mount_web(app, get_settings().web_dir)

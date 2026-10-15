@@ -3,7 +3,7 @@
 # Separate project name and data folder (./data-dev) so it never shares containers or
 # data with a deployment. First start creates the administrator admin / changeme.
 # All settings come from .env (documented in .env.example).
-name: fudabako-dev
+name: zukan-dev
 
 services:
   db:
@@ -34,7 +34,7 @@ services:
       # Put downloaded image folders here (e.g. Sorcery Google Drive) to import them.
       - ./import:/data/import:ro
     ports:
-      - "${FUDABAKO_PORT:-8000}:8000"
+      - "${ZUKAN_PORT:-8000}:8000"
 
   # Refreshes catalogs, prices and owned card images (TCG_SYNC_INTERVAL_HOURS).
   worker:

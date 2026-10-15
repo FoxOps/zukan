@@ -8,7 +8,7 @@ Images: the API has none and asks that its CDN is not used to *serve* them. The 
 pages of sorcerytcg.com show `{IMAGE_URL}/{slug}.png`; the image job downloads each one
 once into the local cache (`cache_all_images`), and clients are only ever served the
 local copy. The public Google Drive folder, whose files are named after the printing
-slug, can still be imported instead (`fudabako import-images sorcery DIR`).
+slug, can still be imported instead (`zukan import-images sorcery DIR`).
 
 Prices: Cardmarket publishes daily product and price guide files per game
 (Sorcery = game 25) on a public download bucket: two small files a day, no scraping.

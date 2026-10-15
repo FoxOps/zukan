@@ -1,11 +1,14 @@
-# Publish a GitHub Release when a prod build succeeds. Docker prod and Android prod hand
-# over a "release-*" artifact (component, version, notes, files). The server and the
-# Android app are versioned independently: server-v<version> and android-v<version>.
+# Publish a GitHub Release when a build succeeds. The Docker and Android workflows hand
+# over a "release-*" artifact (component, channel, version, notes, files).
+# - prod (from main): server-v<version> and android-v<version>, versioned independently.
+# - dev (other branches): pre-releases server-dev-<branch> and android-dev-<branch>,
+#   replaced by each new dev build of the branch.
+# workflow_run always runs this file from the default branch.
 name: Release
 
 on:
   workflow_run:
-    workflows: ["Docker prod", "Android prod"]
+    workflows: ["Docker prod", "Android prod", "Docker dev", "Android dev"]
     types: [completed]
 
 # One release update at a time, so two prod builds finishing together don't race.
@@ -20,7 +23,11 @@ permissions:
 jobs:
   release:
     name: Publish release
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    if: >-
+      github.event.workflow_run.conclusion == 'success' && (
+        (endsWith(github.event.workflow_run.name, ' prod') && github.event.workflow_run.head_branch == 'main') ||
+        (endsWith(github.event.workflow_run.name, ' dev') && github.event.workflow_run.head_branch != 'main')
+      )
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -38,10 +45,15 @@ jobs:
           BUILD_URL: ${{ github.event.workflow_run.html_url }}
         run: |
           component=$(cat release/component)
+          channel=$(cat release/channel 2>/dev/null || echo prod)
           version=$(cat release/version)
-          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Bad version '$version'"; exit 1; }
+          case "$channel" in
+              prod) pattern='^[0-9]+\.[0-9]+\.[0-9]+$' tag="$component-v$version" ;;
+              dev) pattern='^dev-[a-z0-9-]+$' tag="$component-$version" ;;
+              *) echo "::error::Bad channel '$channel'"; exit 1 ;;
+          esac
+          [[ "$version" =~ $pattern ]] || { echo "::error::Bad version '$version'"; exit 1; }
           notes=$(cat release/notes.md)
-          mapfile -t files < <(find release -type f ! -name component ! -name version ! -name notes.md | sort)
-          scripts/ci/release.sh "$component" "$version" "$notes" "${files[@]}"
-          tag="$component-v$version"
+          mapfile -t files < <(find release -type f ! -name component ! -name channel ! -name version ! -name notes.md | sort)
+          CHANNEL=$channel scripts/ci/release.sh "$component" "$version" "$notes" "${files[@]}"
           echo "Release [$tag]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$tag) updated from $BUILD_URL" >> "$GITHUB_STEP_SUMMARY"

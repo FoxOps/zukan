@@ -1,8 +1,8 @@
 """Admin command line.
 
-fudabako create-admin USERNAME
-fudabako sync GAME [--kind catalog|prices|images]
-fudabako import-images GAME FOLDER
+zukan create-admin USERNAME
+zukan sync GAME [--kind catalog|prices|images]
+zukan import-images GAME FOLDER
 """
 
 import argparse
@@ -50,7 +50,7 @@ async def import_images(game_id: str, folder: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="fudabako")
+    parser = argparse.ArgumentParser(prog="zukan")
     commands = parser.add_subparsers(dest="command", required=True)
     admin = commands.add_parser("create-admin", help="create or reset an administrator")
     admin.add_argument("username")

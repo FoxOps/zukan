@@ -88,7 +88,7 @@ def check_set(ours: SetData, raw: dict[str, Any]) -> list[Discrepancy]:
 def check_cards(
     stored: dict[str, StoredPrinting], set_ext: str, cards: list[dict[str, Any]]
 ) -> SecondaryBatch:
-    """`stored`: the set's printings by normalized number."""
+    """`stored`: the set's English printings by normalized number."""
     batch = SecondaryBatch()
     for raw in cards:
         printing = stored.get(_number(raw.get("number", "")))
@@ -140,26 +140,33 @@ class PokemonTcgSource:
         by_id = {raw["id"]: raw for raw in theirs}
         by_set: dict[str, dict[str, StoredPrinting]] = {}
         for (set_ext, _), printing in index.printings.items():
+            # Only English printings: an Asian one numbered "030" is not English "30".
+            if printing.languages and "en" not in printing.languages:
+                continue
             by_set.setdefault(set_ext, {})[_number(printing.external_id)] = printing
-        semaphore = asyncio.Semaphore(CONCURRENCY)
 
         async def one(set_id: str) -> SecondaryBatch:
-            async with semaphore:
-                try:
-                    url = f"{DATA_URL}/cards/en/{set_id}.json"
-                    cards = (await get_with_retry(http, url)).json()
-                except httpx.HTTPStatusError as exc:
-                    if exc.response.status_code != 404:
-                        raise
-                    cards = []
+            try:
+                url = f"{DATA_URL}/cards/en/{set_id}.json"
+                cards = (await get_with_retry(http, url)).json()
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code != 404:
+                    raise
+                cards = []
             set_ext = matches[set_id]
             batch = check_cards(by_set.get(set_ext, {}), set_ext, cards)
             batch.discrepancies += check_set(index.sets[set_ext], by_id[set_id])
             return batch
 
         log.info("pokemontcg: %s of %s sets matched", len(matches), len(theirs))
-        for task in asyncio.as_completed([one(set_id) for set_id in matches]):
-            yield await task
+        # A few sets at a time; a failure stops the others before it is raised.
+        pending = list(matches)
+        while pending:
+            wave, pending = pending[:CONCURRENCY], pending[CONCURRENCY:]
+            async with asyncio.TaskGroup() as group:
+                tasks = [group.create_task(one(set_id)) for set_id in wave]
+            for task in tasks:
+                yield task.result()
 
 
 source = PokemonTcgSource()

@@ -1,14 +1,15 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode, type ComponentType } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { ApiError } from './api/client'
 import { Layout } from './components/Layout'
+import ErrorPage from './components/ErrorPage'
 import { ToastProvider } from './components/Toasts'
+import { showError } from './components/toast'
 import './i18n'
 import './index.css'
 import Login from './pages/Login'
-import NotFound from './pages/NotFound'
 
 /** Route modules are loaded on first visit (charts and tables stay out of the login bundle). */
 function page(load: () => Promise<{ default: ComponentType }>) {
@@ -16,6 +17,14 @@ function page(load: () => Promise<{ default: ComponentType }>) {
 }
 
 const queryClient = new QueryClient({
+  // Failed loads are shown as toasts, except where the page shows them itself
+  // (`meta.inlineError`) and expired sessions (the login page opens).
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      if (query.meta?.inlineError || (error instanceof ApiError && error.status === 401)) return
+      showError(error.message)
+    },
+  }),
   defaultOptions: {
     queries: {
       // Do not retry client errors (404, 403...), only transient failures.
@@ -26,9 +35,10 @@ const queryClient = new QueryClient({
 })
 
 const router = createBrowserRouter([
-  { path: '/login', element: <Login /> },
+  { path: '/login', element: <Login />, errorElement: <ErrorPage /> },
   {
     element: <Layout />,
+    errorElement: <ErrorPage />,
     HydrateFallback: () => <span className="loading loading-spinner loading-lg m-auto block" />,
     children: [
       { path: '/', lazy: page(() => import('./pages/Dashboard')) },
@@ -41,7 +51,7 @@ const router = createBrowserRouter([
       { path: '/admin/users', lazy: page(() => import('./pages/admin/Users')) },
       { path: '/admin/jobs', lazy: page(() => import('./pages/admin/Jobs')) },
       { path: '/admin/checks', lazy: page(() => import('./pages/admin/Checks')) },
-      { path: '*', element: <NotFound /> },
+      { path: '*', lazy: page(() => import('./pages/NotFound')) },
     ],
   },
 ])

@@ -378,7 +378,8 @@ export interface paths {
         };
         /**
          * Price History
-         * @description Price snapshots, oldest first. Full history exists for printings in a collection.
+         * @description Price snapshots from the user's sources, oldest first. Full history exists for
+         *     printings in a collection.
          */
         get: operations["price_history_api_printings__printing_id__prices_get"];
         put?: never;
@@ -637,6 +638,26 @@ export interface paths {
         put?: never;
         /** Start Job */
         post: operations["start_job_api_admin_jobs__game_id___kind__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/games/{game_id}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Catalog
+         * @description Delete the game's catalog except owned printings, then sync it again.
+         */
+        post: operations["reset_catalog_api_admin_games__game_id__reset_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -994,6 +1015,12 @@ export interface components {
              * @default false
              */
             fetched: boolean;
+            /**
+             * Status
+             * @default found
+             * @enum {string}
+             */
+            status: "found" | "not_found" | "not_a_card";
         };
         /** IdentityOut */
         IdentityOut: {
@@ -1141,6 +1168,8 @@ export interface components {
             };
             /** Error */
             error: string | null;
+            /** Elapsed Seconds */
+            elapsed_seconds: number;
         };
         /**
          * JobStatus
@@ -1198,6 +1227,8 @@ export interface components {
             catalog_games: string[] | null;
             /** Price Source */
             price_source: string;
+            /** Price Sources */
+            price_sources: string[];
         };
         /** OcrLineIn */
         OcrLineIn: {
@@ -1356,6 +1387,19 @@ export interface components {
             /** Refresh Token */
             refresh_token?: string | null;
         };
+        /** ResetOut */
+        ResetOut: {
+            /** Printings */
+            printings: number;
+            /** Cards */
+            cards: number;
+            /** Sets */
+            sets: number;
+            /** Kept */
+            kept: number;
+            /** Run Id */
+            run_id: number;
+        };
         /**
          * Role
          * @enum {string}
@@ -1389,6 +1433,8 @@ export interface components {
             catalog_games?: string[] | null;
             /** Price Source */
             price_source?: string | null;
+            /** Price Sources */
+            price_sources?: string[] | null;
         };
         /**
          * TokenOut
@@ -2735,6 +2781,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: number;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_catalog_api_admin_games__game_id__reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResetOut"];
                 };
             };
             /** @description Validation Error */

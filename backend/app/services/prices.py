@@ -12,7 +12,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 import httpx
-from sqlalchemy import delete, exists, select, update
+from sqlalchemy import delete, exists, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -94,7 +94,14 @@ async def store_quotes(
                 PriceSnapshot.date,
                 PriceSnapshot.source,
             ],
-            set_={col: stmt.excluded[col] for col in ("currency", "trend", "low", "avg")},
+            # Sources without lowest / average prices (the catalog's Scryfall quotes) must
+            # not wipe the ones stored earlier that day by the price guide.
+            set_={
+                "currency": stmt.excluded.currency,
+                "trend": stmt.excluded.trend,
+                "low": func.coalesce(stmt.excluded.low, PriceSnapshot.low),
+                "avg": func.coalesce(stmt.excluded.avg, PriceSnapshot.avg),
+            },
         )
         await session.execute(stmt)
         stored += len(values)

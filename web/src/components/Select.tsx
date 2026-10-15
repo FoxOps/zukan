@@ -91,11 +91,14 @@ function SearchableSelect({ value, onChange, options, className = '', disabled, 
   }
 
   const current = options.find((o) => o.value === value)
+  // Width classes (with their variants, e.g. "sm:w-64") size the wrapper, the rest styles the button.
+  const tokens = className.split(/\s+/).filter(Boolean)
+  const isWidth = (token: string) => /^([\w-]+:)*w-/.test(token)
   return (
-    <div ref={root} className={`relative ${className.match(/\bw-\S+/g)?.join(' ') ?? ''}`}>
+    <div ref={root} className={`relative ${tokens.filter(isWidth).join(' ')}`}>
       <button
         type="button"
-        className={`select w-full text-left ${className.replace(/\bw-\S+/g, '')}`}
+        className={`select w-full text-left ${tokens.filter((token) => !isWidth(token)).join(' ')}`}
         disabled={disabled}
         aria-label={rest['aria-label']}
         aria-haspopup="listbox"

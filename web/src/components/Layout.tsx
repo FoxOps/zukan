@@ -2,10 +2,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
-import { api, onSessionExpired } from '../api/client'
+import { api, ApiError, onSessionExpired } from '../api/client'
 import { useHealth, useMe } from '../api/queries'
 import { useServerLanguage } from '../i18n'
 import { LanguageMenu } from './I18n'
+import { ErrorScreen } from './ErrorPage'
 
 const NAV = [
   { to: '/', label: 'Dashboard', end: true },
@@ -55,7 +56,11 @@ export function Layout() {
     return <div className="flex h-screen items-center justify-center"><span className="loading loading-spinner loading-lg" /></div>
   }
   if (me.isError) {
-    return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />
+    // Not logged in: the login page. Server down or failing: say so, with a retry.
+    if (me.error instanceof ApiError && (me.error.status === 401 || me.error.status === 403)) {
+      return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />
+    }
+    return <ErrorScreen title={t('Something went wrong')} text={me.error.message} onRetry={() => me.refetch()} home={false} />
   }
 
   const logout = async () => {
@@ -80,7 +85,7 @@ export function Layout() {
           <label htmlFor="nav-drawer" className="btn btn-square btn-ghost lg:hidden" aria-label={t('Menu')}>
             <svg viewBox="0 0 24 24" className="h-6 w-6 fill-none stroke-current stroke-2"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
           </label>
-          <span className="flex-1 px-2 text-lg font-semibold lg:hidden">Fudabako</span>
+          <span className="flex-1 px-2 text-lg font-semibold lg:hidden">Zukan</span>
           <div className="ml-auto flex items-center gap-2">
             <LanguageMenu />
             <label className="swap swap-rotate btn btn-ghost btn-circle" title={t('Toggle theme')}>
@@ -105,8 +110,8 @@ export function Layout() {
         <label htmlFor="nav-drawer" className="drawer-overlay" aria-label={t('Close menu')} />
         <aside className="flex min-h-full w-60 flex-col bg-base-200">
           <div className="px-6 py-5">
-            <div className="text-xl font-bold">Fudabako</div>
-            <div className="text-xs text-base-content/50"><span lang="ja">札箱</span> · {t('card box')}</div>
+            <div className="text-xl font-bold">Zukan</div>
+            <div className="text-xs text-base-content/50"><span lang="ja">図鑑</span> · {t('card encyclopedia')}</div>
           </div>
           <ul className="menu w-full gap-1 px-3" onClick={closeDrawer}>
             {NAV.map((n) => (

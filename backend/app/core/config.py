@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     # missing data), fetched again one by one.
     refresh_interval_hours: int = 48
     worker_games: list[str] = []
-    user_agent: str = f"Fudabako/{__version__}"
+    user_agent: str = f"Zukan/{__version__}"
 
 
 @lru_cache

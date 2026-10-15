@@ -1,7 +1,7 @@
 [project]
-name = "fudabako"
-version = "0.6.0"
-description = "Fudabako (札箱, card box): self-hosted TCG collection manager"
+name = "zukan"
+version = "0.7.0"
+description = "Zukan (図鑑, illustrated encyclopedia): self-hosted TCG collection manager"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.115",
@@ -29,17 +29,17 @@ dev = [
 
 # Game providers are discovered through this entry point group.
 # A new game is a package exposing a GameProvider and registering here.
-[project.entry-points."fudabako.games"]
+[project.entry-points."zukan.games"]
 mtg = "app.games.mtg:provider"
 pokemon = "app.games.pokemon:provider"
 sorcery = "app.games.sorcery:provider"
 
-[project.entry-points."fudabako.prices"]
+[project.entry-points."zukan.prices"]
 cardmarket = "app.prices.cardmarket:source"
 tcgplayer = "app.prices.tcgplayer:source"
 
 [project.scripts]
-fudabako = "app.cli:main"
+zukan = "app.cli:main"
 
 [build-system]
 requires = ["setuptools>=75"]
