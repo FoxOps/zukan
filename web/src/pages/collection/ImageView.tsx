@@ -18,7 +18,7 @@ export function ImageView({ items, games, showGame, busy, step, edit }: ViewProp
         return (
           <div key={item.id} className="flex flex-col gap-2">
             <Link to={itemLink(item)} className="group relative">
-              <CardImage src={item.image} back={item.back_image} alt={item.name} className="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
+              <CardImage src={item.image} back={item.back_image} alt={item.name} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
               <span className="badge badge-neutral absolute left-[3%] top-[3%] font-semibold shadow">×{item.quantity}</span>
             </Link>
             <div className="flex flex-col gap-1">

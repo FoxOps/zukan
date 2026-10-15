@@ -6,6 +6,9 @@ type Props = {
   back?: string | null
   alt: string
   className?: string
+  // Classes of the picture only, not of the flip button (hover lift on tiles: a button
+  // moving under the pointer turns its click into a click on the tile link).
+  faceClassName?: string
   // Clicking the picture flips it too (card page). Off where the picture is a link.
   flipOnClick?: boolean
 }
@@ -24,7 +27,7 @@ export function FlipIcon({ className = 'h-4 w-4' }: { className?: string }) {
 }
 
 /** Card picture at card proportions. Double-faced cards get a flip button (3D turn). */
-export function CardImage({ src, back, alt, className = '', flipOnClick = false }: Props) {
+export function CardImage({ src, back, alt, className = '', faceClassName = '', flipOnClick = false }: Props) {
   const { t } = useTranslation()
   const [flipped, setFlipped] = useState(false)
   // The back is only downloaded once someone asks for it.
@@ -62,13 +65,15 @@ export function CardImage({ src, back, alt, className = '', flipOnClick = false 
   const label = flipped ? t('Show front') : t('Show back')
 
   return (
-    <div className={`relative perspective-distant aspect-[63/88] ${className}`}>
-      <div
-        className={`relative h-full w-full ${back ? 'transition-transform duration-500 transform-3d' : ''} ${flipped ? 'rotate-y-180' : ''} ${back && flipOnClick ? 'cursor-pointer' : ''}`}
-        onClick={back && flipOnClick ? flip : undefined}
-      >
-        {face(src, alt)}
-        {back && backWanted && face(back, `${alt} (${t('back')})`, 'rotate-y-180')}
+    <div className={`relative aspect-[63/88] ${className}`}>
+      <div className={`h-full w-full perspective-distant ${faceClassName}`}>
+        <div
+          className={`relative h-full w-full ${back ? 'transition-transform duration-500 transform-3d' : ''} ${flipped ? 'rotate-y-180' : ''} ${back && flipOnClick ? 'cursor-pointer' : ''}`}
+          onClick={back && flipOnClick ? flip : undefined}
+        >
+          {face(src, alt)}
+          {back && backWanted && face(back, `${alt} (${t('back')})`, 'rotate-y-180')}
+        </div>
       </div>
       {back && (
         <button

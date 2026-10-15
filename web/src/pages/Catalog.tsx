@@ -120,7 +120,7 @@ export default function Catalog() {
                 to={card.printing_id ? `/cards/${card.id}/${card.printing_id}` : `/cards/${card.id}`}
                 className="group flex flex-col gap-2"
               >
-                <CardImage src={card.image} back={card.back_image} alt={card.name} className="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
+                <CardImage src={card.image} back={card.back_image} alt={card.name} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
                 <div className="flex flex-col gap-1">
                   <span className="break-words font-medium group-hover:text-primary">
                     <ShownName name={card.name} translation={card.translation} />
