@@ -637,6 +637,194 @@ User list from the 0.6.0 test deployment. Root causes found on its data (read-on
   job, real-phone scan check.
 
 
+## Backlog 2026-10-15 (server 0.8.0, Android 0.7.0)
+Branch `2026-10-15-000-feedback-batch-4` (branch names from now on: `DATE-NUMBER-NAME`).
+Progress (plan below):
+- [x] Versions: server 0.8.0, Android 0.7.0.
+- [x] A session: `/api/auth/me` refreshes like any request (only login/refresh/logout/oidc are
+  excluded), rotated refresh tokens accepted again for 60 s while the family is alive
+  (`refresh_token.rotated_at`), access 1 h / refresh 90 days sliding, login loads `me` before
+  leaving the page and older requests can no longer end the new session (`markSignedIn`).
+- [ ] B catalog GUI (grayed images, clear search, sort, advanced box + color mode, flip button)
+- [ ] C account email
+- [ ] D stock dialog version switch
+- [ ] E collection trend column + views
+- [ ] F admin: next run, stale cards, arbitration
+- [ ] G Pokémon: th/id, Korean (type-null), Simplified Chinese (PTCG-CHS), empty sets pruned
+- [ ] H Android OCR: landscape, other game, Chinese
+
+### Context
+User backlog after 0.7.0 / 0.6.0: 13 server items (session, email, collection trend + views,
+catalog GUI, admin jobs/checks/arbitration, Pokémon Asian sync) and 3 Android OCR items.
+Exploration found root causes for the session complaints and the Pokémon gaps (below).
+
+Decisions (Q&A 2026-10-15):
+- Mainland China Pokémon: TCGdex is unusable (every `…C` zh-cn set has `cards: []`, no 151C,
+  zh-cn cards with data are copies of zh-tw sets without images). Use GitHub dataset
+  **duanxr/PTCG-CHS-Datasets** (`ptcg_chs_infos.json`, 232 products incl. 151C/CSV9C, images
+  in `img/<id>/<n>.png`, updated monthly; licence non-commercial/no redistribution — the
+  self-hosted server downloads it itself, we ship nothing).
+- Korean: type-null/PTCG-database `data_ko` (MIT). Thai / Indonesian: TCGdex only, no scraping.
+- Arbitration: per row + bulk (field × source), **sticky** (stored, re-applied after syncs).
+
+Branch `2026-10-15-000-feedback-batch-4` off `main` (format DATE-NUMBER-NAME). Versions: server
+0.7.0 → **0.8.0** (`backend/pyproject.toml`, README, `.env.example`), Android 0.6.0 → **0.7.0**
+(`android/app/build.gradle.kts` default `versionName`, README `gh workflow run` lines). PLAN.md:
+new section "Backlog 2026-10-15 (server 0.8.0, Android 0.7.0)" with this plan, ticked per phase;
+commit per phase.
+
+### Phase A — session (bugs first)
+Root causes:
+1. `web/src/api/client.ts:47-60` never refreshes for `/api/auth/*`, so `/api/auth/me` 401 after
+   the 15 min access token = sent to login although the 30-day refresh cookie is valid.
+2. `security.py:rotate_refresh_token`: a refresh token presented again after rotation revokes the
+   whole family. Two tabs (or a reload during a refresh) both refreshing → family revoked → logout.
+3. Login race: `Login.tsx:26-39` only invalidates `['me']`; a request that started before login
+   can fail its refresh afterwards and fire `onSessionExpired` (`Layout.tsx:46-53`) → back to login.
+
+Fixes:
+- client.ts: refresh on 401 for every path except `/api/auth/login|refresh|logout|oidc/*`.
+- Refresh grace: `refresh_token.replaced_at`; reuse within 60 s of rotation issues another token in
+  the same family instead of revoking it (migration adds column). Revocation still on later reuse.
+- Lifetimes: access 15 min → 1 h, refresh 30 → 90 days, sliding (each rotation renews). Env vars
+  `TCG_ACCESS_TOKEN_TTL_SECONDS` / `TCG_REFRESH_TOKEN_TTL_SECONDS` documented in `.env.example`.
+- Login: `client.setQueryData(['me'], user)` from the login response, then navigate. client.ts keeps a
+  `sessionEpoch` bumped on login; `onSessionExpired` ignored for requests started in an older epoch;
+  Layout listener does nothing when already on `/login`.
+- Tests: refresh reuse within grace OK / after grace revokes family; web build.
+
+### Phase B — catalog GUI (`web/src/pages/Catalog.tsx`, `web/src/components/Filters.tsx`)
+1. **Grayed images**: suspects `opacity-60` on `isPlaceholderData` (:77) + `animate-in fade-in` tiles
+   (:82) leaving a stale composited layer (hover transform repaints it). Reproduce with Playwright
+   first (systematic debugging), then fix: drop per-tile `animate-in`, dim with a `transition-opacity`
+   only while fetching, never on settled data.
+2. **Clear search**: `SearchInput` gets an ✕ button (daisyUI `input` with `join`) + Esc, clears URL `q`
+   at once; local state re-syncs when URL `q` changes (current bug: init once).
+3. **Sort when game + set selected**: `/api/cards` `sort=name|number` + `order=asc|desc` (only honoured
+   with `set_id`; natural collector-number order — reuse collection set sort expression in
+   `api/collection.py:289-296`). Select next to the set, in URL.
+4. **Sets + colors in the advanced box**: `SetSelect` and `ColorFilter` move into the `bg-base-200`
+   panel (shown when a game is selected). Color mode select: "Including these colors" (default,
+   today's `colors @> sel`) / "Exactly these colors" (`@>` and `<@`). `/api/cards?color_mode=include|exact`
+   (`api/catalog.py:398`), same param on `/api/collection` for free.
+
+5. **Double-faced cards made visible** (added 2026-10-15): today `CardImage.tsx` flips on a click
+   anywhere with only a hover `title` and pointer cursor, so the feature is invisible (and
+   impossible on touch / keyboard). Fix:
+   - Flip **button** overlaid bottom-right of the image (`btn btn-circle btn-sm` on a translucent
+     `bg-base-100/80` backdrop, shadow): inline SVG "flip" icon (two circular arrows around a card,
+     like the user's reference; lucide `refresh-cw`-style arrows + card outline). `aria-label`
+     and tooltip "Show back" / "Show front", keyboard focusable, icon rotates 180° with the card.
+     Shown whenever `back` exists, on every `CardImage`.
+   - Card page: clicking the image still flips too.
+   - **Catalog tiles and collection image view flip as well**: same button on the tile; its click
+     does `preventDefault` + `stopPropagation` so it flips in place instead of following the tile
+     link (clicking the rest of the tile still opens the card page). Server adds
+     `back_image: str | None` (local link `/api/printings/{printing_id}/image?face=back`, as
+     `PrintingOut.back_image`) to `CardSummaryOut` and `ItemOut` when the shown printing has
+     `attributes.back_image_url`. Back image `loading="lazy"`, fetched only after the first flip
+     (no extra downloads for a page of tiles).
+   - i18n EN/FR.
+
+### Phase C — account email
+- `SettingsIn` (`api/schemas.py:45`) gains `email` (+ `current_password`, required when the user has a
+  password). Validate format (pydantic `EmailStr` if `email-validator` present, else regex), `null`
+  clears. Handler `api/auth.py:187`. SSO: `services/sso.py` keeps not overwriting an edited email.
+- Settings.tsx account card: editable email field + password confirm. Admin Users page: edit email in
+  the row (endpoint already supports it). i18n EN/FR.
+
+### Phase D — card page stock dialog printing switch
+`web/src/components/StockDialog.tsx`: optional `printings` prop (CardDetail passes `c.printings`) →
+`Select` (searchable > 10) "Version" at top, default the page's printing; switching updates finishes
+and languages and keeps quantity/condition. Over the loaded list: `GET /api/cards/{id}/printings?q=`.
+
+### Phase E — collection trend column + views
+1. **Trend**: `services/collection.py` `price_trends(keys, source)`: latest trend vs the snapshot
+   nearest on/before today − 1/7/30 days (`DISTINCT ON`), per (printing, finish) of the page.
+   Direction with ±2 % neutral band (constant). `ItemOut.trends: {d1,d7,d30: {dir, pct} | null}`
+   (null = no history; manual price items still show the market trend).
+   Web column between Qty and Unit: `24h ◔ | 7d ◔ | 30d ◔`; new `TrendIcon` (inline SVG, circle with
+   zig-zag arrow up / flat line / arrow down — lucide `trending-up/-down/minus` shapes, `text-success /
+   text-base-content/50 / text-error`), tooltip with %.
+2. **Views**: `web/src/pages/collection/views.tsx` registry `{id, label, icon, component}`;
+   `ListView` = current table (default), `ImageView` = grid like Catalog (`CardImage`, qty badge,
+   −/+ buttons, trend, total). Toggle in the toolbar, `?view=` in URL + localStorage. New view = one
+   entry. Collection.tsx keeps data/filters, views receive items + handlers.
+
+### Phase F — admin
+1. **Next run on Jobs page**: `worker.py` pure `next_run(game, kind, now)` reusing `interval`,
+   `_outdated`, `RETRY_AFTER` (due now → next tick, ≤ 5 min). `GET /api/admin/jobs` adds
+   `schedule[{game, kind, next_run_at, enabled}]` (refresh only when `can_refresh`). Jobs.tsx shows
+   "Next run: in 3 h (15:20)" per kind.
+2. **Stale cards** (Data checks tab): `GET /api/admin/stale?game&page` from `services/refresh.py`
+   `stale_condition` with reason (not seen / no image / no attributes); `POST /api/admin/cards/{id}/refresh`
+   runs `_refresh_card` now (timeout 60 s) and returns the result; "Refresh all" starts the `refresh` job.
+3. **Arbitration** (sticky):
+   - Migration: `catalog_discrepancy.resolution` (`primary|secondary|custom`), `resolved_value`,
+     `resolved_by`, `resolved_at`; table `catalog_field_rule (game, source, field, prefer)` for bulk.
+   - `POST /api/admin/discrepancies/{id}/resolve {choice, value?}`; `POST /api/admin/discrepancies/rules`
+     `{game, source, field, prefer}` (+ DELETE) resolves every open row of that field and future ones.
+   - `services/crosscheck.py`: after primary + secondaries, apply `secondary`/`custom` resolutions to the
+     entity (name/rarity/number/set name/total/release date/artist), rule-matched new discrepancies
+     resolved automatically. Primary sync no longer undoes them.
+   - Checks.tsx: filter Open / Resolved, per-row "Keep / Use second / Edit", bulk on the counts table.
+
+### Phase G — Pokémon Asian data (`backend/app/games/pokemon/`)
+Root causes: `th` and `id` absent from `LANGUAGES`/`BASE_ORDER`/`ASIAN` (provider.py:61-76;
+`fetch_catalog` ignores others, env can't enable them); zh-cn and ko = TCGdex gaps (ko: 239 cards,
+no image); empty sets never pruned.
+Sources per language (decided 2026-10-15): ja/zh-tw/th/id = TCGdex; zh-hans = PTCG-CHS-Datasets;
+ko = **type-null/PTCG-database** `data_ko` (MIT, 20 323 cards / 264 sets, read from Pokémon Korea's
+official site, official image URLs, `pokedex_number`); th/id = **TCGdex only** (no scraping; gaps
+stay until TCGdex fills them — documented).
+1. Add `th`, `id` (Asian family; TCGdex reuses ja ids → names/images join existing Asian sets; Thai-only
+   ids SV7s… become own sets). `services/scripts.py` order gets `id`. `.env.example` list.
+1b. **Korean** `ko_data.py`: drop TCGdex `ko` from defaults. Skip when the last commit touching
+   `data_ko` (`GET /repos/type-null/PTCG-database/commits?path=data_ko&per_page=1`) is unchanged;
+   else stream the repo tarball (`codeload.github.com/.../tar.gz/<sha>`) and read only
+   `data_ko/<set>/<n>.json` (no full checkout on disk). Set `set_name` (M2…) = Asian set id: joins the
+   existing ja set as language `ko` by number (name, `img` image URL), Korean-only ids become sets
+   with `lang=ko`, `set_full_name`, `set_total`, `set_img` icon. Card join via `pokedex_number` +
+   species names (as ja `dexId`); rarity, `author`, hp, stage, types attributes. Images downloaded by
+   the image job from `cards.image.pokemonkorea.co.kr` (served locally as always). `TCG_POKEMON_KO_DATA`
+   (default on). Recorded fixture tarball with 3 cards.
+2. Drop TCGdex `zh-cn` from defaults. New `ptcg_chs.py`: download `ptcg_chs_infos.json` (skip when the
+   GitHub commit sha is unchanged), each product → set `zh-hans` lang (Asian family, `asia:` collision
+   rule), cards → printings (number from `collectionNumber`, rarityText, illustrator, hp/type/evolve
+   attributes), images `raw.githubusercontent.com/.../img/<id>/<n>.png` via image job. Cards join the
+   English card through `species_names.json` zh-hans names (same as Asian TCGdex). `TCG_POKEMON_CHS`
+   (default on). `catalog_version` bump → resync. Recorded fixture subset for tests.
+3. Catalog sync prunes sets left with 0 printings (not owned).
+
+### Phase H — Android OCR (`android/app/src/main/java/fr/zukan/app/scan/`) + identify
+1. **Landscape cards**: `TextAnalyzer.kt:71` — when ML Kit lines have median `angle` near ±90° (or the
+   Latin read is weak for 6 frames), read the frame again with `rotationDegrees ± 90` and keep the
+   orientation that wins (remembered until it stops working). Sorcery Site fixture on the server.
+2. **Other-game card**: `services/identify.py:189` — with a game selected and no candidate, run the
+   other providers' `parse_ocr`; recognized → `status: "other_game"`, `detected_game`. Also Sorcery
+   name-only reads count as `not_found` (`api/scan.py:119-124`). App pill: "Looks like a {game} card"
+   + "Switch" action; strings EN/FR.
+3. **Chinese**: server `opencc-python-reimplemented` — identify tries simplified + traditional variants of
+   CJK queries; `script_language` (`games/ocr.py:24`) uses conversion difference instead of 6 chars;
+   Pokémon `_SKIP`/`_STAGE` add `进化`/`進化` forms. App AUTO: when the Latin read is weak (few Latin
+   letters), Asian model every frame and stick to the last winning one. zh-hans data from Phase G helps.
+
+### Verification
+- `cd backend && pytest` (new: refresh grace/reuse, email change, color_mode exact, number sort,
+  trends, next_run, stale list + refresh endpoint, resolve/rules re-applied after sync, th/id grouping,
+  CHS fixture import + empty set prune, other_game status, zh variants).
+- `cd web && npm run gen:api && npm run build && npm run lint && npm run check:i18n`.
+- Playwright on dev stack: login → wait access expiry (set TTL 60 s in dev) → no logout, two tabs;
+  catalog clear ✕, sort, advanced box + exact colors, grayed image repro gone, MTG double-faced
+  card (e.g. Delver of Secrets): flip button on card page and on its catalog tile (flips without
+  navigating; tile body still opens the card page); collection trend column +
+  image view; stock dialog version switch; email change; Jobs next run; Data checks stale + arbitration.
+- Live Pokémon sync (separate stack): Thai names on SV2a, Thai-only sets, Indonesian names, Korean M2
+  printings with images, CHS 151C / CSV9C with images.
+- Android: `./gradlew testDebugUnitTest lint assembleDebug`; real phone by user: Sorcery Site, MTG card
+  with Pokémon selected, Chinese cards.
+
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.

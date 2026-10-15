@@ -4,10 +4,14 @@ import { api, call, type Schemas } from './client'
 export type Game = Schemas['GameOut']
 export type Me = Schemas['MeOut']
 
+export const meQuery = {
+  queryKey: ['me'],
+  queryFn: () => call(api.GET('/api/auth/me')),
+}
+
 export function useMe() {
   return useQuery({
-    queryKey: ['me'],
-    queryFn: () => call(api.GET('/api/auth/me')),
+    ...meQuery,
     retry: false,
     // The layout shows it.
     meta: { inlineError: true },

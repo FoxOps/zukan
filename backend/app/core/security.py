@@ -43,6 +43,10 @@ def unsign(token: str, audience: str) -> dict[str, Any]:
     return jwt.decode(token, get_settings().secret_key, algorithms=[_ALGORITHM], audience=audience)
 
 
+# Reuse of a just-rotated refresh token accepted for this long.
+ROTATION_GRACE = timedelta(seconds=60)
+
+
 def create_access_token(user: User) -> str:
     ttl = timedelta(seconds=get_settings().access_token_ttl_seconds)
     return sign({"sub": str(user.id), "role": user.role}, ttl, audience="access")
@@ -72,7 +76,9 @@ async def issue_refresh_token(
 async def rotate_refresh_token(session: AsyncSession, token: str) -> tuple[User, str] | None:
     """Exchange a refresh token for a new one. Returns None when invalid.
 
-    Presenting an already revoked token revokes its whole family.
+    Presenting an already revoked token revokes its whole family, unless it was rotated
+    less than `ROTATION_GRACE` ago: concurrent refreshes (two tabs, a reload during a
+    refresh) then each get a token instead of logging the user out.
     """
     row = await session.scalar(
         select(RefreshToken).where(RefreshToken.token_hash == _hash_token(token)).with_for_update()
@@ -81,14 +87,25 @@ async def rotate_refresh_token(session: AsyncSession, token: str) -> tuple[User,
         return None
     now = datetime.now(UTC)
     if row.revoked_at is not None:
-        await revoke_family(session, row.family_id)
-        return None
+        if row.rotated_at is None or now - row.rotated_at > ROTATION_GRACE:
+            await revoke_family(session, row.family_id)
+            return None
+        # Within the grace period, only while the family is alive (not logged out).
+        alive = await session.scalar(
+            select(RefreshToken.id).where(
+                RefreshToken.family_id == row.family_id, RefreshToken.revoked_at.is_(None)
+            )
+        )
+        if alive is None:
+            return None
     if row.expires_at <= now:
         return None
     user = await session.get(User, row.user_id)
     if user is None or user.disabled:
         return None
-    row.revoked_at = now
+    if row.revoked_at is None:
+        row.revoked_at = now
+        row.rotated_at = now
     new_token = await issue_refresh_token(session, user, row.family_id)
     return user, new_token
 

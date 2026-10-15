@@ -26,6 +26,17 @@ export function onSessionExpired(listener: () => void): () => void {
   }
 }
 
+// Bumped on every sign-in: a request started before it must not end the new session.
+let sessionEpoch = 0
+
+/** Call after a successful sign-in. */
+export function markSignedIn(): void {
+  sessionEpoch += 1
+}
+
+// Auth endpoints whose 401 means "wrong credentials / no session", never "refresh first".
+const NO_REFRESH = /^\/api\/auth\/(login|refresh|logout|oidc\/)/
+
 let refreshing: Promise<boolean> | null = null
 
 function refreshSession(): Promise<boolean> {
@@ -48,14 +59,15 @@ export async function authFetch(input: Request): Promise<Response> {
   const request = new Request(input, { credentials: 'same-origin' })
   request.headers.set('X-TCG-CSRF', '1')
   const retry = request.clone()
+  const epoch = sessionEpoch
   const response = await fetch(request)
-  if (response.status !== 401 || new URL(request.url).pathname.startsWith('/api/auth/')) {
+  if (response.status !== 401 || NO_REFRESH.test(new URL(request.url).pathname)) {
     return response
   }
   if (await refreshSession()) {
     return fetch(retry)
   }
-  listeners.forEach((l) => l())
+  if (epoch === sessionEpoch) listeners.forEach((l) => l())
   return response
 }
 
