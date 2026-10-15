@@ -541,6 +541,8 @@ async def test_korean_and_chinese_datasets(client, session, tcgdex, monkeypatch)
                 "cards": [
                     chs_card("025", "皮卡丘"),
                     chs_card("025", "皮卡丘", "C★"),
+                    # Another card with the same number in this box.
+                    chs_card("025", "木木枭"),
                     chs_card(
                         "100",
                         "能量输送",
@@ -588,6 +590,10 @@ async def test_korean_and_chinese_datasets(client, session, tcgdex, monkeypatch)
         select(Printing).where(Printing.set_id == sets["151C"].id, Printing.external_id == "025")
     )
     assert chinese_pikachu.finishes == ["normal", "reverse"]
+    rowlet = await session.scalar(
+        select(Printing).where(Printing.set_id == sets["151C"].id, Printing.external_id == "025~2")
+    )
+    assert rowlet.collector_number == "025" and rowlet.card_id != chinese_pikachu.card_id
     assert chinese_pikachu.rarity == "C"
     assert chinese_pikachu.image_urls == {
         "zh-hans": "https://raw.githubusercontent.com/duanxr/PTCG-CHS-Datasets/main/img/246/0250.png"

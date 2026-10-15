@@ -238,11 +238,20 @@ def chinese_card(raw: dict[str, Any], set_id: str) -> CardData | None:
 
 
 def _merge_versions(cards: list[CardData]) -> Iterator[CardData]:
-    """One printing per collector number: its foil versions become finishes."""
+    """One printing per collector number and name: its foil versions become finishes.
+    Boxes mixing series reuse numbers for other cards: those get "<number>~<n>"."""
     by_number: dict[str, CardData] = {}
     for card in cards:
         printing = card.printings[0]
         first = by_number.get(printing.external_id)
+        if first is not None and first.name != card.name:
+            n = 2
+            while f"{printing.external_id}~{n}" in by_number and (
+                by_number[f"{printing.external_id}~{n}"].name != card.name
+            ):
+                n += 1
+            printing.external_id = f"{printing.external_id}~{n}"
+            first = by_number.get(printing.external_id)
         if first is None:
             by_number[printing.external_id] = card
             continue
