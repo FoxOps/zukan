@@ -358,3 +358,22 @@ async def test_quotes_without_low_keep_stored_low(session, catalog):
     )
     await session.refresh(row)
     assert (row.trend, row.low, row.avg) == (Decimal("2.20"), Decimal("1.00"), Decimal("3.00"))
+
+
+async def test_price_trends(client, session, alice):
+    abundance = await printing_id(session, "001", "abundance-b")
+    today = date.today()
+    for days, trend in ((30, "2.52"), (1, "1.00"), (0, "2.50")):
+        await add_price(session, abundance, "standard", today - timedelta(days=days), Decimal(trend))
+    await adjust(client, alice, abundance, 3)
+    await adjust(client, alice, abundance, 1, finish="foil")
+    items = (await client.get("/api/collection", headers=alice)).json()["items"]
+    trends = {i["finish"]: i["trends"] for i in items}
+    # Yesterday 1.00: up. A week and a month ago the last known price was 2.52: stable.
+    assert trends["standard"] == {
+        "d1": {"direction": "up", "change": 1.5},
+        "d7": {"direction": "flat", "change": -0.0079},
+        "d30": {"direction": "flat", "change": -0.0079},
+    }
+    # No price history.
+    assert trends["foil"] == {"d1": None, "d7": None, "d30": None}

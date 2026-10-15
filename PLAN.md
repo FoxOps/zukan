@@ -657,7 +657,10 @@ Progress (plan below):
   `null` removes), Settings "Change" form; admin Users "Set email".
 - [x] D stock dialog: "Version" select (searchable over 10) listing every printing of the card,
   newest first, default the page's printing; finish/language kept when the new version has them.
-- [ ] E collection trend column + views
+- [x] E collection: `ItemOut.trends` (`d1/d7/d30` direction + change, ±2 % = stable, from the
+  user's price source history, `services/collection.price_trends`), Trend column between Qty
+  and Unit (`TrendIcons`: arrow in a circle). Views registry `web/src/pages/collection/views.tsx`
+  (List default, Images grid with flip/qty/trend), `?view=` + localStorage; colors "exactly" too.
 - [ ] F admin: next run, stale cards, arbitration
 - [ ] G Pokémon: th/id, Korean (type-null), Simplified Chinese (PTCG-CHS), empty sets pruned
 - [ ] H Android OCR: landscape, other game, Chinese

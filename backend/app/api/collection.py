@@ -43,6 +43,20 @@ class ItemSetOut(BaseModel):
     name: str
 
 
+class TrendOut(BaseModel):
+    direction: Literal["up", "down", "flat"]
+    # Relative change of the market price: 0.1 = +10 %.
+    change: float
+
+
+class TrendsOut(BaseModel):
+    """Market price trend over 24 hours, 7 days and 30 days (None: not enough history)."""
+
+    d1: TrendOut | None = None
+    d7: TrendOut | None = None
+    d30: TrendOut | None = None
+
+
 class ItemOut(BaseModel):
     id: int
     printing_id: int
@@ -69,6 +83,8 @@ class ItemOut(BaseModel):
     price_date: date | None
     unit_price: Decimal | None
     total: Decimal | None
+    # Of the market price (a manual price does not change it).
+    trends: TrendsOut = TrendsOut()
     notes: str | None
     updated_at: datetime
 
@@ -177,9 +193,9 @@ def _item_query():
 async def _items_out(
     session: SessionDep, items: list[CollectionItem], lang: str, wanted: str
 ) -> list[ItemOut]:
-    prices = await collection.user_prices(
-        session, wanted, {i.printing_id: i.printing.set.game_id for i in items}
-    )
+    games = {i.printing_id: i.printing.set.game_id for i in items}
+    prices = await collection.user_prices(session, wanted, games)
+    trends = await collection.price_trends(session, wanted, games, prices)
     card_names, printing_names = await load_names(session, (i.printing.card_id for i in items))
     out = []
     for item in items:
@@ -211,6 +227,13 @@ async def _items_out(
                 price_date=point.date if point else None,
                 unit_price=unit,
                 total=None if unit is None else unit * item.quantity,
+                trends=TrendsOut(
+                    **{
+                        period: TrendOut(direction=t.direction, change=t.change)
+                        for period, t in trends.get((item.printing_id, item.finish), {}).items()
+                        if t is not None
+                    }
+                ),
                 notes=item.notes,
                 updated_at=item.updated_at,
             )

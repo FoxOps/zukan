@@ -1140,6 +1140,8 @@ export interface components {
             unit_price: string | null;
             /** Total */
             total: string | null;
+            /** @default {} */
+            trends: components["schemas"]["TrendsOut"];
             /** Notes */
             notes: string | null;
             /**
@@ -1521,6 +1523,25 @@ export interface components {
             condition: string;
             /** Language */
             language: string;
+        };
+        /** TrendOut */
+        TrendOut: {
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "up" | "down" | "flat";
+            /** Change */
+            change: number;
+        };
+        /**
+         * TrendsOut
+         * @description Market price trend over 24 hours, 7 days and 30 days (None: not enough history).
+         */
+        TrendsOut: {
+            d1?: components["schemas"]["TrendOut"] | null;
+            d7?: components["schemas"]["TrendOut"] | null;
+            d30?: components["schemas"]["TrendOut"] | null;
         };
         /** UserCreateIn */
         UserCreateIn: {

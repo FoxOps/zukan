@@ -318,5 +318,13 @@
   "Email": "E-mail",
   "Leave empty to remove it": "Laisser vide pour la supprimer",
   "Email of {{name}} (empty to remove)": "E-mail de {{name}} (vide pour le supprimer)",
-  "Set email": "Changer l’e-mail"
+  "Set email": "Changer l’e-mail",
+  "no price history yet": "pas encore d’historique de prix",
+  "View": "Affichage",
+  "Trend": "Tendance",
+  "List": "Liste",
+  "Images": "Images",
+  "24h": "24 h",
+  "7d": "7 j",
+  "30d": "30 j"
 }

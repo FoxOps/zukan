@@ -16,6 +16,8 @@ const DYNAMIC = [
   'Mint', 'Near Mint', 'Excellent', 'Good', 'Light Played', 'Played', 'Poor',
   'catalog', 'prices', 'images', 'running', 'success', 'failed', 'user', 'admin', 'web', 'scan', 'import',
   'cancelled', 'auto', 'manual',
+  // Collection views and trend periods.
+  'List', 'Images', '24h', '7d', '30d',
   // Job report counters.
   'sets', 'cards', 'printings', 'names', 'owned printings', 'prices received', 'stored',
   'already cached', 'skipped', 'without source', 'refused by source', 'old prices removed',
