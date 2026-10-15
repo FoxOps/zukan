@@ -15,7 +15,21 @@ NON_LATIN = frozenset(
      "he", "hi", "sa", "ph"}
 )  # fmt: skip
 # "First available language" order; other languages follow alphabetically.
-LANG_ORDER = ("en", "fr", "de", "it", "es", "pt", "ja", "ko", "zh-hant", "zh-hans", "th", "ru")
+LANG_ORDER = (
+    "en",
+    "fr",
+    "de",
+    "it",
+    "es",
+    "pt",
+    "id",
+    "ja",
+    "ko",
+    "zh-hant",
+    "zh-hans",
+    "th",
+    "ru",
+)
 _RANK = {lang: rank for rank, lang in enumerate(LANG_ORDER)}
 
 

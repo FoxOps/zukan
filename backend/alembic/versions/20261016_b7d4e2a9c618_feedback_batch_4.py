@@ -22,9 +22,7 @@ def upgrade() -> None:
         "refresh_token", sa.Column("rotated_at", sa.DateTime(timezone=True), nullable=True)
     )
     op.add_column("catalog_discrepancy", sa.Column("resolution", sa.String(16), nullable=True))
-    op.add_column(
-        "catalog_discrepancy", sa.Column("resolved_value", sa.String(500), nullable=True)
-    )
+    op.add_column("catalog_discrepancy", sa.Column("resolved_value", sa.String(500), nullable=True))
     op.add_column(
         "catalog_discrepancy",
         sa.Column(

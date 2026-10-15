@@ -668,7 +668,17 @@ Progress (plan below):
   with reasons, `POST /api/admin/cards/{id}/refresh`, Refresh all = refresh job). Chosen values
   are written at once and again after every catalog sync and card refresh
   (`crosscheck.apply_resolutions`).
-- [ ] G Pokémon: th/id, Korean (type-null), Simplified Chinese (PTCG-CHS), empty sets pruned
+- [x] G Pokémon (`catalog_version` 4): TCGdex `th` and `id` (Asian family; default languages
+  en fr de it es pt ja zh-tw th id). Korean from type-null/PTCG-database `data_ko` (repo
+  archive, ~33 MB, 20k cards) and Simplified Chinese from duanxr/PTCG-CHS-Datasets (~10 MB,
+  232 products) in `games/pokemon/asia.py`: a set id TCGdex has (Korean M2 = Japanese M2) gets
+  names/images by collector number, others become sets (`lang` ko / zh-hans); Pokémon join the
+  English card through species names (Chinese: species found in the name, `find_species`).
+  Chinese foil versions ("C★", "C★★") = reverse / holo finishes of one printing; Korean decks
+  reusing a number get `number~ko_id`. Downloaded at every catalog sync (cards must be seen;
+  deviation from the plan's "skip when unchanged"). Empty sets pruned after each sync.
+  Live data parsed: KO 263 sets / 20 029 cards (13 731 named in English), CN 232 / 14 162
+  (9 888). Existing deployments: Reset catalog (Pokémon) drops the old TCGdex ko/zh-cn data.
 - [ ] H Android OCR: landscape, other game, Chinese
 
 ### Context

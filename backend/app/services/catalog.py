@@ -35,6 +35,7 @@ class SyncReport:
     pruned_prices: int = 0
     # Cards left without printings (a printing moved to another card).
     pruned_cards: int = 0
+    pruned_sets: int = 0
     catalog_version: int = 1
 
 
@@ -379,6 +380,13 @@ async def sync_catalog(
         )
     )
     writer.report.pruned_cards = pruned.rowcount
+    # Sets a source lists without any card (TCGdex's mainland Chinese ones).
+    empty = await session.execute(
+        delete(CardSet).where(
+            CardSet.game_id == provider.id, ~exists().where(Printing.set_id == CardSet.id)
+        )
+    )
+    writer.report.pruned_sets = empty.rowcount
     writer.report.catalog_version = catalog_version(provider)
     await session.execute(
         update(Game).where(Game.id == provider.id).values(last_catalog_sync=datetime.now(UTC))

@@ -76,3 +76,20 @@ def _spacing(text: str, lang: str) -> str:
     else:
         text = re.sub(r"\0\s+(?=[A-Za-z☆δ◇])", "", text)
     return re.sub(r"\s+", " ", text.replace("\0", "")).strip()
+
+
+@cache
+def _by_name(lang: str) -> dict[str, int]:
+    return {
+        names[lang].casefold(): dex
+        for dex, names in species_names().items()
+        if names.get(lang) and len(names[lang]) > 1
+    }
+
+
+def find_species(name: str, lang: str) -> list[int]:
+    """Pokédex number of the species whose name (in `lang`) the card name contains, the
+    longest one ("太阳伊布ex" is Espeon, not Eevee); [] when none."""
+    folded = name.casefold()
+    found = [(len(local), dex) for local, dex in _by_name(lang).items() if local in folded]
+    return [max(found)[1]] if found else []

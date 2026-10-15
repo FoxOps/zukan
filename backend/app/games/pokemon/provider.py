@@ -6,9 +6,12 @@ TCGdex has no bulk export, so card details are fetched one by one:
   sets share English ids, Asian sets share ids between Japanese, Korean and Chinese).
   A few Japanese sets reuse an international id for other cards (Japanese "neo2" is not
   Neo Discovery): they are stored as `asia:<id>`.
-  Its base language (English, else Japanese, Korean, Traditional then Simplified
-  Chinese) is fetched in full; the other listings only add printed names and images
-  (partial data).
+  Its base language (English, else Japanese, Traditional Chinese, Thai, Indonesian) is
+  fetched in full; the other listings only add printed names and images (partial data).
+- Korean and Simplified Chinese come from open datasets (`asia.py`): TCGdex has almost
+  no Korean cards and lists the mainland Chinese sets without cards. Their sets join
+  the Asian set of the same id (Korean "M2" is Japanese "M2") by collector number,
+  others are sets of their own.
 
 Pokémon has no card id shared across printings; printings are grouped by name. Names
 made of species names (`species.py`) are known in every language, so Asian printings
@@ -44,7 +47,7 @@ from app.games.base import (
     SetData,
 )
 from app.games.ocr import bottom_part, by_position, clean, letter_ratio, script_language
-from app.games.pokemon import pokemontcg
+from app.games.pokemon import asia, pokemontcg
 from app.games.pokemon.species import derive_names, species_names
 from app.models import Printing
 
@@ -69,11 +72,16 @@ LANGUAGES = {
     "ko": "ko",
     "zh-cn": "zh-hans",
     "zh-tw": "zh-hant",
+    "th": "th",
+    "id": "id",
 }
 # Base language order for sets listed in several languages (zh-cn data partly comes in
 # Traditional characters, so it comes last).
-BASE_ORDER = ["en", "fr", "de", "it", "es", "pt", "ja", "ko", "zh-tw", "zh-cn"]
-ASIAN = {"ja", "ko", "zh-tw", "zh-cn"}
+BASE_ORDER = ["en", "fr", "de", "it", "es", "pt", "ja", "ko", "zh-tw", "th", "id", "zh-cn"]
+ASIAN = {"ja", "ko", "zh-tw", "zh-cn", "th", "id"}
+# Read from TCGdex by default. Korean and Simplified Chinese come from `asia.py`
+# (TCGdex has 239 Korean cards and empty mainland Chinese sets).
+DEFAULT_LANGUAGES = ["en", "fr", "de", "it", "es", "pt", "ja", "zh-tw", "th", "id"]
 # Prefix of Asian sets whose TCGdex id is also an international set's.
 ASIAN_PREFIX = "asia:"
 VARIANTS = {
@@ -88,7 +96,11 @@ class PokemonSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="TCG_POKEMON_", env_file=".env", extra="ignore")
 
     # TCGdex languages to import. Asian languages add ~40k cards fetched one by one.
-    languages: list[str] = list(LANGUAGES)
+    languages: list[str] = DEFAULT_LANGUAGES
+    # Korean cards from type-null/PTCG-database, Simplified Chinese ones from
+    # duanxr/PTCG-CHS-Datasets (see asia.py).
+    korean: bool = True
+    chinese: bool = True
 
 
 def _decimal(value: Any) -> Decimal | None:
@@ -230,6 +242,61 @@ def join_english(card: CardData, english_cards: set[str]) -> CardData:
         printing.names = {**printing.names, **{lang: card.name for lang in printing.languages}}
     card.external_id, card.partial = key, True
     return card
+
+
+def join_asian_set(
+    extra: asia.AsianSet,
+    lang: str,
+    fetched_sets: dict[tuple[bool, str], str],
+    keys: dict[tuple[str, str], str],
+    english_cards: set[str],
+) -> CatalogBatch:
+    """Cards of a Korean or Chinese dataset set. A set of an Asian id already stored
+    (from TCGdex) gets this language's names and images on its printings of the same
+    number; other cards are added in full (joined to the English card when named after
+    species)."""
+    asian_ids = {tcgdex.casefold(): ours for (asian, tcgdex), ours in fetched_sets.items() if asian}
+    taken = {tcgdex.casefold() for asian, tcgdex in fetched_sets if not asian}
+    set_id = asian_ids.get(extra.code.casefold())
+    batch = CatalogBatch()
+    if set_id is None:
+        set_id = f"{ASIAN_PREFIX}{extra.code}" if extra.code.casefold() in taken else extra.code
+        fetched_sets[(True, extra.code)] = set_id
+        extra.data.external_id = set_id
+        batch.sets.append(extra.data)
+    numbers = {
+        (asia.number_key(local)): (local, key)
+        for (stored_set, local), key in keys.items()
+        if stored_set == set_id
+    }
+    for card in extra.cards:
+        printing = card.printings[0]
+        printing.set_external_id = set_id
+        known = numbers.get(asia.number_key(printing.external_id))
+        if known is not None:
+            local, key = known
+            batch.cards.append(
+                CardData(
+                    external_id=key,
+                    name=card.name,
+                    printings=[
+                        PrintingData(
+                            external_id=local,
+                            set_external_id=set_id,
+                            collector_number=local,
+                            languages=[lang],
+                            images=printing.images,
+                            names={lang: card.name},
+                        )
+                    ],
+                    partial=True,
+                )
+            )
+            continue
+        joined = join_english(card, english_cards)
+        keys[(set_id, printing.external_id)] = joined.external_id
+        batch.cards.append(joined)
+    return batch
 
 
 # TCGplayer price variants to finishes ("1stEditionHolofoil", "unlimitedHolofoil"...).
@@ -422,7 +489,8 @@ class PokemonProvider:
     short_names = ["pkm", "pokemon", "poke", "ptcg"]
     # 2: one set per set id across Asian languages, names from species names.
     # 3: Asian sets reusing an international id stored apart, Asian names fixed.
-    catalog_version = 3
+    # 4: Thai and Indonesian, Korean and Simplified Chinese from open datasets.
+    catalog_version = 4
 
     async def _get(self, http: httpx.AsyncClient, path: str) -> Any:
         return (await get_with_retry(http, f"{API_URL}{path}")).json()
@@ -464,7 +532,8 @@ class PokemonProvider:
         return batch
 
     async def fetch_catalog(self, http: httpx.AsyncClient) -> AsyncIterator[CatalogBatch]:
-        wanted = set(PokemonSettings().languages)
+        settings = PokemonSettings()
+        wanted = set(settings.languages)
         languages = [lang for lang in BASE_ORDER if lang in wanted]
         # Card key of each printing of the sets fetched in full, to attach translations.
         keys: dict[tuple[str, str], str] = {}
@@ -496,6 +565,20 @@ class PokemonProvider:
                     for printing in card.printings:
                         keys[(printing.set_external_id, printing.external_id)] = card.external_id
                 yield batch
+        extra = []
+        if settings.korean:
+            extra.append(("ko", asia.korean_sets))
+        if settings.chinese:
+            extra.append(("zh-hans", asia.chinese_sets))
+        for lang, read in extra:
+            try:
+                sets = await read(http)
+            except httpx.HTTPError:
+                # TCGdex's data is stored already: a missing dataset does not undo it.
+                log.exception("Pokémon %s dataset could not be read", lang)
+                continue
+            for extra_set in sets:
+                yield join_asian_set(extra_set, lang, fetched_sets, keys, english_cards)
 
     async def _translations(
         self,

@@ -1,4 +1,6 @@
+import io
 import json
+import tarfile
 from decimal import Decimal
 from pathlib import Path
 from urllib.parse import unquote
@@ -35,6 +37,9 @@ API = json.loads((Path(__file__).parent / "fixtures" / "pokemon_api.json").read_
 @pytest.fixture(autouse=True)
 def languages(monkeypatch):
     monkeypatch.setenv("TCG_POKEMON_LANGUAGES", '["en", "fr", "ja", "ko"]')
+    # The Korean and Chinese datasets only where a test provides them.
+    monkeypatch.setenv("TCG_POKEMON_KOREAN", "false")
+    monkeypatch.setenv("TCG_POKEMON_CHINESE", "false")
 
 
 @pytest.fixture
@@ -95,7 +100,9 @@ def test_prices_map_to_finishes():
 async def test_sync_sets_translations_and_exclusive_sets(client, session, tcgdex):
     report = await sync_pokemon(session)
     sets = {s.external_id: s for s in await session.scalars(select(CardSet))}
-    assert set(sets) == {"swsh3", "hgss1", "SV1a", "SM1+"}
+    # SM1+ is listed without cards (its id needs URL encoding): fetched, then pruned.
+    assert set(sets) == {"swsh3", "hgss1", "SV1a"}
+    assert report.pruned_sets == 1
     assert sets["swsh3"].code == "DAA" and sets["swsh3"].lang is None
     assert sets["SV1a"].lang == "ja"
 
@@ -449,3 +456,144 @@ async def test_changed_image_url_and_name_replace_stored_ones(session, tcgdex):
         )
     )
     assert names == {"Wiesenior"}
+
+
+def korean_archive(cards: dict[str, dict]) -> bytes:
+    """The Korean dataset's repository archive with these `data_ko/...` files."""
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as tar:
+        for path, card in cards.items():
+            data = json.dumps(card, ensure_ascii=False).encode()
+            info = tarfile.TarInfo(f"PTCG-database-main/{path}")
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+        readme = tarfile.TarInfo("PTCG-database-main/data_jp/x.json")
+        readme.size = 2
+        tar.addfile(readme, io.BytesIO(b"{}"))
+    return buffer.getvalue()
+
+
+def ko_card(set_name: str, number: str, name: str, **extra) -> dict:
+    return {
+        "name": name,
+        "img": f"https://cards.image.pokemonkorea.co.kr/data/{set_name}_{number}.png",
+        "card_type": "Pokémon",
+        "ko_id": f"K{set_name}{number}",
+        "set_name": set_name,
+        "set_full_name": f"{set_name} 확장팩",
+        "set_img": f"https://cards.image.pokemonkorea.co.kr/symbol/{set_name}.png",
+        "number": number,
+        "set_total": "080",
+        "author": ["Artist"],
+        "rarity": "C",
+        "stage": "기본",
+        "hp": 60,
+        "types_en": ["Lightning"],
+        **extra,
+    }
+
+
+def chs_card(number: str, name: str, rarity: str = "C", **details) -> dict:
+    return {
+        "name": name,
+        "image": f"img/246/{number}{rarity.count('★')}.png",
+        "details": {
+            "cardName": name,
+            "collectionNumber": f"{number}/151",
+            "rarityText": rarity,
+            "cardTypeText": "宝可梦",
+            "evolveText": "基础",
+            "hp": 60,
+            "attribute": "4",
+            "illustratorName": ["Someone"],
+            **details,
+        },
+    }
+
+
+async def test_korean_and_chinese_datasets(client, session, tcgdex, monkeypatch):
+    from app.games.pokemon.asia import CHINESE_DATA, KOREAN_ARCHIVE
+
+    monkeypatch.setenv("TCG_POKEMON_LANGUAGES", '["en", "ja"]')
+    monkeypatch.setenv("TCG_POKEMON_KOREAN", "true")
+    monkeypatch.setenv("TCG_POKEMON_CHINESE", "true")
+    archive = korean_archive(
+        {
+            # Same set id as the Japanese SV1a: names and images on its printings.
+            "data_ko/SV1a/001.json": ko_card("SV1a", "001", "트로피우스", types_en=["Grass"]),
+            # Not in TCGdex's Japanese set: added in full.
+            "data_ko/SV1a/050.json": ko_card("SV1a", "050", "피카츄", pokedex_number=25),
+            # A Korean-only set, a trainer, and a number another card already uses.
+            "data_ko/M2/001.json": ko_card("M2", "001", "뚜벅쵸", pokedex_number=43),
+            "data_ko/M2/002.json": ko_card(
+                "M2", "002", "박사의 연구", card_type="서포트", hp=None, stage=None, types_en=[]
+            ),
+            "data_ko/M2/002b.json": ko_card("M2", "002", "다른 카드"),
+            "data_ko/no_set/x.json": {"name": "기본 에너지", "card_type": "기본 에너지"},
+        }
+    )
+    chinese = {
+        "collections": [
+            {
+                "commodityCode": "151C",
+                "name": "收集啦151 活动包",
+                "salesDate": "2025-01-17",
+                "cards": [
+                    chs_card("025", "皮卡丘"),
+                    chs_card("025", "皮卡丘", "C★"),
+                    chs_card(
+                        "100",
+                        "能量输送",
+                        "无标记",
+                        cardTypeText="训练家",
+                        evolveText=None,
+                        hp=None,
+                        attribute=None,
+                        trainerTypeText="物品",
+                    ),
+                ],
+            },
+            {"commodityCode": "EMPTY", "name": "Nothing", "cards": []},
+        ]
+    }
+    with respx.mock(assert_all_called=False) as router:
+        router.get(url__startswith=API_URL).mock(side_effect=tcgdex.side_effect)
+        router.get(url__startswith=POKEMONTCG_URL).respond(404)
+        router.get(KOREAN_ARCHIVE).respond(content=archive)
+        router.get(CHINESE_DATA).respond(json=chinese)
+        report = await sync_pokemon(session)
+
+    sets = {s.external_id: s for s in await session.scalars(select(CardSet))}
+    assert {"SV1a", "M2", "151C"} <= set(sets)
+    assert "EMPTY" not in sets and report.pruned_sets >= 1
+    assert (sets["M2"].lang, sets["M2"].name, sets["M2"].total) == ("ko", "M2 확장팩", 80)
+    assert (sets["151C"].lang, str(sets["151C"].release_date)) == ("zh-hans", "2025-01-17")
+
+    tropius = await session.get(Printing, await printing_id(session, "SV1a", "001"))
+    assert tropius.languages == ["ja", "ko"]
+    assert tropius.image_urls["ko"].endswith("SV1a_001.png")
+    korean_pikachu = await session.get(Printing, await printing_id(session, "SV1a", "050"))
+    assert korean_pikachu.languages == ["ko"]
+    m2 = {
+        p.external_id: p
+        for p in await session.scalars(select(Printing).where(Printing.set_id == sets["M2"].id))
+    }
+    assert set(m2) == {"001", "002", "002~KM2002"}
+    oddish = await session.get(Card, m2["001"].card_id)
+    assert oddish.attributes == {"category": "Pokemon", "hp": 60, "stage": "Basic", "dexId": [43]}
+    research = await session.get(Card, m2["002"].card_id)
+    assert research.attributes == {"category": "Trainer", "trainerType": "Supporter"}
+
+    chinese_pikachu = await session.scalar(
+        select(Printing).where(Printing.set_id == sets["151C"].id, Printing.external_id == "025")
+    )
+    assert chinese_pikachu.finishes == ["normal", "reverse"]
+    assert chinese_pikachu.rarity == "C"
+    assert chinese_pikachu.image_urls == {
+        "zh-hans": "https://raw.githubusercontent.com/duanxr/PTCG-CHS-Datasets/main/img/246/0250.png"
+    }
+    # Named after the species in every language (they would join an English Pikachu).
+    pikachu = await session.get(Card, chinese_pikachu.card_id)
+    assert pikachu.colors == ["lightning"]
+    names = set(await session.scalars(select(CardName.name).where(CardName.card_id == pikachu.id)))
+    assert {"皮卡丘", "Pikachu", "ピカチュウ", "피카츄"} <= names

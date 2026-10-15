@@ -139,6 +139,8 @@ def test_sorcery_parser():
 async def catalogs(session, monkeypatch):
     """MTG, Pokémon and Sorcery fixture catalogs, synced one source at a time."""
     monkeypatch.setenv("TCG_POKEMON_LANGUAGES", '["en", "fr", "ja"]')
+    monkeypatch.setenv("TCG_POKEMON_KOREAN", "false")
+    monkeypatch.setenv("TCG_POKEMON_CHINESE", "false")
     await register_games()
 
     def tcgdex(request: httpx.Request) -> httpx.Response:
