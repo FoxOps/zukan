@@ -629,7 +629,12 @@ User list from the 0.6.0 test deployment. Root causes found on its data (read-on
 - [x] Android: identify `status` (`not_found` / `not_a_card`), shown in the scan pill.
 - [x] CI: dev builds publish pre-releases `server-dev-<branch>` / `android-dev-<branch>`.
 - [x] Versions server 0.7.0, Android 0.6.0. 124 backend tests, 26 Android unit tests, lint, builds.
-- [ ] Not done: live check on the test service (reset Pokémon catalog, Playwright pass), real-phone scan check.
+- [x] Live check on a separate 0.7.0 stack (fresh data, Pokémon en+ja): neo1-4 Japanese sets stored as
+  `asia:neo*`, Unown A named アンノーンA without English image, Japanese Smeargle joined the English card,
+  pokemontcg cross-checked 20 265 printings (no failure), 128 set icons cached (21 missing upstream).
+  Playwright: catalog row layout, filters shown, live job chrono, one / two price sources on card page, 404.
+- [ ] To do by the user: Reset catalog on the 8000 test service (Pokémon), MTG lowest offer after a prices
+  job, real-phone scan check.
 
 
 ## Build phases
