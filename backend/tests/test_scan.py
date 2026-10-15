@@ -397,3 +397,14 @@ def test_chinese_variants_and_script():
     assert script_language(ocr("喷火龙")) == "zh-hans"
     stage = get_provider("pokemon").parse_ocr(ocr("1阶进化", "火恐龙", "进化自 小火龙"))
     assert stage.name == "火恐龙"
+
+
+def test_pokemon_parser_reads_mainland_chinese_set_codes():
+    provider = get_provider("pokemon")
+    for text, code in (
+        ("151C 025/151", "151C"),
+        ("CS5aC 120/130", "CS5aC"),
+        ("CS4.5C 012/100", "CS4.5C"),
+    ):
+        hints = provider.parse_ocr(ocr("皮卡丘", text))
+        assert (hints.set_code, hints.collector_number) == (code, text.split()[1].split("/")[0])

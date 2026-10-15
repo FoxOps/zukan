@@ -688,6 +688,29 @@ Progress (plan below):
   pill "This is a {game} card" + Switch; AUTO: a model that found its script reads every frame
   (3 misses to stop), the Japanese model reading only Han hands over to the Chinese one.
   Real-phone check by the user: Sorcery sites, MTG card with Pokémon chosen, Chinese cards.
+- [x] Tests: 134 backend, 29 Android unit tests, Android lint + debug build, web build/lint/i18n
+  (351 texts), migration on a fresh database + `alembic check` (no drift).
+- [x] Live check (2026-10-15, API from the venv on port 8010, fresh database, access token 60 s):
+  - Session: access expired, two tabs reloading at once both refreshed (second through the
+    grace period) and stayed signed in.
+  - Sorcery 1601 printings; MTG (default_cards) 109 505 printings, MTGJSON 103k cross-checked.
+  - Pokémon en+ja+th + datasets: 787 sets, 71 408 printings (en 21 290, ja 13 006,
+    ko 20 029, zh-hans 14 162, th 2 921), 54 empty sets pruned, pokemontcg 1 126 differences.
+    Korean M2 001 is the `ko` language of the Japanese M2 printing; Chinese 151C Pikachu joined
+    the English Pikachu card. Found and fixed: a 330-character illustrator list (promo
+    collage) failed the insert; boxes reusing a number for other cards were merged as foils;
+    mainland Chinese set codes ("151C", "CS5aC", "CS4.5C") were not read by the OCR parser.
+  - Browser: flip button on catalog tile (fixed: the hover lift moved the button under the
+    pointer and the click opened the card page) and card page; stock dialog switched INR 457 to
+    DBL 47; trend column (+24.6 % / 0 % / −33.5 % from test history) and image view; sort by name
+    and number in a set; "exactly these colors" 241 → 201 Sorcery water cards; clear search;
+    email change; Jobs next run; arbitration ("Use second" renamed Imposter Professor Oak,
+    card count rule resolved 20) ; identify: MTG card with Pokémon chosen = `other_game`,
+    噴火龍 finds 喷火龙V, 151C 025 exact.
+  - Known TCGdex data issue (not ours): some Thai listings number cards differently from the
+    Japanese set, so a few Thai names land on another card (SV2a Pikachu got "วาไนเดอร์").
+- [ ] User: real-phone OCR checks; Reset catalog (Pokémon) on deployments to drop the old
+  TCGdex ko / zh-cn data; check `TCG_POKEMON_LANGUAGES` in `.env` (old lists keep ko/zh-cn).
 
 ### Context
 User backlog after 0.7.0 / 0.6.0: 13 server items (session, email, collection trend + views,

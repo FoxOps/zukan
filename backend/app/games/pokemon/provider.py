@@ -388,7 +388,9 @@ _PROMO = re.compile(r"\b(SWSH|SVP|SM|XY|BW)\s?(\d{2,3})\b")
 # Since Scarlet & Violet: "G PAL EN 123/193"
 _SET_LANG = re.compile(r"\b([A-Z][A-Z0-9]{1,4})\s+(" + "|".join(PRINTED_LANGUAGES) + r")\b")
 # Asian cards print the set code right before the number: "SV1a 001/073".
-_SET_BEFORE_NUMBER = re.compile(r"\b([A-Za-z]{1,4}\d{1,2}[a-zA-Z+]?)\s+[A-Z]{0,4}\d{1,3}\s*/")
+# Mainland Chinese codes: "CSV9C", "CS5aC", "151C" (digits first), "CS4.5C".
+_SET_CODE = r"(?=[\w.+]*[A-Za-z])(?:[A-Za-z]{1,4}\d{1,2}(?:\.\d)?[a-zA-Z+]{0,2}|\d{2,3}[A-Z])"
+_SET_BEFORE_NUMBER = re.compile(rf"\b({_SET_CODE})\s+[A-Z]{{0,4}}\d{{1,3}}\s*/")
 # Labels around the name: stage, HP, trainer kinds, in several languages.
 # Asian labels are written without a space before the name: no word boundary there.
 _STAGE = re.compile(
@@ -401,7 +403,7 @@ _HP = re.compile(
     re.IGNORECASE,
 )
 # The set code box ("SV4K", "G SV1a") read as a line of its own.
-_SET_ALONE = re.compile(r"^(?:[A-Z]\s+)?([A-Za-z]{1,4}\d{1,2}[a-zA-Z+]?)$")
+_SET_ALONE = re.compile(rf"^(?:[A-Z]\s+)?({_SET_CODE})$")
 _MARKERS = re.compile(
     r"Pokémon|Pokemon|Nintendo|GAME ?FREAK|Creatures|\b(HP|PV|KP)\s*\d|\d\s*(HP|PV|KP)\b|"
     r"ポケモン|포켓몬|宝可梦|寶可夢"
