@@ -1201,7 +1201,9 @@ export interface components {
              * @default found
              * @enum {string}
              */
-            status: "found" | "not_found" | "not_a_card";
+            status: "found" | "not_found" | "other_game" | "not_a_card";
+            /** Detected Game */
+            detected_game?: string | null;
         };
         /** IdentityOut */
         IdentityOut: {
