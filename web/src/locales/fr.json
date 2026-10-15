@@ -312,5 +312,11 @@
   "Card number (descending)": "Numéro de carte (décroissant)",
   "Name (A to Z)": "Nom (A à Z)",
   "Name (Z to A)": "Nom (Z à A)",
-  "Loading": "Chargement"
+  "Loading": "Chargement",
+  "Email changed": "Adresse e-mail modifiée",
+  "Change": "Modifier",
+  "Email": "E-mail",
+  "Leave empty to remove it": "Laisser vide pour la supprimer",
+  "Email of {{name}} (empty to remove)": "E-mail de {{name}} (vide pour le supprimer)",
+  "Set email": "Changer l’e-mail"
 }

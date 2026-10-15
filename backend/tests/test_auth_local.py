@@ -214,3 +214,30 @@ async def test_games_metadata(client, session):
     assert [c["code"] for c in games["mtg"]["colors"]][:5] == ["W", "U", "B", "R", "G"]
     assert games["sorcery"]["has_prices"] is True
     assert (await client.get("/api/games")).status_code == 401
+
+
+async def test_change_own_email(client, session):
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    wrong = await client.post(
+        "/api/auth/email",
+        json={"email": "a@example.org", "current_password": "nope"},
+        headers=headers,
+    )
+    assert wrong.status_code == 400
+    bad = await client.post(
+        "/api/auth/email",
+        json={"email": "not an email", "current_password": "password123"},
+        headers=headers,
+    )
+    assert bad.status_code == 422
+    done = await client.post(
+        "/api/auth/email",
+        json={"email": "a@example.org", "current_password": "password123"},
+        headers=headers,
+    )
+    assert done.status_code == 200 and done.json()["email"] == "a@example.org"
+    cleared = await client.post(
+        "/api/auth/email", json={"email": None, "current_password": "password123"}, headers=headers
+    )
+    assert cleared.json()["email"] is None

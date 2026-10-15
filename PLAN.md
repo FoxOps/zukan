@@ -653,8 +653,10 @@ Progress (plan below):
   collection). Set, sort, colors and advanced filters in one box; `color_mode=exact`. Flip
   button (`FlipIcon`) on every double-faced picture, catalog tiles flip in place
   (`CardSummaryOut.back_image`, `ItemOut.back_image`), back loaded on first flip.
-- [ ] C account email
-- [ ] D stock dialog version switch
+- [x] C account email: `POST /api/auth/email` (current password when the account has one,
+  `null` removes), Settings "Change" form; admin Users "Set email".
+- [x] D stock dialog: "Version" select (searchable over 10) listing every printing of the card,
+  newest first, default the page's printing; finish/language kept when the new version has them.
 - [ ] E collection trend column + views
 - [ ] F admin: next run, stale cards, arbitration
 - [ ] G Pokémon: th/id, Korean (type-null), Simplified Chinese (PTCG-CHS), empty sets pruned

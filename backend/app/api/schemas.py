@@ -92,6 +92,13 @@ class ProvidersOut(BaseModel):
     providers: list[ProviderOut]
 
 
+class EmailChangeIn(BaseModel):
+    # None removes the address.
+    email: EmailStr | None
+    # Needed when the account has a password (SSO-only accounts have none).
+    current_password: str | None = None
+
+
 class PasswordChangeIn(BaseModel):
     current_password: str | None = None
     new_password: Password

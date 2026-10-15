@@ -107,6 +107,69 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
   )
 }
 
+/** Own email address, behind a "Change" button; the password confirms the change. */
+function EmailForm({ me }: { me: Schemas['MeOut'] }) {
+  const { t } = useTranslation()
+  const toast = useToast()
+  const client = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [email, setEmail] = useState('')
+  const [current, setCurrent] = useState('')
+  const save = useMutation({
+    mutationFn: () =>
+      call(api.POST('/api/auth/email', { body: { email: email.trim() || null, current_password: current || null } })),
+    onSuccess: (updated) => {
+      toast(t('Email changed'))
+      client.setQueryData(['me'], updated)
+      setEditing(false)
+      setCurrent('')
+    },
+    onError: (e) => toast(e.message, 'error'),
+  })
+  if (!editing) {
+    return (
+      <p className="flex flex-wrap items-center gap-2 text-sm text-base-content/70">
+        {me.email ?? t('No email')}
+        <button
+          className="btn btn-ghost btn-xs"
+          onClick={() => {
+            setEmail(me.email ?? '')
+            setEditing(true)
+          }}
+        >
+          {t('Change')}
+        </button>
+        · <span className="badge badge-sm">{t(me.role)}</span>
+      </p>
+    )
+  }
+  return (
+    <form
+      className="flex flex-col gap-2"
+      onSubmit={(e) => {
+        e.preventDefault()
+        save.mutate()
+      }}
+    >
+      <label className="fieldset py-0">
+        <span className="fieldset-legend">{t('Email')}</span>
+        <input type="email" autoComplete="email" className="input w-full max-w-sm" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+        <span className="label">{t('Leave empty to remove it')}</span>
+      </label>
+      {me.has_password && (
+        <label className="fieldset py-0">
+          <span className="fieldset-legend">{t('Current password')}</span>
+          <input type="password" autoComplete="current-password" required className="input w-full max-w-sm" value={current} onChange={(e) => setCurrent(e.target.value)} />
+        </label>
+      )}
+      <div className="flex gap-2">
+        <button className="btn btn-primary btn-sm" disabled={save.isPending}>{t('Save')}</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>{t('Cancel')}</button>
+      </div>
+    </form>
+  )
+}
+
 export default function Settings() {
   const { t } = useTranslation()
   const me = useMe()
@@ -153,9 +216,7 @@ export default function Settings() {
       <div className="card bg-base-200">
         <div className="card-body">
           <h2 className="card-title">{user.username}</h2>
-          <p className="text-sm text-base-content/70">
-            {user.email ?? t('No email')} · <span className="badge badge-sm">{t(user.role)}</span>
-          </p>
+          <EmailForm me={user} />
         </div>
       </div>
 

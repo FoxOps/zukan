@@ -90,6 +90,27 @@ export interface paths {
         patch: operations["update_settings_api_auth_me_patch"];
         trace?: never;
     };
+    "/api/auth/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Email
+         * @description Change the account's email address. Signing in with SSO later does not overwrite
+         *     it (the identity keeps the provider's address).
+         */
+        post: operations["change_email_api_auth_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/password": {
         parameters: {
             query?: never;
@@ -936,6 +957,13 @@ export interface components {
             /** Counts */
             counts: components["schemas"]["DiscrepancyCountOut"][];
         };
+        /** EmailChangeIn */
+        EmailChangeIn: {
+            /** Email */
+            email: string | null;
+            /** Current Password */
+            current_password?: string | null;
+        };
         /** FilterOut */
         FilterOut: {
             /** Key */
@@ -1730,6 +1758,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SettingsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_email_api_auth_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailChangeIn"];
             };
         };
         responses: {
