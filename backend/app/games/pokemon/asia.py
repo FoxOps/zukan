@@ -34,6 +34,14 @@ CHINESE_REPO = "https://raw.githubusercontent.com/duanxr/PTCG-CHS-Datasets/main"
 CHINESE_DATA = f"{CHINESE_REPO}/ptcg_chs_infos.json"
 
 
+def artists(names: list[str] | None) -> str | None:
+    """Illustrators as one text, cut to the column size (promo collages credit dozens)."""
+    text = ", ".join(n.strip() for n in names or [] if n and n.strip())
+    if len(text) > 255:
+        text = text[:254].rsplit(", ", 1)[0] + "…"
+    return text or None
+
+
 def number_key(number: str) -> str:
     """Collector numbers compared across sources: "001" = "1"."""
     return number.strip().lstrip("0").casefold() or "0"
@@ -95,7 +103,7 @@ def korean_card(raw: dict[str, Any], set_id: str) -> CardData | None:
         set_external_id=set_id,
         collector_number=number,
         rarity=raw.get("rarity"),
-        artist=", ".join(raw.get("author") or []) or None,
+        artist=artists(raw.get("author")),
         finishes=["normal"],
         languages=["ko"],
         images={"ko": raw["img"]} if raw.get("img") else {},
@@ -214,7 +222,7 @@ def chinese_card(raw: dict[str, Any], set_id: str) -> CardData | None:
         set_external_id=set_id,
         collector_number=number,
         rarity=None if rarity in ("", "无标记") else rarity,
-        artist=", ".join(details.get("illustratorName") or []) or None,
+        artist=artists(details.get("illustratorName")),
         finishes=[_CN_FOILS.get(stars, "holo")],
         languages=["zh-hans"],
         images={"zh-hans": f"{CHINESE_REPO}/{image}"} if image and not stars else {},

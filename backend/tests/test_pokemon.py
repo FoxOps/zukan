@@ -597,3 +597,11 @@ async def test_korean_and_chinese_datasets(client, session, tcgdex, monkeypatch)
     assert pikachu.colors == ["lightning"]
     names = set(await session.scalars(select(CardName.name).where(CardName.card_id == pikachu.id)))
     assert {"皮卡丘", "Pikachu", "ピカチュウ", "피카츄"} <= names
+
+
+def test_long_artist_lists_fit():
+    from app.games.pokemon.asia import artists
+
+    long = artists([f"Illustrator number {i}" for i in range(30)])
+    assert len(long) <= 255 and long.endswith("…")
+    assert artists(["A", " B "]) == "A, B" and artists([]) is None
