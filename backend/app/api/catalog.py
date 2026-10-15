@@ -127,6 +127,8 @@ class CardSummaryOut(BaseModel):
     image: str | None
     # Printing whose image is shown: the card's page opens on it.
     printing_id: int | None = None
+    # Back face of that printing (double-faced cards), served like `image`.
+    back_image: str | None = None
     # Cheapest and most expensive printing (latest trend price of any finish), from the
     # user's price source for this game, in `currency`.
     price_min: Decimal | None
@@ -139,6 +141,20 @@ class CardPageOut(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+def number_sort_key(number: Any) -> Any:
+    """Collector numbers in printed order: "2" < "10" < "TG05"; letters before the first
+    digits group the specials ("SV001"), the rest of the text breaks ties ("12a")."""
+    digits = func.coalesce(func.substring(number, r"\d+"), "")
+    return func.concat(func.regexp_replace(number, r"\d.*$", ""), func.lpad(digits, 8, "0"), number)
+
+
+def back_image_link(printing: Printing) -> str | None:
+    """Local link to the back face of a double-faced printing."""
+    if not printing.attributes.get("back_image_url"):
+        return None
+    return f"/api/printings/{printing.id}/image?face=back"
 
 
 def _escape_like(q: str) -> str:
@@ -344,6 +360,9 @@ async def search_cards(
     color: Annotated[list[str] | None, Query()] = None,
     lang: Annotated[str | None, Query(max_length=8)] = None,
     attr: Annotated[list[str] | None, Query(max_length=200)] = None,
+    color_mode: Literal["include", "exact"] = "include",
+    sort: Literal["relevance", "name", "number"] = "relevance",
+    order: Literal["asc", "desc"] = "asc",
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> CardPageOut:
@@ -352,11 +371,15 @@ async def search_cards(
     `q`. Without `game`, only the games chosen in the user's settings are searched.
 
     `attr=<filter key>:<value>` (repeatable, all must match) uses the game's advanced
-    filters (GameOut.filters); it needs `game`."""
+    filters (GameOut.filters); it needs `game`.
+
+    `color_mode=exact`: cards of exactly the chosen colors (default: at least them).
+    `sort=name` orders by shown name, `sort=number` by collector number in `set_id`
+    (ignored without a set); `order` gives the direction."""
     # Cards without printings cannot be collected (left over by older catalog syncs).
     name = display_name(user.language)
     query = select(Card).where(exists().where(Printing.card_id == Card.id))
-    order: list[Any] = []
+    ordering: list[Any] = []
     if game:
         query = query.where(Card.game_id == game)
     elif user.catalog_games is not None:
@@ -375,7 +398,7 @@ async def search_cards(
             in_set = in_set.where(number_matches(Printing.collector_number, code.number))
         named = select(CardName.card_id).where(name_matches(q))
         query = query.where(or_(Card.id.in_(in_set), Card.id.in_(named)))
-        order.insert(0, case((Card.id.in_(in_set), 0), else_=1))
+        ordering.insert(0, case((Card.id.in_(in_set), 0), else_=1))
     elif q:
         query = query.where(exists().where(CardName.card_id == Card.id, name_matches(q)))
         text = _search_text(q)
@@ -392,11 +415,13 @@ async def search_cards(
             .where(CardName.card_id == Card.id)
             .scalar_subquery()
         )
-        order.insert(0, rank)
+        ordering.insert(0, rank)
     if set_id is not None:
         query = query.where(exists().where(Printing.card_id == Card.id, Printing.set_id == set_id))
     if color:
         query = query.where(Card.colors.contains(color))
+        if color_mode == "exact":
+            query = query.where(Card.colors.contained_by(color))
     if attr:
         if not game:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "attr needs a game")
@@ -417,11 +442,23 @@ async def search_cards(
     total = await session.scalar(select(func.count()).select_from(query.subquery()))
     # Sorting by the shown name costs a name lookup per card: whole catalogs (tens of
     # thousands of cards) are sorted by canonical name instead.
-    order += [name if (total or 0) <= SORT_BY_SHOWN_NAME_MAX else Card.name, Card.id]
+    by_name = name if (total or 0) <= SORT_BY_SHOWN_NAME_MAX else Card.name
+    direction = (lambda c: c.desc()) if order == "desc" else (lambda c: c.asc())
+    if sort == "number" and set_id is not None:
+        number = (
+            select(func.min(number_sort_key(Printing.collector_number)))
+            .where(Printing.card_id == Card.id, Printing.set_id == set_id)
+            .scalar_subquery()
+        )
+        ordering = [direction(number), direction(by_name), direction(Card.id)]
+    elif sort == "name":
+        ordering = [direction(by_name), direction(Card.id)]
+    else:
+        ordering += [by_name, Card.id]
     rows = (
         await session.execute(
             query.add_columns(name)
-            .order_by(*order)
+            .order_by(*ordering)
             .offset((page - 1) * page_size)
             .limit(page_size)
             .options(selectinload(Card.printings).selectinload(Printing.set))
@@ -454,6 +491,7 @@ async def search_cards(
                 printing_count=len(card.printings),
                 image=shown.image,
                 printing_id=shown.printing.id if shown.printing else None,
+                back_image=back_image_link(shown.printing) if shown.printing else None,
                 price_min=min(card_prices.get(card.id, []), default=None),
                 price_max=max(card_prices.get(card.id, []), default=None),
                 currency=_currency(card.game_id, user.price_source),
@@ -622,9 +660,7 @@ async def describe_printings(
                 finishes=p.finishes,
                 languages=p.languages,
                 image=image,
-                back_image=f"/api/printings/{p.id}/image?face=back"
-                if p.attributes.get("back_image_url")
-                else None,
+                back_image=back_image_link(p),
                 name=shown.name,
                 translation=shown.translation,
                 names=names,

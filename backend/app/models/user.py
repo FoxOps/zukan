@@ -70,7 +70,8 @@ class RefreshToken(TimestampMixin, Base):
     """Opaque rotating refresh token. Only the SHA-256 hash is stored.
 
     Tokens issued from one login share a family; reuse of a rotated token revokes the
-    whole family (stolen token detection).
+    whole family (stolen token detection), except within a short grace period after the
+    rotation (two tabs, or a reload during a refresh, present the same token).
     """
 
     __tablename__ = "refresh_token"
@@ -81,3 +82,5 @@ class RefreshToken(TimestampMixin, Base):
     family_id: Mapped[uuid.UUID] = mapped_column(index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Set when the token was exchanged for a new one (not on logout).
+    rotated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

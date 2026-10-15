@@ -2,8 +2,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router'
-import { api, call } from '../api/client'
-import { useProviders } from '../api/queries'
+import { api, call, markSignedIn } from '../api/client'
+import { meQuery, useProviders } from '../api/queries'
 import { LanguageMenu } from '../components/I18n'
 
 /** Only same-site paths, never `//host` (open redirect). */
@@ -29,7 +29,12 @@ export default function Login() {
     setError(null)
     try {
       await call(api.POST('/api/auth/login', { body: { username, password, mode: 'cookie' } }))
-      await client.invalidateQueries({ queryKey: ['me'] })
+      markSignedIn()
+      // Drop everything cached for the old session, then load `me` before the guard
+      // reads it: no stale 401 can send the user back here.
+      await client.cancelQueries()
+      client.removeQueries()
+      await client.fetchQuery(meQuery)
       navigate(next, { replace: true })
     } catch (err) {
       setError((err as Error).message)

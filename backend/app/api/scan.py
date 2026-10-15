@@ -64,8 +64,15 @@ class IdentifyOut(BaseModel):
     # The card was missing from the catalog and was just fetched from its game's source.
     fetched: bool = False
     # found: candidates. not_found: the text looks like a card (game markers, set code
-    # and number) but none matches. not_a_card: nothing card-like was read.
-    status: Literal["found", "not_found", "not_a_card"] = "found"
+    # and number) but none matches. other_game: a card of another supported game than the
+    # one asked for (`detected_game`). not_a_card: nothing card-like was read.
+    status: Literal["found", "not_found", "other_game", "not_a_card"] = "found"
+    detected_game: str | None = None
+
+
+# A card photo reads as several lines (name, type, rules, credits); a stray sign or
+# label is one or two.
+CARD_LINES = 4
 
 
 @router.post("/identify")
@@ -76,7 +83,10 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
     lines = [OcrLine(**line.model_dump()) for line in body.lines if line.text.strip()]
     result = await identify.identify(session, lines, body.game)
     fetched = False
-    if not result.candidates and lines:
+    other_game = None
+    if not result.candidates and lines and body.game:
+        other_game = identify.other_game(lines, body.game)
+    if not result.candidates and lines and other_game is None:
         # Not in the catalog (yet): ask the game's source, then match again.
         providers = [registry()[body.game]] if body.game else list(registry().values())
         async with http_client(timeout=20) as http:
@@ -116,9 +126,15 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
             )
         )
     hints = result.hints
+    found_status: Literal["found", "not_found", "other_game", "not_a_card"]
     if candidates:
         found_status = "found"
+    elif other_game is not None:
+        found_status = "other_game"
     elif hints.recognized or hints.set_code or hints.collector_number:
+        found_status = "not_found"
+    elif body.game and hints.name and len(lines) >= CARD_LINES:
+        # Games without set codes on the card (Sorcery): a name and enough text.
         found_status = "not_found"
     else:
         found_status = "not_a_card"
@@ -133,4 +149,5 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
         candidates=candidates,
         fetched=fetched,
         status=found_status,
+        detected_game=other_game,
     )

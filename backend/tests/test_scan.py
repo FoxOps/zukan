@@ -139,6 +139,8 @@ def test_sorcery_parser():
 async def catalogs(session, monkeypatch):
     """MTG, Pokémon and Sorcery fixture catalogs, synced one source at a time."""
     monkeypatch.setenv("TCG_POKEMON_LANGUAGES", '["en", "fr", "ja"]')
+    monkeypatch.setenv("TCG_POKEMON_KOREAN", "false")
+    monkeypatch.setenv("TCG_POKEMON_CHINESE", "false")
     await register_games()
 
     def tcgdex(request: httpx.Request) -> httpx.Response:
@@ -366,3 +368,43 @@ async def test_identify_short_asian_name_in_noisy_text(client, alice):
     # No set or number, extra glyphs around the name: found by containment.
     result = await scan(client, alice, ocr("ーートロピウスのぎ", "リーフドレイン 20"), "pokemon")
     assert result["candidates"][0]["card"]["name"] in {"Tropius", "トロピウス"}
+
+
+async def test_card_of_another_game_is_told_apart(client, alice):
+    # An MTG card scanned with Pokémon chosen: not "not a card".
+    result = await scan(client, alice, ELVES_FR, "pokemon")
+    assert (result["status"], result["detected_game"]) == ("other_game", "mtg")
+    # Sorcery chosen, a Sorcery card that is not in the catalog (no set code to tell).
+    unknown = ocr(
+        "Unknown Wanderer",
+        "A Mortal Minion",
+        "Genesis: draw a spell.",
+        "Someone",
+        "© 2025",
+    )
+    result = await scan(client, alice, unknown, "sorcery")
+    assert result["status"] == "not_found"
+    assert (await scan(client, alice, ocr("Exit", "Push"), "sorcery"))["status"] == "not_a_card"
+
+
+def test_chinese_variants_and_script():
+    from app.games.ocr import chinese_variants, script_language
+
+    assert chinese_variants(["噴火龍"]) == ["噴火龍", "喷火龙"]
+    assert chinese_variants(["喷火龙"]) == ["喷火龙", "噴火龍"]
+    assert chinese_variants(["Lugia", "トロピウス"]) == ["Lugia", "トロピウス"]
+    assert script_language(ocr("噴火龍")) == "zh-hant"
+    assert script_language(ocr("喷火龙")) == "zh-hans"
+    stage = get_provider("pokemon").parse_ocr(ocr("1阶进化", "火恐龙", "进化自 小火龙"))
+    assert stage.name == "火恐龙"
+
+
+def test_pokemon_parser_reads_mainland_chinese_set_codes():
+    provider = get_provider("pokemon")
+    for text, code in (
+        ("151C 025/151", "151C"),
+        ("CS5aC 120/130", "CS5aC"),
+        ("CS4.5C 012/100", "CS4.5C"),
+    ):
+        hints = provider.parse_ocr(ocr("皮卡丘", text))
+        assert (hints.set_code, hints.collector_number) == (code, text.split()[1].split("/")[0])

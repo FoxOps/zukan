@@ -124,5 +124,8 @@
     <string name="card_not_found">Carte introuvable</string>
     <string name="not_a_card">Ce n’est pas une carte</string>
     <string name="not_a_card_help">Aucun nom ni numéro de carte n’a pu être lu. Cadrez la carte en entier, avec une bonne lumière.</string>
+    <string name="card_of_other_game">C’est une carte %1$s</string>
+    <string name="card_of_other_game_help">Elle appartient à un autre jeu que celui choisi en haut.</string>
+    <string name="switch_game">Changer</string>
     <string name="error_identify">La carte n’a pas pu être identifiée</string>
 </resources>

@@ -17,6 +17,7 @@ from app.api.deps import (
     current_user,
 )
 from app.api.schemas import (
+    EmailChangeIn,
     LoginIn,
     MeOut,
     OidcExchangeIn,
@@ -221,6 +222,17 @@ async def update_settings(body: SettingsIn, user: CurrentUser, session: SessionD
                 status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown price sources: {unknown}"
             )
         user.price_sources = chosen
+    await session.commit()
+    return await _load_me(session, user.id)
+
+
+@router.post("/email")
+async def change_email(body: EmailChangeIn, user: CurrentUser, session: SessionDep) -> MeOut:
+    """Change the account's email address. Signing in with SSO later does not overwrite
+    it (the identity keeps the provider's address)."""
+    if user.password_hash and not verify_password(body.current_password or "", user.password_hash):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is wrong")
+    user.email = body.email
     await session.commit()
     return await _load_me(session, user.id)
 

@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.games.base import GameProvider, OcrHints, OcrLine, registry
-from app.games.ocr import has_cjk
+from app.games.ocr import chinese_variants, has_cjk
 from app.models import Card, CardName, CardSet, Printing
 
 MAX_CARDS = 8
@@ -139,7 +139,7 @@ async def _identify_game(
     session: AsyncSession, provider: GameProvider, lines: list[OcrLine]
 ) -> tuple[OcrHints, dict[int, Candidate]]:
     hints = provider.parse_ocr(lines)
-    names = [n for n in [hints.name, *hints.other_names] if n]
+    names = chinese_variants([n for n in [hints.name, *hints.other_names] if n])
     # Text that clearly belongs to this game (copyright line...) wins ties between games.
     bonus = 0.05 if hints.recognized else 0.0
     found: dict[int, Candidate] = {}
@@ -166,7 +166,7 @@ async def _identify_game(
 
     if hints.name:
         # Other lines only matter when the expected name line reads badly.
-        by_name = await _name_similarity(session, provider.id, [hints.name])
+        by_name = await _name_similarity(session, provider.id, chinese_variants([hints.name]))
         if max(by_name.values(), default=0) < GOOD_SIMILARITY and hints.other_names:
             by_name = await _name_similarity(session, provider.id, names)
         for card_id, score in by_name.items():
@@ -181,6 +181,17 @@ def _printing_order(printing: Printing, lang: str | None) -> tuple:
         0 if lang and lang in printing.languages else 1,
         -(printing.set.release_date or date.min).toordinal(),
     )
+
+
+def other_game(lines: list[OcrLine], game_id: str) -> str | None:
+    """Another supported game whose card the text clearly is (its markers: copyright
+    line, set code format...), when the chosen game's markers are not there."""
+    if registry()[game_id].parse_ocr(lines).recognized:
+        return None
+    for provider in registry().values():
+        if provider.id != game_id and provider.parse_ocr(lines).recognized:
+            return provider.id
+    return None
 
 
 async def identify(

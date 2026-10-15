@@ -72,6 +72,11 @@ export default function Users() {
     if (value) update.mutate({ id: user.id, body: { password: value } })
   }
 
+  const changeEmail = (user: User) => {
+    const value = window.prompt(t('Email of {{name}} (empty to remove)', { name: user.username }), user.email ?? '')
+    if (value !== null) update.mutate({ id: user.id, body: { email: value.trim() || null } })
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">{t('Users')}</h1>
@@ -119,6 +124,9 @@ export default function Users() {
                     />
                   </td>
                   <td className="flex justify-end gap-1">
+                    <button className="btn btn-ghost btn-xs" onClick={() => changeEmail(u)}>
+                      {t('Set email')}
+                    </button>
                     <button className="btn btn-ghost btn-xs" onClick={() => resetPassword(u)}>
                       {t('Set password')}
                     </button>

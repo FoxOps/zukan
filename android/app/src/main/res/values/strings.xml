@@ -123,5 +123,8 @@
     <string name="card_not_found">Card not found</string>
     <string name="not_a_card">Not a card</string>
     <string name="not_a_card_help">No card name or number could be read. Fill the frame with the card, in good light.</string>
+    <string name="card_of_other_game">This is a %1$s card</string>
+    <string name="card_of_other_game_help">It belongs to another game than the one chosen above.</string>
+    <string name="switch_game">Switch</string>
     <string name="error_identify">The card could not be identified</string>
 </resources>

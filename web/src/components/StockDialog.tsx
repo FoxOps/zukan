@@ -5,18 +5,27 @@ import { useAdjust } from '../api/stock'
 import { currentLanguage } from '../i18n'
 import { CONDITIONS, conditionName, finishName, languageName } from '../lib/format'
 import { LangFlag } from './Badges'
+import { Select } from './Select'
 
 export type StockTarget = {
   printingId: number
   title: string
   finishes: string[]
   languages: string[]
+  // Short name in the version list ("MH2 267 · Modern Horizons 2").
+  label?: string
 }
 
-type Props = { game?: Game; target: StockTarget | null; onClose: () => void }
+type Props = {
+  game?: Game
+  target: StockTarget | null
+  // Other versions of the card the user may switch to (a wrong pick is fixed here).
+  versions?: StockTarget[]
+  onClose: () => void
+}
 
 /** Pick finish, condition, language and quantity, then add or remove copies. */
-export function StockDialog({ game, target, onClose }: Props) {
+export function StockDialog({ game, target, versions = [], onClose }: Props) {
   const { t } = useTranslation()
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -26,7 +35,7 @@ export function StockDialog({ game, target, onClose }: Props) {
     <dialog ref={dialog} className="modal" onClose={onClose}>
       {target && game && (
         // Keyed so each opening starts from fresh defaults.
-        <StockForm key={target.printingId} game={game} target={target} close={() => dialog.current?.close()} />
+        <StockForm key={target.printingId} game={game} initial={target} versions={versions} close={() => dialog.current?.close()} />
       )}
       <form method="dialog" className="modal-backdrop">
         <button>{t('close')}</button>
@@ -35,19 +44,34 @@ export function StockDialog({ game, target, onClose }: Props) {
   )
 }
 
-function StockForm({ game, target, close }: { game: Game; target: StockTarget; close: () => void }) {
+type FormProps = { game: Game; initial: StockTarget; versions: StockTarget[]; close: () => void }
+
+function StockForm({ game, initial, versions, close }: FormProps) {
   const { t } = useTranslation()
   const adjust = useAdjust()
-  const finishes = target.finishes.length ? target.finishes : game.finishes.map((f) => f.code)
+  const [target, setTarget] = useState(initial)
+  const finishesOf = (v: StockTarget) => (v.finishes.length ? v.finishes : game.finishes.map((f) => f.code))
+  // Languages the printing exists in (all of the game's when the catalog does not say).
+  const languagesOf = (v: StockTarget) => (v.languages.length ? v.languages : game.languages)
+  const finishes = finishesOf(target)
+  const languages = languagesOf(target)
   const [finish, setFinish] = useState(finishes[0] ?? '')
   const [condition, setCondition] = useState<(typeof CONDITIONS)[number]['code']>('NM')
-  // Languages the printing exists in (all of the game's when the catalog does not say).
-  const languages = target.languages.length ? target.languages : game.languages
   const [language, setLanguage] = useState(() => {
     const preferred = [localStorage.getItem('tcg.language'), currentLanguage()]
     return preferred.find((l) => l && languages.includes(l)) ?? languages[0] ?? 'en'
   })
   const [quantity, setQuantity] = useState(1)
+  // Another version keeps the choices it also offers (condition and quantity always).
+  const switchTo = (id: string) => {
+    const next = versions.find((v) => String(v.printingId) === id)
+    if (!next) return
+    setTarget(next)
+    const nextFinishes = finishesOf(next)
+    if (!nextFinishes.includes(finish)) setFinish(nextFinishes[0] ?? '')
+    const nextLanguages = languagesOf(next)
+    if (!nextLanguages.includes(language)) setLanguage(nextLanguages[0] ?? 'en')
+  }
 
   const submit = (sign: 1 | -1) => {
     localStorage.setItem('tcg.language', language)
@@ -61,6 +85,18 @@ function StockForm({ game, target, close }: { game: Game; target: StockTarget; c
     <div className="modal-box animate-in fade-in zoom-in-95 duration-200">
       <h3 className="text-lg font-bold">{target.title}</h3>
       <div className="mt-4 grid grid-cols-2 gap-3">
+        {versions.length > 1 && (
+          <label className="fieldset col-span-2 py-0">
+            <span className="fieldset-legend">{t('Version')}</span>
+            <Select
+              className="w-full"
+              value={String(target.printingId)}
+              onChange={switchTo}
+              aria-label={t('Version')}
+              options={versions.map((v) => ({ value: String(v.printingId), label: v.label ?? v.title }))}
+            />
+          </label>
+        )}
         <div className="fieldset col-span-2">
           <span className="fieldset-legend">{t('Finish')}</span>
           <div className="join">

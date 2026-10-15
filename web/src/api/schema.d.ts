@@ -90,6 +90,27 @@ export interface paths {
         patch: operations["update_settings_api_auth_me_patch"];
         trace?: never;
     };
+    "/api/auth/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Email
+         * @description Change the account's email address. Signing in with SSO later does not overwrite
+         *     it (the identity keeps the provider's address).
+         */
+        post: operations["change_email_api_auth_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/password": {
         parameters: {
             query?: never;
@@ -321,6 +342,10 @@ export interface paths {
          *
          *     `attr=<filter key>:<value>` (repeatable, all must match) uses the game's advanced
          *     filters (GameOut.filters); it needs `game`.
+         *
+         *     `color_mode=exact`: cards of exactly the chosen colors (default: at least them).
+         *     `sort=name` orders by shown name, `sort=number` by collector number in `set_id`
+         *     (ignored without a set); `order` gives the direction.
          */
         get: operations["search_cards_api_cards_get"];
         put?: never;
@@ -627,6 +652,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Job Schedule
+         * @description Next automatic run of every job the worker runs.
+         */
+        get: operations["job_schedule_api_admin_schedule_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/jobs/{game_id}/{kind}": {
         parameters: {
             query?: never;
@@ -707,11 +752,114 @@ export interface paths {
         };
         /**
          * List Discrepancies
-         * @description Where secondary catalog sources disagree with the primary one (kept).
+         * @description Where secondary catalog sources disagree with the primary one (kept unless
+         *     arbitrated).
          */
         get: operations["list_discrepancies_api_admin_discrepancies_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/discrepancies/{discrepancy_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve Discrepancy
+         * @description Arbitrate one discrepancy; the value chosen is written at once and kept after
+         *     every later sync.
+         */
+        post: operations["resolve_discrepancy_api_admin_discrepancies__discrepancy_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/discrepancies/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Rule
+         * @description Prefer one side for every discrepancy of this game, source and field, the open ones
+         *     and those found later (single arbitrations of that field are replaced).
+         */
+        put: operations["set_rule_api_admin_discrepancies_rules_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/discrepancies/rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Rule
+         * @description Remove a rule: the discrepancies it resolved are open again.
+         */
+        delete: operations["delete_rule_api_admin_discrepancies_rules__rule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/stale": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Stale
+         * @description Cards whose data is outdated or incomplete (see app.services.refresh).
+         */
+        get: operations["list_stale_api_admin_stale_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/cards/{card_id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Card
+         * @description Fetch one card again from its game's source now.
+         */
+        post: operations["refresh_card_api_admin_cards__card_id__refresh_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -831,6 +979,13 @@ export interface components {
             /** Page Size */
             page_size: number;
         };
+        /** CardRefreshOut */
+        CardRefreshOut: {
+            /** Updated */
+            updated: boolean;
+            /** Stale */
+            stale: boolean;
+        };
         /** CardSummaryOut */
         CardSummaryOut: {
             /** Id */
@@ -849,6 +1004,8 @@ export interface components {
             image: string | null;
             /** Printing Id */
             printing_id?: number | null;
+            /** Back Image */
+            back_image?: string | null;
             /** Price Min */
             price_min: string | null;
             /** Price Max */
@@ -890,6 +1047,15 @@ export interface components {
             field: string;
             /** Count */
             count: number;
+            /**
+             * Resolved
+             * @default 0
+             */
+            resolved: number;
+            /** Rule */
+            rule?: ("primary" | "secondary") | null;
+            /** Rule Id */
+            rule_id?: number | null;
         };
         /** DiscrepancyOut */
         DiscrepancyOut: {
@@ -920,6 +1086,14 @@ export interface components {
              * Format: date-time
              */
             first_seen: string;
+            /** Resolution */
+            resolution: ("primary" | "secondary" | "custom") | null;
+            /** Resolved Value */
+            resolved_value: string | null;
+            /** Resolved At */
+            resolved_at: string | null;
+            /** By Rule */
+            by_rule: boolean;
         };
         /** DiscrepancyPageOut */
         DiscrepancyPageOut: {
@@ -929,6 +1103,13 @@ export interface components {
             total: number;
             /** Counts */
             counts: components["schemas"]["DiscrepancyCountOut"][];
+        };
+        /** EmailChangeIn */
+        EmailChangeIn: {
+            /** Email */
+            email: string | null;
+            /** Current Password */
+            current_password?: string | null;
         };
         /** FilterOut */
         FilterOut: {
@@ -1020,7 +1201,9 @@ export interface components {
              * @default found
              * @enum {string}
              */
-            status: "found" | "not_found" | "not_a_card";
+            status: "found" | "not_found" | "other_game" | "not_a_card";
+            /** Detected Game */
+            detected_game?: string | null;
         };
         /** IdentityOut */
         IdentityOut: {
@@ -1084,6 +1267,8 @@ export interface components {
             rarity: string | null;
             /** Image */
             image: string | null;
+            /** Back Image */
+            back_image?: string | null;
             /** Finish */
             finish: string;
             /** Condition */
@@ -1104,6 +1289,8 @@ export interface components {
             unit_price: string | null;
             /** Total */
             total: string | null;
+            /** @default {} */
+            trends: components["schemas"]["TrendsOut"];
             /** Notes */
             notes: string | null;
             /**
@@ -1400,11 +1587,45 @@ export interface components {
             /** Run Id */
             run_id: number;
         };
+        /** ResolveIn */
+        ResolveIn: {
+            /** Choice */
+            choice: ("primary" | "secondary" | "custom") | null;
+            /** Value */
+            value?: string | null;
+        };
         /**
          * Role
          * @enum {string}
          */
         Role: "admin" | "user";
+        /** RuleIn */
+        RuleIn: {
+            /** Game Id */
+            game_id: string;
+            /** Source */
+            source: string;
+            /** Field */
+            field: string;
+            /**
+             * Prefer
+             * @enum {string}
+             */
+            prefer: "primary" | "secondary";
+        };
+        /** ScheduleOut */
+        ScheduleOut: {
+            /** Game Id */
+            game_id: string;
+            kind: components["schemas"]["JobKind"];
+            /**
+             * Next Run At
+             * Format: date-time
+             */
+            next_run_at: string;
+            /** Check Seconds */
+            check_seconds: number;
+        };
         /** SetOut */
         SetOut: {
             /** Id */
@@ -1435,6 +1656,32 @@ export interface components {
             price_source?: string | null;
             /** Price Sources */
             price_sources?: string[] | null;
+        };
+        /** StaleCardOut */
+        StaleCardOut: {
+            /** Id */
+            id: number;
+            /** Game Id */
+            game_id: string;
+            /** Name */
+            name: string;
+            /** Printing Count */
+            printing_count: number;
+            /** Reasons */
+            reasons: string[];
+            /** Last Seen At */
+            last_seen_at: string | null;
+            /** Refresh Attempted At */
+            refresh_attempted_at: string | null;
+        };
+        /** StalePageOut */
+        StalePageOut: {
+            /** Items */
+            items: components["schemas"]["StaleCardOut"][];
+            /** Total */
+            total: number;
+            /** Refreshable */
+            refreshable: string[];
         };
         /**
          * TokenOut
@@ -1485,6 +1732,25 @@ export interface components {
             condition: string;
             /** Language */
             language: string;
+        };
+        /** TrendOut */
+        TrendOut: {
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "up" | "down" | "flat";
+            /** Change */
+            change: number;
+        };
+        /**
+         * TrendsOut
+         * @description Market price trend over 24 hours, 7 days and 30 days (None: not enough history).
+         */
+        TrendsOut: {
+            d1?: components["schemas"]["TrendOut"] | null;
+            d7?: components["schemas"]["TrendOut"] | null;
+            d30?: components["schemas"]["TrendOut"] | null;
         };
         /** UserCreateIn */
         UserCreateIn: {
@@ -1722,6 +1988,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SettingsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_email_api_auth_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailChangeIn"];
             };
         };
         responses: {
@@ -2183,6 +2482,9 @@ export interface operations {
                 color?: string[] | null;
                 lang?: string | null;
                 attr?: string[] | null;
+                color_mode?: "include" | "exact";
+                sort?: "relevance" | "name" | "number";
+                order?: "asc" | "desc";
                 page?: number;
                 page_size?: number;
             };
@@ -2351,6 +2653,7 @@ export interface operations {
                 q?: string | null;
                 set_id?: number | null;
                 color?: string[] | null;
+                color_mode?: "include" | "exact";
                 finish?: string | null;
                 condition?: components["schemas"]["Condition"] | null;
                 language?: string | null;
@@ -2760,6 +3063,26 @@ export interface operations {
             };
         };
     };
+    job_schedule_api_admin_schedule_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"][];
+                };
+            };
+        };
+    };
     start_job_api_admin_jobs__game_id___kind__post: {
         parameters: {
             query?: never;
@@ -2886,6 +3209,7 @@ export interface operations {
                 game?: string | null;
                 source?: string | null;
                 field?: string | null;
+                state?: "open" | "resolved" | "all";
                 page?: number;
                 page_size?: number;
             };
@@ -2902,6 +3226,171 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DiscrepancyPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_discrepancy_api_admin_discrepancies__discrepancy_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                discrepancy_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_rule_api_admin_discrepancies_rules_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_rule_api_admin_discrepancies_rules__rule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_stale_api_admin_stale_get: {
+        parameters: {
+            query?: {
+                game?: string | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StalePageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_card_api_admin_cards__card_id__refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardRefreshOut"];
                 };
             };
             /** @description Validation Error */

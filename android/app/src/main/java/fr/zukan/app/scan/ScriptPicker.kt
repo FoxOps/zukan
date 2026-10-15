@@ -25,6 +25,8 @@ object ScriptPicker {
         }
     }
 
+    fun hasKana(lines: List<String>): Boolean = count(lines) { it.isKana() } > 0
+
     private fun Int.isKana(): Boolean = Character.UnicodeScript.of(this).let {
         it == Character.UnicodeScript.HIRAGANA || it == Character.UnicodeScript.KATAKANA
     }

@@ -18,8 +18,9 @@ class Settings(BaseSettings):
     # OIDC redirect URIs are built from it.
     public_url: str = "http://localhost:5173"
 
-    access_token_ttl_seconds: int = 15 * 60
-    refresh_token_ttl_seconds: int = 30 * 24 * 3600
+    access_token_ttl_seconds: int = 60 * 60
+    # Sliding: every refresh issues a new token with the full lifetime.
+    refresh_token_ttl_seconds: int = 90 * 24 * 3600
     # Secure cookies need HTTPS; disable only for local development.
     cookie_secure: bool = True
 

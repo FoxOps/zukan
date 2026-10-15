@@ -235,6 +235,44 @@ async def user_prices(
     return found
 
 
+# Periods of the trend arrows, and the change below which a price counts as stable.
+TREND_PERIODS = {"d1": 1, "d7": 7, "d30": 30}
+TREND_STABLE = Decimal("0.02")
+
+
+@dataclass(frozen=True)
+class Trend:
+    direction: str  # "up", "down" or "flat"
+    change: float  # relative change, 0.1 = +10 %
+
+
+def trend_between(past: PricePoint | None, now: PricePoint | None) -> Trend | None:
+    """Direction of the market price from `past` to `now`; None without two prices."""
+    if past is None or now is None or past.date >= now.date or not past.trend:
+        return None
+    change = (now.trend - past.trend) / past.trend
+    direction = "flat" if abs(change) < TREND_STABLE else "up" if change > 0 else "down"
+    return Trend(direction, float(round(change, 4)))
+
+
+async def price_trends(
+    session: AsyncSession,
+    wanted: str | None,
+    game_by_printing: dict[int, str],
+    now: dict[tuple[int, str], PricePoint],
+    today: date | None = None,
+) -> dict[tuple[int, str], dict[str, Trend | None]]:
+    """Trend of each (printing, finish) of `now` over the last day, week and month, from
+    the price history of the user's source (None where the history is too short)."""
+    today = today or date.today()
+    found: dict[tuple[int, str], dict[str, Trend | None]] = {key: {} for key in now}
+    for period, days in TREND_PERIODS.items():
+        past = await user_prices(session, wanted, game_by_printing, today - timedelta(days=days))
+        for key, point in now.items():
+            found[key][period] = trend_between(past.get(key), point)
+    return found
+
+
 def unit_price(item: CollectionItem, prices: dict[tuple[int, str], PricePoint]) -> Decimal | None:
     if item.manual_price is not None:
         return item.manual_price

@@ -198,6 +198,7 @@ async def _execute(game_id: str, kind: JobKind) -> dict:
                         "cross_checked": checks.matched,
                         "discrepancies": checks.discrepancies,
                         "failed_sources": checks.failed_sources,
+                        "arbitrated": checks.resolved,
                     }
                 return report
             case JobKind.images:

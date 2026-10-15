@@ -174,13 +174,14 @@ export default function CardDetail() {
       }
     })
     .filter((x) => x !== null)
-  const openStock = (p: PrintingOut) =>
-    setTarget({
-      printingId: p.id,
-      title: `${p.name || c.name} - ${p.set.code} ${p.collector_number ?? ''}`,
-      finishes: p.finishes,
-      languages: p.languages,
-    })
+  const stockTarget = (p: PrintingOut): StockTarget => ({
+    printingId: p.id,
+    title: `${p.name || c.name} - ${p.set.code} ${p.collector_number ?? ''}`,
+    finishes: p.finishes,
+    languages: p.languages,
+    label: `${p.set.code} ${p.collector_number ?? ''} · ${p.set.name}${p.set.release_date ? ` (${p.set.release_date.slice(0, 4)})` : ''}`,
+  })
+  const openStock = (p: PrintingOut) => setTarget(stockTarget(p))
   // The API lists owned printings first.
   const words = normalize(setFilter).split(/\s+/).filter(Boolean)
   const printings = sortPrintings(
@@ -217,6 +218,7 @@ export default function CardDetail() {
               src={selected.image}
               back={selected.back_image ?? null}
               alt={name}
+              flipOnClick
               className="w-full max-w-xs shadow-xl rounded-[4.5%]"
             />
           )}
@@ -487,7 +489,7 @@ export default function CardDetail() {
           </table>
         </div>
       </div>
-      <StockDialog game={game} target={target} onClose={() => setTarget(null)} />
+      <StockDialog game={game} target={target} versions={target ? sortPrintings(c.printings, 'newest', undefined).map(stockTarget) : []} onClose={() => setTarget(null)} />
     </div>
   )
 }

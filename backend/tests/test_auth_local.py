@@ -1,9 +1,11 @@
+from datetime import timedelta
+
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.core.config import get_settings
 from app.main import create_default_admin
-from app.models import Role, User
+from app.models import RefreshToken, Role, User
 from tests.conftest import CSRF, bearer, make_user
 
 
@@ -100,11 +102,37 @@ async def test_refresh_rotates_and_detects_reuse(client, session):
     second = rotated.json()["refresh_token"]
     assert second != first
 
-    # Reusing the rotated token is treated as theft: the whole family is revoked.
+    # Reusing it right away (another tab refreshing at the same time) is accepted.
+    again = await client.post("/api/auth/refresh", json={"refresh_token": first})
+    assert again.status_code == 200
+
+    # Past the grace period, reuse is treated as theft: the whole family is revoked.
+    await session.execute(
+        update(RefreshToken).values(rotated_at=RefreshToken.rotated_at - timedelta(minutes=5))
+    )
+    await session.commit()
     reuse = await client.post("/api/auth/refresh", json={"refresh_token": first})
     assert reuse.status_code == 401
     after = await client.post("/api/auth/refresh", json={"refresh_token": second})
     assert after.status_code == 401
+
+
+async def test_rotated_token_refused_after_logout(client, session):
+    await make_user(session)
+    login = await client.post(
+        "/api/auth/login", json={"username": "alice", "password": "password123"}
+    )
+    first = login.json()["refresh_token"]
+    second = (await client.post("/api/auth/refresh", json={"refresh_token": first})).json()[
+        "refresh_token"
+    ]
+    assert (
+        await client.post("/api/auth/logout", json={"refresh_token": second})
+    ).status_code == 200
+    # Even within the grace period, a logged-out session does not come back.
+    assert (
+        await client.post("/api/auth/refresh", json={"refresh_token": first})
+    ).status_code == 401
 
 
 async def test_logout_revokes_refresh_token(client, session):
@@ -188,3 +216,30 @@ async def test_games_metadata(client, session):
     assert [c["code"] for c in games["mtg"]["colors"]][:5] == ["W", "U", "B", "R", "G"]
     assert games["sorcery"]["has_prices"] is True
     assert (await client.get("/api/games")).status_code == 401
+
+
+async def test_change_own_email(client, session):
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    wrong = await client.post(
+        "/api/auth/email",
+        json={"email": "a@example.org", "current_password": "nope"},
+        headers=headers,
+    )
+    assert wrong.status_code == 400
+    bad = await client.post(
+        "/api/auth/email",
+        json={"email": "not an email", "current_password": "password123"},
+        headers=headers,
+    )
+    assert bad.status_code == 422
+    done = await client.post(
+        "/api/auth/email",
+        json={"email": "a@example.org", "current_password": "password123"},
+        headers=headers,
+    )
+    assert done.status_code == 200 and done.json()["email"] == "a@example.org"
+    cleared = await client.post(
+        "/api/auth/email", json={"email": None, "current_password": "password123"}, headers=headers
+    )
+    assert cleared.json()["email"] is None
