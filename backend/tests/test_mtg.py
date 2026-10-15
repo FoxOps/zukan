@@ -352,10 +352,65 @@ async def test_mtgjson_fills_gaps_and_reports_discrepancies(client, session, scr
     found = {(d["set_code"], d["collector_number"], d["field"]): d for d in page["items"]}
     assert set(found) == {("DOM", "168", "rarity"), ("ISD", None, "release date")}
     assert found["DOM", "168", "rarity"]["secondary_value"] == "uncommon"
+    count = {"resolved": 0, "rule": None, "rule_id": None}
     assert page["counts"] == [
-        {"game_id": "mtg", "source": "mtgjson", "field": "rarity", "count": 1},
-        {"game_id": "mtg", "source": "mtgjson", "field": "release date", "count": 1},
+        {"game_id": "mtg", "source": "mtgjson", "field": "rarity", "count": 1, **count},
+        {"game_id": "mtg", "source": "mtgjson", "field": "release date", "count": 1, **count},
     ]
+
+    # Arbitration: MTGJSON's rarity is right; written now and after every sync.
+    rarity = found["DOM", "168", "rarity"]
+    done = await client.post(
+        f"/api/admin/discrepancies/{rarity['id']}/resolve",
+        json={"choice": "secondary"},
+        headers=admin,
+    )
+    assert done.json() == {"written": 1}
+    session.expire_all()
+    assert (await printing(session, "dom", "168")).rarity == "uncommon"
+    await jobs.run_job("mtg", JobKind.catalog)
+    session.expire_all()
+    assert (await printing(session, "dom", "168")).rarity == "uncommon"
+    page = (await client.get("/api/admin/discrepancies", headers=admin)).json()
+    assert [d["field"] for d in page["items"]] == ["release date"]
+    resolved = (
+        await client.get("/api/admin/discrepancies", params={"state": "resolved"}, headers=admin)
+    ).json()
+    assert [(d["field"], d["resolution"]) for d in resolved["items"]] == [("rarity", "secondary")]
+
+    # A rule for the release dates: MTGJSON's, for this one and the next ones.
+    rule = await client.put(
+        "/api/admin/discrepancies/rules",
+        json={
+            "game_id": "mtg",
+            "source": "mtgjson",
+            "field": "release date",
+            "prefer": "secondary",
+        },
+        headers=admin,
+    )
+    assert rule.status_code == 200
+    session.expire_all()
+    isd = await session.scalar(select(CardSet).where(CardSet.code == "ISD"))
+    assert str(isd.release_date) == "2011-09-29"
+    page = (await client.get("/api/admin/discrepancies", headers=admin)).json()
+    assert page["items"] == []
+    dates = next(c for c in page["counts"] if c["field"] == "release date")
+    assert (dates["count"], dates["resolved"], dates["rule"]) == (0, 1, "secondary")
+    # Removing the rule opens it again.
+    removed = await client.delete(
+        f"/api/admin/discrepancies/rules/{dates['rule_id']}", headers=admin
+    )
+    assert removed.status_code == 204
+    page = (await client.get("/api/admin/discrepancies", headers=admin)).json()
+    assert [d["field"] for d in page["items"]] == ["release date"]
+
+    # Back to the primary for the rarity: reopened, Scryfall's value is back.
+    await client.post(
+        f"/api/admin/discrepancies/{rarity['id']}/resolve", json={"choice": None}, headers=admin
+    )
+    session.expire_all()
+    assert (await printing(session, "dom", "168")).rarity == "common"
 
     # Fixed upstream: the next run drops the discrepancy.
     scryfall.get(f"{CSV_URL}/cards.csv.gz").respond(

@@ -123,10 +123,12 @@ async def test_rotated_token_refused_after_logout(client, session):
         "/api/auth/login", json={"username": "alice", "password": "password123"}
     )
     first = login.json()["refresh_token"]
-    second = (
-        await client.post("/api/auth/refresh", json={"refresh_token": first})
-    ).json()["refresh_token"]
-    assert (await client.post("/api/auth/logout", json={"refresh_token": second})).status_code == 200
+    second = (await client.post("/api/auth/refresh", json={"refresh_token": first})).json()[
+        "refresh_token"
+    ]
+    assert (
+        await client.post("/api/auth/logout", json={"refresh_token": second})
+    ).status_code == 200
     # Even within the grace period, a logged-out session does not come back.
     assert (
         await client.post("/api/auth/refresh", json={"refresh_token": first})

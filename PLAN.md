@@ -661,7 +661,13 @@ Progress (plan below):
   user's price source history, `services/collection.price_trends`), Trend column between Qty
   and Unit (`TrendIcons`: arrow in a circle). Views registry `web/src/pages/collection/views.tsx`
   (List default, Images grid with flip/qty/trend), `?view=` + localStorage; colors "exactly" too.
-- [ ] F admin: next run, stale cards, arbitration
+- [x] F admin: worker schedule moved to `services/schedule.py` (`next_run`), `GET
+  /api/admin/schedule`, Jobs page "Next run: in 3 hours (date)". Data checks tabs: Source
+  differences (Open / Arbitrated, per row Keep main / Use second / Edit, Reopen; per field rule
+  "always main / always second", `catalog_field_rule`) and Stale cards (`GET /api/admin/stale`
+  with reasons, `POST /api/admin/cards/{id}/refresh`, Refresh all = refresh job). Chosen values
+  are written at once and again after every catalog sync and card refresh
+  (`crosscheck.apply_resolutions`).
 - [ ] G Pokémon: th/id, Korean (type-null), Simplified Chinese (PTCG-CHS), empty sets pruned
 - [ ] H Android OCR: landscape, other game, Chinese
 

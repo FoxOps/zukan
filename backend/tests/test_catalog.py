@@ -692,3 +692,54 @@ async def test_reset_catalog_keeps_owned_printings(client, session, sorcery_api)
     assert await session.get(Printing, owned_id) is not None
     runs = (await client.get("/api/admin/jobs", headers=admin)).json()
     assert runs[0]["id"] == body["run_id"] and runs[0]["status"] == "success"
+
+
+async def test_next_run_and_schedule(client, session, synced):
+    from app.services.schedule import RETRY_AFTER, next_run
+
+    now = datetime.now(UTC)
+    # Never run by the worker: at its next check.
+    assert await next_run("sorcery", JobKind.catalog, now) == now
+    run = SyncRun(
+        game_id="sorcery",
+        kind=JobKind.catalog,
+        trigger=JobTrigger.auto,
+        status=JobStatus.success,
+        started_at=now - timedelta(hours=1),
+        report={"catalog_version": get_provider("sorcery").catalog_version},
+    )
+    session.add(run)
+    await session.commit()
+    assert await next_run("sorcery", JobKind.catalog, now) == run.started_at + timedelta(days=7)
+    failed = SyncRun(
+        game_id="sorcery",
+        kind=JobKind.images,
+        trigger=JobTrigger.auto,
+        status=JobStatus.failed,
+        started_at=now - timedelta(minutes=10),
+    )
+    session.add(failed)
+    await session.commit()
+    assert await next_run("sorcery", JobKind.images, now) == failed.started_at + RETRY_AFTER
+
+    await make_user(session, "root", role=Role.admin)
+    admin = await bearer(client, "root")
+    schedule = (await client.get("/api/admin/schedule", headers=admin)).json()
+    kinds = {(s["game_id"], s["kind"]) for s in schedule}
+    assert ("sorcery", "catalog") in kinds and ("sorcery", "refresh") in kinds
+
+
+async def test_stale_cards_listed_and_refreshed(client, session, synced, sorcery_api):
+    card = await session.scalar(select(Card).where(Card.name == "Abundance"))
+    card.attributes = {}
+    await session.commit()
+    await make_user(session, "root", role=Role.admin)
+    admin = await bearer(client, "root")
+    page = (await client.get("/api/admin/stale", params={"game": "sorcery"}, headers=admin)).json()
+    assert [(c["name"], c["reasons"]) for c in page["items"]] == [("Abundance", ["no_attributes"])]
+    assert "sorcery" in page["refreshable"]
+
+    done = await client.post(f"/api/admin/cards/{card.id}/refresh", headers=admin)
+    assert done.json() == {"updated": True, "stale": False}
+    page = (await client.get("/api/admin/stale", params={"game": "sorcery"}, headers=admin)).json()
+    assert page["total"] == 0

@@ -25,6 +25,7 @@ from app.core.progress import progress
 from app.games.base import CardRef, GameProvider, PrintingRef
 from app.models import Card, JobKind, JobStatus, Printing, SyncRun
 from app.services.catalog import CatalogWriter
+from app.services.crosscheck import apply_resolutions
 
 log = logging.getLogger(__name__)
 
@@ -84,6 +85,35 @@ async def stale_condition(
     )
 
 
+async def stale_reasons(session: AsyncSession, cards: list[Card]) -> dict[int, list[str]]:
+    """Why each card is stale: "not_seen", "no_image", "no_attributes"."""
+    now = datetime.now(UTC)
+    syncs = {g: await last_full_sync(session, g) for g in {c.game_id for c in cards}}
+    with_image = set(
+        await session.scalars(
+            select(Card.id).where(Card.id.in_([c.id for c in cards]), _has_image())
+        )
+    )
+    reasons: dict[int, list[str]] = {}
+    for card in cards:
+        found = []
+        sync = syncs[card.game_id]
+        if (
+            sync is not None
+            and sync.finished_at
+            and now > sync.finished_at + STALE_GRACE
+            and card.last_seen_at is not None
+            and card.last_seen_at < sync.started_at
+        ):
+            found.append("not_seen")
+        if card.id not in with_image:
+            found.append("no_image")
+        if not card.attributes:
+            found.append("no_attributes")
+        reasons[card.id] = found
+    return reasons
+
+
 async def is_stale(session: AsyncSession, card: Card) -> bool:
     condition = await stale_condition(session, card.game_id)
     return bool(await session.scalar(select(exists().where(Card.id == card.id, condition))))
@@ -139,6 +169,9 @@ async def refresh_cards(
         await session.commit()
         await progress()
         found |= {card.external_id for card in batch.cards} & wanted
+    # Values administrators chose over the source's stay.
+    await apply_resolutions(session, provider.id)
+    await session.commit()
     report.updated = len(found)
     report.not_found = len(wanted - found)
     if report.not_found:

@@ -18,6 +18,8 @@ const DYNAMIC = [
   'cancelled', 'auto', 'manual',
   // Collection views and trend periods.
   'List', 'Images', '24h', '7d', '30d',
+  // Stale card reasons, job report.
+  'Missed by the last catalog sync', 'No image', 'No card details', 'arbitrated values written',
   // Job report counters.
   'sets', 'cards', 'printings', 'names', 'owned printings', 'prices received', 'stored',
   'already cached', 'skipped', 'without source', 'refused by source', 'old prices removed',

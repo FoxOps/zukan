@@ -38,6 +38,7 @@ const REPORT: Record<string, string> = {
   pruned_cards: 'empty cards removed',
   cross_checked: 'cross-checked',
   discrepancies: 'differences',
+  arbitrated: 'arbitrated values written',
   checked: 'outdated cards',
   updated: 'updated',
   not_found: 'not found at the source',
@@ -71,6 +72,22 @@ function useNow(active: boolean): number {
   return now
 }
 
+/** "Next run: in 3 hours (15/10, 18:20)", or at the worker's next check when due. */
+function NextRun({ at, running, now }: { at: string | undefined; running: boolean; now: number }) {
+  const { t, i18n } = useTranslation()
+  if (!at || running) return null
+  const seconds = (new Date(at).getTime() - now) / 1000
+  if (seconds <= 0) return <div className="text-xs text-base-content/60">{t('Next run: within 5 minutes')}</div>
+  const relative = new Intl.RelativeTimeFormat(i18n.language, { numeric: 'auto' })
+  const [value, unit]: [number, Intl.RelativeTimeFormatUnit] =
+    seconds < 3600 ? [Math.ceil(seconds / 60), 'minute'] : seconds < 48 * 3600 ? [Math.round(seconds / 3600), 'hour'] : [Math.round(seconds / 86400), 'day']
+  return (
+    <div className="text-xs text-base-content/60" title={formatDateTime(at)}>
+      {t('Next run: {{when}}', { when: relative.format(value, unit) })} ({formatDateTime(at)})
+    </div>
+  )
+}
+
 export default function Jobs() {
   const { t } = useTranslation()
   const me = useMe()
@@ -90,6 +107,14 @@ export default function Jobs() {
   // Elapsed time from the server clock, plus the time since it was fetched.
   const elapsed = (job: { status: string; elapsed_seconds: number }) =>
     job.elapsed_seconds + (job.status === 'running' ? Math.max(0, Math.round((now - jobs.dataUpdatedAt) / 1000)) : 0)
+  // Next automatic run of each job; follows the job list (a run moves it).
+  const schedule = useQuery({
+    queryKey: ['schedule', jobs.dataUpdatedAt],
+    queryFn: () => call(api.GET('/api/admin/schedule')),
+    enabled: admin,
+    refetchInterval: 60_000,
+  })
+  const nextRun = (game: string, kind: string) => schedule.data?.find((s) => s.game_id === game && s.kind === kind)
   const folders = useQuery({
     queryKey: ['import-folders'],
     queryFn: () => call(api.GET('/api/admin/import-folders')),
@@ -158,6 +183,7 @@ export default function Jobs() {
                           t('never run')
                         )}
                       </div>
+                      <NextRun at={nextRun(g.id, kind)?.next_run_at} running={run?.status === 'running'} now={Math.max(now, schedule.dataUpdatedAt)} />
                     </div>
                     {/* A manual run takes over a running automatic one. */}
                     <button

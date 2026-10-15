@@ -364,7 +364,9 @@ async def test_price_trends(client, session, alice):
     abundance = await printing_id(session, "001", "abundance-b")
     today = date.today()
     for days, trend in ((30, "2.52"), (1, "1.00"), (0, "2.50")):
-        await add_price(session, abundance, "standard", today - timedelta(days=days), Decimal(trend))
+        await add_price(
+            session, abundance, "standard", today - timedelta(days=days), Decimal(trend)
+        )
     await adjust(client, alice, abundance, 3)
     await adjust(client, alice, abundance, 1, finish="foil")
     items = (await client.get("/api/collection", headers=alice)).json()["items"]

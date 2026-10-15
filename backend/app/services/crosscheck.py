@@ -1,13 +1,15 @@
 """Secondary catalog sources: fill gaps left by the primary source and record where they
-disagree (`catalog_discrepancy`, shown to administrators). The primary's values are kept.
+disagree (`catalog_discrepancy`, shown to administrators). The primary's values are kept
+unless an administrator chose otherwise (`apply_resolutions`).
 """
 
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import httpx
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +22,14 @@ from app.games.base import (
     SetData,
     StoredPrinting,
 )
-from app.models import Card, CardSet, CatalogDiscrepancy, Printing
+from app.models import (
+    Card,
+    CardName,
+    CardSet,
+    CatalogDiscrepancy,
+    CatalogFieldRule,
+    Printing,
+)
 from app.services.catalog import CatalogWriter
 
 log = logging.getLogger(__name__)
@@ -33,6 +42,8 @@ class CrossCheckReport:
     discrepancies: int = 0
     # Secondary sources that failed (the catalog sync itself still succeeds).
     failed_sources: list[str] = field(default_factory=list)
+    # Values chosen by administrators written over the primary's.
+    resolved: int = 0
 
 
 def secondary_sources(provider: GameProvider) -> list[CatalogSource]:
@@ -140,6 +151,99 @@ async def _store_discrepancies(
     return len(unique)
 
 
+# Fields an arbitration can write: set fields (no printing) and printing fields.
+SET_FIELDS = {"set name", "release date", "card count"}
+PRINTING_FIELDS = {"name", "rarity"}
+
+
+def chosen_value(d: CatalogDiscrepancy) -> str | None:
+    """Value to write for a resolved discrepancy (None: keep the primary's)."""
+    if d.resolution == "secondary":
+        return d.secondary_value
+    if d.resolution == "custom":
+        return d.resolved_value
+    return None
+
+
+async def write_value(session: AsyncSession, d: CatalogDiscrepancy, value: str) -> None:
+    if d.printing_id is None:
+        if d.field == "set name":
+            await session.execute(update(CardSet).where(CardSet.id == d.set_id).values(name=value))
+        elif d.field == "release date":
+            day = date.fromisoformat(value[:10])
+            await session.execute(
+                update(CardSet).where(CardSet.id == d.set_id).values(release_date=day)
+            )
+        elif d.field == "card count" and value.isdigit():
+            await session.execute(
+                update(CardSet).where(CardSet.id == d.set_id).values(total=int(value))
+            )
+        return
+    printing = await session.get(Printing, d.printing_id)
+    if printing is None:
+        return
+    if d.field == "rarity":
+        printing.rarity = value
+    elif d.field == "name":
+        card = await session.get(Card, printing.card_id)
+        if card is None:
+            return
+        card.name = value
+        # The English name shown and searched: the chosen one instead of the primary's.
+        await session.execute(
+            delete(CardName).where(
+                CardName.card_id == card.id,
+                CardName.printing_id.is_(None),
+                CardName.lang == "en",
+                CardName.name == d.primary_value,
+            )
+        )
+        await session.execute(
+            insert(CardName)
+            .values(card_id=card.id, printing_id=None, lang="en", name=value)
+            .on_conflict_do_nothing()
+        )
+
+
+async def apply_resolutions(
+    session: AsyncSession, game_id: str, ids: Iterable[int] | None = None
+) -> int:
+    """Resolve open discrepancies covered by field rules, then write the values chosen by
+    administrators over the primary's. Returns the number of values written."""
+    rules = (
+        await session.scalars(select(CatalogFieldRule).where(CatalogFieldRule.game_id == game_id))
+    ).all()
+    for rule in rules:
+        await session.execute(
+            update(CatalogDiscrepancy)
+            .where(
+                CatalogDiscrepancy.game_id == game_id,
+                CatalogDiscrepancy.source == rule.source,
+                CatalogDiscrepancy.field == rule.field,
+                CatalogDiscrepancy.resolution.is_(None),
+            )
+            .values(
+                resolution=rule.prefer,
+                resolved_by=rule.created_by,
+                resolved_at=datetime.now(UTC),
+                by_rule=True,
+            )
+        )
+    query = select(CatalogDiscrepancy).where(
+        CatalogDiscrepancy.game_id == game_id,
+        CatalogDiscrepancy.resolution.in_(["secondary", "custom"]),
+    )
+    if ids is not None:
+        query = query.where(CatalogDiscrepancy.id.in_(list(ids)))
+    written = 0
+    for d in await session.scalars(query):
+        value = chosen_value(d)
+        if value:
+            await write_value(session, d, value)
+            written += 1
+    return written
+
+
 async def cross_check(
     session: AsyncSession, provider: GameProvider, http: httpx.AsyncClient
 ) -> CrossCheckReport:
@@ -175,4 +279,6 @@ async def cross_check(
         )
         await session.commit()
         log.info("%s: %s printings cross-checked, %s discrepancies", source.id, matched, len(found))
+    report.resolved = await apply_resolutions(session, provider.id)
+    await session.commit()
     return report
