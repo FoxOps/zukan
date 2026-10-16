@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 
 import httpx
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, literal, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +21,7 @@ from app.games.base import (
     GameProvider,
     SetData,
     StoredPrinting,
+    registry,
 )
 from app.models import (
     Card,
@@ -31,6 +32,7 @@ from app.models import (
     Printing,
 )
 from app.services.catalog import CatalogWriter
+from app.sources.base import gap_sources
 
 log = logging.getLogger(__name__)
 
@@ -47,7 +49,10 @@ class CrossCheckReport:
 
 
 def secondary_sources(provider: GameProvider) -> list[CatalogSource]:
-    return list(getattr(provider, "secondary_sources", []))
+    """The provider's own secondary sources, then the generic gap-filling sources that
+    know the game (free ones before those with a small quota)."""
+    own = list(getattr(provider, "secondary_sources", []))
+    return own + [s for g in gap_sources() if (s := g.for_game(provider.id)) is not None]
 
 
 async def build_index(session: AsyncSession, game_id: str) -> CatalogIndex:
@@ -62,8 +67,10 @@ async def build_index(session: AsyncSession, game_id: str) -> CatalogIndex:
         )
         for s in await session.scalars(select(CardSet).where(CardSet.game_id == game_id))
     }
+    text_attribute = getattr(registry().get(game_id), "text_attribute", None)
+    card_text = Card.attributes[text_attribute].astext if text_attribute else literal(None)
     rows = await session.execute(
-        select(Printing, CardSet.external_id, Card.external_id, Card.name)
+        select(Printing, CardSet.external_id, Card.external_id, Card.name, card_text)
         .join(CardSet, Printing.set_id == CardSet.id)
         .join(Card, Printing.card_id == Card.id)
         .where(CardSet.game_id == game_id)
@@ -80,8 +87,13 @@ async def build_index(session: AsyncSession, game_id: str) -> CatalogIndex:
             image_languages=tuple(p.image_urls),
             market_ids=dict(p.attributes.get("market_ids") or {}),
             languages=tuple(p.languages),
+            finishes=tuple(p.finishes),
+            finishes_guessed=bool(
+                p.attributes.get("finishes_guessed") and not p.attributes.get("finishes_confirmed")
+            ),
+            card_text=text,
         )
-        for p, set_ext, card_ext, card_name in rows
+        for p, set_ext, card_ext, card_name, text in rows
     }
     return CatalogIndex(sets=sets, printings=printings)
 
@@ -252,8 +264,9 @@ async def cross_check(
     sources = secondary_sources(provider)
     if not sources:
         return report
-    index = await build_index(session, provider.id)
     for source in sources:
+        # Built again for each source: gaps an earlier source filled are not asked for.
+        index = await build_index(session, provider.id)
         started = datetime.now(UTC)
         writer = CatalogWriter(session, provider.id, mark_seen=False)
         await writer.load_sets()

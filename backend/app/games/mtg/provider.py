@@ -186,7 +186,8 @@ def parse_card(raw: dict[str, Any]) -> CardData | None:
         }
         if market_ids:
             printing_attributes["market_ids"] = market_ids
-    if len(images) > 1:
+    # Art series cards have two fronts (artwork and its signature side): not a card to flip.
+    if len(images) > 1 and raw.get("layout") != "art_series":
         printing_attributes["back_image_url"] = images[1]
 
     printed = _printed_name(raw)
@@ -348,6 +349,7 @@ class MtgProvider:
     languages = list(LANGUAGES.values())
     price_sources = ["cardmarket", "tcgplayer"]
     cardmarket_path = "Magic"
+    text_attribute = "oracle_text"
     secondary_sources = [mtgjson.source]
     filters = [
         FilterDef("types", "Type", "types"),

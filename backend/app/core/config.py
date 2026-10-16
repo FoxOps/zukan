@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     worker_games: list[str] = []
     user_agent: str = f"Zukan/{__version__}"
 
+    # Request quotas kept by the gap-filling sources with limited free tiers (their own
+    # limits: apitcg 1000 a month, tcg-api.eu 10 000 a day).
+    apitcg_monthly_requests: int = 900
+    tcgapi_eu_daily_requests: int = 9000
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -15,10 +15,7 @@ Prices: Cardmarket publishes daily product and price guide files per game
 """
 
 import logging
-import re
 import time
-import unicodedata
-from collections import defaultdict
 from collections.abc import AsyncIterator
 from datetime import date, datetime
 from typing import Any
@@ -161,70 +158,19 @@ def parse_cards(raw: list[dict[str, Any]]) -> CatalogBatch:
     return batch
 
 
-def _name_key(name: str) -> str:
-    """Card name for matching across sources: no accents, case or punctuation."""
-    stripped = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
-    return re.sub(r"[^a-z0-9]+", " ", stripped.casefold()).strip()
-
-
-def _guide_quote(set_code: str, printing_id: str, finish: str, guide: Guide) -> PriceQuote:
-    trend, low, avg = cardmarket.prices(guide, "" if finish == "standard" else "-foil")
-    return PriceQuote(
-        set_code, printing_id, finish, trend=trend, low=low, avg=avg, source="cardmarket"
-    )
-
-
 def match_cardmarket(
     catalog: CatalogBatch, products: list[dict[str, Any]], guides: dict[int, Guide]
 ) -> list[PriceQuote]:
-    """Price quotes for catalog printings from Cardmarket's product list and price guide.
-    Matched printings also get their Cardmarket product id (`market_ids`, page link).
-
-    Products are matched by expansion and card name. When one name has several products
-    in an expansion (box toppers, preconstructed decks), they are paired in order with
-    the printings of that name, booster printing first."""
-    ours: dict[tuple[str, str], list[PrintingData]] = defaultdict(list)
-    for card in catalog.cards:
-        for printing in card.printings:
-            ours[(printing.set_external_id, _name_key(card.name))].append(printing)
-    for printings in ours.values():
-        printings.sort(key=lambda p: (p.attributes.get("product") != "Booster", p.external_id))
-
-    by_expansion: dict[int, list[dict[str, Any]]] = defaultdict(list)
-    for product in sorted(products, key=lambda p: p["idProduct"]):
-        by_expansion[product["idExpansion"]].append(product)
-
-    expansions = dict(CARDMARKET_EXPANSIONS)
-    set_names: dict[str, set[str]] = defaultdict(set)
-    for set_code, key in ours:
-        set_names[set_code].add(key)
-    for expansion, items in sorted(by_expansion.items()):
-        if expansion in expansions:
-            continue
-        names = {_name_key(p["name"]) for p in items}
-        free = [code for code in set_names if code not in expansions.values()]
-        best = max(free, key=lambda code: len(names & set_names[code]), default=None)
-        if best is not None and names & set_names[best]:
-            expansions[expansion] = best
-
-    quotes = []
-    for expansion, items in by_expansion.items():
-        set_code = expansions.get(expansion)
-        if set_code is None:
-            continue
-        same_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for product in items:
-            same_name[_name_key(product["name"])].append(product)
-        for key, matches in same_name.items():
-            for product, printing in zip(matches, ours.get((set_code, key), []), strict=False):
-                printing.attributes["market_ids"] = {"cardmarket": product["idProduct"]}
-                guide = guides.get(product["idProduct"])
-                if guide is not None:
-                    quotes += [
-                        _guide_quote(set_code, printing.external_id, finish, guide)
-                        for finish in printing.finishes
-                    ]
-    return quotes
+    """Price quotes for catalog printings from Cardmarket's product list and price guide
+    (by expansion and card name, booster printing first among same names)."""
+    return cardmarket.match_products(
+        catalog,
+        products,
+        guides,
+        {expansion: [code] for expansion, code in CARDMARKET_EXPANSIONS.items()},
+        lambda finish: "" if finish == "standard" else "-foil",
+        lambda p: (p.attributes.get("product") != "Booster", p.external_id),
+    )
 
 
 # Catalog kept for card refreshes: (time.monotonic() of download, catalog).
@@ -255,6 +201,7 @@ class SorceryProvider:
         FilterDef("rarity", "Rarity"),
     ]
     cardmarket_path = "Sorcery"
+    text_attribute = "rules"
     short_names = ["sorcery", "sor", "sct"]
     # Set codes are numbers; these are the abbreviations players use.
     set_aliases = {
@@ -288,8 +235,8 @@ class SorceryProvider:
         if not hints.name:
             return None
         catalog = await self._cached(http)
-        key = _name_key(hints.name)
-        found = [card for card in catalog.cards if _name_key(card.name) == key]
+        key = cardmarket.name_key(hints.name)
+        found = [card for card in catalog.cards if cardmarket.name_key(card.name) == key]
         return CatalogBatch(sets=catalog.sets, cards=found) if found else None
 
     async def fetch_cards(

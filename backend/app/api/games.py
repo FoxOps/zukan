@@ -52,6 +52,8 @@ class GameOut(BaseModel):
     has_prices: bool
     # Deprecated (app 0.3): Cardmarket URL segment, see PrintingOut.links.
     cardmarket: str | None
+    # Notice the publisher requires fan tools to show (trademarks, no endorsement).
+    legal_notice: str | None = None
 
 
 @router.get("")
@@ -80,6 +82,7 @@ async def list_games(_: CurrentUser) -> list[GameOut]:
             ],
             has_prices=bool(game_sources(p.id)),
             cardmarket=getattr(p, "cardmarket_path", None),
+            legal_notice=getattr(p, "legal_notice", None),
         )
         for p in registry().values()
     ]

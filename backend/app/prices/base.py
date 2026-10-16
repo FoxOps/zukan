@@ -32,6 +32,8 @@ class MarketTarget:
     finishes: tuple[str, ...]
     # Product ids per source (`attributes["market_ids"]`).
     market_ids: dict[str, Any] = field(default_factory=dict)
+    # Sources that priced the printing today (a source filling gaps skips it).
+    quoted: frozenset[str] = frozenset()
 
 
 @runtime_checkable
