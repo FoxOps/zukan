@@ -60,6 +60,18 @@ _PROMO_LINE = re.compile(
     r"\b(EN|FR|DE|IT)\s*[•·.]\s*([0-9]{1,3})\s*/\s*([A-Z]{1,3}[0-9]{0,2})\b", re.IGNORECASE
 )
 _INKS = {"amber", "amethyst", "emerald", "ruby", "sapphire", "steel"}
+# Game symbols of LorcanaJSON's texts, spelled out as other sources (TCGplayer) write them.
+_SYMBOLS = {"⬡": "Ink", "¤": "Strength", "⟳": "[Exert]", "◊": "Lore", "⛉": "Willpower",
+            "◉": "Inkwell"}  # fmt: skip
+
+
+def rules_text(text: str | None) -> str | None:
+    """Card text with its symbols written out: "Shift 3 ⬡" -> "Shift 3 Ink"."""
+    if not text:
+        return text
+    for symbol, word in _SYMBOLS.items():
+        text = text.replace(symbol, word)
+    return text
 
 
 def _date(value: str | None) -> date | None:
@@ -130,7 +142,7 @@ def build_catalog(by_lang: dict[str, dict[str, Any]]) -> CatalogBatch:
                         "willpower": raw.get("willpower"),
                         "lore": raw.get("lore"),
                         "move_cost": raw.get("moveCost"),
-                        "text": raw.get("fullText"),
+                        "text": rules_text(raw.get("fullText")),
                     }.items()
                     if v not in (None, "", [])
                 },

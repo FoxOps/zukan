@@ -3,7 +3,8 @@
 *Zukan* (図鑑) means "illustrated encyclopedia" in Japanese, like the Pokédex (ポケモン図鑑).
 
 Self-hosted trading card game collection manager: Magic: The Gathering, Pokémon TCG,
-Sorcery and Riftbound, with a plugin system for more games, and an Android scanner app.
+Sorcery, Riftbound, Yu-Gi-Oh! and Disney Lorcana, with a plugin system for more games, and
+an Android scanner app.
 See [PLAN.md](PLAN.md) for the full design and progress.
 
 ## Run with Docker
@@ -58,11 +59,13 @@ Prices come from Cardmarket (EUR) and TCGplayer (USD), never scraped from their 
 - MTG: trend price from Scryfall, lowest offer and average from the daily price guide file
   Cardmarket publishes for download (matched by Scryfall's Cardmarket product id).
 - Pokémon: trend, lowest offer and average from TCGdex.
-- Sorcery and Riftbound: Cardmarket's daily product list and price guide files; products
-  are matched to printings by set and card name. Cards too new for a trend use the 7 or 30
-  day average, then the lowest offer.
-- TCGplayer: from Scryfall and TCGdex, and for the printings they do not price (all of
-  Sorcery and Riftbound) from [tcgcsv](https://tcgcsv.com)'s daily TCGplayer files.
+- Sorcery, Riftbound and Yu-Gi-Oh!: Cardmarket's daily product list and price guide files;
+  products are matched to printings by set and card name (Yu-Gi-Oh!: TCG sets only, the
+  rarities of one card in a set paired in Cardmarket's order). Cards too new for a trend
+  use the 7 or 30 day average, then the lowest offer.
+- Lorcana: Cardmarket's price guide file, by the product id LorcanaJSON gives.
+- TCGplayer: from Scryfall, TCGdex and YGOPRODeck, and for the printings they do not price
+  (Sorcery, Riftbound, Lorcana) from [tcgcsv](https://tcgcsv.com)'s daily TCGplayer files.
 
 ### Card data sources
 
@@ -81,6 +84,19 @@ APIs do not have yet and the Simplified Chinese names and pictures. Pictures com
 Riot's servers only, and the web UI shows Riot's legal notice, as Riot's policy for fan
 tools asks. Getting a Riot key (Riot account, developer account, Production API Key):
 [docs/riftbound.md](docs/riftbound.md).
+
+Yu-Gi-Oh!: [YGOPRODeck](https://ygoprodeck.com/api-guide/) (every TCG card, set and
+printing, French, German, Italian and Portuguese names, TCGplayer prices),
+[YGOJSON](https://github.com/iconmaster5326/YGOJSON) (Spanish, Japanese, Korean and Chinese
+names, and the Japanese, Korean and Chinese OCG sets; no longer updated since 2026-04) and,
+for newer cards, the official [Konami card database](https://www.db.yugioh-card.com/yugiohdb/)
+(a few hundred pages a day at most, each card read once). A printing is a set code with one
+rarity ("LOB-EN001" Ultra Rare); finishes are the editions (Unlimited, 1st Edition,
+Limited Edition).
+
+Disney Lorcana: [LorcanaJSON](https://lorcanajson.org) (Ravensburger's card data in
+English, French, German and Italian, with Cardmarket and TCGplayer ids). No source has the
+Japanese or Chinese Lorcana cards yet.
 
 Each user picks the markets shown (Settings, several allowed); the first one gives values,
 sorts and price ranges. Card pages show the trend and lowest offer of each printing and finish, the cheapest and
@@ -107,9 +123,23 @@ can be imported instead: unzip it into `./import/sorcery`, then run
 (or use the admin import endpoint `POST /api/admin/images/sorcery/import`).
 
 Game color symbols (Scryfall mana symbols, the energy types of pokemon.com's card
-database, the element symbols of the sorcerytcg.com card gallery) are downloaded once when
-the API starts, into `./data/images/symbols`. A symbol that fails to download is shown as
-a colored badge and tried again on the next start.
+database, the element symbols of the sorcerytcg.com card gallery, Riftbound's domains,
+YGOPRODeck's Yu-Gi-Oh! attributes) are downloaded once when the API starts, into
+`./data/images/symbols`. A symbol that fails to download is shown as a colored badge and
+tried again on the next start. Riftbound's colorless symbol (a gray diamond) is drawn for
+Zukan and shipped with it.
+
+Rarities are shown with their pictogram next to their name. The pictograms are the ones
+Cardmarket draws, collected once and shipped with each game
+(`backend/app/games/<game>/rarities/`, see `scripts/install_rarity_icons.py`); rarities
+without one show their name only.
+
+Landscape pictures (Riftbound battlefields) are turned a quarter to fit the card frame.
+
+Cards printed only in Japanese, Korean, Chinese, Thai or Cyrillic are named in their script
+with a Latin translation next to it ("ブラック・マジシャン (Dark Magician)"), and so is any
+name shown in such a script. When a source gives no Latin name, the catalog sync copies the
+one of a card sharing its name (Simplified and Traditional Chinese spellings match).
 
 ### Translations
 
