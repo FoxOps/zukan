@@ -98,6 +98,8 @@ Standard OpenID Connect only, so Keycloak, Authentik, Authelia, Zitadel, Google 
 - **MTG / Scryfall**: daily bulk `all_cards` (all languages, large; stream-parse with `ijson`) for printings + localized `printed_name`; prices from `prices.eur`/`eur_foil` (Cardmarket trend). Respect 50–100 ms between requests and User-Agent header.
 - **Pokémon / TCGdex**: per-language endpoints (`/v2/{lang}/sets`, `/cards`); EN and JA set lists differ — treat JA sets as own sets, linked by name when possible. Prices from `pricing.cardmarket` (trend, avg, low, holo variants).
 - **Sorcery**: `GET /api/cards` (30 req/min, one call is enough), printings with finishes Standard/Foil/Rainbow; images from public image folder; English only; no prices (manual).
+- **Riftbound** (since 0.9.0): Riot content API (approved key) or Riftcodex, plus Riot's card gallery (newest set, Simplified Chinese); Cardmarket game 22 and TCGplayer (tcgcsv) prices.
+- **Gap sources** (since 0.9.0, `app/sources/`): tcgcsv, tcg-api.eu, apitcg fill what the game's own sources lack, for every game they cover.
 
 ## OCR identification (`services/identify.py`, `POST /scan/identify`)
 Phone sends OCR text lines + bounding boxes + chosen game (or auto). Server:
@@ -882,6 +884,94 @@ stay until TCGdex fills them — documented).
   printings with images, CHS 151C / CSV9C with images.
 - Android: `./gradlew testDebugUnitTest lint assembleDebug`; real phone by user: Sorcery Site, MTG card
   with Pokémon selected, Chinese cards.
+
+
+## Backlog 2026-10-16 (server 0.9.0, Android unchanged 0.7.0)
+Branch `2026-10-16-000-riftbound-new-sources`. User list: MTG art series shown as
+double-faced; new sources apitcg.com, tcg-api.eu, tcgcsv.com (English, texts + USD prices);
+new game Riftbound (Riot API, card gallery), then Riftcodex added. Android: nothing.
+API keys given for tests are only used from the environment, never committed.
+
+Decisions (Q&A 2026-10-16):
+- Riftbound main source: Riot content API when `TCG_APITOKEN_GAMES_RFB_RIOT` is set, else
+  Riftcodex (open API, added by the user after the Q&A). The given Riot key is a
+  development key: valid (LoL status 200) but refused on `riftbound/content/v1` (403, every
+  region) — Riftbound needs a product key approved by Riot. The Riot parser follows the
+  published schema, untested live. Riot's official card gallery (`__NEXT_DATA__` JSON of
+  `playriftbound.com/{en-us,zh-cn}/card-gallery/`, one page each per sync: exception to "no
+  scraping", Riot's own published data) adds cards the APIs lack (Radiance, not in
+  Riftcodex yet) and Simplified Chinese names/pictures (other locales show English cards).
+- apitcg, tcg-api.eu, tcgcsv: every game each one covers, **only to fill missing data**,
+  current games first, generic so a future game is one mapping entry.
+
+Probed data (2026-10-16): Riftcodex 1451 cards / 8 sets (ids not unique: Metal prints share
+the plain card's id, Vendetta listed twice with and without TCGplayer id, some Vendetta
+legends named by title only); gallery 1408 cards (`-star-` = `*` in ids); Cardmarket
+Riftbound = game 22; tcgcsv categories Magic 1, Pokémon 3, Sorcery 77, Riftbound 89 (Sorcery
+products have no number); apitcg 16 games (TCGplayer data, 1000 requests/month); tcg-api.eu
+Pokémon / Magic / Lorcana / One Piece (10k/day, 100/min, no prices).
+
+Progress:
+- [x] MTG `art_series`: no `back_image_url` (two fronts), migration drops stored ones.
+- [x] Riftbound (`games/riftbound/`): card = name + subtitle ("Ahri, Alluring"), printing =
+  Riftbound id (`ogn-066a-298`; shared ids get `~variant`), variants (Alternate Art,
+  Signature, Metal...) as printing attributes, domains as colors (Riot CDN symbols, plus
+  colorless), finishes guessed from rarity (common/uncommon normal + foil, others foil) until
+  TCGplayer's versions confirm them (`finishes_confirmed`), `zh-hans` names and pictures,
+  Riot symbol codes spelled out in rules text (`:rb_energy_2::rb_rune_chaos:` = "2 Chaos"),
+  OCR of the collector line (`OGN • 066a/298`), `lookup` / `fetch_cards` from the cached
+  catalog, `legal_notice` (Riot §6 text, `GameOut.legal_notice`, web footer).
+- [x] Cardmarket name matching shared by Sorcery and Riftbound (`cardmarket.match_products`):
+  expansions known from Riftcodex (promo expansions spanning PR / JDG / OPP), others by the
+  largest name overlap first (a starter deck no longer takes a set from its expansion).
+- [x] Gap sources (`app/sources/`, entry points `zukan.sources`): `printing_gaps` (English
+  picture, rarity, artist, TCGplayer id, guessed finishes) per set; set matching by code
+  ("sv01" = "sv1", aliases), name + date, name; printing pairing by TCGplayer id, number,
+  name (Sorcery). Partial fills only; differences on name, rarity (words) and rules text
+  (`text_attribute`: MTG `oracle_text`, Sorcery `rules`, Riftbound `text`; reminder text
+  in parentheses ignored, same words = same text). A gap source only clears earlier
+  differences of the sets it checked (`SecondaryBatch.checked_sets`). The index is rebuilt
+  before each source. Order: tcgcsv (free), tcg-api.eu, apitcg (smallest quota last).
+- [x] Quotas: `api_usage` (requests per source and day / month, counted before sending),
+  `RequestBudget` (+ pace per minute), `gap_check` (a quota source skips a set whose gap
+  count did not change for 30 days). `TCG_APITCG_MONTHLY_REQUESTS=900`,
+  `TCG_TCGAPI_EU_DAILY_REQUESTS=9000`; keys `TCG_APITOKEN_GAMES_APITCG` /
+  `_TCGAPIEU`, skipped without.
+- [x] TCGplayer prices from tcgcsv for printings no other source priced today
+  (`MarketTarget.quoted`), only the groups of those sets. Sorcery and Riftbound now list
+  TCGplayer as a price source.
+- [x] Web: legal notice footer, Data checks source names, Riftbound texts in French.
+- [x] Versions: server 0.9.0. Tests: 147 backend (Riftbound fixtures trimmed from real data,
+  no keys), web build / lint / i18n (361 texts), migration on a fresh database + `alembic
+  check`.
+- [x] Live check (2026-10-16, fresh database, CLI jobs from the venv, API on port 8011,
+  keys from the environment only):
+  - Riftbound: Riot key refused (403, logged) → Riftcodex; 9 sets / 1114 cards / 1593
+    printings (Radiance 219 from the gallery, 1416 with Simplified Chinese), 45 s. Cardmarket
+    matched 1468 printings (Ahri Alluring €0.55, alternate art €5.59), TCGplayer from tcgcsv
+    1487 ($0.76 / $5.95). tcgcsv confirmed finishes; apitcg filled what was left (15
+    requests), next run 0 requests (sets with unchanged gaps skipped).
+  - Sorcery: tcgcsv gave 1474 / 1601 printings their TCGplayer id by name, 1469 USD prices.
+  - Pokémon: tcg-api.eu 141 requests (10 231 printings checked), apitcg 161; tcgcsv priced 39
+    groups of printings TCGdex had no TCGplayer price for. MTG (all_cards, 17 min): tcgcsv 70
+    sets with gaps, tcg-api.eu 89 requests, apitcg 146. Month total apitcg 322 / 900.
+  - Found and fixed on live data: differences cleared for sets a gap source did not
+    re-check; discrepancy rows dated before the run start (transaction began with the
+    index) deleted at once; noise (MTG: 38 258 differences on 25 138 printings → 113):
+    TCGplayer rarity letters (C/U/R/M/L) and categories (promo, token, Unconfirmed — never
+    filled), MTG oracle vs printed text (MTG text not compared), names of double-faced cards
+    and Universes Beyond ("Bag End - Horizon Canopy"), tokens sharing a card's number
+    (pairing by number now needs a matching name), Riftcodex plain text without line
+    breaks (rich text used), Riot symbol codes. Left as real differences: Riftbound
+    "Showcase" vs "Rare" on alternate arts, TCGplayer typos ("DEATKNELL"), Pokémon rarity
+    vocabularies ("Holo Rare V" / "Ultra Rare": a field rule silences them).
+  - MTG art series: 2655 printings, none with a back face; the migration SQL removed
+    injected ones. Transform cards keep theirs.
+  - Browser: Riftbound catalog (domain symbols, Type / Supertype / Tag / Rarity filters,
+    prices), card page (3 printings, Cardmarket links, price history), Riot notice in the
+    footer; internal attributes (`finishes_guessed`, `finishes_confirmed`, `domains`) hidden.
+- [ ] User: a Riot product key for Riftbound (developer portal application), then check the
+  Riot path; keys for tcg-api.eu / apitcg in `.env` on deployments.
 
 
 ## Build phases

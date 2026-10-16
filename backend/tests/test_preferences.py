@@ -294,9 +294,15 @@ async def test_symbols_downloaded_once(client, alice):
         elements = router.get(url__startswith="https://sorcerytcg.com/").respond(
             content=png(), headers={"content-type": "image/png"}
         )
+        domains = router.get(url__startswith="https://cmsassets.rgpub.io/").respond(
+            content=png(), headers={"content-type": "image/png"}
+        )
         stored = await symbols.ensure_symbols()
-        assert stored == sum(len(get_provider(g).colors) for g in ("mtg", "pokemon", "sorcery"))
+        # Riftbound's colorless has no symbol.
+        games_ids = ("mtg", "pokemon", "sorcery", "riftbound")
+        assert stored == sum(len(get_provider(g).colors) for g in games_ids) - 1
         assert (sprite.call_count, svg.call_count, elements.call_count) == (1, 6, 4)
+        assert domains.call_count == 6
         assert await symbols.ensure_symbols() == 0
 
     games = {g["id"]: g for g in (await client.get("/api/games", headers=alice)).json()}

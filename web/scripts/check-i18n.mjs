@@ -28,6 +28,7 @@ const DYNAMIC = [
   'White', 'Blue', 'Black', 'Red', 'Green', 'Colorless', 'Grass', 'Fire', 'Water', 'Lightning',
   'Psychic', 'Fighting', 'Darkness', 'Metal', 'Fairy', 'Dragon', 'Air', 'Earth',
   'Foil', 'Etched foil', 'Holo', 'Reverse holo', '1st edition', 'Standard', 'Rainbow foil',
+  'Fury', 'Calm', 'Mind', 'Body', 'Chaos', 'Order', 'Normal', 'Supertype', 'Tag', 'text',
 ]
 
 function files(dir) {

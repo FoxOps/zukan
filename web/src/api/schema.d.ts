@@ -1145,6 +1145,8 @@ export interface components {
             has_prices: boolean;
             /** Cardmarket */
             cardmarket: string | null;
+            /** Legal Notice */
+            legal_notice?: string | null;
         };
         /** GameValueOut */
         GameValueOut: {

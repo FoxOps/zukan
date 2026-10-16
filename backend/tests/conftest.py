@@ -60,6 +60,17 @@ _LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "testserver", "db"}
 
 
 @pytest.fixture(autouse=True)
+def no_gap_sources(request, monkeypatch) -> None:
+    """Generic gap-filling sources (tcgcsv, tcg-api.eu, apitcg) cover every game: off
+    unless a test is marked `gap_sources`."""
+    from app.sources.base import gap_sources
+
+    if request.node.get_closest_marker("gap_sources") is None:
+        for source in gap_sources():
+            monkeypatch.setattr(source, "games", {})
+
+
+@pytest.fixture(autouse=True)
 def no_network(monkeypatch) -> None:
     """Fail fast on real HTTP calls: every external API must be mocked with respx."""
     real = socket.getaddrinfo

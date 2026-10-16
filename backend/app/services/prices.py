@@ -141,15 +141,37 @@ async def owned_targets(session: AsyncSession, game_id: str) -> list[PriceTarget
 
 
 async def market_targets(session: AsyncSession, game_id: str) -> list[MarketTarget]:
-    """Every printing of the game, for sources fetching prices with their own API."""
+    """Every printing of the game, for sources fetching prices with their own API, with
+    the sources that priced it today."""
+    quoted: dict[int, set[str]] = {}
+    for printing_id, source in await session.execute(
+        select(PriceSnapshot.printing_id, PriceSnapshot.source)
+        .distinct()
+        .join(Printing, Printing.id == PriceSnapshot.printing_id)
+        .join(CardSet, Printing.set_id == CardSet.id)
+        .where(CardSet.game_id == game_id, PriceSnapshot.date == today())
+    ):
+        quoted.setdefault(printing_id, set()).add(source)
     rows = await session.execute(
-        select(CardSet.external_id, Printing.external_id, Printing.finishes, Printing.attributes)
+        select(
+            Printing.id,
+            CardSet.external_id,
+            Printing.external_id,
+            Printing.finishes,
+            Printing.attributes,
+        )
         .join(Printing, Printing.set_id == CardSet.id)
         .where(CardSet.game_id == game_id)
     )
     return [
-        MarketTarget(set_ext, printing_ext, tuple(finishes), dict(attrs.get("market_ids") or {}))
-        for set_ext, printing_ext, finishes, attrs in rows
+        MarketTarget(
+            set_ext,
+            printing_ext,
+            tuple(finishes),
+            dict(attrs.get("market_ids") or {}),
+            frozenset(quoted.get(pid, ())),
+        )
+        for pid, set_ext, printing_ext, finishes, attrs in rows
     ]
 
 

@@ -1,0 +1,1512 @@
+{
+ "riftcodex_sets": [
+  {
+   "id": "69bc5bf6e195be3e561d1eb3",
+   "name": "Riftbound Organized Play Promotional Cards",
+   "set_id": "OPP",
+   "card_count": 133,
+   "tcgplayer_id": "24343",
+   "cardmarket_id": [
+    "6322",
+    "6483"
+   ],
+   "published_on": "2025-10-31T00:00:00"
+  },
+  {
+   "id": "69bc5bf6e195be3e561d1eb4",
+   "name": "Riftbound Promotional Cards",
+   "set_id": "PR",
+   "card_count": 13,
+   "tcgplayer_id": "24343",
+   "cardmarket_id": [
+    "6322",
+    "6483"
+   ],
+   "published_on": "2025-10-31T00:00:00"
+  },
+  {
+   "id": "6a32e5e7189085654c4f249e",
+   "name": "Vendetta",
+   "set_id": "VEN",
+   "card_count": 358,
+   "tcgplayer_id": null,
+   "cardmarket_id": null,
+   "published_on": "2026-07-31T00:00:00"
+  },
+  {
+   "id": "69bc5bf6e195be3e561d1eb1",
+   "name": "Origins",
+   "set_id": "OGN",
+   "card_count": 352,
+   "tcgplayer_id": "24344",
+   "cardmarket_id": "6286",
+   "published_on": "2025-10-31T00:00:00"
+  }
+ ],
+ "riftcodex_cards": [
+  {
+   "id": "69bc5bcad308c64675ca86fe",
+   "name": "Ahri - Alluring (Alternate Art)",
+   "riftbound_id": "ogn-066a-298",
+   "tcgplayer_id": "652843",
+   "collector_number": 66,
+   "attributes": {
+    "energy": 5,
+    "might": 4,
+    "power": 1
+   },
+   "classification": {
+    "type": "Unit",
+    "supertype": "Champion",
+    "rarity": "Showcase",
+    "domain": [
+     "Calm"
+    ]
+   },
+   "text": {
+    "rich": "<p>When I hold, you score 1 point.</p>",
+    "plain": "When I hold, you score 1 point.",
+    "flavour": "Remember this moment."
+   },
+   "set": {
+    "set_id": "OGN",
+    "label": "Origins"
+   },
+   "media": {
+    "image_url": "https://cmsassets.rgpub.io/sanity/images/dsfx7636/game_data_live/933f5d58cc0e27d017982306b9ae0f581c9c8d27-744x1039.png?accountingTag=RB",
+    "artist": "Wild Rift",
+    "accessibility_text": "Riftbound Unit: Ahri, Alluring. When I hold, you score 1 point."
+   },
+   "tags": [
+    "Ahri",
+    "Ionia"
+   ],
+   "orientation": "portrait",
+   "metadata": {
+    "clean_name": "Ahri Alluring Alternate Art",
+    "updated_on": "2026-07-10T22:44:26.931551+00:00",
+    "alternate_art": true,
+    "overnumbered": false,
+    "signature": false
+   },
+   "new": false
+  },
+  {
+   "id": "69bc5bcad308c64675ca86fd",
+   "name": "Ahri - Alluring",
+   "riftbound_id": "ogn-066-298",
+   "tcgplayer_id": "652842",
+   "collector_number": 66,
+   "attributes": {
+    "energy": 5,
+    "might": 4,
+    "power": 1
+   },
+   "classification": {
+    "type": "Unit",
+    "supertype": "Champion",
+    "rarity": "Rare",
+    "domain": [
+     "Calm"
+    ]
+   },
+   "text": {
+    "rich": "<p>When I hold, you score 1 point.</p>",
+    "plain": "When I hold, you score 1 point.",
+    "flavour": "Remember this moment."
+   },
+   "set": {
+    "set_id": "OGN",
+    "label": "Origins"
+   },
+   "media": {
+    "image_url": "https://cmsassets.rgpub.io/sanity/images/dsfx7636/game_data_live/fabbcc2f83f397cf07299236a702db05a151053b-744x1039.png?accountingTag=RB",
+    "artist": "League Splash Team",
+    "accessibility_text": "Riftbound Unit: Ahri, Alluring. When I hold, you score 1 point."
+   },
+   "tags": [
+    "Ahri",
+    "Ionia"
+   ],
+   "orientation": "portrait",
+   "metadata": {
+    "clean_name": "Ahri Alluring",
+    "updated_on": "2026-07-10T22:44:26.877256+00:00",
+    "alternate_art": false,
+    "overnumbered": false,
+    "signature": false
+   },
+   "new": false
+  },
+  {
+   "id": "69bc5bc6d308c64675ca86bc",
+   "name": "Fury Rune",
+   "riftbound_id": "ogn-007-298",
+   "tcgplayer_id": "652777",
+   "collector_number": 7,
+   "attributes": {
+    "energy": null,
+    "might": null,
+    "power": null
+   },
+   "classification": {
+    "type": "Rune",
+    "supertype": "Basic",
+    "rarity": "Common",
+    "domain": [
+     "Fury"
+    ]
+   },
+   "text": {
+    "rich": "",
+    "plain": "",
+    "flavour": null
+   },
+   "set": {
+    "set_id": "OGN",
+    "label": "Origins"
+   },
+   "media": {
+    "image_url": "https://cmsassets.rgpub.io/sanity/images/dsfx7636/game_data_live/12bcd0cde5d9ff4640e82945001e9fef863530f1-744x1039.png",
+    "artist": "Greg Ghielmetti & Leah Chen",
+    "accessibility_text": "Riftbound Rune: Fury Rune."
+   },
+   "tags": [],
+   "orientation": "portrait",
+   "metadata": {
+    "clean_name": "Fury Rune",
+    "updated_on": "2026-03-26T17:26:44.901327+00:00",
+    "alternate_art": false,
+    "overnumbered": false,
+    "signature": false
+   },
+   "new": null
+  },
+  {
+   "id": "69bc5bc6d308c64675ca86b6",
+   "name": "Blazing Scorcher",
+   "riftbound_id": "ogn-001-298",
+   "tcgplayer_id": "652771",
+   "collector_number": 1,
+   "attributes": {
+    "energy": 5,
+    "might": 5,
+    "power": null
+   },
+   "classification": {
+    "type": "Unit",
+    "supertype": null,
+    "rarity": "Common",
+    "domain": [
+     "Fury"
+    ]
+   },
+   "text": {
+    "rich": "<p>[Accelerate] (You may pay :rb_energy_1::rb_rune_fury: as an additional cost to have me enter ready.)</p>",
+    "plain": "[Accelerate] (You may pay :rb_energy_1::rb_rune_fury: as an additional cost to have me enter ready.)",
+    "flavour": null
+   },
+   "set": {
+    "set_id": "OGN",
+    "label": "Origins"
+   },
+   "media": {
+    "image_url": "https://cmsassets.rgpub.io/sanity/images/dsfx7636/game_data_live/15ed971e4029a92b362a81ccadf309fb81e40b81-744x1039.png?accountingTag=RB",
+    "artist": "Envar Studio",
+    "accessibility_text": "Riftbound Unit: Blazing Scorcher. [Accelerate] (You may pay [1][C] as an additional cost to have me enter ready.)"
+   },
+   "tags": [
+    "Dragon",
+    "Noxus"
+   ],
+   "orientation": "portrait",
+   "metadata": {
+    "clean_name": "Blazing Scorcher",
+    "updated_on": "2026-07-10T22:44:23.319395+00:00",
+    "alternate_art": false,
+    "overnumbered": false,
+    "signature": false
+   },
+   "new": false
+  },
+  {
+   "id": "69bc5beed308c64675ca89bb",
+   "name": "Ahri - Alluring (Launch Exclusive)",
+   "riftbound_id": "pr-066-298",
+   "tcgplayer_id": "659765",
+   "collector_number": 66,
+   "attributes": {
+    "energy": 5,
+    "might": 4,
+    "power": 1
+   },
+   "classification": {
+    "type": "Unit",
+    "supertype": "Champion",
+    "rarity": "Promo",
+    "domain": [
+     "Calm"
+    ]
+   },
+   "text": {
+    "rich": "<p>When I hold, you score 1 point.</p>",
+    "plain": "When I hold, you score 1 point.",
+    "flavour": "Remember this moment."
+   },
+   "set": {
+    "set_id": "PR",
+    "label": "Riftbound Promotional Cards"
+   },
+   "media": {
+    "image_url": "https://cmsassets.rgpub.io/sanity/images/dsfx7636/game_data_live/fabbcc2f83f397cf07299236a702db05a151053b-744x1039.png?accountingTag=RB",
+    "artist": "League Splash Team",
+    "accessibility_text": "Riftbound Unit: Ahri, Alluring. When I hold, you score 1 point."
+   },
+   "tags": [
+    "Ahri",
+    "Ionia"
+   ],
+   "orientation": "portrait",
+   "metadata": {
+    "clean_name": "Ahri Alluring Launch Exclusive",
+    "updated_on": "2026-07-10T22:45:16.035475+00:00",
+    "alternate_art": false,
+    "overnumbered": false,
+    "signature": false
+   },
+   "new": false
+  },
+  {
+   "id": "69bc5bf0d308c64675ca89d5",
+   "name": "Volibear - Relentless Storm",
+   "riftbound_id": "opp-249-298",
+   "tcgplayer_id": "662897",
+   "collector_number": 249,
+   "attributes": {
+    "energy": null,
+    "might": null,
+    "power": null
+   },
+   "classification": {
+    "type": "Legend",
+    "supertype": "Champion",
+    "rarity": "Promo",
+    "domain": [
+     "Fury",
+     "Body"
+    ]
+   },
+   "text": {
+    "rich": "<p>When you play a [Mighty] unit, you may exhaust me to channel 1 rune exhausted. (A unit is Mighty while it has 5+ :rb_might:.)</p>",
+    "plain": "When you play a [Mighty] unit, you may exhaust me to channel 1 rune exhausted. (A unit is Mighty while it has 5+ :rb_might:.)",
+    "flavour": null
+   },
+   "set": {
+    "set_id": "OPP",
+    "label": "Riftbound Organized Play Promotional Cards"
+   },
+   "media": {
+    "image_url": "https://cmsassets.rgpub.io/sanity/images/dsfx7636/game_data_live/f1842ef373434db3e8109d8959832f9d184866c3-744x1040.png?accountingTag=RB",
+    "artist": "Grafit Studio",
+    "accessibility_text": "Riftbound Legend: Relentless Storm. When you play a [Mighty] unit, you may exhaust me to channel 1 rune exhausted. (A unit is Mighty while it has 5+ [S].)"
+   },
+   "tags": [
+    "Volibear"
+   ],
+   "orientation": "portrait",
+   "metadata": {
+    "clean_name": "Volibear Relentless Storm",
+    "updated_on": "2026-07-10T22:45:17.525110+00:00",
+    "alternate_art": false,
+    "overnumbered": false,
+    "signature": false
+   },
+   "new": false
+  },
+  {
+   "id": "69bc5bf1d308c64675ca89f2",
+   "name": "Volibear - Relentless Storm (Metal)",
+   "riftbound_id": "opp-249-298",
+   "tcgplayer_id": "669251",
+   "collector_number": 249,
+   "attributes": {
+    "energy": null,
+    "might": null,
+    "power": null
+   },
+   "classification": {
+    "type": "Legend",
+    "supertype": "Champion",
+    "rarity": "Promo",
+    "domain": [
+     "Fury",
+     "Body"
+    ]
+   },
+   "text": {
+    "rich": "<p>When you play a [Mighty] unit, you may exhaust me to channel 1 rune exhausted. (A unit is Mighty while it has 5+ :rb_might:.)</p>",
+    "plain": "When you play a [Mighty] unit, you may exhaust me to channel 1 rune exhausted. (A unit is Mighty while it has 5+ :rb_might:.)",
+    "flavour": null
+   },
+   "set": {
+    "set_id": "OPP",
+    "label": "Riftbound Organized Play Promotional Cards"
+   },
+   "media": {
+    "image_url": "https://cmsassets.rgpub.io/sanity/images/dsfx7636/game_data_live/f1842ef373434db3e8109d8959832f9d184866c3-744x1040.png?accountingTag=RB",
+    "artist": "Grafit Studio",
+    "accessibility_text": "Riftbound Legend: Relentless Storm. When you play a [Mighty] unit, you may exhaust me to channel 1 rune exhausted. (A unit is Mighty while it has 5+ [S].)"
+   },
+   "tags": [
+    "Volibear"
+   ],
+   "orientation": "portrait",
+   "metadata": {
+    "clean_name": "Volibear Relentless Storm Metal",
+    "updated_on": "2026-07-10T22:45:18.808306+00:00",
+    "alternate_art": false,
+    "overnumbered": false,
+    "signature": false
+   },
+   "new": false
+  },
+  {
+   "id": "6a56ab99ff602fd324f4765d",
+   "name": "Sandswept Tomb",
+   "riftbound_id": "ven-164-166",
+   "tcgplayer_id": "706097",
+   "collector_number": 164,
+   "attributes": {
+    "energy": null,
+    "might": null,
+    "power": null
+   },
+   "classification": {
+    "type": "Battlefield",
+    "supertype": null,
+    "rarity": "Uncommon",
+    "domain": [
+     "Colorless"
+    ]
+   },
+   "text": {
+    "rich": "<p>Each spell that chooses one or more units here that are friendly to it costs :rb_rune_rainbow: less.</p>",
+    "plain": "Each spell that chooses one or more units here that are friendly to it costs :rb_rune_rainbow: less.",
+    "flavour": null
+   },
+   "set": {
+    "set_id": "VEN",
+    "label": "Vendetta"
+   },
+   "media": {
+    "image_url": "https://cmsassets.rgpub.io/sanity/images/dsfx7636/game_data_live/d77c607878d6815e02796f8bfa8a5696ad5f1a7d-1039x744.png?accountingTag=RB",
+    "artist": "Kudos Productions",
+    "accessibility_text": "Riftbound Battlefield: Sandswept Tomb. Each spell that chooses one or more units here that are friendly to it costs [A] less."
+   },
+   "tags": [],
+   "orientation": "landscape",
+   "metadata": {
+    "clean_name": "Sandswept Tomb",
+    "updated_on": "2026-07-14T21:35:21.927106+00:00",
+    "alternate_art": false,
+    "overnumbered": false,
+    "signature": false
+   },
+   "new": false
+  },
+  {
+   "id": "6a517607ad64d2d80a4f03c2",
+   "name": "Sandswept Tomb",
+   "riftbound_id": "ven-164-166",
+   "tcgplayer_id": null,
+   "collector_number": 164,
+   "attributes": {
+    "energy": null,
+    "might": null,
+    "power": null
+   },
+   "classification": {
+    "type": "Battlefield",
+    "supertype": null,
+    "rarity": "Uncommon",
+    "domain": [
+     "Colorless"
+    ]
+   },
+   "text": {
+    "rich": "<p>Each spell that chooses one or more units here that are friendly to it costs :rb_rune_rainbow: less.</p>",
+    "plain": "Each spell that chooses one or more units here that are friendly to it costs :rb_rune_rainbow: less.",
+    "flavour": null
+   },
+   "set": {
+    "set_id": "VEN",
+    "label": "Vendetta"
+   },
+   "media": {
+    "image_url": "https://cmsassets.rgpub.io/sanity/images/dsfx7636/game_data_live/d77c607878d6815e02796f8bfa8a5696ad5f1a7d-1039x744.png?accountingTag=RB",
+    "artist": "Kudos Productions",
+    "accessibility_text": "Riftbound Battlefield: Sandswept Tomb. Each spell that chooses one or more units here that are friendly to it costs [A] less."
+   },
+   "tags": [],
+   "orientation": "landscape",
+   "metadata": {
+    "clean_name": null,
+    "updated_on": "2026-07-10T22:45:27.943885+00:00",
+    "alternate_art": false,
+    "overnumbered": false,
+    "signature": false
+   },
+   "new": true
+  },
+  {
+   "id": "69bc5bd7d308c64675ca87f9",
+   "name": "Kai'Sa - Daughter of the Void (Signature)",
+   "riftbound_id": "ogn-299*-298",
+   "tcgplayer_id": "653094",
+   "collector_number": 299,
+   "attributes": {
+    "energy": null,
+    "might": null,
+    "power": null
+   },
+   "classification": {
+    "type": "Legend",
+    "supertype": null,
+    "rarity": "Showcase",
+    "domain": [
+     "Fury",
+     "Mind"
+    ]
+   },
+   "text": {
+    "rich": "<p>:rb_exhaust:: [Reaction] — [Add] :rb_rune_rainbow:. Use only to play spells. (Abilities that add resources can't be reacted to.)</p>",
+    "plain": ":rb_exhaust:: [Reaction] — [Add] :rb_rune_rainbow:. Use only to play spells. (Abilities that add resources can't be reacted to.)",
+    "flavour": null
+   },
+   "set": {
+    "set_id": "OGN",
+    "label": "Origins"
+   },
+   "media": {
+    "image_url": "https://cmsassets.rgpub.io/sanity/images/dsfx7636/game_data_live/ae8e68af43400f61f7391c0a6ee339fd718a7540-1488x2078.png?accountingTag=RB",
+    "artist": "Jason Chan",
+    "accessibility_text": "Riftbound Legend: Daughter of the Void. [T]: [Reaction] — [Add] [C]. Use only to play spells. (Abilities that add resources can't be reacted to.)"
+   },
+   "tags": [
+    "Kai'Sa"
+   ],
+   "orientation": "portrait",
+   "metadata": {
+    "clean_name": "KaiSa Daughter of the Void Signature",
+    "updated_on": "2026-07-10T22:44:40.487422+00:00",
+    "alternate_art": false,
+    "overnumbered": false,
+    "signature": true
+   },
+   "new": false
+  }
+ ],
+ "cardmarket_products": [
+  {
+   "idProduct": 845712,
+   "name": "Blazing Scorcher",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6286,
+   "idMetacard": 453329,
+   "dateAdded": "2025-08-28 14:10:58"
+  },
+  {
+   "idProduct": 845886,
+   "name": "Fury Rune",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6286,
+   "idMetacard": 453361,
+   "dateAdded": "2025-09-01 14:38:28"
+  },
+  {
+   "idProduct": 845887,
+   "name": "Fury Rune",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6286,
+   "idMetacard": 453361,
+   "dateAdded": "2025-09-01 14:38:57"
+  },
+  {
+   "idProduct": 847186,
+   "name": "Ahri, Alluring",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6286,
+   "idMetacard": 453690,
+   "dateAdded": "2025-09-08 10:02:28"
+  },
+  {
+   "idProduct": 847187,
+   "name": "Ahri, Alluring",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6286,
+   "idMetacard": 453690,
+   "dateAdded": "2025-09-08 10:03:04"
+  },
+  {
+   "idProduct": 847449,
+   "name": "Volibear, Relentless Storm",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6286,
+   "idMetacard": 453873,
+   "dateAdded": "2025-09-08 11:51:04"
+  },
+  {
+   "idProduct": 847501,
+   "name": "Volibear, Relentless Storm",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6286,
+   "idMetacard": 453873,
+   "dateAdded": "2025-09-08 12:12:27"
+  },
+  {
+   "idProduct": 847502,
+   "name": "Volibear, Relentless Storm",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6286,
+   "idMetacard": 453873,
+   "dateAdded": "2025-09-08 12:12:48"
+  },
+  {
+   "idProduct": 850076,
+   "name": "Ahri, Alluring",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6322,
+   "idMetacard": 453690,
+   "dateAdded": "2025-09-19 14:19:45"
+  },
+  {
+   "idProduct": 855690,
+   "name": "Volibear, Relentless Storm",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6322,
+   "idMetacard": 453873,
+   "dateAdded": "2025-10-28 18:02:41"
+  },
+  {
+   "idProduct": 856116,
+   "name": "Blazing Scorcher",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6322,
+   "idMetacard": 453329,
+   "dateAdded": "2025-10-30 13:22:41"
+  },
+  {
+   "idProduct": 856120,
+   "name": "Fury Rune",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6322,
+   "idMetacard": 453361,
+   "dateAdded": "2025-10-30 13:25:14"
+  },
+  {
+   "idProduct": 871236,
+   "name": "Volibear, Relentless Storm",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6480,
+   "idMetacard": 453873,
+   "dateAdded": "2026-02-03 16:36:28"
+  },
+  {
+   "idProduct": 871893,
+   "name": "Fury Rune",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6399,
+   "idMetacard": 453361,
+   "dateAdded": "2026-02-07 17:29:42"
+  },
+  {
+   "idProduct": 872478,
+   "name": "Fury Rune",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6399,
+   "idMetacard": 453361,
+   "dateAdded": "2026-02-10 16:44:40"
+  },
+  {
+   "idProduct": 874107,
+   "name": "Fury Rune",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6483,
+   "idMetacard": 453361,
+   "dateAdded": "2026-02-24 10:51:11"
+  },
+  {
+   "idProduct": 885238,
+   "name": "Fury Rune",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6491,
+   "idMetacard": 453361,
+   "dateAdded": "2026-04-29 12:41:09"
+  },
+  {
+   "idProduct": 888470,
+   "name": "Fury Rune",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6491,
+   "idMetacard": 453361,
+   "dateAdded": "2026-05-21 09:58:10"
+  },
+  {
+   "idProduct": 891436,
+   "name": "Fury Rune",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6567,
+   "idMetacard": 453361,
+   "dateAdded": "2026-06-08 11:35:38"
+  },
+  {
+   "idProduct": 898118,
+   "name": "Sandswept Tomb",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6587,
+   "idMetacard": 465907,
+   "dateAdded": "2026-07-20 15:21:42"
+  },
+  {
+   "idProduct": 898154,
+   "name": "Fury Rune",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6587,
+   "idMetacard": 453361,
+   "dateAdded": "2026-07-20 16:16:22"
+  },
+  {
+   "idProduct": 898178,
+   "name": "Fury Rune",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6587,
+   "idMetacard": 453361,
+   "dateAdded": "2026-07-21 10:39:25"
+  },
+  {
+   "idProduct": 898187,
+   "name": "Fury Rune",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6588,
+   "idMetacard": 453361,
+   "dateAdded": "2026-07-21 11:14:37"
+  },
+  {
+   "idProduct": 904314,
+   "name": "Fury Rune",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6567,
+   "idMetacard": 453361,
+   "dateAdded": "2026-08-25 11:03:40"
+  },
+  {
+   "idProduct": 917119,
+   "name": "Fury Rune",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6588,
+   "idMetacard": 453361,
+   "dateAdded": "2026-10-13 12:46:07"
+  },
+  {
+   "idProduct": 917446,
+   "name": "Fury Rune",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6659,
+   "idMetacard": 453361,
+   "dateAdded": "2026-10-14 12:55:23"
+  },
+  {
+   "idProduct": 917447,
+   "name": "Fury Rune",
+   "idCategory": 1655,
+   "categoryName": "Riftbound Single",
+   "idExpansion": 6659,
+   "idMetacard": 453361,
+   "dateAdded": "2026-10-14 12:55:50"
+  }
+ ],
+ "cardmarket_guides": [
+  {
+   "idProduct": 845712,
+   "idCategory": 1655,
+   "avg": 0.04,
+   "low": 0.02,
+   "trend": 0.04,
+   "avg1": 0.04,
+   "avg7": 0.05,
+   "avg30": 0.04,
+   "avg-foil": 0.18,
+   "low-foil": 0.02,
+   "trend-foil": 0.22,
+   "avg1-foil": 0.3,
+   "avg7-foil": 0.19,
+   "avg30-foil": 0.18
+  },
+  {
+   "idProduct": 845886,
+   "idCategory": 1655,
+   "avg": 0.09,
+   "low": 0.02,
+   "trend": 0.08,
+   "avg1": 0.02,
+   "avg7": 0.05,
+   "avg30": 0.09,
+   "avg-foil": 0.64,
+   "low-foil": null,
+   "trend-foil": 1.25,
+   "avg1-foil": 0.5,
+   "avg7-foil": 0.41,
+   "avg30-foil": 0.41
+  },
+  {
+   "idProduct": 845887,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 2,
+   "trend": 4.75,
+   "avg1": 4.61,
+   "avg7": 5,
+   "avg30": 4.8,
+   "avg-foil": 3.33,
+   "low-foil": 2,
+   "trend-foil": 3.4,
+   "avg1-foil": 3.8,
+   "avg7-foil": 3.26,
+   "avg30-foil": 3.32
+  },
+  {
+   "idProduct": 847186,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 0.03,
+   "trend": 0.82,
+   "avg1": 0.4,
+   "avg7": 0.68,
+   "avg30": 0.81,
+   "avg-foil": 0.56,
+   "low-foil": 0.03,
+   "trend-foil": 0.55,
+   "avg1-foil": 0.36,
+   "avg7-foil": 0.55,
+   "avg30-foil": 0.56
+  },
+  {
+   "idProduct": 847187,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 2.45,
+   "trend": 7.2,
+   "avg1": 6.23,
+   "avg7": 6.86,
+   "avg30": 6.51,
+   "avg-foil": 5.74,
+   "low-foil": 2.45,
+   "trend-foil": 5.59,
+   "avg1-foil": 5.72,
+   "avg7-foil": 5.63,
+   "avg30-foil": 5.74
+  },
+  {
+   "idProduct": 847449,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 0.02,
+   "trend": 0.24,
+   "avg1": 0.2,
+   "avg7": 0.22,
+   "avg30": 0.25,
+   "avg-foil": 0.17,
+   "low-foil": 0.02,
+   "trend-foil": 0.2,
+   "avg1-foil": 0.17,
+   "avg7-foil": 0.18,
+   "avg30-foil": 0.17
+  },
+  {
+   "idProduct": 847501,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 20,
+   "trend": 36.21,
+   "avg1": 54.98,
+   "avg7": 46.81,
+   "avg30": 46.81,
+   "avg-foil": 44.11,
+   "low-foil": 20,
+   "trend-foil": 36.25,
+   "avg1-foil": 33.79,
+   "avg7-foil": 35.89,
+   "avg30-foil": 41.71
+  },
+  {
+   "idProduct": 847502,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 299.88,
+   "trend": 549.99,
+   "avg1": 549.99,
+   "avg7": 549.99,
+   "avg30": 549.99,
+   "avg-foil": 578.33,
+   "low-foil": 299.88,
+   "trend-foil": 528.61,
+   "avg1-foil": 725,
+   "avg7-foil": 510.57,
+   "avg30-foil": 537.61
+  },
+  {
+   "idProduct": 850076,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 7.99,
+   "trend": 61.29,
+   "avg1": 109.99,
+   "avg7": 71.26,
+   "avg30": 96.16,
+   "avg-foil": 51.63,
+   "low-foil": 7.99,
+   "trend-foil": 40.41,
+   "avg1-foil": 7.99,
+   "avg7-foil": 23.85,
+   "avg30-foil": 56.28
+  },
+  {
+   "idProduct": 855690,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 8.49,
+   "trend": 17.93,
+   "avg1": 19,
+   "avg7": 15.76,
+   "avg30": 15.76,
+   "avg-foil": 16.6,
+   "low-foil": 8.49,
+   "trend-foil": 15.94,
+   "avg1-foil": 15,
+   "avg7-foil": 15.12,
+   "avg30-foil": 16.69
+  },
+  {
+   "idProduct": 856116,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 0.02,
+   "trend": 0.14,
+   "avg1": 0.15,
+   "avg7": 0.24,
+   "avg30": 0.24,
+   "avg-foil": 0.13,
+   "low-foil": 0.02,
+   "trend-foil": 0.11,
+   "avg1-foil": 0.13,
+   "avg7-foil": 0.12,
+   "avg30-foil": 0.12
+  },
+  {
+   "idProduct": 856120,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 2,
+   "trend": 2.96,
+   "avg1": 3.3,
+   "avg7": 3.05,
+   "avg30": 3.17,
+   "avg-foil": 3.04,
+   "low-foil": 2,
+   "trend-foil": 3.14,
+   "avg1-foil": 2.87,
+   "avg7-foil": 3.01,
+   "avg30-foil": 3.03
+  },
+  {
+   "idProduct": 871236,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 790,
+   "trend": 0,
+   "avg1": null,
+   "avg7": null,
+   "avg30": null,
+   "avg-foil": 1028,
+   "low-foil": 790,
+   "trend-foil": 747.29,
+   "avg1-foil": 1235,
+   "avg7-foil": 670.11,
+   "avg30-foil": 426.45
+  },
+  {
+   "idProduct": 871893,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 1.4,
+   "trend": 2.82,
+   "avg1": 2,
+   "avg7": 2.79,
+   "avg30": 3.87,
+   "avg-foil": 3.05,
+   "low-foil": 1.4,
+   "trend-foil": 3,
+   "avg1-foil": 4.23,
+   "avg7-foil": 3.27,
+   "avg30-foil": 3.12
+  },
+  {
+   "idProduct": 872478,
+   "idCategory": 1655,
+   "avg": 0.08,
+   "low": 0.02,
+   "trend": 0.06,
+   "avg1": 0.14,
+   "avg7": 0.07,
+   "avg30": 0.08,
+   "avg-foil": null,
+   "low-foil": null,
+   "trend-foil": 0,
+   "avg1-foil": null,
+   "avg7-foil": null,
+   "avg30-foil": null
+  },
+  {
+   "idProduct": 874107,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 3.5,
+   "trend": 6.31,
+   "avg1": 6.23,
+   "avg7": 6.65,
+   "avg30": 6.65,
+   "avg-foil": 4.99,
+   "low-foil": 3.5,
+   "trend-foil": 4.77,
+   "avg1-foil": 3.75,
+   "avg7-foil": 4.94,
+   "avg30-foil": 4.91
+  },
+  {
+   "idProduct": 885238,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 2.3,
+   "trend": 4.77,
+   "avg1": 4.9,
+   "avg7": 4.9,
+   "avg30": 5.19,
+   "avg-foil": 3.75,
+   "low-foil": 2.3,
+   "trend-foil": 3.86,
+   "avg1-foil": 3.98,
+   "avg7-foil": 3.83,
+   "avg30-foil": 3.74
+  },
+  {
+   "idProduct": 888470,
+   "idCategory": 1655,
+   "avg": 0.09,
+   "low": 0.02,
+   "trend": 0.06,
+   "avg1": 0.07,
+   "avg7": 0.05,
+   "avg30": 0.06,
+   "avg-foil": null,
+   "low-foil": null,
+   "trend-foil": 0,
+   "avg1-foil": null,
+   "avg7-foil": null,
+   "avg30-foil": null
+  },
+  {
+   "idProduct": 891436,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 2.45,
+   "trend": 3.7,
+   "avg1": 3,
+   "avg7": 4.05,
+   "avg30": 3.93,
+   "avg-foil": 3.88,
+   "low-foil": 2.45,
+   "trend-foil": 3.66,
+   "avg1-foil": 3.72,
+   "avg7-foil": 4.59,
+   "avg30-foil": 3.8
+  },
+  {
+   "idProduct": 898118,
+   "idCategory": 1655,
+   "avg": 0.13,
+   "low": 0.02,
+   "trend": 0.09,
+   "avg1": 0.08,
+   "avg7": 0.06,
+   "avg30": 0.13,
+   "avg-foil": 0.42,
+   "low-foil": 0.02,
+   "trend-foil": 0.46,
+   "avg1-foil": 0.05,
+   "avg7-foil": 0.54,
+   "avg30-foil": 0.4
+  },
+  {
+   "idProduct": 898154,
+   "idCategory": 1655,
+   "avg": 0.07,
+   "low": 0.02,
+   "trend": 0.09,
+   "avg1": 0.26,
+   "avg7": 0.08,
+   "avg30": 0.07,
+   "avg-foil": null,
+   "low-foil": null,
+   "trend-foil": 0,
+   "avg1-foil": null,
+   "avg7-foil": null,
+   "avg30-foil": null
+  },
+  {
+   "idProduct": 898178,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 4.9,
+   "trend": 7.28,
+   "avg1": 6.73,
+   "avg7": 7.39,
+   "avg30": 6.99,
+   "avg-foil": 6.27,
+   "low-foil": 4.9,
+   "trend-foil": 6.69,
+   "avg1-foil": 7.71,
+   "avg7-foil": 6.62,
+   "avg30-foil": 6.37
+  },
+  {
+   "idProduct": 898187,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 3,
+   "trend": 5.24,
+   "avg1": 5.78,
+   "avg7": 5.7,
+   "avg30": 5.62,
+   "avg-foil": 5.2,
+   "low-foil": 3,
+   "trend-foil": 4.65,
+   "avg1-foil": 4.24,
+   "avg7-foil": 4.89,
+   "avg30-foil": 4.91
+  },
+  {
+   "idProduct": 904314,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 9.44,
+   "trend": 0,
+   "avg1": null,
+   "avg7": null,
+   "avg30": null,
+   "avg-foil": 10.05,
+   "low-foil": 9.44,
+   "trend-foil": 9.59,
+   "avg1-foil": 9.63,
+   "avg7-foil": 9.76,
+   "avg30-foil": 10.49
+  },
+  {
+   "idProduct": 917119,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 5,
+   "trend": 0,
+   "avg1": null,
+   "avg7": null,
+   "avg30": null,
+   "avg-foil": 5,
+   "low-foil": 5,
+   "trend-foil": 5,
+   "avg1-foil": null,
+   "avg7-foil": null,
+   "avg30-foil": null
+  },
+  {
+   "idProduct": 917446,
+   "idCategory": 1655,
+   "avg": null,
+   "low": null,
+   "trend": null,
+   "avg1": null,
+   "avg7": null,
+   "avg30": null
+  },
+  {
+   "idProduct": 917447,
+   "idCategory": 1655,
+   "avg": null,
+   "low": 8,
+   "trend": null,
+   "avg1": null,
+   "avg7": null,
+   "avg30": null,
+   "avg-foil": null,
+   "low-foil": 8,
+   "trend-foil": null,
+   "avg1-foil": null,
+   "avg7-foil": null,
+   "avg30-foil": null
+  }
+ ],
+ "tcgcsv_groups": [
+  {
+   "groupId": 24698,
+   "name": "Vendetta",
+   "abbreviation": "VEN",
+   "isSupplemental": false,
+   "publishedOn": "2026-07-31T00:00:00",
+   "modifiedOn": "2026-10-12T12:55:49.4",
+   "categoryId": 89
+  },
+  {
+   "groupId": 24344,
+   "name": "Origins",
+   "abbreviation": "OGN",
+   "isSupplemental": false,
+   "publishedOn": "2025-10-31T00:00:00",
+   "modifiedOn": "2026-08-12T20:21:07.447",
+   "categoryId": 89
+  },
+  {
+   "groupId": 24343,
+   "name": "Riftbound Promotional Cards",
+   "abbreviation": "PR",
+   "isSupplemental": false,
+   "publishedOn": "2025-10-31T00:00:00",
+   "modifiedOn": "2026-09-09T18:45:41.583",
+   "categoryId": 89
+  }
+ ],
+ "tcgcsv_products": [
+  {
+   "productId": 652771,
+   "name": "Blazing Scorcher",
+   "cleanName": "Blazing Scorcher",
+   "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/652771_200w.jpg",
+   "categoryId": 89,
+   "groupId": 24344,
+   "url": "https://www.tcgplayer.com/product/652771/riftbound-league-of-legends-trading-card-game-origins-blazing-scorcher",
+   "modifiedOn": "2026-08-13T13:32:06.837",
+   "imageCount": 1,
+   "presaleInfo": {
+    "isPresale": false,
+    "releasedOn": null,
+    "note": null
+   },
+   "extendedData": [
+    {
+     "name": "Rarity",
+     "displayName": "Rarity",
+     "value": "Common"
+    },
+    {
+     "name": "Number",
+     "displayName": "Number",
+     "value": "001/298"
+    },
+    {
+     "name": "Description",
+     "displayName": "Description",
+     "value": "[ACCELERATE] <em>(You may pay 1 and 1 Fury as an additional cost to have me enter ready.)</em>"
+    },
+    {
+     "name": "Energy Cost",
+     "displayName": "Energy Cost",
+     "value": "5"
+    },
+    {
+     "name": "Power Cost",
+     "displayName": "Power Cost",
+     "value": "0"
+    },
+    {
+     "name": "Might",
+     "displayName": "Might",
+     "value": "5"
+    },
+    {
+     "name": "Card Type",
+     "displayName": "Card Type",
+     "value": "Unit"
+    },
+    {
+     "name": "Tag",
+     "displayName": "Tag",
+     "value": "Noxus;Dragon"
+    },
+    {
+     "name": "Domain",
+     "displayName": "Domain",
+     "value": "Fury"
+    }
+   ]
+  },
+  {
+   "productId": 652777,
+   "name": "Fury Rune",
+   "cleanName": "Fury Rune",
+   "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/652777_200w.jpg",
+   "categoryId": 89,
+   "groupId": 24344,
+   "url": "https://www.tcgplayer.com/product/652777/riftbound-league-of-legends-trading-card-game-origins-fury-rune",
+   "modifiedOn": "2026-08-13T13:32:07.523",
+   "imageCount": 1,
+   "presaleInfo": {
+    "isPresale": false,
+    "releasedOn": null,
+    "note": null
+   },
+   "extendedData": [
+    {
+     "name": "Rarity",
+     "displayName": "Rarity",
+     "value": "Common"
+    },
+    {
+     "name": "Number",
+     "displayName": "Number",
+     "value": "007/298"
+    },
+    {
+     "name": "Energy Cost",
+     "displayName": "Energy Cost",
+     "value": "0"
+    },
+    {
+     "name": "Power Cost",
+     "displayName": "Power Cost",
+     "value": "0"
+    },
+    {
+     "name": "Might",
+     "displayName": "Might",
+     "value": "0"
+    },
+    {
+     "name": "Card Type",
+     "displayName": "Card Type",
+     "value": "Rune"
+    },
+    {
+     "name": "Domain",
+     "displayName": "Domain",
+     "value": "Fury"
+    }
+   ]
+  },
+  {
+   "productId": 652842,
+   "name": "Ahri, Alluring",
+   "cleanName": "Ahri Alluring",
+   "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/652842_200w.jpg",
+   "categoryId": 89,
+   "groupId": 24344,
+   "url": "https://www.tcgplayer.com/product/652842/riftbound-league-of-legends-trading-card-game-origins-ahri-alluring",
+   "modifiedOn": "2026-08-13T13:32:14.14",
+   "imageCount": 1,
+   "presaleInfo": {
+    "isPresale": false,
+    "releasedOn": null,
+    "note": null
+   },
+   "extendedData": [
+    {
+     "name": "Rarity",
+     "displayName": "Rarity",
+     "value": "Rare"
+    },
+    {
+     "name": "Number",
+     "displayName": "Number",
+     "value": "066/298"
+    },
+    {
+     "name": "Description",
+     "displayName": "Description",
+     "value": "When I hold, you score 1 point."
+    },
+    {
+     "name": "Energy Cost",
+     "displayName": "Energy Cost",
+     "value": "5"
+    },
+    {
+     "name": "Power Cost",
+     "displayName": "Power Cost",
+     "value": "1"
+    },
+    {
+     "name": "Might",
+     "displayName": "Might",
+     "value": "4"
+    },
+    {
+     "name": "Card Type",
+     "displayName": "Card Type",
+     "value": "Champion Unit"
+    },
+    {
+     "name": "Tag",
+     "displayName": "Tag",
+     "value": "Ahri;Ionia"
+    },
+    {
+     "name": "Domain",
+     "displayName": "Domain",
+     "value": "Calm"
+    },
+    {
+     "name": "Flavor Text",
+     "displayName": "Flavor Text",
+     "value": "<em>\"Remember this moment.\"</em>"
+    }
+   ]
+  },
+  {
+   "productId": 652843,
+   "name": "Ahri, Alluring (Alternate Art)",
+   "cleanName": "Ahri Alluring Alternate Art",
+   "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/652843_200w.jpg",
+   "categoryId": 89,
+   "groupId": 24344,
+   "url": "https://www.tcgplayer.com/product/652843/riftbound-league-of-legends-trading-card-game-origins-ahri-alluring-alternate-art",
+   "modifiedOn": "2026-08-13T13:32:14.217",
+   "imageCount": 1,
+   "presaleInfo": {
+    "isPresale": false,
+    "releasedOn": null,
+    "note": null
+   },
+   "extendedData": [
+    {
+     "name": "Rarity",
+     "displayName": "Rarity",
+     "value": "Showcase"
+    },
+    {
+     "name": "Number",
+     "displayName": "Number",
+     "value": "066a/298"
+    },
+    {
+     "name": "Description",
+     "displayName": "Description",
+     "value": "When I hold, you score 1 point."
+    },
+    {
+     "name": "Energy Cost",
+     "displayName": "Energy Cost",
+     "value": "5"
+    },
+    {
+     "name": "Power Cost",
+     "displayName": "Power Cost",
+     "value": "1"
+    },
+    {
+     "name": "Might",
+     "displayName": "Might",
+     "value": "4"
+    },
+    {
+     "name": "Card Type",
+     "displayName": "Card Type",
+     "value": "Champion Unit"
+    },
+    {
+     "name": "Tag",
+     "displayName": "Tag",
+     "value": "Ahri;Ionia"
+    },
+    {
+     "name": "Domain",
+     "displayName": "Domain",
+     "value": "Calm"
+    },
+    {
+     "name": "Flavor Text",
+     "displayName": "Flavor Text",
+     "value": "<em>\"Remember this moment.\"</em>"
+    }
+   ]
+  }
+ ],
+ "tcgcsv_prices": [
+  {
+   "productId": 652771,
+   "lowPrice": 0.05,
+   "midPrice": 0.25,
+   "highPrice": 99.0,
+   "marketPrice": 0.21,
+   "directLowPrice": null,
+   "subTypeName": "Foil"
+  },
+  {
+   "productId": 652771,
+   "lowPrice": 0.01,
+   "midPrice": 0.2,
+   "highPrice": 3.0,
+   "marketPrice": 0.09,
+   "directLowPrice": null,
+   "subTypeName": "Normal"
+  },
+  {
+   "productId": 652777,
+   "lowPrice": 0.02,
+   "midPrice": 0.22,
+   "highPrice": 15.8,
+   "marketPrice": 0.1,
+   "directLowPrice": null,
+   "subTypeName": "Normal"
+  },
+  {
+   "productId": 652842,
+   "lowPrice": 0.3,
+   "midPrice": 1.0,
+   "highPrice": 9.0,
+   "marketPrice": 0.76,
+   "directLowPrice": null,
+   "subTypeName": "Foil"
+  },
+  {
+   "productId": 652843,
+   "lowPrice": 4.78,
+   "midPrice": 7.99,
+   "highPrice": 500.0,
+   "marketPrice": 5.95,
+   "directLowPrice": null,
+   "subTypeName": "Foil"
+  }
+ ]
+}

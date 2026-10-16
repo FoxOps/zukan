@@ -160,6 +160,12 @@ class StoredPrinting:
     market_ids: dict[str, Any]
     # Languages the printing exists in.
     languages: tuple[str, ...] = ()
+    finishes: tuple[str, ...] = ()
+    # The provider guessed the finishes (`attributes["finishes_guessed"]`): a source
+    # listing the real versions should confirm them.
+    finishes_guessed: bool = False
+    # The card's rules text, for games naming its attribute (`text_attribute`).
+    card_text: str | None = None
 
 
 @dataclass
@@ -189,6 +195,9 @@ class SecondaryBatch:
     discrepancies: list[Discrepancy] = field(default_factory=list)
     # Stored printings this source has (cross-checked).
     matched: int = 0
+    # Sets this batch checked, for sources checking only some sets (gap sources): their
+    # earlier disagreements elsewhere stay. None: the whole game is checked.
+    checked_sets: list[str] | None = None
 
 
 @runtime_checkable
@@ -281,6 +290,11 @@ class GameProvider(Protocol):
     - `catalog_version` (default 1): bump it when `fetch_catalog` output changes in a way
       stored data must catch up with; the worker then syncs the catalog without waiting
       for `TCG_CATALOG_INTERVAL_HOURS`.
+    - `text_attribute`: card attribute holding the rules text ("rules"), compared with
+      secondary sources that have it.
+    - `legal_notice`: text the publisher asks fan tools to show (web footer).
+    - `source_keys`: the game's id in the generic gap-filling sources (`app.sources`),
+      e.g. {"tcgcsv": 89, "apitcg": "riftbound"}; overrides those sources' own tables.
     - `filters: list[FilterDef]`: advanced catalog search filters (types, rarity...).
     - `secondary_sources: list[CatalogSource]`: other sources of this game's catalog,
       cross-checked against it after each catalog sync.

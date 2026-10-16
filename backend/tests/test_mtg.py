@@ -107,6 +107,9 @@ def test_parse_card():
     assert "/back/" in delver.printings[0].attributes["back_image_url"]
     assert parse_card(raw("fr", "isd")).printings[0].names["fr"].startswith("Sondeur de secrets")
 
+    art = {**raw("en", "isd"), "layout": "art_series"}
+    assert "back_image_url" not in parse_card(art).printings[0].attributes
+
     assert parse_card(raw("en", "ymid")) is None  # Arena only
     assert parse_card(raw("ph", "dmu")) is None  # unsupported language
 

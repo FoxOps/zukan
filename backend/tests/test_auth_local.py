@@ -208,13 +208,18 @@ async def test_admin_user_management(client, session):
     assert (await client.delete(f"/api/users/{carol_id}", headers=admin)).status_code == 204
 
 
+@pytest.mark.gap_sources
 async def test_games_metadata(client, session):
     await make_user(session)
     headers = await bearer(client, "alice")
     games = {g["id"]: g for g in (await client.get("/api/games", headers=headers)).json()}
-    assert set(games) == {"mtg", "pokemon", "sorcery"}
+    assert set(games) == {"mtg", "pokemon", "sorcery", "riftbound"}
     assert [c["code"] for c in games["mtg"]["colors"]][:5] == ["W", "U", "B", "R", "G"]
     assert games["sorcery"]["has_prices"] is True
+    # tcgcsv prices Sorcery and Riftbound on TCGplayer.
+    assert [s["id"] for s in games["sorcery"]["price_sources"]] == ["cardmarket", "tcgplayer"]
+    assert games["riftbound"]["legal_notice"].startswith("Zukan isn't endorsed by Riot Games")
+    assert games["mtg"]["legal_notice"] is None
     assert (await client.get("/api/games")).status_code == 401
 
 

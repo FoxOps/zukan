@@ -2,8 +2,8 @@
 
 *Zukan* (図鑑) means "illustrated encyclopedia" in Japanese, like the Pokédex (ポケモン図鑑).
 
-Self-hosted trading card game collection manager: Magic: The Gathering, Pokémon TCG and
-Sorcery, with a plugin system for more games, and an Android scanner app.
+Self-hosted trading card game collection manager: Magic: The Gathering, Pokémon TCG,
+Sorcery and Riftbound, with a plugin system for more games, and an Android scanner app.
 See [PLAN.md](PLAN.md) for the full design and progress.
 
 ## Run with Docker
@@ -53,14 +53,34 @@ file, Pokémon fetches every card from TCGdex one by one.
 
 ### Prices
 
-All prices are Cardmarket prices (EUR), never scraped from its website:
+Prices come from Cardmarket (EUR) and TCGplayer (USD), never scraped from their websites:
 
 - MTG: trend price from Scryfall, lowest offer and average from the daily price guide file
   Cardmarket publishes for download (matched by Scryfall's Cardmarket product id).
 - Pokémon: trend, lowest offer and average from TCGdex.
-- Sorcery: Cardmarket's daily product list and price guide files; products are matched to
-  printings by set and card name. Cards too new for a trend use the 7 or 30 day average,
-  then the lowest offer.
+- Sorcery and Riftbound: Cardmarket's daily product list and price guide files; products
+  are matched to printings by set and card name. Cards too new for a trend use the 7 or 30
+  day average, then the lowest offer.
+- TCGplayer: from Scryfall and TCGdex, and for the printings they do not price (all of
+  Sorcery and Riftbound) from [tcgcsv](https://tcgcsv.com)'s daily TCGplayer files.
+
+### Card data sources
+
+Each game has its own sources (Scryfall + MTGJSON, TCGdex + Pokémon TCG API + Asian
+datasets, the Sorcery API, Riftbound below). Card databases covering several games only fill
+what those leave empty (English pictures, rarities, artists, TCGplayer ids, finishes) for
+the sets with such gaps, and report where they disagree (admin "Data checks"):
+[tcgcsv](https://tcgcsv.com) (no key), [tcg-api.eu](https://tcg-api.eu) and
+[apitcg.com](https://apitcg.com) (free keys, see "API keys" in `.env.example`; their
+monthly or daily quotas are counted).
+
+Riftbound: Riot's official content API with a key Riot approved for a Riftbound product
+(`TCG_APITOKEN_GAMES_RFB_RIOT`), else [Riftcodex](https://riftcodex.com). Riot's official
+[card gallery](https://playriftbound.com/en-us/card-gallery/) adds the cards of sets the
+APIs do not have yet and the Simplified Chinese names and pictures. Pictures come from
+Riot's servers only, and the web UI shows Riot's legal notice, as Riot's policy for fan
+tools asks. Getting a Riot key (Riot account, developer account, Production API Key):
+[docs/riftbound.md](docs/riftbound.md).
 
 Each user picks the markets shown (Settings, several allowed); the first one gives values,
 sorts and price ranges. Card pages show the trend and lowest offer of each printing and finish, the cheapest and
@@ -182,7 +202,7 @@ From the command line:
 
 ```sh
 gh workflow run docker-dev.yml --ref my-branch
-gh workflow run docker-prod.yml --ref main -f version=0.8.0
+gh workflow run docker-prod.yml --ref main -f version=0.9.0
 gh workflow run android-prod.yml --ref main -f version=0.7.0
 ```
 
