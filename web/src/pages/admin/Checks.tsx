@@ -11,7 +11,13 @@ import { useUrlState } from '../../lib/hooks'
 
 const PAGE_SIZE = 50
 // Secondary catalog sources by id.
-const SOURCES: Record<string, string> = { mtgjson: 'MTGJSON', pokemontcg: 'Pokémon TCG API' }
+const SOURCES: Record<string, string> = {
+  mtgjson: 'MTGJSON',
+  pokemontcg: 'Pokémon TCG API',
+  tcgcsv: 'tcgcsv (TCGplayer)',
+  tcgapi_eu: 'TCG API (tcg-api.eu)',
+  apitcg: 'API TCG (apitcg.com)',
+}
 // Fields an arbitration can write (others can only be kept as they are).
 const WRITABLE = new Set(['name', 'rarity', 'set name', 'release date', 'card count'])
 const REASONS: Record<string, string> = {

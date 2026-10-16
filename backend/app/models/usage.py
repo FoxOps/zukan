@@ -18,3 +18,19 @@ class ApiUsage(Base):
     # First day of the day / month counted.
     period_start: Mapped[date] = mapped_column(Date)
     requests: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
+class GapCheck(Base):
+    """A set a gap source with a quota looked at, and how many printings still had gaps
+    after it. The source skips the set while that number is the same (it had nothing for
+    them), for a while."""
+
+    __tablename__ = "gap_check"
+    __table_args__ = (UniqueConstraint("source", "game_id", "set_external_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source: Mapped[str] = mapped_column(String(32))
+    game_id: Mapped[str] = mapped_column(String(32))
+    set_external_id: Mapped[str] = mapped_column(String(64))
+    gaps: Mapped[int] = mapped_column(Integer)
+    checked_on: Mapped[date] = mapped_column(Date)

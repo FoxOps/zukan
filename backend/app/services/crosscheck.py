@@ -104,6 +104,7 @@ async def _store_discrepancies(
     source: str,
     found: list[Discrepancy],
     started: datetime,
+    checked_sets: set[str] | None = None,
 ) -> int:
     set_ids = dict(
         (await session.execute(
@@ -152,14 +153,17 @@ async def _store_discrepancies(
             },
         )
         await session.execute(stmt)
-    # Disagreements this run did not find again are solved.
-    await session.execute(
-        delete(CatalogDiscrepancy).where(
-            CatalogDiscrepancy.game_id == game_id,
-            CatalogDiscrepancy.source == source,
-            CatalogDiscrepancy.last_seen < started,
-        )
+    # Disagreements this run did not find again (in the sets it checked) are solved.
+    solved = delete(CatalogDiscrepancy).where(
+        CatalogDiscrepancy.game_id == game_id,
+        CatalogDiscrepancy.source == source,
+        CatalogDiscrepancy.last_seen < started,
     )
+    if checked_sets is not None:
+        solved = solved.where(
+            CatalogDiscrepancy.set_id.in_([set_ids[s] for s in checked_sets if s in set_ids])
+        )
+    await session.execute(solved)
     return len(unique)
 
 
@@ -267,11 +271,15 @@ async def cross_check(
     for source in sources:
         # Built again for each source: gaps an earlier source filled are not asked for.
         index = await build_index(session, provider.id)
+        # New transaction: rows stored below get a `now()` after `started`.
+        await session.commit()
         started = datetime.now(UTC)
         writer = CatalogWriter(session, provider.id, mark_seen=False)
         await writer.load_sets()
         found: list[Discrepancy] = []
         matched = 0
+        # Sources checking only some sets (gap sources) say which.
+        checked: set[str] | None = set() if getattr(source, "checks_some_sets", False) else None
         try:
             async for batch in source.fetch(http, index):
                 if batch.cards:
@@ -279,6 +287,8 @@ async def cross_check(
                     await session.commit()
                 found += batch.discrepancies
                 matched += batch.matched
+                if checked is not None and batch.checked_sets:
+                    checked |= set(batch.checked_sets)
                 await progress()
         except Exception:
             # The primary catalog is stored already: a failing check does not undo it.
@@ -288,7 +298,7 @@ async def cross_check(
             continue
         report.matched += matched
         report.discrepancies += await _store_discrepancies(
-            session, provider.id, source.id, found, started
+            session, provider.id, source.id, found, started, checked
         )
         await session.commit()
         log.info("%s: %s printings cross-checked, %s discrepancies", source.id, matched, len(found))

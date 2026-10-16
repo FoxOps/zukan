@@ -358,5 +358,15 @@
   "Missed by the last catalog sync": "Absente de la dernière synchronisation",
   "No image": "Pas d’image",
   "No card details": "Pas de détails de carte",
-  "arbitrated values written": "valeurs tranchées appliquées"
+  "arbitrated values written": "valeurs tranchées appliquées",
+  "Fury": "Fureur",
+  "Calm": "Calme",
+  "Mind": "Esprit",
+  "Body": "Corps",
+  "Chaos": "Chaos",
+  "Order": "Ordre",
+  "Normal": "Normale",
+  "Supertype": "Supertype",
+  "Tag": "Étiquette",
+  "text": "texte"
 }

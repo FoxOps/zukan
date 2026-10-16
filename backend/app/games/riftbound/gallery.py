@@ -19,7 +19,7 @@ from app.games.riftbound.records import (
     dedupe,
     full_name,
     normalize_id,
-    plain_text,
+    rules_text,
 )
 
 GALLERY_URL = "https://playriftbound.com/{locale}/card-gallery/"
@@ -69,7 +69,7 @@ def parse_card(raw: dict[str, Any]) -> RiftCard:
         might=as_int(_value(raw.get("might"))),
         power=as_int(_value(raw.get("power"))),
         tags=list((raw.get("tags") or {}).get("tags") or []),
-        text=plain_text(((raw.get("text") or {}).get("richText") or {}).get("body")),
+        text=rules_text(((raw.get("text") or {}).get("richText") or {}).get("body")),
         artist=next(iter(_labels(raw.get("illustrator"))), None),
         image=(raw.get("cardImage") or {}).get("url"),
         orientation=raw.get("orientation"),

@@ -14,13 +14,16 @@ override that mapping, so a new game needs no change here.
 import re
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from functools import lru_cache
 from importlib.metadata import entry_points
 from typing import Any, Protocol, runtime_checkable
 
 import httpx
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 
+from app.core.db import get_sessionmaker
 from app.games.base import (
     CardData,
     CatalogIndex,
@@ -33,6 +36,7 @@ from app.games.base import (
     compare,
     registry,
 )
+from app.models import GapCheck
 
 ENTRY_POINT_GROUP = "zukan.sources"
 
@@ -247,6 +251,13 @@ def finish_codes(game_id: str, versions: list[str]) -> list[str]:
     return out
 
 
+_REMINDER = re.compile(r"\([^)]*\)")
+
+
+def _rules(text: str) -> str:
+    return _REMINDER.sub(" ", text)
+
+
 def fill(
     game_id: str,
     source_id: str,
@@ -261,8 +272,12 @@ def fill(
         compare(set_ext, ext_id, "name", printing.card_name, plain_name(ext.name)),
         compare(set_ext, ext_id, "rarity", printing.rarity, ext.rarity, True),
     ]
-    if check_text:
-        checks.append(compare(set_ext, ext_id, "text", printing.card_text, ext.text))
+    if check_text and printing.card_text and ext.text:
+        # Sources write keywords and symbols their own way and some leave out reminder
+        # text in parentheses: same words (one may have more) is the same text.
+        same = compare(set_ext, ext_id, "text", _rules(printing.card_text), _rules(ext.text), True)
+        if same is not None:
+            checks.append(Discrepancy(set_ext, ext_id, "text", printing.card_text, ext.text))
     found = [d for d in checks if d is not None]
 
     gaps = printing_gaps(printing)
@@ -301,7 +316,7 @@ def check_set(
     theirs: list[ExternalPrinting],
     check_text: bool = False,
 ) -> SecondaryBatch:
-    batch = SecondaryBatch()
+    batch = SecondaryBatch(checked_sets=sorted({p.set_external_id for p in stored}))
     for printing, ext in pair(stored, theirs):
         batch.matched += 1
         card, found = fill(game_id, source_id, printing, ext, check_text)
@@ -327,5 +342,45 @@ class BoundSource:
     game_id: str
     run: Callable[[httpx.AsyncClient, CatalogIndex, str], AsyncIterator[SecondaryBatch]]
 
+    # Only sets with gaps are checked: disagreements found elsewhere earlier are kept.
+    checks_some_sets = True
+
     def fetch(self, http: httpx.AsyncClient, index: CatalogIndex) -> AsyncIterator[SecondaryBatch]:
         return self.run(http, index, self.game_id)
+
+
+# Sets a source with a quota found nothing more for are skipped this long while their
+# number of printings with gaps stays the same.
+RECHECK_DAYS = 30
+
+
+async def unchecked(source_id: str, game_id: str, gaps: dict[str, int]) -> dict[str, int]:
+    """`gaps` without the sets this source checked recently with as many gaps."""
+    async with get_sessionmaker()() as session:
+        rows = await session.scalars(
+            select(GapCheck).where(GapCheck.source == source_id, GapCheck.game_id == game_id)
+        )
+        recent = {
+            r.set_external_id: r.gaps
+            for r in rows
+            if r.checked_on > date.today() - timedelta(days=RECHECK_DAYS)
+        }
+    return {s: n for s, n in gaps.items() if recent.get(s) != n}
+
+
+async def remember(source_id: str, game_id: str, set_ext: str, gaps: int) -> None:
+    async with get_sessionmaker()() as session:
+        stmt = insert(GapCheck).values(
+            source=source_id,
+            game_id=game_id,
+            set_external_id=set_ext,
+            gaps=gaps,
+            checked_on=date.today(),
+        )
+        await session.execute(
+            stmt.on_conflict_do_update(
+                index_elements=["source", "game_id", "set_external_id"],
+                set_={"gaps": stmt.excluded.gaps, "checked_on": stmt.excluded.checked_on},
+            )
+        )
+        await session.commit()

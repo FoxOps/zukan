@@ -27,8 +27,10 @@ from app.sources.base import (
     check_set,
     game_key,
     match_sets,
+    remember,
     sets_with_gaps,
     stored_by_set,
+    unchecked,
 )
 
 log = logging.getLogger(__name__)
@@ -101,7 +103,8 @@ class TcgApiEuSource:
     async def run(
         self, http: httpx.AsyncClient, index: CatalogIndex, game_id: str
     ) -> AsyncIterator[SecondaryBatch]:
-        gaps = sets_with_gaps(index, FILLS)
+        # Sets this source found nothing more for lately are left out.
+        gaps = await unchecked(self.id, game_id, sets_with_gaps(index, FILLS))
         if not gaps:
             return
         name = game_key(self, game_id)
@@ -127,6 +130,7 @@ class TcgApiEuSource:
                     for raw in page
                 ]
                 yield check_set(game_id, self.id, stored[set_ext], cards)
+                await remember(self.id, game_id, set_ext, gaps[set_ext])
         except BudgetSpent as exc:
             log.warning("%s; the rest waits for the next run", exc)
 

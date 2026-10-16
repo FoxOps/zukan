@@ -8,7 +8,7 @@ from typing import Any
 from app.core.text import plain_text
 from app.games.cardmarket import name_key
 
-__all__ = ["RiftCard", "plain_text"]
+__all__ = ["RiftCard", "plain_text", "rules_text"]
 
 
 @dataclass
@@ -70,6 +70,36 @@ def split_variant(name: str) -> tuple[str, str | None]:
 def card_key(name: str) -> str:
     """Card external id: the name without case, accents or punctuation."""
     return name_key(name).replace(" ", "-")
+
+
+_GLYPH = re.compile(r":rb_([a-z]+)(?:_([a-z0-9]+))?:")
+
+
+def _glyph(match: re.Match[str]) -> str:
+    kind, value = match.group(1), match.group(2)
+    if kind == "energy" and value:
+        word = value
+    elif kind == "rune":
+        # The rainbow symbol is a rune of any domain.
+        word = "Rune" if value == "rainbow" else (value or "").capitalize()
+    elif kind == "exhaust":
+        word = "[Exhaust]"
+    else:
+        word = kind.capitalize()
+    return f" {word} "
+
+
+def rules_text(rich: str | None) -> str | None:
+    """Plain rules text; Riot's symbol codes as words, the way TCGplayer writes them
+    (`:rb_energy_3::rb_rune_fury:` = "3 Fury", `:rb_might:` = "Might")."""
+    text = plain_text(rich)
+    if not text:
+        return None
+    lines = (" ".join(_GLYPH.sub(_glyph, line).split()) for line in text.splitlines())
+    return _BEFORE_PUNCTUATION.sub(r"\1", "\n".join(lines))
+
+
+_BEFORE_PUNCTUATION = re.compile(r" +([,.:;)])")
 
 
 def as_int(value: Any) -> int | None:

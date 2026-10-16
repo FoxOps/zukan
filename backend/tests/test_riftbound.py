@@ -114,6 +114,13 @@ def test_names_and_ids():
     assert split_variant("Fury Rune") == ("Fury Rune", None)
 
 
+def test_rules_text_spells_out_symbols():
+    from app.games.riftbound.records import rules_text
+
+    rich = "<p>:rb_energy_2::rb_rune_chaos:, :rb_exhaust:: Kill this.<br />3 :rb_might:</p>"
+    assert rules_text(rich) == "2 Chaos, [Exhaust]: Kill this.\n3 Might"
+
+
 def test_riot_content_is_parsed():
     content = {
         "game": "riftbound",

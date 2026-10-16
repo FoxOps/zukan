@@ -15,7 +15,7 @@ from app.games.riftbound.records import (
     as_int,
     dedupe,
     normalize_id,
-    plain_text,
+    rules_text,
     split_variant,
 )
 
@@ -65,7 +65,7 @@ def parse_card(raw: dict[str, Any]) -> RiftCard | None:
         might=as_int(stats.get("might")),
         power=as_int(stats.get("power")),
         tags=list(raw.get("tags") or []),
-        text=text.get("plain") or plain_text(text.get("rich")),
+        text=rules_text(text.get("rich")) or text.get("plain"),
         flavor=text.get("flavour"),
         artist=media.get("artist"),
         image=media.get("image_url"),

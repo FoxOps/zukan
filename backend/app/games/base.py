@@ -195,6 +195,9 @@ class SecondaryBatch:
     discrepancies: list[Discrepancy] = field(default_factory=list)
     # Stored printings this source has (cross-checked).
     matched: int = 0
+    # Sets this batch checked, for sources checking only some sets (gap sources): their
+    # earlier disagreements elsewhere stay. None: the whole game is checked.
+    checked_sets: list[str] | None = None
 
 
 @runtime_checkable

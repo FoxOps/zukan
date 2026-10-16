@@ -12,6 +12,7 @@ from app.sources import apitcg, tcgapi_eu
 from app.sources.base import (
     ExternalPrinting,
     ExternalSet,
+    fill,
     match_sets,
     pair,
     plain_name,
@@ -44,6 +45,17 @@ def index(*printings: StoredPrinting) -> CatalogIndex:
         "asia:sv1": SetData("asia:sv1", "SV1", "Japanese set", lang="ja"),
     }
     return CatalogIndex(sets, {(p.set_external_id, p.external_id): p for p in printings})
+
+
+def test_rules_text_differences_ignore_reminders_and_case():
+    ours = stored("1", "Sentry", card_text="[Deflect]\nWhen you play me, draw 1.")
+    same = ExternalPrinting(
+        "1", "Sentry", text="[DEFLECT] (Opponents pay 1 Rune.) When you play me, draw 1."
+    )
+    other = ExternalPrinting("1", "Sentry", text="[DEFLECT] When you play me, draw 2.")
+    assert fill("riftbound", "tcgcsv", ours, same, check_text=True) == (None, [])
+    _, found = fill("riftbound", "tcgcsv", ours, other, check_text=True)
+    assert [(d.field, d.primary) for d in found] == [("text", ours.card_text)]
 
 
 def test_matching_helpers():
