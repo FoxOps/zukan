@@ -33,6 +33,7 @@ from app.games.base import (
     PriceQuote,
     PriceTarget,
     PrintingData,
+    RarityDef,
     SetData,
 )
 from app.games.cardmarket import name_key
@@ -189,6 +190,14 @@ class RiftboundProvider:
     finishes = [FinishDef("normal", "Normal"), FinishDef("foil", "Foil")]
     languages = ["en", "zh-hans"]
     price_sources = ["cardmarket"]
+    rarities = [
+        RarityDef("common", "Common"),
+        RarityDef("uncommon", "Uncommon"),
+        RarityDef("rare", "Rare"),
+        RarityDef("epic", "Epic"),
+        RarityDef("showcase", "Showcase", ("Signed Showcase",)),
+        RarityDef("promo", "Promo"),
+    ]
     filters = [
         FilterDef("type", "Type", "type"),
         FilterDef("supertype", "Supertype", "supertype"),

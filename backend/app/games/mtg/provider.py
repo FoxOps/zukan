@@ -41,6 +41,7 @@ from app.games.base import (
     PriceQuote,
     PriceTarget,
     PrintingData,
+    RarityDef,
     SetData,
 )
 from app.games.mtg import mtgjson
@@ -350,6 +351,13 @@ class MtgProvider:
     price_sources = ["cardmarket", "tcgplayer"]
     cardmarket_path = "Magic"
     secondary_sources = [mtgjson.source]
+    rarities = [
+        RarityDef("common", "Common"),
+        RarityDef("uncommon", "Uncommon"),
+        RarityDef("rare", "Rare"),
+        RarityDef("mythic", "Mythic", ("Mythic Rare",)),
+        RarityDef("special", "Special", ("Time Shifted", "Timeshifted", "Bonus")),
+    ]
     filters = [
         FilterDef("types", "Type", "types"),
         FilterDef("subtypes", "Subtype", "subtypes"),

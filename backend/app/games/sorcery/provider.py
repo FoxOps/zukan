@@ -36,6 +36,7 @@ from app.games.base import (
     PriceQuote,
     PriceTarget,
     PrintingData,
+    RarityDef,
     SetData,
 )
 from app.games.cardmarket import Guide
@@ -194,6 +195,12 @@ class SorceryProvider:
     ]
     languages = ["en"]
     price_sources = ["cardmarket"]
+    rarities = [
+        RarityDef("ordinary", "Ordinary"),
+        RarityDef("exceptional", "Exceptional"),
+        RarityDef("elite", "Elite"),
+        RarityDef("unique", "Unique"),
+    ]
     filters = [
         FilterDef("category", "Category", "category"),
         FilterDef("type", "Type", "type"),

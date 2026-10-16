@@ -44,6 +44,7 @@ from app.games.base import (
     PriceTarget,
     PrintingData,
     PrintingRef,
+    RarityDef,
     SetData,
 )
 from app.games.ocr import bottom_part, by_position, clean, letter_ratio, script_language
@@ -484,6 +485,44 @@ class PokemonProvider:
     price_sources = ["cardmarket", "tcgplayer"]
     cardmarket_path = "Pokemon"
     secondary_sources = [pokemontcg.source]
+    rarities = [
+        RarityDef("common", "Common", ("C", "●")),
+        RarityDef("uncommon", "Uncommon", ("U", "◆")),
+        RarityDef("rare", "Rare", ("R", "★")),
+        RarityDef(
+            "holo_rare",
+            "Holo Rare",
+            (
+                "Rare Holo",
+                "Holo Rare V",
+                "Holo Rare VMAX",
+                "Holo Rare VSTAR",
+                "Rare Holo LV.X",
+                "Rare PRIME",
+                "LEGEND",
+                "Rare Holo EX",
+                "Rare Holo GX",
+                "Rare Holo V",
+            ),
+        ),
+        RarityDef("double_rare", "Double Rare", ("RR",)),
+        RarityDef("triple_rare", "Triple Rare", ("RRR",)),
+        RarityDef("ace_spec", "ACE SPEC Rare", ("ACE",)),
+        RarityDef("radiant", "Radiant Rare", ("K",)),
+        RarityDef("amazing", "Amazing Rare", ("A",)),
+        RarityDef("illustration_rare", "Illustration Rare", ("AR",)),
+        RarityDef("character_rare", "Character Rare", ("CHR", "Character Holo Rare")),
+        RarityDef("ultra_rare", "Ultra Rare", ("UR", "Full Art Trainer", "Rare Ultra")),
+        RarityDef("character_super_rare", "Character Super Rare", ("CSR",)),
+        RarityDef("special_illustration_rare", "Special Illustration Rare", ("SAR",)),
+        RarityDef(
+            "shiny_rare", "Shiny Rare", ("S", "Shiny rare V", "Shiny rare VMAX", "Rare Shiny")
+        ),
+        RarityDef("shiny_ultra_rare", "Shiny Ultra Rare", ("SSR",)),
+        RarityDef("secret_rare", "Secret Rare", ("SR", "Rare Secret", "Rare Rainbow")),
+        RarityDef("hyper_rare", "Hyper Rare", ("HR", "Mega Hyper Rare")),
+        RarityDef("promo", "Promo", ("PR",)),
+    ]
     filters = [
         FilterDef("category", "Category", "category"),
         FilterDef("trainer_type", "Trainer type", "trainerType"),
