@@ -240,9 +240,11 @@ def same_name(ours: str, theirs: str) -> bool:
 
 
 def pair(
-    stored: list[StoredPrinting], theirs: list[ExternalPrinting]
+    stored: list[StoredPrinting], theirs: list[ExternalPrinting], rarity_game: str | None = None
 ) -> list[tuple[StoredPrinting, ExternalPrinting]]:
-    """Their printings of a set paired with ours: TCGplayer id, else number and name."""
+    """Their printings of a set paired with ours: TCGplayer id, else number and name.
+    `rarity_game`: a game whose printings are one rarity each (Yu-Gi-Oh!), paired by
+    number only with ours of their rarity."""
     by_tcgplayer = {
         str(p.market_ids["tcgplayer"]): p for p in stored if p.market_ids.get("tcgplayer")
     }
@@ -259,7 +261,11 @@ def pair(
             # set reuse the card numbers.
             same = by_number.get(number_key(ext.number), []) if ext.number else stored
             named = [p for p in same if same_name(p.card_name, ext.name)]
-            if len({p.rarity for p in named}) > 1 and rarity_name(ext.rarity):
+            if rarity_game and rarity_name(ext.rarity):
+                named = [
+                    p for p in named if same_rarity(p.rarity, rarity_name(ext.rarity), rarity_game)
+                ]
+            elif len({p.rarity for p in named}) > 1 and rarity_name(ext.rarity):
                 # One number in several rarities (Yu-Gi-Oh!): the printing of their rarity,
                 # none when we do not have it.
                 named = [p for p in named if same_rarity(p.rarity, rarity_name(ext.rarity))]
@@ -375,7 +381,8 @@ def check_set(
     check_text: bool = False,
 ) -> SecondaryBatch:
     batch = SecondaryBatch(checked_sets=sorted({p.set_external_id for p in stored}))
-    for printing, ext in pair(stored, theirs):
+    by_rarity = getattr(registry().get(game_id), "rarity_in_printing", False)
+    for printing, ext in pair(stored, theirs, game_id if by_rarity else None):
         batch.matched += 1
         card, found = fill(game_id, source_id, printing, ext, check_text)
         if card is not None:

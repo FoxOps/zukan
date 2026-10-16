@@ -413,6 +413,7 @@ class YugiohProvider:
         FinishDef("limited", "Limited Edition"),
     ]
     rarities = RARITIES
+    rarity_in_printing = True
     price_sources = ["cardmarket", "tcgplayer"]
     filters = [
         FilterDef("type", "Type", "type"),

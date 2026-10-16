@@ -342,6 +342,8 @@ class GameProvider(Protocol):
       e.g. {"tcgcsv": 89, "apitcg": "riftbound"}; overrides those sources' own tables.
     - `filters: list[FilterDef]`: advanced catalog search filters (types, rarity...).
     - `rarities: list[RarityDef]`: the game's rarities, lowest first, with pictograms.
+    - `rarity_in_printing = True`: a printing is one rarity of a collector number (Yu-Gi-Oh!):
+      other sources' printings pair with ours by number and rarity.
     - `secondary_sources: list[CatalogSource]`: other sources of this game's catalog,
       cross-checked against it after each catalog sync.
     - `fetch_cards(http, cards: list[CardRef]) -> AsyncIterator[CatalogBatch]`: fetch

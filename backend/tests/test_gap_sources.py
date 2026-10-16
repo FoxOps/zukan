@@ -177,6 +177,9 @@ async def test_one_code_in_several_rarities():
     # Their Secret Rare is ours; their Ghost Rare matches none of ours.
     paired = pair([ultra, secret], theirs)
     assert [(p.external_id, e.rarity) for p, e in paired] == [("LOB-EN001~secret", "Secret Rare")]
+    # Rarity part of the printing: a lone printing of another rarity is not theirs.
+    assert pair([ultra], theirs[:1], "yugioh") == []
+    assert len(pair([ultra], theirs[:1])) == 1
     # Two spellings of one rarity are no difference.
     short = stored("SDK-001", "Mystical Elf", rarity="Short Print", market_ids={})
     ext = ExternalPrinting("SDK-001", "Mystical Elf", rarity="Common")
