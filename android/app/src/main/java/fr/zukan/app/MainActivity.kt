@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
+import coil3.svg.SvgDecoder
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import fr.zukan.app.ui.CollectionScreen
 import fr.zukan.app.ui.ZukanTheme
@@ -76,7 +77,11 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, app: ZukanApp) {
     // Card images go through the authenticated HTTP client.
     val imageLoader = remember(client) {
         ImageLoader.Builder(context)
-            .components { client?.let { c -> add(OkHttpNetworkFetcherFactory(callFactory = { c.http })) } }
+            .components {
+                client?.let { c -> add(OkHttpNetworkFetcherFactory(callFactory = { c.http })) }
+                // Game symbols and rarity pictograms are SVG files.
+                add(SvgDecoder.Factory())
+            }
             .build()
     }
     val imageUrl = { path: String? -> client?.imageUrl(path) }

@@ -129,14 +129,14 @@ fun SearchScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    AsyncImage(
-                        model = imageUrl(card.image),
-                        contentDescription = null,
-                        imageLoader = imageLoader,
-                        modifier = Modifier.width(48.dp).aspectRatio(63f / 88f),
-                    )
+                    val game = games.firstOrNull { it.id == card.gameId }
+                    CardPicture(card.image, imageUrl, imageLoader, Modifier.width(48.dp), landscape = card.orientation == "landscape")
                     Column(Modifier.weight(1f)) {
                         Text(shownName(card.name, card.translation), style = MaterialTheme.typography.titleMedium)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            ColorSymbols(game, card.colors, imageUrl, imageLoader, size = 14)
+                            RarityBadge(game, card.rarity, card.rarityCode, imageUrl, imageLoader)
+                        }
                         Text(
                             pluralStringResource(
                                 R.plurals.printing_count,
@@ -186,7 +186,7 @@ private fun Filters(
                         selected = selected,
                         onClick = { onColors(if (selected) colors - c.code else colors + c.code) },
                         label = { Text(c.name) },
-                        leadingIcon = { Text("●", color = runCatching { Color(c.hex.toColorInt()) }.getOrDefault(Color.Gray)) },
+                        leadingIcon = { Text("●", color = colorOf(c.hex)) },
                     )
                 }
             }

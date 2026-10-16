@@ -127,4 +127,6 @@
     <string name="card_of_other_game_help">It belongs to another game than the one chosen above.</string>
     <string name="switch_game">Switch</string>
     <string name="error_identify">The card could not be identified</string>
+    <string name="show_back">Show back</string>
+    <string name="show_front">Show front</string>
 </resources>

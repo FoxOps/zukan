@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import fr.zukan.app.R
+import fr.zukan.app.data.GameOut
 import fr.zukan.app.data.PrintingOut
 import kotlinx.coroutines.delay
 
@@ -59,6 +60,8 @@ fun PrintingPicker(
     imageLoader: ImageLoader,
     onPick: (PrintingOut) -> Unit,
     onDismiss: () -> Unit,
+    // For rarity pictograms.
+    game: GameOut? = null,
 ) {
     var query by remember { mutableStateOf("") }
     var remote by remember { mutableStateOf<List<PrintingOut>>(emptyList()) }
@@ -100,12 +103,7 @@ fun PrintingPicker(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        AsyncImage(
-                            model = imageUrl(printing.image),
-                            contentDescription = null,
-                            imageLoader = imageLoader,
-                            modifier = Modifier.width(40.dp).aspectRatio(63f / 88f),
-                        )
+                        CardPicture(printing.image, imageUrl, imageLoader, Modifier.width(40.dp), landscape = printing.orientation == "landscape")
                         Column(Modifier.weight(1f)) {
                             Text(printing.set.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -115,6 +113,7 @@ fun PrintingPicker(
                                 )
                                 printing.languages.take(4).forEach { LangFlag(it, size = 12) }
                             }
+                            RarityBadge(game, printing.rarity, printing.rarityCode, imageUrl, imageLoader)
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             mainPrices(printing, mainSource).minByOrNull { it.trend.toDoubleOrNull() ?: Double.MAX_VALUE }?.let {

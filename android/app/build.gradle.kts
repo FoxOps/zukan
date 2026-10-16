@@ -97,6 +97,7 @@ dependencies {
     implementation(libs.appauth)
     implementation(libs.coil.compose)
     implementation(libs.coil.okhttp)
+    implementation(libs.coil.svg)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
