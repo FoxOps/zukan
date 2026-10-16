@@ -11,6 +11,9 @@ type Props = {
   faceClassName?: string
   // Clicking the picture flips it too (card page). Off where the picture is a link.
   flipOnClick?: boolean
+  // Picture wider than tall (Riftbound battlefields): turned a quarter to fill the
+  // portrait frame instead of being cropped.
+  landscape?: boolean
 }
 
 /** Two circular arrows around a card: "turn this card over". */
@@ -26,8 +29,12 @@ export function FlipIcon({ className = 'h-4 w-4' }: { className?: string }) {
   )
 }
 
+// A landscape picture as wide as the frame is tall (88/63) and as tall as it is wide (63/88),
+// centered then turned a quarter clockwise.
+const TURNED = 'left-1/2 top-1/2 h-[71.59%] w-[139.68%] max-w-none -translate-x-1/2 -translate-y-1/2 rotate-90'
+
 /** Card picture at card proportions. Double-faced cards get a flip button (3D turn). */
-export function CardImage({ src, back, alt, className = '', faceClassName = '', flipOnClick = false }: Props) {
+export function CardImage({ src, back, alt, className = '', faceClassName = '', flipOnClick = false, landscape = false }: Props) {
   const { t } = useTranslation()
   const [flipped, setFlipped] = useState(false)
   // The back is only downloaded once someone asks for it.
@@ -53,7 +60,7 @@ export function CardImage({ src, back, alt, className = '', faceClassName = '', 
         alt={label}
         loading="lazy"
         onError={() => setFailed(true)}
-        className={`absolute inset-0 h-full w-full rounded-[4.5%] object-cover ${turnable} ${extra}`}
+        className={`absolute rounded-[4.5%] object-cover ${landscape ? TURNED : 'inset-0 h-full w-full'} ${turnable} ${extra}`}
       />
     ) : (
       <div

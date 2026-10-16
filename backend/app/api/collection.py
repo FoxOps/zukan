@@ -12,6 +12,8 @@ from app.api.catalog import (
     load_names,
     name_matches,
     number_sort_key,
+    orientation,
+    rarity_code,
     show_printing,
 )
 from app.api.deps import CurrentUser, SessionDep
@@ -69,9 +71,11 @@ class ItemOut(BaseModel):
     set: ItemSetOut
     collector_number: str | None
     rarity: str | None
+    rarity_code: str | None = None
     image: str | None
     # Back face of double-faced printings.
     back_image: str | None = None
+    orientation: str = "portrait"
     finish: str
     condition: str
     language: str
@@ -215,8 +219,10 @@ async def _items_out(
                 set=ItemSetOut(id=printing.set.id, code=printing.set.code, name=printing.set.name),
                 collector_number=printing.collector_number,
                 rarity=printing.rarity,
+                rarity_code=rarity_code(printing),
                 image=image,
                 back_image=back_image_link(printing),
+                orientation=orientation(printing),
                 finish=item.finish,
                 condition=item.condition,
                 language=item.language,

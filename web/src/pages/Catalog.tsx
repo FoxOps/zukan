@@ -3,14 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { api, call } from '../api/client'
 import { useGame, useGames, useMe } from '../api/queries'
-import { CardImage } from '../components/CardImage'
-import { ColorBadges } from '../components/ColorBadges'
 import { AdvancedFilters, ColorFilter, GameTabs, SearchInput, SetSelect, type ColorMode } from '../components/Filters'
 import { Select } from '../components/Select'
 import { Pagination } from '../components/Pagination'
-import { formatMoney } from '../lib/format'
 import { useUrlState } from '../lib/hooks'
-import { ShownName } from '../components/ShownName'
+import { ViewToggle } from '../components/ViewToggle'
+import { useView } from '../lib/views'
+import { CATALOG_VIEWS } from './catalog/views'
 
 const PAGE_SIZE = 48
 
@@ -31,6 +30,8 @@ export default function Catalog() {
   const [sortBy, order] = sort ? (sort.split('_') as ['name' | 'number', 'asc' | 'desc']) : [undefined, undefined]
   const gameInfo = useGame(game)
   const { data: games = [] } = useGames()
+  const [view, chooseView] = useView(CATALOG_VIEWS, 'tcg.catalogView')
+  const View = view.component
 
   const cards = useQuery({
     queryKey: ['cards', game, q, setId, colors, colorMode, attrs, sort, url.page],
@@ -107,40 +108,14 @@ export default function Catalog() {
       {cards.isError && <div className="alert alert-error">{cards.error.message}</div>}
       {cards.data && (
         <>
-          <div className="flex items-center gap-3 text-sm text-base-content/60">
-            {t('{{count}} cards', { count: cards.data.total })}
-            {cards.isPlaceholderData && <span className="loading loading-spinner loading-xs" aria-label={t('Loading')} />}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-3 text-sm text-base-content/60">
+              {t('{{count}} cards', { count: cards.data.total })}
+              {cards.isPlaceholderData && <span className="loading loading-spinner loading-xs" aria-label={t('Loading')} />}
+            </div>
+            <ViewToggle views={CATALOG_VIEWS} value={view.id} onChange={chooseView} />
           </div>
-          {/* No dimming of the grid while loading: Chrome kept the dimmed paint of images
-              on their own layers after it was removed (grayed until hovered). */}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
-            {cards.data.items.map((card) => (
-              <Link
-                key={card.id}
-                to={card.printing_id ? `/cards/${card.id}/${card.printing_id}` : `/cards/${card.id}`}
-                className="group flex flex-col gap-2"
-              >
-                <CardImage src={card.image} back={card.back_image} alt={card.name} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
-                <div className="flex flex-col gap-1">
-                  <span className="break-words font-medium group-hover:text-primary">
-                    <ShownName name={card.name} translation={card.translation} />
-                  </span>
-                  <span className="text-xs text-base-content/60">
-                    {!game && `${games.find((g) => g.id === card.game_id)?.name ?? card.game_id} · `}
-                    {t('{{count}} printings', { count: card.printing_count })}
-                  </span>
-                  {card.price_min !== null && (
-                    <span className="text-xs font-medium">
-                      {card.price_min === card.price_max
-                        ? formatMoney(card.price_min, card.currency ?? undefined)
-                        : `${formatMoney(card.price_min, card.currency ?? undefined)} - ${formatMoney(card.price_max, card.currency ?? undefined)}`}
-                    </span>
-                  )}
-                  <ColorBadges game={games.find((g) => g.id === card.game_id)} colors={card.colors} />
-                </div>
-              </Link>
-            ))}
-          </div>
+          <View cards={cards.data.items} games={games} showGame={!game} />
           <div className="flex justify-center">
             <Pagination page={url.page} pageSize={PAGE_SIZE} total={cards.data.total} onChange={url.goToPage} />
           </div>

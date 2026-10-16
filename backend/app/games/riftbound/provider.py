@@ -15,6 +15,7 @@ import logging
 import re
 import time
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -44,6 +45,7 @@ log = logging.getLogger(__name__)
 
 CARDMARKET_GAME = 22
 # Domain symbols of the official card gallery (Riot's CDN).
+SYMBOLS = Path(__file__).parent / "symbols"
 ICON_URL = "https://cmsassets.rgpub.io/sanity/images/dsfx7636/game_data_live"
 LEGAL_NOTICE = (
     "Zukan isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot "
@@ -181,7 +183,8 @@ class RiftboundProvider:
         ColorDef("body", "Body", "#E08A2E", _icon("7a5533034de5870808347bc4b296f0029bdd8eea")),
         ColorDef("chaos", "Chaos", "#8E4BC2", _icon("597ddb82be59e87b467c52bb10204f02c2005d06")),
         ColorDef("order", "Order", "#E3C04B", _icon("8bb1b193a8e1adc26ca28e1a21da8d1e2f5d2f72")),
-        ColorDef("colorless", "Colorless", "#9CA3AF"),
+        # Riot has no symbol for it: a gray diamond drawn for Zukan.
+        ColorDef("colorless", "Colorless", "#9CA3AF", icon_file=SYMBOLS / "colorless.svg"),
     ]
     finishes = [FinishDef("normal", "Normal"), FinishDef("foil", "Foil")]
     languages = ["en", "zh-hans"]

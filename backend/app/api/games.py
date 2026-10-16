@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy import case, func, select
 
 from app.api.deps import CurrentUser, SessionDep
-from app.games.base import registry
+from app.games.base import rarity_icon_file, rarity_of, registry
 from app.models import Card, Printing
 from app.prices.base import game_sources
 from app.services.symbols import symbol_file
@@ -19,6 +19,14 @@ class ColorOut(BaseModel):
     name: str
     hex: str
     # Official symbol, once downloaded.
+    icon: str | None
+
+
+class RarityOut(BaseModel):
+    # PrintingOut.rarity_code; rarities are listed lowest first.
+    code: str
+    name: str
+    # Pictogram of the rarity, when the game has one.
     icon: str | None
 
 
@@ -44,6 +52,7 @@ class GameOut(BaseModel):
     name: str
     colors: list[ColorOut]
     finishes: list[FinishOut]
+    rarities: list[RarityOut] = []
     languages: list[str]
     # Advanced catalog search filters; values from /api/games/{id}/filters.
     filters: list[FilterOut]
@@ -74,6 +83,16 @@ async def list_games(_: CurrentUser) -> list[GameOut]:
                 for c in p.colors
             ],
             finishes=[FinishOut(code=f.code, name=f.name) for f in p.finishes],
+            rarities=[
+                RarityOut(
+                    code=r.code,
+                    name=r.name,
+                    icon=f"/api/games/{p.id}/rarities/{r.code}/icon"
+                    if rarity_icon_file(p.id, r.code)
+                    else None,
+                )
+                for r in getattr(p, "rarities", [])
+            ],
             languages=p.languages,
             filters=[FilterOut(key=f.key, label=f.label) for f in getattr(p, "filters", [])],
             price_sources=[
@@ -96,15 +115,23 @@ async def color_icon(game_id: str, code: str, _: CurrentUser) -> FileResponse:
     path = symbol_file(game_id, code)
     if path is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Symbol not downloaded yet")
-    # SVG files: never run anything they contain.
-    return FileResponse(
-        path,
-        headers={
-            "Cache-Control": "private, max-age=2592000",
-            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
-            "X-Content-Type-Options": "nosniff",
-        },
-    )
+    return FileResponse(path, headers=_SYMBOL_HEADERS)
+
+
+@router.get("/{game_id}/rarities/{code}/icon")
+async def rarity_icon(game_id: str, code: str, _: CurrentUser) -> FileResponse:
+    path = rarity_icon_file(game_id, code) if game_id in registry() else None
+    if path is None or code not in {r.code for r in getattr(registry()[game_id], "rarities", [])}:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown rarity")
+    return FileResponse(path, media_type="image/svg+xml", headers=_SYMBOL_HEADERS)
+
+
+# SVG files: never run anything they contain.
+_SYMBOL_HEADERS = {
+    "Cache-Control": "private, max-age=2592000",
+    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+    "X-Content-Type-Options": "nosniff",
+}
 
 
 # Filter values change with catalog syncs only (weekly): computed at most once an hour.
@@ -139,7 +166,14 @@ async def filter_values(session: SessionDep, game_id: str) -> dict[str, list[str
                 .where(Card.game_id == game_id, Card.attributes.has_key(f.attribute))
             )
         found = {v for v in await session.scalars(query.distinct()) if v and v.strip()}
-        values[f.key] = sorted(found, key=str.casefold)
+        if f.attribute is None:
+            # Rarities lowest first, unknown spellings after them.
+            order = {r: i for i, r in enumerate(getattr(registry()[game_id], "rarities", []))}
+            values[f.key] = sorted(
+                found, key=lambda v: (order.get(rarity_of(game_id, v), len(order)), v.casefold())
+            )
+        else:
+            values[f.key] = sorted(found, key=str.casefold)
     _values[game_id] = (time.monotonic(), values)
     return values
 

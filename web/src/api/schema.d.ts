@@ -273,6 +273,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/games/{game_id}/rarities/{code}/icon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Rarity Icon */
+        get: operations["rarity_icon_api_games__game_id__rarities__code__icon_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/games/{game_id}/filters": {
         parameters: {
             query?: never;
@@ -1006,6 +1023,18 @@ export interface components {
             printing_id?: number | null;
             /** Back Image */
             back_image?: string | null;
+            set?: components["schemas"]["SetOut"] | null;
+            /** Collector Number */
+            collector_number?: string | null;
+            /** Rarity */
+            rarity?: string | null;
+            /** Rarity Code */
+            rarity_code?: string | null;
+            /**
+             * Orientation
+             * @default portrait
+             */
+            orientation: string;
             /** Price Min */
             price_min: string | null;
             /** Price Max */
@@ -1135,6 +1164,11 @@ export interface components {
             colors: components["schemas"]["ColorOut"][];
             /** Finishes */
             finishes: components["schemas"]["FinishOut"][];
+            /**
+             * Rarities
+             * @default []
+             */
+            rarities: components["schemas"]["RarityOut"][];
             /** Languages */
             languages: string[];
             /** Filters */
@@ -1267,10 +1301,17 @@ export interface components {
             collector_number: string | null;
             /** Rarity */
             rarity: string | null;
+            /** Rarity Code */
+            rarity_code?: string | null;
             /** Image */
             image: string | null;
             /** Back Image */
             back_image?: string | null;
+            /**
+             * Orientation
+             * @default portrait
+             */
+            orientation: string;
             /** Finish */
             finish: string;
             /** Condition */
@@ -1517,6 +1558,8 @@ export interface components {
             collector_number: string | null;
             /** Rarity */
             rarity: string | null;
+            /** Rarity Code */
+            rarity_code?: string | null;
             /** Artist */
             artist: string | null;
             /** Finishes */
@@ -1527,6 +1570,11 @@ export interface components {
             image: string | null;
             /** Back Image */
             back_image?: string | null;
+            /**
+             * Orientation
+             * @default portrait
+             */
+            orientation: string;
             /**
              * Name
              * @default
@@ -1570,6 +1618,15 @@ export interface components {
             local_login_enabled: boolean;
             /** Providers */
             providers: components["schemas"]["ProviderOut"][];
+        };
+        /** RarityOut */
+        RarityOut: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Icon */
+            icon: string | null;
         };
         /** RefreshIn */
         RefreshIn: {
@@ -2349,6 +2406,38 @@ export interface operations {
         };
     };
     color_icon_api_games__game_id__colors__code__icon_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rarity_icon_api_games__game_id__rarities__code__icon_get: {
         parameters: {
             query?: never;
             header?: never;

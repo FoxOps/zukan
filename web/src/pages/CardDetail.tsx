@@ -7,6 +7,7 @@ import { useGame, useMe } from '../api/queries'
 import { Attributes } from '../components/Attributes'
 import { ConditionBadge, FinishBadge, LangFlag } from '../components/Badges'
 import { CardImage } from '../components/CardImage'
+import { RarityBadge } from '../components/RarityBadge'
 import { ColorBadges } from '../components/ColorBadges'
 import { PriceChart } from '../components/PriceChart'
 import { StockDialog, type StockTarget } from '../components/StockDialog'
@@ -219,6 +220,7 @@ export default function CardDetail() {
               back={selected.back_image ?? null}
               alt={name}
               flipOnClick
+              landscape={selected.orientation === 'landscape'}
               className="w-full max-w-xs shadow-xl rounded-[4.5%]"
             />
           )}
@@ -246,6 +248,9 @@ export default function CardDetail() {
             )}
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <ColorBadges game={game} colors={c.colors} />
+              {selected?.rarity && (
+                <RarityBadge game={game} rarity={selected.rarity} code={selected.rarity_code} className="badge badge-ghost" />
+              )}
               {owned > 0 && <span className="badge badge-success">{t('{{count}} owned', { count: owned })}</span>}
             </div>
           </div>
@@ -421,7 +426,7 @@ export default function CardDetail() {
                     </div>
                   </td>
                   <td>{p.collector_number}</td>
-                  <td className="capitalize">{p.rarity}</td>
+                  <td><RarityBadge game={game} rarity={p.rarity} code={p.rarity_code} /></td>
                   <td>
                     <div className="flex flex-wrap gap-1">
                       {p.finishes.map((f) => <FinishBadge key={f} game={game} finish={f} />)}

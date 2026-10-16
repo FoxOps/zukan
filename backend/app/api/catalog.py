@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 from app.api.deps import CurrentUser, SessionDep
 from app.core.db import get_sessionmaker
 from app.core.http import http_client
-from app.games.base import FilterDef, registry
+from app.games.base import FilterDef, rarity_of, registry
 from app.models import (
     Card,
     CardName,
@@ -79,12 +79,16 @@ class PrintingOut(BaseModel):
     set: SetOut
     collector_number: str | None
     rarity: str | None
+    # The game's rarity (`GameOut.rarities`), for its pictogram; None when unknown.
+    rarity_code: str | None = None
     artist: str | None
     finishes: list[str]
     languages: list[str]
     image: str | None
     # Back of double-faced cards (local copy).
     back_image: str | None = None
+    # "landscape": the picture is wider than tall (Riftbound battlefields), shown turned.
+    orientation: str = "portrait"
     # Shown name: in the reader's language, or for printings of non-Latin sets in the
     # set's language with a Latin `translation` ("ビードル (Aspicot)").
     name: str = ""
@@ -129,6 +133,12 @@ class CardSummaryOut(BaseModel):
     printing_id: int | None = None
     # Back face of that printing (double-faced cards), served like `image`.
     back_image: str | None = None
+    # Of that printing: set, number, rarity and picture orientation.
+    set: SetOut | None = None
+    collector_number: str | None = None
+    rarity: str | None = None
+    rarity_code: str | None = None
+    orientation: str = "portrait"
     # Cheapest and most expensive printing (latest trend price of any finish), from the
     # user's price source for this game, in `currency`.
     price_min: Decimal | None
@@ -148,6 +158,16 @@ def number_sort_key(number: Any) -> Any:
     digits group the specials ("SV001"), the rest of the text breaks ties ("12a")."""
     digits = func.coalesce(func.substring(number, r"\d+"), "")
     return func.concat(func.regexp_replace(number, r"\d.*$", ""), func.lpad(digits, 8, "0"), number)
+
+
+def rarity_code(printing: Printing) -> str | None:
+    """Code of the game's rarity the printing has (set loaded)."""
+    rarity = rarity_of(printing.set.game_id, printing.rarity)
+    return rarity.code if rarity else None
+
+
+def orientation(printing: Printing) -> str:
+    return "landscape" if printing.attributes.get("orientation") == "landscape" else "portrait"
 
 
 def back_image_link(printing: Printing) -> str | None:
@@ -492,6 +512,11 @@ async def search_cards(
                 image=shown.image,
                 printing_id=shown.printing.id if shown.printing else None,
                 back_image=back_image_link(shown.printing) if shown.printing else None,
+                set=_set_out(shown.printing.set) if shown.printing else None,
+                collector_number=shown.printing.collector_number if shown.printing else None,
+                rarity=shown.printing.rarity if shown.printing else None,
+                rarity_code=rarity_code(shown.printing) if shown.printing else None,
+                orientation=orientation(shown.printing) if shown.printing else "portrait",
                 price_min=min(card_prices.get(card.id, []), default=None),
                 price_max=max(card_prices.get(card.id, []), default=None),
                 currency=_currency(card.game_id, user.price_source),
@@ -656,11 +681,13 @@ async def describe_printings(
                 set=_set_out(p.set),
                 collector_number=p.collector_number,
                 rarity=p.rarity,
+                rarity_code=rarity_code(p),
                 artist=p.artist,
                 finishes=p.finishes,
                 languages=p.languages,
                 image=image,
                 back_image=back_image_link(p),
+                orientation=orientation(p),
                 name=shown.name,
                 translation=shown.translation,
                 names=names,
