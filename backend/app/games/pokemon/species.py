@@ -17,10 +17,29 @@ _DATA = Path(__file__).with_name("species_names.json")
 LATIN_LANGUAGES = {"en", "fr", "de", "it", "es", "pt"}
 # Mechanics printed after the name, identical in every language.
 _SUFFIXES = {
-    "v", "vmax", "vstar", "v-union", "vunion", "ex", "gx", "break", "lv.x", "lv", "x",
+    "v", "vmax", "vstar", "v-union", "vunion", "ex", "gx", "break", "lv.x", "lv", "x", "y",
     "prime", "legend", "star", "☆", "δ", "◇", "tag", "team", "&",
 }  # fmt: skip
 _SEPARATORS = re.compile(r"[\s&\-–]+")
+# Words before the species name in Asian languages, and the English form: regional forms,
+# Mega Evolutions, Radiant / Shining / Dark Pokémon. Only the English name is derived for
+# them (other languages put these words in other places).
+_PREFIXES = [
+    (("ガラル", "伽勒尔", "伽勒爾", "가라르"), "Galarian {}"),
+    (("アローラ", "阿罗拉", "阿羅拉", "알로라"), "Alolan {}"),
+    (("ヒスイ", "洗翠", "히스이"), "Hisuian {}"),
+    (("パルデア", "帕底亚", "帕底亞", "팔데아"), "Paldean {}"),
+    (("メガ", "超级", "超級", "메가"), "Mega {}"),
+    (("かがやく", "光辉", "光輝", "빛나는"), "Radiant {}"),
+    (("ひかる", "闪耀的", "閃耀的", "闪耀", "閃耀"), "Shining {}"),
+    (("わるい", "坏坏", "壞壞"), "Dark {}"),
+    (("いちげき", "一击", "一擊", "일격"), "Single Strike {}"),
+    (("れんげき", "连击", "連擊", "연격"), "Rapid Strike {}"),
+]
+# Mega Evolution forms written against the suffix: "リザードンXex" = Charizard X ex.
+_MEGA_FORM = re.compile(r"(?<=[^\sA-Za-z])([XY])(ex|EX)$")
+_DELTA = re.compile(r"\s*[（(]デルタ種[）)]\s*$")
+_ASIAN = {"ja", "ko", "zh-hans", "zh-hant"}
 
 
 @cache
@@ -36,7 +55,33 @@ def _name_in(lang: str, names: dict[str, str]) -> str | None:
 
 def derive_names(name: str, lang: str, dex_ids: list[int]) -> dict[str, str]:
     """`name` (printed in `lang`) in the other languages, or {} when it is not only
-    species names and suffixes."""
+    species names and suffixes. Asian names may also carry a form word ("ガラル",
+    "メガ") or the delta species mark: only their English name is derived then."""
+    if lang in _ASIAN:
+        if not dex_ids:
+            dex_ids = find_species(name, lang)
+        english = _english_form(name, lang, dex_ids)
+        if english:
+            return {"en": english}
+    return _derive(name, lang, dex_ids)
+
+
+def _english_form(name: str, lang: str, dex_ids: list[int]) -> str | None:
+    if _DELTA.search(name):
+        rest = _DELTA.sub("", name)
+        english = _derive(rest, lang, dex_ids).get("en") or _english_form(rest, lang, dex_ids)
+        return f"{english} δ" if english else None
+    stripped = name.strip()
+    for words, form in _PREFIXES:
+        for word in words:
+            if stripped.startswith(word) and len(stripped) > len(word):
+                rest = _MEGA_FORM.sub(r" \1 \2", stripped[len(word) :].strip())
+                english = _derive(rest, lang, dex_ids).get("en")
+                return form.format(english) if english else None
+    return None
+
+
+def _derive(name: str, lang: str, dex_ids: list[int]) -> dict[str, str]:
     known = species_names()
     species = [known.get(dex) for dex in dex_ids]
     if not species or any(s is None for s in species):
