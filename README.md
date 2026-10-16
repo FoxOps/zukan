@@ -79,7 +79,8 @@ Riftbound: Riot's official content API with a key Riot approved for a Riftbound 
 [card gallery](https://playriftbound.com/en-us/card-gallery/) adds the cards of sets the
 APIs do not have yet and the Simplified Chinese names and pictures. Pictures come from
 Riot's servers only, and the web UI shows Riot's legal notice, as Riot's policy for fan
-tools asks.
+tools asks. Getting a Riot key (Riot account, developer account, Production API Key):
+[docs/riftbound.md](docs/riftbound.md).
 
 Each user picks the markets shown (Settings, several allowed); the first one gives values,
 sorts and price ranges. Card pages show the trend and lowest offer of each printing and finish, the cheapest and
