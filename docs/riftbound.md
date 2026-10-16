@@ -43,11 +43,16 @@ Zukan.
      tracking, card scanning with the Android app);
    - where it is distributed and on which platforms (web, Android);
    - a URL where Riot can reach or download it. If it is not testable yet, a working
-     prototype or detailed mock-ups showing the purpose and user flow are accepted.
-3. **Verify the site**: Riot gives a verification code to publish as `riot.txt` at the root
-   of the site (`https://<your domain>/riot.txt`). Zukan serves `web/public/riot.txt` at
-   that address: put your code in that file (one line), rebuild and deploy, open the URL
-   to check it shows the code, then confirm on the portal.
+     prototype or detailed mock-ups showing the purpose and user flow are accepted. The
+     project page [foxops.github.io/zukan](https://foxops.github.io/zukan/) presents Zukan
+     and links to this repository.
+3. **Verify the site**: Riot gives a verification code to publish as `riot.txt` on the
+   site given as product URL. The project page serves it at
+   [foxops.github.io/zukan/riot.txt](https://foxops.github.io/zukan/riot.txt), from the
+   `gh-pages` branch of this repository (not part of the app): to use your own code, put it
+   in that file (one line) on that branch, wait for the page to update (1–2 minutes),
+   open the URL to check it shows the code, then confirm on the portal. For your own
+   domain instead, publish `riot.txt` at its root (`https://<your domain>/riot.txt`).
 4. Wait for Riot's review. Riot may approve, refuse or later revoke a key at its own
    discretion; questions go through the
    [Developer Support Platform](https://support-developer.riotgames.com).
