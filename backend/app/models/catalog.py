@@ -37,7 +37,7 @@ class CardSet(Base):
     game_id: Mapped[str] = mapped_column(ForeignKey("game.id"), index=True)
     # Provider-specific unique id; `code` is what is printed on cards and may collide
     # across languages (e.g. Pokémon EN/JA sets).
-    external_id: Mapped[str] = mapped_column(String(64))
+    external_id: Mapped[str] = mapped_column(String(128))
     code: Mapped[str] = mapped_column(String(32), index=True)
     name: Mapped[str] = mapped_column(String(255))
     lang: Mapped[str | None] = mapped_column(String(8))
@@ -90,7 +90,7 @@ class Printing(Base):
     set_id: Mapped[int] = mapped_column(ForeignKey("card_set.id", ondelete="CASCADE"), index=True)
     external_id: Mapped[str] = mapped_column(String(128))
     collector_number: Mapped[str | None] = mapped_column(String(32), index=True)
-    rarity: Mapped[str | None] = mapped_column(String(32))
+    rarity: Mapped[str | None] = mapped_column(String(64))
     artist: Mapped[str | None] = mapped_column(String(255))
     finishes: Mapped[list[str]] = mapped_column(ARRAY(String(32)), default=list)
     languages: Mapped[list[str]] = mapped_column(ARRAY(String(8)), default=list)

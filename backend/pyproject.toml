@@ -36,6 +36,7 @@ mtg = "app.games.mtg:provider"
 pokemon = "app.games.pokemon:provider"
 sorcery = "app.games.sorcery:provider"
 riftbound = "app.games.riftbound:provider"
+yugioh = "app.games.yugioh:provider"
 
 [project.entry-points."zukan.prices"]
 cardmarket = "app.prices.cardmarket:source"
