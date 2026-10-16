@@ -1041,7 +1041,31 @@ Progress:
   pictures turned, flip button for double-faced cards, collection price trends (24h/7d/30d);
   games come from the server (Yu-Gi-Oh!, Lorcana need no app change).
 - [x] `.env.example`: `TCG_YUGIOH_LANGUAGES`, `TCG_YUGIOH_KONAMI_DAILY_REQUESTS`, source notes.
-- [ ] Rarity pictograms still to collect (Cloudflare): Sorcery, Pokémon, MTG, Yu-Gi-Oh!.
+- [x] Rarity pictograms: Cardmarket's for Lorcana (8) and Riftbound (5); Cloudflare then
+  blocked this address for hours, so the others are drawn for Zukan
+  (`scripts/draw_rarity_icons.py`, only where no file exists): Pokémon's printed shapes
+  (● ◆ ★, black / silver / gold, one to three stars), colored gems per tier for MTG, Sorcery,
+  Yu-Gi-Oh!, Lorcana Special and Riftbound Promo; dark shapes have a light outline for the
+  dark theme. Collecting Cardmarket's later: `install_rarity_icons.py` overwrites them.
+- [x] Gap sources: a code's several rarities pair by rarity (`rarity_in_printing` for
+  Yu-Gi-Oh!), rarity spellings of one game rarity are no difference ("Short Print" = Common),
+  TCGplayer editions map to Yu-Gi-Oh! finishes; Yu-Gi-Oh! texts not compared (errata).
+- [x] Web: card page keeps its picture column when the price stats are wide; Yu-Gi-Oh!
+  `konami_id` / `frame` hidden; French texts of the new games (383 texts).
+- [x] Tests: 161 backend, web build / lint / i18n, Android 32 unit tests + lint + debug APK,
+  migration on a fresh database + `alembic check`.
+- [x] Live check (2026-10-16, fresh database `zukan_live`, CLI jobs, API on port 8011):
+  - Lorcana: 20 s, 28 sets / 2785 cards / 3556 printings, 5893 Cardmarket prices; tcgcsv
+    differences 57 → 18 after writing symbols out (left: TCGplayer typos, "Quest" rarity).
+  - Yu-Gi-Oh!: 6–9 min, 2577 sets (1036 TCG, 885 ja, 518 ko, 120 zh-hans, 18 zh-hant) /
+    14 869 cards / 124 625 printings / 84 995 prices (Cardmarket + TCGplayer); Konami pages
+    added newer packs (LPST-JP / LPST-KR); 1420 pages wanted at first (≈5 days at 300 a day).
+    tcgcsv differences 11 045 → 1 045 (texts no longer compared, rarity pairing).
+  - Riftbound: battlefields upright in the frame, colorless diamond; browser: Lorcana catalog
+    images + list views with rarity pictograms, Dark Magician page (10 languages, OCG sets).
+- [ ] User: Chinese UI check on real Pokémon data after the next catalog sync (translations
+  copied are counted in the job report); Cardmarket pictograms for Pokémon, MTG, Sorcery,
+  Yu-Gi-Oh! if wanted (browser, a page every few minutes).
 
 
 ## Build phases
