@@ -35,6 +35,7 @@ dev = [
 mtg = "app.games.mtg:provider"
 pokemon = "app.games.pokemon:provider"
 sorcery = "app.games.sorcery:provider"
+lorcana = "app.games.lorcana:provider"
 riftbound = "app.games.riftbound:provider"
 yugioh = "app.games.yugioh:provider"
 

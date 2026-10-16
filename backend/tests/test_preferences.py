@@ -11,7 +11,7 @@ from PIL import Image
 from sqlalchemy import select
 
 from app.core.config import get_settings
-from app.games.base import get_provider
+from app.games.base import registry
 from app.games.pokemon.provider import ENERGY_SPRITE
 from app.games.sorcery.provider import (
     CARDMARKET_EXPANSIONS,
@@ -297,10 +297,17 @@ async def test_symbols_downloaded_once(client, alice):
         domains = router.get(url__startswith="https://cmsassets.rgpub.io/").respond(
             content=png(), headers={"content-type": "image/png"}
         )
+        attributes = router.get(url__startswith="https://images.ygoprodeck.com/").respond(
+            content=png(), headers={"content-type": "image/jpeg"}
+        )
         stored = await symbols.ensure_symbols()
-        # Riftbound's colorless has no symbol.
-        games_ids = ("mtg", "pokemon", "sorcery", "riftbound")
-        assert stored == sum(len(get_provider(g).colors) for g in games_ids) - 1
+        # Symbols to download: Riftbound's colorless is drawn for Zukan (shipped), Yu-Gi-Oh!
+        # spells and traps and Lorcana inks have none.
+        downloaded = [
+            c for p in registry().values() for c in p.colors if c.icon_url and not c.icon_file
+        ]
+        assert stored == len(downloaded)
+        assert attributes.call_count == 7
         assert (sprite.call_count, svg.call_count, elements.call_count) == (1, 6, 4)
         assert domains.call_count == 6
         assert await symbols.ensure_symbols() == 0
@@ -316,6 +323,9 @@ async def test_symbols_downloaded_once(client, alice):
     assert (
         await client.get("/api/games/mtg/colors/..%2F..%2Fx/icon", headers=alice)
     ).status_code == 404
+    colorless = next(c for c in games["riftbound"]["colors"] if c["code"] == "colorless")
+    shipped = await client.get(colorless["icon"], headers=alice)
+    assert shipped.status_code == 200 and shipped.content.startswith(b"<svg")
 
 
 def test_api_tokens_follow_the_naming_rule(monkeypatch):
