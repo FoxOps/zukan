@@ -944,7 +944,32 @@ Progress:
 - [x] Versions: server 0.9.0. Tests: 147 backend (Riftbound fixtures trimmed from real data,
   no keys), web build / lint / i18n (361 texts), migration on a fresh database + `alembic
   check`.
-- [ ] Live check (below).
+- [x] Live check (2026-10-16, fresh database, CLI jobs from the venv, API on port 8011,
+  keys from the environment only):
+  - Riftbound: Riot key refused (403, logged) → Riftcodex; 9 sets / 1114 cards / 1593
+    printings (Radiance 219 from the gallery, 1416 with Simplified Chinese), 45 s. Cardmarket
+    matched 1468 printings (Ahri Alluring €0.55, alternate art €5.59), TCGplayer from tcgcsv
+    1487 ($0.76 / $5.95). tcgcsv confirmed finishes; apitcg filled what was left (15
+    requests), next run 0 requests (sets with unchanged gaps skipped).
+  - Sorcery: tcgcsv gave 1474 / 1601 printings their TCGplayer id by name, 1469 USD prices.
+  - Pokémon: tcg-api.eu 141 requests (10 231 printings checked), apitcg 161; tcgcsv priced 39
+    groups of printings TCGdex had no TCGplayer price for. MTG (all_cards, 17 min): tcgcsv 70
+    sets with gaps, tcg-api.eu 89 requests, apitcg 146. Month total apitcg 322 / 900.
+  - Found and fixed on live data: differences cleared for sets a gap source did not
+    re-check; discrepancy rows dated before the run start (transaction began with the
+    index) deleted at once; noise (MTG: 38 258 differences on 25 138 printings → 113):
+    TCGplayer rarity letters (C/U/R/M/L) and categories (promo, token, Unconfirmed — never
+    filled), MTG oracle vs printed text (MTG text not compared), names of double-faced cards
+    and Universes Beyond ("Bag End - Horizon Canopy"), tokens sharing a card's number
+    (pairing by number now needs a matching name), Riftcodex plain text without line
+    breaks (rich text used), Riot symbol codes. Left as real differences: Riftbound
+    "Showcase" vs "Rare" on alternate arts, TCGplayer typos ("DEATKNELL"), Pokémon rarity
+    vocabularies ("Holo Rare V" / "Ultra Rare": a field rule silences them).
+  - MTG art series: 2655 printings, none with a back face; the migration SQL removed
+    injected ones. Transform cards keep theirs.
+  - Browser: Riftbound catalog (domain symbols, Type / Supertype / Tag / Rarity filters,
+    prices), card page (3 printings, Cardmarket links, price history), Riot notice in the
+    footer; internal attributes (`finishes_guessed`, `finishes_confirmed`, `domains`) hidden.
 - [ ] User: a Riot product key for Riftbound (developer portal application), then check the
   Riot path; keys for tcg-api.eu / apitcg in `.env` on deployments.
 

@@ -176,6 +176,31 @@ def match_sets(ours: dict[str, SetData], theirs: list[ExternalSet], game_id: str
 _SUFFIX = re.compile(r"\s*(\([^)]*\)|-\s*[0-9A-Za-z]*[0-9]+(/[0-9A-Za-z]+)?)\s*$")
 
 
+# TCGplayer writes Magic rarities as letters (L: basic land, printed common).
+_RARITY_LETTERS = {
+    "c": "common",
+    "u": "uncommon",
+    "r": "rare",
+    "m": "mythic",
+    "l": "common",
+    "s": "special",
+    "p": "promo",
+    "t": "token",
+}
+
+
+# Market categories in the rarity field, not rarities: not compared, never filled.
+_NOT_RARITIES = {"promo", "token", "special", "unconfirmed", "code card", "none"}
+
+
+def rarity_name(value: str | None) -> str | None:
+    if value and len(value.strip()) == 1:
+        value = _RARITY_LETTERS.get(value.strip().casefold(), value)
+    if value and value.strip().casefold() in _NOT_RARITIES:
+        return None
+    return value
+
+
 def plain_name(name: str) -> str:
     """Name without the market's version suffixes: "Pikachu - 025/165",
     "Ahri, Alluring (Alternate Art)"."""
@@ -185,15 +210,25 @@ def plain_name(name: str) -> str:
     return name.strip()
 
 
-def _same_name(ours: str, theirs: str) -> bool:
-    return compare("", None, "", ours, plain_name(theirs)) is None
+def same_name(ours: str, theirs: str) -> bool:
+    """Names of one card as two sources write them: a face of a double-faced card
+    ("A // B" = "A"), a market's alternate name ("Bag End - Horizon Canopy" = "Horizon
+    Canopy"), one with more words ("Lady of Clockwork" = "Orianna, Lady of Clockwork")."""
+    mine = [ours, *ours.split(" // ")]
+    plain = plain_name(theirs)
+    theirs_all = [plain, *plain.split(" - ")]
+    return any(
+        compare("", None, "", a, b) is None or compare("", None, "", a, b, True) is None
+        for a in mine
+        for b in theirs_all
+        if a.strip() and b.strip()
+    )
 
 
 def pair(
     stored: list[StoredPrinting], theirs: list[ExternalPrinting]
 ) -> list[tuple[StoredPrinting, ExternalPrinting]]:
-    """Their printings of a set paired with ours: TCGplayer id, then number (and name when
-    several of ours share the number)."""
+    """Their printings of a set paired with ours: TCGplayer id, else number and name."""
     by_tcgplayer = {
         str(p.market_ids["tcgplayer"]): p for p in stored if p.market_ids.get("tcgplayer")
     }
@@ -206,12 +241,11 @@ def pair(
         printing = by_tcgplayer.get(str(ext.tcgplayer_id)) if ext.tcgplayer_id else None
         if printing is None:
             # Games without collector numbers (Sorcery): the name, when only one of ours
-            # has it.
+            # has it. A number alone is not enough: tokens and art cards of a market's
+            # set reuse the card numbers.
             same = by_number.get(number_key(ext.number), []) if ext.number else stored
-            named = [p for p in same if _same_name(p.card_name, ext.name)]
-            if ext.number and len(same) == 1:
-                printing = same[0]
-            elif len(named) == 1 or (ext.number and named):
+            named = [p for p in same if same_name(p.card_name, ext.name)]
+            if len(named) == 1 or (ext.number and named):
                 printing = named[0]
         if printing is None:
             continue
@@ -268,8 +302,11 @@ def fill(
     """Partial card data with what `ext` has and `printing` lacks, and what they disagree
     on."""
     set_ext, ext_id = printing.set_external_id, printing.external_id
+    ext.rarity = rarity_name(ext.rarity)
     checks = [
-        compare(set_ext, ext_id, "name", printing.card_name, plain_name(ext.name)),
+        None
+        if same_name(printing.card_name, ext.name)
+        else Discrepancy(set_ext, ext_id, "name", printing.card_name, plain_name(ext.name)),
         compare(set_ext, ext_id, "rarity", printing.rarity, ext.rarity, True),
     ]
     if check_text and printing.card_text and ext.text:

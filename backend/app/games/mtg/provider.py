@@ -349,7 +349,6 @@ class MtgProvider:
     languages = list(LANGUAGES.values())
     price_sources = ["cardmarket", "tcgplayer"]
     cardmarket_path = "Magic"
-    text_attribute = "oracle_text"
     secondary_sources = [mtgjson.source]
     filters = [
         FilterDef("types", "Type", "types"),
