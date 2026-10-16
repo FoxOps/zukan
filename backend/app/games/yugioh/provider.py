@@ -423,7 +423,8 @@ class YugiohProvider:
     cardmarket_path = "YuGiOh"
     short_names = ["yugioh", "ygo", "yu-gi-oh"]
     legal_notice = LEGAL_NOTICE
-    text_attribute = "desc"
+    # No `text_attribute`: printings carry the text of their time (errata, "Graveyard"
+    # became "GY"), so other sources' texts are not compared.
     source_keys = {"tcgcsv": 2, "apitcg": "yugioh"}
 
     @property

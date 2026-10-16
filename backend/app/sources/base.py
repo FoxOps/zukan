@@ -245,6 +245,13 @@ def pair(
             # set reuse the card numbers.
             same = by_number.get(number_key(ext.number), []) if ext.number else stored
             named = [p for p in same if same_name(p.card_name, ext.name)]
+            if len(named) > 1 and rarity_name(ext.rarity):
+                # One number in several rarities (Yu-Gi-Oh!): the printing of theirs.
+                named = [
+                    p
+                    for p in named
+                    if p.rarity and compare("", None, "", p.rarity, rarity_name(ext.rarity)) is None
+                ] or named
             if len(named) == 1 or (ext.number and named):
                 printing = named[0]
         if printing is None:
@@ -259,12 +266,13 @@ def pair(
 
 _FINISHES = {
     "normal": ("normal", "nonfoil", "standard"),
-    "unlimited": ("normal", "nonfoil", "standard"),
+    "unlimited": ("unlimited", "normal", "nonfoil", "standard"),
+    "limited": ("limited",),
     "foil": ("foil",),
     "holofoil": ("holo", "foil"),
     "unlimited holofoil": ("holo", "foil"),
     "reverse holofoil": ("reverse",),
-    "1st edition": ("first_edition",),
+    "1st edition": ("first_edition", "first"),
     "1st edition normal": ("first_edition",),
     "1st edition holofoil": ("first_edition",),
     "rainbow foil": ("rainbow",),

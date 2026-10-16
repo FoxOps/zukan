@@ -29,6 +29,7 @@ const DYNAMIC = [
   'Psychic', 'Fighting', 'Darkness', 'Metal', 'Fairy', 'Dragon', 'Air', 'Earth',
   'Foil', 'Etched foil', 'Holo', 'Reverse holo', '1st edition', 'Standard', 'Rainbow foil',
   'Fury', 'Calm', 'Mind', 'Body', 'Chaos', 'Order', 'Normal', 'Supertype', 'Tag', 'text',
+  'Amber', 'Amethyst', 'Emerald', 'Ruby', 'Sapphire', 'Steel', 'Dark', 'Light', 'Wind', 'Divine', 'Spell', 'Trap', 'Unlimited', '1st Edition', 'Limited Edition', 'Classification', 'Story', 'Inkwell', 'Monster type', 'Archetype',
 ]
 
 function files(dir) {

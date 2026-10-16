@@ -211,7 +211,7 @@ export default function CardDetail() {
         </ul>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-[minmax(0,320px)_1fr]">
+      <div className="grid gap-6 md:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
         <div className="flex flex-col gap-3">
           {selected && (
             <CardImage
