@@ -34,6 +34,7 @@ from app.games.base import (
     SetData,
     StoredPrinting,
     compare,
+    rarity_of,
     registry,
 )
 from app.models import GapCheck
@@ -201,6 +202,19 @@ def rarity_name(value: str | None) -> str | None:
     return value
 
 
+def same_rarity(ours: str | None, theirs: str | None, game_id: str | None = None) -> bool:
+    """One rarity written the same way, or two spellings of one of the game's rarities
+    ("Short Print" is a Common)."""
+    if not ours or not theirs:
+        return False
+    if compare("", None, "", ours, theirs) is None:
+        return True
+    if game_id is None:
+        return False
+    mine = rarity_of(game_id, ours)
+    return mine is not None and mine == rarity_of(game_id, theirs)
+
+
 def plain_name(name: str) -> str:
     """Name without the market's version suffixes: "Pikachu - 025/165",
     "Ahri, Alluring (Alternate Art)"."""
@@ -245,13 +259,10 @@ def pair(
             # set reuse the card numbers.
             same = by_number.get(number_key(ext.number), []) if ext.number else stored
             named = [p for p in same if same_name(p.card_name, ext.name)]
-            if len(named) > 1 and rarity_name(ext.rarity):
-                # One number in several rarities (Yu-Gi-Oh!): the printing of theirs.
-                named = [
-                    p
-                    for p in named
-                    if p.rarity and compare("", None, "", p.rarity, rarity_name(ext.rarity)) is None
-                ] or named
+            if len({p.rarity for p in named}) > 1 and rarity_name(ext.rarity):
+                # One number in several rarities (Yu-Gi-Oh!): the printing of their rarity,
+                # none when we do not have it.
+                named = [p for p in named if same_rarity(p.rarity, rarity_name(ext.rarity))]
             if len(named) == 1 or (ext.number and named):
                 printing = named[0]
         if printing is None:
@@ -315,7 +326,9 @@ def fill(
         None
         if same_name(printing.card_name, ext.name)
         else Discrepancy(set_ext, ext_id, "name", printing.card_name, plain_name(ext.name)),
-        compare(set_ext, ext_id, "rarity", printing.rarity, ext.rarity, True),
+        None
+        if same_rarity(printing.rarity, ext.rarity, game_id)
+        else compare(set_ext, ext_id, "rarity", printing.rarity, ext.rarity, True),
     ]
     if check_text and printing.card_text and ext.text:
         # Sources write keywords and symbols their own way and some leave out reminder

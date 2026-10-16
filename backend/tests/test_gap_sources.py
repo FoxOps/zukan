@@ -159,3 +159,26 @@ async def test_tcgapi_eu_pages_only_sets_with_gaps(monkeypatch):
         assert cards.call_count == 1
         assert cards.calls[0].request.headers["X-API-Key"] == "test-key"
     assert batches[0].cards[0].printings[0].images == {"en": "https://tcg-images.example/25.webp"}
+
+
+async def test_one_code_in_several_rarities():
+    await register_games()
+    name = "Blue-Eyes White Dragon"
+    ultra = stored(
+        "LOB-EN001", name, external_id="LOB-EN001~ultra", rarity="Ultra Rare", market_ids={}
+    )
+    secret = stored(
+        "LOB-EN001", name, external_id="LOB-EN001~secret", rarity="Secret Rare", market_ids={}
+    )
+    theirs = [
+        ExternalPrinting("LOB-EN001", name, rarity="Secret Rare"),
+        ExternalPrinting("LOB-EN001", name, rarity="Ghost Rare"),
+    ]
+    # Their Secret Rare is ours; their Ghost Rare matches none of ours.
+    paired = pair([ultra, secret], theirs)
+    assert [(p.external_id, e.rarity) for p, e in paired] == [("LOB-EN001~secret", "Secret Rare")]
+    # Two spellings of one rarity are no difference.
+    short = stored("SDK-001", "Mystical Elf", rarity="Short Print", market_ids={})
+    ext = ExternalPrinting("SDK-001", "Mystical Elf", rarity="Common")
+    _, found = fill("yugioh", "tcgcsv", short, ext)
+    assert not found
