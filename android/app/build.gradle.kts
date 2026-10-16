@@ -18,7 +18,7 @@ android {
         targetSdk = 37
         // CI passes -PversionCode / -PversionName (prod: from the release version).
         versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
-        versionName = providers.gradleProperty("versionName").orNull ?: "0.7.0"
+        versionName = providers.gradleProperty("versionName").orNull ?: "0.8.0"
         resValue("string", "app_name", "Zukan")
         redirectScheme("fr.zukan.app")
     }
@@ -97,6 +97,7 @@ dependencies {
     implementation(libs.appauth)
     implementation(libs.coil.compose)
     implementation(libs.coil.okhttp)
+    implementation(libs.coil.svg)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

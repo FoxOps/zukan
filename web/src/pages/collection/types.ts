@@ -1,4 +1,5 @@
-import type { ComponentType, ReactNode } from 'react'
+import type { ComponentType } from 'react'
+import type { ViewChoice } from '../../lib/views'
 import type { Schemas } from '../../api/client'
 import type { Game } from '../../api/queries'
 
@@ -15,12 +16,6 @@ export type ViewProps = {
   edit: (item: Item) => void
 }
 
-export type CollectionView = {
-  id: string
-  // Translated label (natural language key).
-  label: string
-  icon: ReactNode
-  component: ComponentType<ViewProps>
-}
+export type CollectionView = ViewChoice & { component: ComponentType<ViewProps> }
 
 export const itemLink = (item: Item) => `/cards/${item.card_id}/${item.printing_id}`

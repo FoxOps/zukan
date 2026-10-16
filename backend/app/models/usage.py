@@ -31,6 +31,6 @@ class GapCheck(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     source: Mapped[str] = mapped_column(String(32))
     game_id: Mapped[str] = mapped_column(String(32))
-    set_external_id: Mapped[str] = mapped_column(String(64))
+    set_external_id: Mapped[str] = mapped_column(String(128))
     gaps: Mapped[int] = mapped_column(Integer)
     checked_on: Mapped[date] = mapped_column(Date)

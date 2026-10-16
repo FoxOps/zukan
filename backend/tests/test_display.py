@@ -88,3 +88,12 @@ def test_names():
     assert pick_name({"ja": "N", "en": "N"}, "fr", False, "ja") == ShownName("N")
     # Russian is not Latin.
     assert pick_name({"ru": "Шок", "en": "Shock"}, "fr", False, "ru") == ShownName("Шок", "Shock")
+
+
+def test_non_latin_name_on_latin_card_gets_translation():
+    # Latin card read in a non-Latin UI language (Riftbound Simplified Chinese names).
+    names = {"en": "Ahri, Alluring", "zh-hans": "阿狸，魅惑"}
+    assert pick_name(names, "zh-hans", True) == ShownName("阿狸，魅惑", "Ahri, Alluring")
+    assert pick_name(names, "ko", True) == ShownName("Ahri, Alluring")
+    # Only a non-Latin name known: shown alone.
+    assert pick_name({"zh-hans": "能量转移"}, "fr", True) == ShownName("能量转移")

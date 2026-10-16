@@ -114,21 +114,24 @@ fun ResultPanel(
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.width(120.dp).aspectRatio(63f / 88f).clip(RoundedCornerShape(6.dp))) {
-                if (printing.image == null) {
-                    Box(Modifier.matchParentSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-                        Text(stringResource(R.string.no_picture), style = MaterialTheme.typography.bodySmall)
-                    }
-                } else {
-                    AsyncImage(model = imageUrl(printing.image), contentDescription = name, imageLoader = imageLoader)
-                }
-            }
+            CardPicture(
+                printing.image,
+                imageUrl,
+                imageLoader,
+                Modifier.width(120.dp),
+                back = printing.backImage,
+                landscape = printing.orientation == "landscape",
+                contentDescription = name,
+            )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(shownName(name, translation), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 printing.names[language]?.takeIf { it != name && it != translation }?.let {
                     Text(it, style = MaterialTheme.typography.bodyMedium)
                 }
-                printing.rarity?.let { Text(it.replaceFirstChar(Char::uppercase), style = MaterialTheme.typography.bodySmall) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    ColorSymbols(game, candidate.card.colors, imageUrl, imageLoader)
+                    RarityBadge(game, printing.rarity, printing.rarityCode, imageUrl, imageLoader)
+                }
                 val sourceName = { id: String -> game?.priceSources?.firstOrNull { it.id == id }?.name ?: id }
                 val shownPrices = printing.prices
                     .filter { game == null || it.source in sources }
@@ -223,6 +226,7 @@ fun ResultPanel(
             imageLoader = imageLoader,
             onPick = { onPrinting(it); pickPrinting = false },
             onDismiss = { pickPrinting = false },
+            game = game,
         )
     }
 }

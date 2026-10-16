@@ -70,6 +70,10 @@ data class ColorOut(val code: String, val name: String, val hex: String, val ico
 @Serializable
 data class FinishOut(val code: String, val name: String)
 
+/** A rarity of the game (lowest first) and its pictogram, servers 0.10+. */
+@Serializable
+data class RarityOut(val code: String, val name: String, val icon: String? = null)
+
 @Serializable
 data class GameOut(
     val id: String,
@@ -82,6 +86,7 @@ data class GameOut(
     @SerialName("price_sources") val priceSources: List<PriceSourceOut> = emptyList(),
     // Cardmarket URL segment ("Magic"), null when the game has no Cardmarket links.
     val cardmarket: String? = null,
+    val rarities: List<RarityOut> = emptyList(),
 )
 
 @Serializable
@@ -153,9 +158,15 @@ data class PrintingOut(
     val set: SetOut,
     @SerialName("collector_number") val collectorNumber: String? = null,
     val rarity: String? = null,
+    // The game's rarity (GameOut.rarities) for its pictogram, servers 0.10+.
+    @SerialName("rarity_code") val rarityCode: String? = null,
     val finishes: List<String>,
     val languages: List<String>,
     val image: String? = null,
+    // Back of double-faced cards.
+    @SerialName("back_image") val backImage: String? = null,
+    // "landscape": picture wider than tall (Riftbound battlefields), shown turned (0.10+).
+    val orientation: String = "portrait",
     // Named as printed in its set, with a Latin translation of non-Latin names (servers 0.6+).
     val name: String = "",
     val translation: String? = null,
@@ -204,12 +215,25 @@ data class AdjustIn(
 @Serializable
 data class ItemSetOut(val id: Int, val code: String, val name: String)
 
+/** Market price trend over a period: direction up / down / flat, `change` 0.1 = +10 %. */
+@Serializable
+data class TrendOut(val direction: String, val change: Double = 0.0)
+
+@Serializable
+data class TrendsOut(val d1: TrendOut? = null, val d7: TrendOut? = null, val d30: TrendOut? = null)
+
 @Serializable
 data class ItemOut(
     val id: Int,
     val name: String,
     val translation: String? = null,
     val quantity: Int,
+    val colors: List<String> = emptyList(),
+    val rarity: String? = null,
+    @SerialName("rarity_code") val rarityCode: String? = null,
+    @SerialName("back_image") val backImage: String? = null,
+    val orientation: String = "portrait",
+    val trends: TrendsOut = TrendsOut(),
     @SerialName("printing_id") val printingId: Int = 0,
     @SerialName("card_id") val cardId: Int = 0,
     @SerialName("game_id") val gameId: String = "",
@@ -247,6 +271,11 @@ data class CardSummaryOut(
     val image: String? = null,
     // Printing whose image is shown: the card opens on it (servers 0.6+).
     @SerialName("printing_id") val printingId: Int? = null,
+    // Of that printing (servers 0.10+).
+    @SerialName("back_image") val backImage: String? = null,
+    val rarity: String? = null,
+    @SerialName("rarity_code") val rarityCode: String? = null,
+    val orientation: String = "portrait",
     @SerialName("price_min") val priceMin: String? = null,
     @SerialName("price_max") val priceMax: String? = null,
     val currency: String? = null,

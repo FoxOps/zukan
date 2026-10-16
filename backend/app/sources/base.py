@@ -34,6 +34,7 @@ from app.games.base import (
     SetData,
     StoredPrinting,
     compare,
+    rarity_of,
     registry,
 )
 from app.models import GapCheck
@@ -201,6 +202,19 @@ def rarity_name(value: str | None) -> str | None:
     return value
 
 
+def same_rarity(ours: str | None, theirs: str | None, game_id: str | None = None) -> bool:
+    """One rarity written the same way, or two spellings of one of the game's rarities
+    ("Short Print" is a Common)."""
+    if not ours or not theirs:
+        return False
+    if compare("", None, "", ours, theirs) is None:
+        return True
+    if game_id is None:
+        return False
+    mine = rarity_of(game_id, ours)
+    return mine is not None and mine == rarity_of(game_id, theirs)
+
+
 def plain_name(name: str) -> str:
     """Name without the market's version suffixes: "Pikachu - 025/165",
     "Ahri, Alluring (Alternate Art)"."""
@@ -226,9 +240,11 @@ def same_name(ours: str, theirs: str) -> bool:
 
 
 def pair(
-    stored: list[StoredPrinting], theirs: list[ExternalPrinting]
+    stored: list[StoredPrinting], theirs: list[ExternalPrinting], rarity_game: str | None = None
 ) -> list[tuple[StoredPrinting, ExternalPrinting]]:
-    """Their printings of a set paired with ours: TCGplayer id, else number and name."""
+    """Their printings of a set paired with ours: TCGplayer id, else number and name.
+    `rarity_game`: a game whose printings are one rarity each (Yu-Gi-Oh!), paired by
+    number only with ours of their rarity."""
     by_tcgplayer = {
         str(p.market_ids["tcgplayer"]): p for p in stored if p.market_ids.get("tcgplayer")
     }
@@ -245,6 +261,14 @@ def pair(
             # set reuse the card numbers.
             same = by_number.get(number_key(ext.number), []) if ext.number else stored
             named = [p for p in same if same_name(p.card_name, ext.name)]
+            if rarity_game and rarity_name(ext.rarity):
+                named = [
+                    p for p in named if same_rarity(p.rarity, rarity_name(ext.rarity), rarity_game)
+                ]
+            elif len({p.rarity for p in named}) > 1 and rarity_name(ext.rarity):
+                # One number in several rarities (Yu-Gi-Oh!): the printing of their rarity,
+                # none when we do not have it.
+                named = [p for p in named if same_rarity(p.rarity, rarity_name(ext.rarity))]
             if len(named) == 1 or (ext.number and named):
                 printing = named[0]
         if printing is None:
@@ -259,12 +283,13 @@ def pair(
 
 _FINISHES = {
     "normal": ("normal", "nonfoil", "standard"),
-    "unlimited": ("normal", "nonfoil", "standard"),
+    "unlimited": ("unlimited", "normal", "nonfoil", "standard"),
+    "limited": ("limited",),
     "foil": ("foil",),
     "holofoil": ("holo", "foil"),
     "unlimited holofoil": ("holo", "foil"),
     "reverse holofoil": ("reverse",),
-    "1st edition": ("first_edition",),
+    "1st edition": ("first_edition", "first"),
     "1st edition normal": ("first_edition",),
     "1st edition holofoil": ("first_edition",),
     "rainbow foil": ("rainbow",),
@@ -307,7 +332,9 @@ def fill(
         None
         if same_name(printing.card_name, ext.name)
         else Discrepancy(set_ext, ext_id, "name", printing.card_name, plain_name(ext.name)),
-        compare(set_ext, ext_id, "rarity", printing.rarity, ext.rarity, True),
+        None
+        if same_rarity(printing.rarity, ext.rarity, game_id)
+        else compare(set_ext, ext_id, "rarity", printing.rarity, ext.rarity, True),
     ]
     if check_text and printing.card_text and ext.text:
         # Sources write keywords and symbols their own way and some leave out reminder
@@ -354,7 +381,8 @@ def check_set(
     check_text: bool = False,
 ) -> SecondaryBatch:
     batch = SecondaryBatch(checked_sets=sorted({p.set_external_id for p in stored}))
-    for printing, ext in pair(stored, theirs):
+    by_rarity = getattr(registry().get(game_id), "rarity_in_printing", False)
+    for printing, ext in pair(stored, theirs, game_id if by_rarity else None):
         batch.matched += 1
         card, found = fill(game_id, source_id, printing, ext, check_text)
         if card is not None:

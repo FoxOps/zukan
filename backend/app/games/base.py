@@ -5,6 +5,7 @@ group. Providers only fetch and normalize data; core services store it. Core cod
 clients only talk to this interface, so adding a game never requires changes elsewhere.
 """
 
+import inspect
 import unicodedata
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -12,6 +13,7 @@ from datetime import date
 from decimal import Decimal
 from functools import lru_cache
 from importlib.metadata import entry_points
+from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 import httpx
@@ -28,12 +30,55 @@ class ColorDef:
     # (left, top, width, height) box to cut it out of a sprite sheet.
     icon_url: str | None = None
     icon_box: tuple[int, int, int, int] | None = None
+    # Symbol drawn for Zukan, shipped with the provider (used instead of `icon_url`).
+    icon_file: Path | None = None
 
 
 @dataclass(frozen=True)
 class FinishDef:
     code: str  # stored in Printing.finishes / CollectionItem.finish
     name: str
+
+
+@dataclass(frozen=True)
+class RarityDef:
+    """A rarity of the game, in increasing order in `GameProvider.rarities`. `code` names
+    its pictogram `<provider package>/rarities/<code>.svg` (when there is one); `aliases`
+    are other spellings sources use ("Super_rare", "(UR)")."""
+
+    code: str
+    name: str
+    aliases: tuple[str, ...] = ()
+
+
+def rarity_key(text: str) -> str:
+    """Rarity spelling for matching: no case, accents, brackets, "_" or "-"."""
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+    return " ".join(text.casefold().replace("_", " ").replace("-", " ").strip("() ").split())
+
+
+@lru_cache(maxsize=64)
+def _rarity_table(provider_id: str) -> dict[str, RarityDef]:
+    table: dict[str, RarityDef] = {}
+    for rarity in getattr(registry()[provider_id], "rarities", []):
+        for spelling in (rarity.code, rarity.name, *rarity.aliases):
+            table.setdefault(rarity_key(spelling), rarity)
+    return table
+
+
+def rarity_of(game_id: str, raw: str | None) -> RarityDef | None:
+    """The game's rarity a stored `Printing.rarity` text stands for."""
+    if not raw or game_id not in registry():
+        return None
+    return _rarity_table(game_id).get(rarity_key(raw))
+
+
+def rarity_icon_file(game_id: str, code: str) -> Path | None:
+    provider = registry().get(game_id)
+    if provider is None:
+        return None
+    path = Path(inspect.getfile(type(provider))).parent / "rarities" / f"{code}.svg"
+    return path if path.is_file() else None
 
 
 @dataclass(frozen=True)
@@ -296,6 +341,9 @@ class GameProvider(Protocol):
     - `source_keys`: the game's id in the generic gap-filling sources (`app.sources`),
       e.g. {"tcgcsv": 89, "apitcg": "riftbound"}; overrides those sources' own tables.
     - `filters: list[FilterDef]`: advanced catalog search filters (types, rarity...).
+    - `rarities: list[RarityDef]`: the game's rarities, lowest first, with pictograms.
+    - `rarity_in_printing = True`: a printing is one rarity of a collector number (Yu-Gi-Oh!):
+      other sources' printings pair with ours by number and rarity.
     - `secondary_sources: list[CatalogSource]`: other sources of this game's catalog,
       cross-checked against it after each catalog sync.
     - `fetch_cards(http, cards: list[CardRef]) -> AsyncIterator[CatalogBatch]`: fetch

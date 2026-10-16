@@ -1,0 +1,7975 @@
+{
+"cards": [
+{
+"id": 46986414,
+"name": "Dark Magician",
+"type": "Normal Monster",
+"humanReadableCardType": "Normal Monster",
+"frameType": "normal",
+"desc": "''The ultimate wizard in terms of attack and defense.''",
+"race": "Spellcaster",
+"atk": 2500,
+"def": 2100,
+"level": 7,
+"attribute": "DARK",
+"archetype": "Dark Magician",
+"card_sets": [
+{
+"set_name": "2016 Mega-Tins",
+"set_code": "CT13-EN003",
+"set_rarity": "Ultra Rare",
+"set_rarity_code": "(UR)",
+"set_price": "6.97"
+},
+{
+"set_name": "2017 Mega-Tins",
+"set_code": "CT14-EN001",
+"set_rarity": "Secret Rare",
+"set_rarity_code": "(ScR)",
+"set_price": "9.66"
+},
+{
+"set_name": "Battle of Chaos",
+"set_code": "25TH-EN001",
+"set_rarity": "Ultra Rare",
+"set_rarity_code": "(UR)",
+"set_price": "0.00"
+},
+{
+"set_name": "Booster Pack Collectors Tins 2002",
+"set_code": "BPT-001",
+"set_rarity": "Secret Rare",
+"set_rarity_code": "(ScR)",
+"set_price": "63.01"
+},
+{
+"set_name": "Collectible Tins 2003",
+"set_code": "BPT-007",
+"set_rarity": "Secret Rare",
+"set_rarity_code": "(ScR)",
+"set_price": "19.08"
+},
+{
+"set_name": "Dark Beginning 1",
+"set_code": "DB1-EN102",
+"set_rarity": "Ultra Rare",
+"set_rarity_code": "(UR)",
+"set_price": "25.2"
+}
+],
+"card_images": [
+{
+"id": 46986414,
+"image_url": "https://images.ygoprodeck.com/images/cards/46986414.jpg",
+"image_url_small": "https://images.ygoprodeck.com/images/cards_small/46986414.jpg",
+"image_url_cropped": "https://images.ygoprodeck.com/images/cards_cropped/46986414.jpg"
+},
+{
+"id": 46986415,
+"image_url": "https://images.ygoprodeck.com/images/cards/46986415.jpg",
+"image_url_small": "https://images.ygoprodeck.com/images/cards_small/46986415.jpg",
+"image_url_cropped": "https://images.ygoprodeck.com/images/cards_cropped/46986415.jpg"
+},
+{
+"id": 46986416,
+"image_url": "https://images.ygoprodeck.com/images/cards/46986416.jpg",
+"image_url_small": "https://images.ygoprodeck.com/images/cards_small/46986416.jpg",
+"image_url_cropped": "https://images.ygoprodeck.com/images/cards_cropped/46986416.jpg"
+},
+{
+"id": 46986417,
+"image_url": "https://images.ygoprodeck.com/images/cards/46986417.jpg",
+"image_url_small": "https://images.ygoprodeck.com/images/cards_small/46986417.jpg",
+"image_url_cropped": "https://images.ygoprodeck.com/images/cards_cropped/46986417.jpg"
+},
+{
+"id": 46986418,
+"image_url": "https://images.ygoprodeck.com/images/cards/46986418.jpg",
+"image_url_small": "https://images.ygoprodeck.com/images/cards_small/46986418.jpg",
+"image_url_cropped": "https://images.ygoprodeck.com/images/cards_cropped/46986418.jpg"
+},
+{
+"id": 46986419,
+"image_url": "https://images.ygoprodeck.com/images/cards/46986419.jpg",
+"image_url_small": "https://images.ygoprodeck.com/images/cards_small/46986419.jpg",
+"image_url_cropped": "https://images.ygoprodeck.com/images/cards_cropped/46986419.jpg"
+},
+{
+"id": 36996508,
+"image_url": "https://images.ygoprodeck.com/images/cards/36996508.jpg",
+"image_url_small": "https://images.ygoprodeck.com/images/cards_small/36996508.jpg",
+"image_url_cropped": "https://images.ygoprodeck.com/images/cards_cropped/36996508.jpg"
+},
+{
+"id": 46986420,
+"image_url": "https://images.ygoprodeck.com/images/cards/46986420.jpg",
+"image_url_small": "https://images.ygoprodeck.com/images/cards_small/46986420.jpg",
+"image_url_cropped": "https://images.ygoprodeck.com/images/cards_cropped/46986420.jpg"
+},
+{
+"id": 46986421,
+"image_url": "https://images.ygoprodeck.com/images/cards/46986421.jpg",
+"image_url_small": "https://images.ygoprodeck.com/images/cards_small/46986421.jpg",
+"image_url_cropped": "https://images.ygoprodeck.com/images/cards_cropped/46986421.jpg"
+}
+],
+"misc_info": [
+{
+"tcg_date": "2002-03-08",
+"ocg_date": "1999-02-04",
+"konami_id": 4041
+}
+]
+},
+{
+"id": 55144522,
+"name": "Pot of Greed",
+"type": "Spell Card",
+"humanReadableCardType": "Normal Spell",
+"frameType": "spell",
+"desc": "Draw 2 cards.",
+"race": "Normal",
+"archetype": "Greed",
+"card_sets": [
+{
+"set_name": "2025 Mega-Pack Tin",
+"set_code": "MP25-EN050",
+"set_rarity": "Starlight Rare",
+"set_rarity_code": "(StR)",
+"set_price": "0"
+},
+{
+"set_name": "Battle Pack 2: War of the Giants",
+"set_code": "BP02-EN129",
+"set_rarity": "Mosaic Rare",
+"set_rarity_code": "(MSR)",
+"set_price": "0"
+},
+{
+"set_name": "Battle Pack 2: War of the Giants",
+"set_code": "BP02-EN129",
+"set_rarity": "Rare",
+"set_rarity_code": "(R)",
+"set_price": "0"
+},
+{
+"set_name": "Battle Pack: Epic Dawn",
+"set_code": "BP01-EN034",
+"set_rarity": "Rare",
+"set_rarity_code": "(R)",
+"set_price": "0"
+},
+{
+"set_name": "Battle Pack: Epic Dawn",
+"set_code": "BP01-EN034",
+"set_rarity": "Starfoil Rare",
+"set_rarity_code": "(SFR)",
+"set_price": "0"
+},
+{
+"set_name": "Dark Beginning 1",
+"set_code": "DB1-EN134",
+"set_rarity": "Super Rare",
+"set_rarity_code": "(SR)",
+"set_price": "0"
+}
+],
+"banlist_info": {
+"ban_tcg": "Forbidden",
+"ban_ocg": "Forbidden",
+"ban_goat": "Limited"
+},
+"card_images": [
+{
+"id": 55144522,
+"image_url": "https://images.ygoprodeck.com/images/cards/55144522.jpg",
+"image_url_small": "https://images.ygoprodeck.com/images/cards_small/55144522.jpg",
+"image_url_cropped": "https://images.ygoprodeck.com/images/cards_cropped/55144522.jpg"
+}
+],
+"misc_info": [
+{
+"tcg_date": "2002-03-08",
+"ocg_date": "1999-05-27",
+"konami_id": 4844
+}
+]
+},
+{
+"id": 44095762,
+"name": "Mirror Force",
+"type": "Trap Card",
+"humanReadableCardType": "Normal Trap",
+"frameType": "trap",
+"desc": "When an opponent's monster declares an attack: Destroy all your opponent's Attack Position monsters.",
+"race": "Normal",
+"card_sets": [
+{
+"set_name": "2-Player Starter Deck: Yuya & Declan",
+"set_code": "YS15-END16",
+"set_rarity": "Super Rare",
+"set_rarity_code": "(SR)",
+"set_price": "5.66"
+},
+{
+"set_name": "Battle Pack: Epic Dawn",
+"set_code": "BP01-EN048",
+"set_rarity": "Rare",
+"set_rarity_code": "(R)",
+"set_price": "0"
+},
+{
+"set_name": "Battle Pack: Epic Dawn",
+"set_code": "BP01-EN048",
+"set_rarity": "Starfoil Rare",
+"set_rarity_code": "(SFR)",
+"set_price": "0"
+},
+{
+"set_name": "Dark Beginning 2",
+"set_code": "DB2-EN081",
+"set_rarity": "Super Rare",
+"set_rarity_code": "(SR)",
+"set_price": "0"
+},
+{
+"set_name": "Dark Legion Starter Deck",
+"set_code": "YS15-ENL22",
+"set_rarity": "Shatterfoil Rare",
+"set_rarity_code": "(SHR)",
+"set_price": "2.04"
+},
+{
+"set_name": "Dark Saviors",
+"set_code": "DASA-EN059",
+"set_rarity": "Super Rare",
+"set_rarity_code": "(SR)",
+"set_price": "1.92"
+}
+],
+"banlist_info": {
+"ban_goat": "Limited"
+},
+"card_images": [
+{
+"id": 44095762,
+"image_url": "https://images.ygoprodeck.com/images/cards/44095762.jpg",
+"image_url_small": "https://images.ygoprodeck.com/images/cards_small/44095762.jpg",
+"image_url_cropped": "https://images.ygoprodeck.com/images/cards_cropped/44095762.jpg"
+}
+],
+"misc_info": [
+{
+"tcg_date": "2002-06-26",
+"ocg_date": "2000-01-27",
+"konami_id": 4887
+}
+]
+},
+{
+"id": 45236142,
+"name": "Advanced Crystal Beast Cobalt Eagle",
+"type": "Effect Monster",
+"humanReadableCardType": "Effect Monster",
+"frameType": "effect",
+"desc": "If \"Advanced Dark\" is not in a Field Zone, send this monster to the GY. You can send this card from your hand or field to the GY; add 1 \"Advanced Dark\" from your Deck to your hand. Once per turn: You ",
+"race": "Winged Beast",
+"atk": 1400,
+"def": 800,
+"level": 4,
+"attribute": "WIND",
+"archetype": "Advanced Crystal Beast",
+"card_sets": [
+{
+"set_name": "Battles of Legend: Crystal Revenge",
+"set_code": "BLCR-EN015",
+"set_rarity": "Secret Rare",
+"set_rarity_code": "(ScR)",
+"set_price": "0"
+},
+{
+"set_name": "Battles of Legend: Crystal Revenge",
+"set_code": "BLCR-EN016",
+"set_rarity": "Secret Rare",
+"set_rarity_code": "(ScR)",
+"set_price": "0"
+},
+{
+"set_name": "Battles of Legend: Crystal Revenge",
+"set_code": "BLCR-EN015",
+"set_rarity": "Secret Rare",
+"set_rarity_code": "(ScR)",
+"set_price": "0"
+}
+],
+"card_images": [
+{
+"id": 45236142,
+"image_url": "https://images.ygoprodeck.com/images/cards/45236142.jpg",
+"image_url_small": "https://images.ygoprodeck.com/images/cards_small/45236142.jpg",
+"image_url_cropped": "https://images.ygoprodeck.com/images/cards_cropped/45236142.jpg"
+}
+],
+"misc_info": [
+{
+"tcg_date": "2022-11-17",
+"ocg_date": "2022-06-11",
+"konami_id": 17633
+}
+]
+},
+{
+"id": 71620241,
+"name": "Advanced Crystal Beast Sapphire Pegasus",
+"type": "Effect Monster",
+"humanReadableCardType": "Effect Monster",
+"frameType": "effect",
+"desc": "If \"Advanced Dark\" is not in a Field Zone, send this monster to the GY. If this card is Summoned: You can place 1 of your \"Advanced Crystal Beast\" monsters that is banished, or in your hand, Deck, or ",
+"race": "Beast",
+"atk": 1800,
+"def": 1200,
+"level": 4,
+"attribute": "WIND",
+"archetype": "Advanced Crystal Beast",
+"card_sets": [
+{
+"set_name": "Battles of Legend: Crystal Revenge",
+"set_code": "BLCR-EN015",
+"set_rarity": "Secret Rare",
+"set_rarity_code": "(ScR)",
+"set_price": "0"
+},
+{
+"set_name": "Battles of Legend: Crystal Revenge",
+"set_code": "BLCR-EN016",
+"set_rarity": "Secret Rare",
+"set_rarity_code": "(ScR)",
+"set_price": "0"
+},
+{
+"set_name": "Battles of Legend: Crystal Revenge",
+"set_code": "BLCR-EN015",
+"set_rarity": "Secret Rare",
+"set_rarity_code": "(ScR)",
+"set_price": "0"
+}
+],
+"card_images": [
+{
+"id": 71620241,
+"image_url": "https://images.ygoprodeck.com/images/cards/71620241.jpg",
+"image_url_small": "https://images.ygoprodeck.com/images/cards_small/71620241.jpg",
+"image_url_cropped": "https://images.ygoprodeck.com/images/cards_cropped/71620241.jpg"
+}
+],
+"misc_info": [
+{
+"tcg_date": "2022-11-17",
+"ocg_date": "2022-06-11",
+"konami_id": 17634
+}
+]
+}
+],
+"sets": [
+{
+"set_name": "2-Player Starter Deck: Yuya & Declan",
+"set_code": "YS15",
+"num_of_cards": 42,
+"tcg_date": "2015-05-28",
+"set_image": "https://images.ygoprodeck.com/images/sets/YS15.jpg"
+},
+{
+"set_name": "2016 Mega-Tins",
+"set_code": "CT13",
+"num_of_cards": 12,
+"tcg_date": "2016-09-01",
+"set_image": "https://images.ygoprodeck.com/images/sets/CT13.jpg"
+},
+{
+"set_name": "2017 Mega-Tins",
+"set_code": "CT14",
+"num_of_cards": 8,
+"tcg_date": "2017-08-24",
+"set_image": "https://images.ygoprodeck.com/images/sets/CT14.jpg"
+},
+{
+"set_name": "2025 Mega-Pack Tin",
+"set_code": "MP25",
+"num_of_cards": 450,
+"tcg_date": "2025-09-04",
+"set_image": "https://images.ygoprodeck.com/images/sets/MP25.jpg"
+},
+{
+"set_name": "Battle of Chaos",
+"set_code": "BACH",
+"num_of_cards": 102,
+"tcg_date": "2022-02-10",
+"set_image": "https://images.ygoprodeck.com/images/sets/BACH.jpg"
+},
+{
+"set_name": "Battle Pack 2: War of the Giants",
+"set_code": "BP02",
+"num_of_cards": 215,
+"tcg_date": "2013-06-28",
+"set_image": "https://images.ygoprodeck.com/images/sets/BP02.jpg"
+},
+{
+"set_name": "Battle Pack: Epic Dawn",
+"set_code": "BP01",
+"num_of_cards": 220,
+"tcg_date": "2012-05-24",
+"set_image": "https://images.ygoprodeck.com/images/sets/BP01.jpg"
+},
+{
+"set_name": "Battles of Legend: Crystal Revenge",
+"set_code": "BLCR",
+"num_of_cards": 105,
+"tcg_date": "2022-11-17",
+"set_image": "https://images.ygoprodeck.com/images/sets/BLCR.jpg"
+},
+{
+"set_name": "Booster Pack Collectors Tins 2002",
+"set_code": "BPT",
+"num_of_cards": 6,
+"tcg_date": "2002-10-04",
+"set_image": "https://images.ygoprodeck.com/images/sets/BPT.jpg"
+},
+{
+"set_name": "Collectible Tins 2003",
+"set_code": "BPT",
+"num_of_cards": 6,
+"tcg_date": "2003-09-01",
+"set_image": "https://images.ygoprodeck.com/images/sets/BPT.jpg"
+},
+{
+"set_name": "Dark Beginning 1",
+"set_code": "DB1",
+"num_of_cards": 262,
+"tcg_date": "2004-10-12",
+"set_image": "https://images.ygoprodeck.com/images/sets/DB1.jpg"
+},
+{
+"set_name": "Dark Beginning 2",
+"set_code": "DB2",
+"num_of_cards": 264,
+"tcg_date": "2005-07-27",
+"set_image": "https://images.ygoprodeck.com/images/sets/DB2.jpg"
+},
+{
+"set_name": "Dark Legion Starter Deck",
+"set_code": "YS15",
+"num_of_cards": 29,
+"tcg_date": "2015-05-29",
+"set_image": "https://images.ygoprodeck.com/images/sets/YS15.jpg"
+},
+{
+"set_name": "Dark Saviors",
+"set_code": "DASA",
+"num_of_cards": 60,
+"tcg_date": "2018-05-24",
+"set_image": "https://images.ygoprodeck.com/images/sets/DASA.jpg"
+}
+],
+"names_fr": {
+"46986414": "Magicien Sombre",
+"55144522": "Pot de Cupidité"
+},
+"ygojson_cards": [
+{
+"id": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"text": {
+"en": {
+"name": "Mirror Force",
+"effect": "When an opponent's monster declares an attack: Destroy all your opponent's Attack Position monsters."
+},
+"fr": {
+"name": "Force de Miroir"
+},
+"de": {
+"name": "Spiegelkraft"
+},
+"it": {
+"name": "Forza Riflessa"
+},
+"pt": {
+"name": "Força do Espelho"
+},
+"es": {
+"name": "Fuerza de Espejo"
+},
+"ja": {
+"name": "聖なるバリア －ミラーフォース－"
+},
+"ko": {
+"name": "성스러운 방어막 거울의 힘"
+},
+"zh-TW": {
+"name": "神聖防護罩－反射鏡力－"
+},
+"zh-CN": {
+"name": "神圣防护罩－反射镜力－"
+}
+},
+"cardType": "trap",
+"passwords": [
+"44095762"
+]
+},
+{
+"id": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"text": {
+"en": {
+"name": "Pot of Greed",
+"effect": "Draw 2 cards."
+},
+"fr": {
+"name": "Pot de Cupidité"
+},
+"de": {
+"name": "Topf der Gier"
+},
+"it": {
+"name": "Anfora dell'Avidità"
+},
+"pt": {
+"name": "Pote da Ganância"
+},
+"es": {
+"name": "Olla de la Codicia"
+},
+"ja": {
+"name": "強欲な壺"
+},
+"ko": {
+"name": "욕망의 항아리"
+},
+"zh-CN": {
+"name": "强欲之壶"
+}
+},
+"cardType": "spell",
+"passwords": [
+"55144522"
+]
+},
+{
+"id": "c0285d04-cadd-402d-a865-799a182d7510",
+"text": {
+"en": {
+"name": "Dark Magician",
+"effect": "The ultimate wizard in terms of attack and defense."
+},
+"fr": {
+"name": "Magicien Sombre"
+},
+"de": {
+"name": "Dunkler Magier"
+},
+"it": {
+"name": "Mago Nero"
+},
+"pt": {
+"name": "Mago Negro"
+},
+"es": {
+"name": "Mago Oscuro"
+},
+"ja": {
+"name": "ブラック・マジシャン"
+},
+"ko": {
+"name": "블랙 매지션"
+},
+"zh-TW": {
+"name": "黒魔道士"
+},
+"zh-CN": {
+"name": "黑魔导"
+}
+},
+"cardType": "monster",
+"attribute": "dark",
+"type": "spellcaster",
+"classifications": [
+"normal"
+],
+"level": 7,
+"atk": 2500,
+"def": 2100,
+"passwords": [
+"46986414",
+"36996508",
+"46986421",
+"46986420"
+]
+},
+{
+"id": "cf5069ff-b2a8-456a-a57a-003d811ad81f",
+"text": {
+"en": {
+"name": "Advanced Crystal Beast Sapphire Pegasus",
+"effect": "If \"Advanced Dark\" is not in a Field Zone, send this monster to the GY. If this card is Summoned: You can place 1 of you"
+},
+"fr": {
+"name": "Bête Cristalline Ultime : Pégase de Saphir"
+},
+"de": {
+"name": "Entwickeltes Kristallungeheuer Saphirpegasus"
+},
+"it": {
+"name": "Bestia Cristallo Avanzata Pegaso Zaffiro"
+},
+"pt": {
+"name": "Fera Cristalina Avançada Pégaso Safira"
+},
+"es": {
+"name": "Bestia de Cristal Avanzada Pegaso Zafiro"
+},
+"ja": {
+"name": "Ａ宝玉獣 サファイア・ペガサス"
+},
+"ko": {
+"name": "A 보옥수 사파이어 페가수스"
+}
+},
+"cardType": "monster",
+"attribute": "wind",
+"type": "beast",
+"classifications": [
+"effect"
+],
+"level": 4,
+"atk": 1800,
+"def": 1200,
+"passwords": [
+"71620241"
+]
+},
+{
+"id": "ee0e3e80-8483-48dd-8ee7-4dc92b8f11cb",
+"text": {
+"en": {
+"name": "Advanced Crystal Beast Cobalt Eagle",
+"effect": "If \"Advanced Dark\" is not in a Field Zone, send this monster to the GY. You can send this card from your hand or field t"
+},
+"fr": {
+"name": "Bête Cristalline Ultime : Aigle de Cobalt"
+},
+"de": {
+"name": "Entwickeltes Kristallungeheuer Kobaltadler"
+},
+"it": {
+"name": "Bestia Cristallo Avanzata Aquila Cobalto"
+},
+"pt": {
+"name": "Fera Cristalina Avançada Águia Cobalto"
+},
+"es": {
+"name": "Bestia de Cristal Avanzada Águila Cobalto"
+},
+"ja": {
+"name": "Ａ宝玉獣 コバルト・イーグル"
+},
+"ko": {
+"name": "A 보옥수 코발트 이글"
+}
+},
+"cardType": "monster",
+"attribute": "wind",
+"type": "wingedbeast",
+"classifications": [
+"effect"
+],
+"level": 4,
+"atk": 1400,
+"def": 800,
+"passwords": [
+"45236142"
+]
+},
+{
+"id": "d423a620-43e4-4c3c-b920-5766b10f2543",
+"text": {
+"en": {
+"name": "The Twin Kings, Founders of the Empire"
+},
+"ja": {
+"name": "牙狼の双王 ロムルス－レムス"
+},
+"ko": {
+"name": "아랑의 쌍왕 로물루스-레무스"
+}
+},
+"cardType": "monster",
+"attribute": "light",
+"type": "beast",
+"classifications": [
+"effect",
+"pendulum"
+],
+"level": 8,
+"atk": 3000,
+"def": 2200,
+"passwords": []
+}
+],
+"ygojson_sets": [
+{
+"id": "000f0093-1847-4db7-a315-5bd07f055c7a",
+"name": {
+"en": "Beginner's Edition 2",
+"ja": "ＢＥＧＩＮＮＥＲ＇Ｓ ＥＤＩＴＩＯＮ ２",
+"ko": "비기너즈팩2"
+},
+"locales": {
+"kr": {
+"language": "ko",
+"prefix": "BP2-KR",
+"date": "2006-09-28",
+"cardImages": {
+"unlimited": {
+"d4bd073a-e938-4346-9d75-12459e14f778": "https://ms.yugipedia.com//5/53/MirrorForce-BP2-KR-SR-UE.png"
+}
+}
+},
+"jp": {
+"language": "ja",
+"prefix": "BE2-JP",
+"date": "2004-12-09",
+"cardImages": {
+"unlimited": {
+"d4bd073a-e938-4346-9d75-12459e14f778": "https://ms.yugipedia.com//7/79/MirrorForce-BE2-JP-SR.jpg"
+}
+}
+}
+},
+"contents": [
+{
+"locales": [
+"kr"
+],
+"editions": [
+"unlimited"
+],
+"cards": [
+{
+"id": "d4bd073a-e938-4346-9d75-12459e14f778",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "081",
+"rarity": "super"
+}
+]
+},
+{
+"locales": [
+"jp"
+],
+"editions": [
+"unlimited"
+],
+"cards": [
+{
+"id": "d4bd073a-e938-4346-9d75-12459e14f778",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "081",
+"rarity": "super"
+}
+]
+}
+]
+},
+{
+"id": "0658d168-b8bc-44cb-bcba-4bd741d5c4e1",
+"name": {
+"en": "Yu-Gi-Oh! United Duel Tournament 2020 prize card",
+"ja": "Ｙｕ－Ｇｉ－Ｏｈ！ ＵＮＩＴＥＤ ＤＵＥＬ ＴＯＵＲＮＡＭＥＮＴ"
+},
+"locales": {
+"jp": {
+"language": "ja",
+"prefix": "SBPR-JP",
+"date": "2020-11-23",
+"cardImages": {
+"unlimited": {
+"465c9182-76d1-4bd9-abd4-7544bdbffc05": "https://ms.yugipedia.com//e/e6/MirrorForce-SBPR-JP-ScR.png"
+}
+}
+}
+},
+"contents": [
+{
+"locales": [
+"jp"
+],
+"editions": [
+"unlimited"
+],
+"cards": [
+{
+"id": "465c9182-76d1-4bd9-abd4-7544bdbffc05",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "005",
+"rarity": "secret"
+}
+]
+}
+]
+},
+{
+"id": "18ad40c4-77a7-4368-8807-1bcc6f9c0fc9",
+"name": {
+"en": "Collectible Tins 2003"
+},
+"locales": {
+"na": {
+"language": "en",
+"prefix": "BPT-",
+"date": "2003-09-01",
+"cardImages": {
+"unlimited": {
+"e678751b-4738-4514-b11e-bc2df3a2572f": "https://ms.yugipedia.com//2/20/DarkMagician-BPT-NA-ScR-UE.png"
+}
+}
+}
+},
+"contents": [
+{
+"locales": [
+"na"
+],
+"distrobution": "43329e51-6189-4a7b-923b-c97f943f9c10",
+"editions": [
+"unlimited"
+],
+"cards": [
+{
+"id": "e678751b-4738-4514-b11e-bc2df3a2572f",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "007",
+"rarity": "secret"
+}
+]
+}
+]
+},
+{
+"id": "1cfd0a12-ab9b-4872-aca9-92e2eff2fc68",
+"name": {
+"en": "Dark Beginning 1",
+"de": "Dark Beginning 1",
+"es": "Principio Oscuro 1"
+},
+"locales": {
+"en": {
+"language": "en",
+"prefix": "DB1-EN",
+"cardImages": {
+"unlimited": {
+"15591130-7e62-4e3e-8223-7420a6faa4c0": "https://ms.yugipedia.com//4/42/DarkMagician-DB1-EN-UR-UE.jpg",
+"cae6640b-7e5b-4fb4-9ea0-ab5b73d91258": "https://ms.yugipedia.com//7/7e/PotofGreed-DB1-EN-SR-UE.jpg"
+}
+}
+},
+"sp": {
+"language": "es",
+"prefix": "DB1-SP",
+"date": "2004-12-01",
+"cardImages": {
+"unlimited": {
+"15591130-7e62-4e3e-8223-7420a6faa4c0": "https://ms.yugipedia.com//d/d6/DarkMagician-DB1-SP-UR-UE.png",
+"cae6640b-7e5b-4fb4-9ea0-ab5b73d91258": "https://ms.yugipedia.com//f/fb/PotofGreed-DB1-SP-SR-UE.png"
+}
+}
+},
+"de": {
+"language": "de",
+"prefix": "DB1-DE",
+"date": "2004-12-17",
+"cardImages": {
+"unlimited": {
+"15591130-7e62-4e3e-8223-7420a6faa4c0": "https://ms.yugipedia.com//7/72/DarkMagician-DB1-DE-UR-UE.png",
+"cae6640b-7e5b-4fb4-9ea0-ab5b73d91258": "https://ms.yugipedia.com//7/72/PotofGreed-DB1-DE-SR-UE.png"
+}
+}
+}
+},
+"contents": [
+{
+"locales": [
+"en"
+],
+"distrobution": "98462c71-b8b4-4ce4-a2f9-f938918fb3c8",
+"packsPerBox": 24,
+"editions": [
+"unlimited"
+],
+"cards": [
+{
+"id": "15591130-7e62-4e3e-8223-7420a6faa4c0",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "102",
+"rarity": "ultra"
+},
+{
+"id": "cae6640b-7e5b-4fb4-9ea0-ab5b73d91258",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "134",
+"rarity": "super"
+}
+]
+},
+{
+"locales": [
+"sp"
+],
+"distrobution": "98462c71-b8b4-4ce4-a2f9-f938918fb3c8",
+"packsPerBox": 24,
+"editions": [
+"unlimited"
+],
+"cards": [
+{
+"id": "15591130-7e62-4e3e-8223-7420a6faa4c0",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "102",
+"rarity": "ultra"
+},
+{
+"id": "cae6640b-7e5b-4fb4-9ea0-ab5b73d91258",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "134",
+"rarity": "super"
+}
+]
+},
+{
+"locales": [
+"de"
+],
+"distrobution": "98462c71-b8b4-4ce4-a2f9-f938918fb3c8",
+"packsPerBox": 24,
+"editions": [
+"unlimited"
+],
+"cards": [
+{
+"id": "15591130-7e62-4e3e-8223-7420a6faa4c0",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "102",
+"rarity": "ultra"
+},
+{
+"id": "cae6640b-7e5b-4fb4-9ea0-ab5b73d91258",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "134",
+"rarity": "super"
+}
+]
+}
+]
+},
+{
+"id": "1dad8270-aa13-47ff-bd1a-13c58247a7f0",
+"name": {
+"en": "Battles of Legend: Crystal Revenge",
+"fr": "Batailles de Légende : La Vengeance du Cristal",
+"de": "Battles of Legend: Crystal Revenge",
+"it": "Battaglie della Leggenda: Vendetta Cristallo",
+"pt": "Batalha das Lendas: Vingança Cristalina",
+"es": "Batallas de Leyenda: Venganza del Cristal"
+},
+"locales": {
+"pt": {
+"language": "pt",
+"prefix": "BLCR-PT",
+"date": "2022-11-17",
+"cardImages": {
+"1st": {}
+}
+},
+"en": {
+"language": "en",
+"prefix": "BLCR-EN",
+"cardImages": {
+"1st": {
+"9f97d8b9-c5f3-497d-bfe8-99f2ddd33c32": "https://ms.yugipedia.com//e/e1/AdvancedCrystalBeastCobaltEagle-BLCR-EN-ScR-1E.png",
+"0fd1e7d8-b9e6-4b00-a982-fab8311509bc": "https://ms.yugipedia.com//a/aa/AdvancedCrystalBeastSapphirePegasus-BLCR-EN-ScR-1E.png"
+}
+}
+},
+"sp": {
+"language": "es",
+"prefix": "BLCR-SP",
+"date": "2022-11-17",
+"cardImages": {
+"1st": {}
+}
+},
+"it": {
+"language": "it",
+"prefix": "BLCR-IT",
+"date": "2022-11-17",
+"cardImages": {
+"1st": {}
+}
+},
+"de": {
+"language": "de",
+"prefix": "BLCR-DE",
+"date": "2022-11-17",
+"cardImages": {
+"1st": {}
+}
+},
+"fr": {
+"language": "fr",
+"prefix": "BLCR-FR",
+"date": "2022-11-17",
+"cardImages": {
+"1st": {}
+}
+}
+},
+"contents": [
+{
+"locales": [
+"pt"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "9f97d8b9-c5f3-497d-bfe8-99f2ddd33c32",
+"card": "ee0e3e80-8483-48dd-8ee7-4dc92b8f11cb",
+"suffix": "015",
+"rarity": "secret"
+},
+{
+"id": "0fd1e7d8-b9e6-4b00-a982-fab8311509bc",
+"card": "cf5069ff-b2a8-456a-a57a-003d811ad81f",
+"suffix": "016",
+"rarity": "secret"
+}
+]
+},
+{
+"locales": [
+"en"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "9f97d8b9-c5f3-497d-bfe8-99f2ddd33c32",
+"card": "ee0e3e80-8483-48dd-8ee7-4dc92b8f11cb",
+"suffix": "015",
+"rarity": "secret"
+},
+{
+"id": "0fd1e7d8-b9e6-4b00-a982-fab8311509bc",
+"card": "cf5069ff-b2a8-456a-a57a-003d811ad81f",
+"suffix": "016",
+"rarity": "secret"
+}
+]
+},
+{
+"locales": [
+"sp"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "9f97d8b9-c5f3-497d-bfe8-99f2ddd33c32",
+"card": "ee0e3e80-8483-48dd-8ee7-4dc92b8f11cb",
+"suffix": "015",
+"rarity": "secret"
+},
+{
+"id": "0fd1e7d8-b9e6-4b00-a982-fab8311509bc",
+"card": "cf5069ff-b2a8-456a-a57a-003d811ad81f",
+"suffix": "016",
+"rarity": "secret"
+}
+]
+},
+{
+"locales": [
+"it"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "9f97d8b9-c5f3-497d-bfe8-99f2ddd33c32",
+"card": "ee0e3e80-8483-48dd-8ee7-4dc92b8f11cb",
+"suffix": "015",
+"rarity": "secret"
+},
+{
+"id": "0fd1e7d8-b9e6-4b00-a982-fab8311509bc",
+"card": "cf5069ff-b2a8-456a-a57a-003d811ad81f",
+"suffix": "016",
+"rarity": "secret"
+}
+]
+},
+{
+"locales": [
+"de"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "9f97d8b9-c5f3-497d-bfe8-99f2ddd33c32",
+"card": "ee0e3e80-8483-48dd-8ee7-4dc92b8f11cb",
+"suffix": "015",
+"rarity": "secret"
+},
+{
+"id": "0fd1e7d8-b9e6-4b00-a982-fab8311509bc",
+"card": "cf5069ff-b2a8-456a-a57a-003d811ad81f",
+"suffix": "016",
+"rarity": "secret"
+}
+]
+},
+{
+"locales": [
+"fr"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "9f97d8b9-c5f3-497d-bfe8-99f2ddd33c32",
+"card": "ee0e3e80-8483-48dd-8ee7-4dc92b8f11cb",
+"suffix": "015",
+"rarity": "secret"
+},
+{
+"id": "0fd1e7d8-b9e6-4b00-a982-fab8311509bc",
+"card": "cf5069ff-b2a8-456a-a57a-003d811ad81f",
+"suffix": "016",
+"rarity": "secret"
+}
+]
+}
+]
+},
+{
+"id": "29576ab3-ce6c-4d11-966e-8d8e80215a21",
+"name": {
+"en": "Dark Beginning 2",
+"fr": "Genèse Ténébreuse 2",
+"de": "Dark Beginning 2",
+"it": "Inizio Oscuro 2",
+"es": "Principio Oscuro 2"
+},
+"locales": {
+"en": {
+"language": "en",
+"prefix": "DB2-EN",
+"cardImages": {
+"unlimited": {
+"19458eee-fc47-4703-a1b6-c3134855115a": "https://ms.yugipedia.com//0/0c/MirrorForce-DB2-EN-SR-UE.jpg"
+}
+}
+},
+"sp": {
+"language": "es",
+"prefix": "DB2-SP",
+"date": "2005-07-22",
+"cardImages": {
+"unlimited": {}
+}
+},
+"it": {
+"language": "it",
+"prefix": "DB2-IT",
+"date": "2005-07-22",
+"cardImages": {
+"unlimited": {}
+}
+},
+"de": {
+"language": "de",
+"prefix": "DB2-DE",
+"date": "2005-07-27",
+"cardImages": {
+"unlimited": {}
+}
+},
+"fr": {
+"language": "fr",
+"prefix": "DB2-FR",
+"date": "2005-07-22",
+"cardImages": {
+"unlimited": {
+"19458eee-fc47-4703-a1b6-c3134855115a": "https://ms.yugipedia.com//8/8b/MirrorForce-DB2-FR-SR-UE.jpg"
+}
+}
+}
+},
+"contents": [
+{
+"locales": [
+"en"
+],
+"distrobution": "98462c71-b8b4-4ce4-a2f9-f938918fb3c8",
+"packsPerBox": 24,
+"editions": [
+"unlimited"
+],
+"cards": [
+{
+"id": "19458eee-fc47-4703-a1b6-c3134855115a",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "081",
+"rarity": "super"
+}
+]
+},
+{
+"locales": [
+"sp"
+],
+"distrobution": "98462c71-b8b4-4ce4-a2f9-f938918fb3c8",
+"packsPerBox": 24,
+"editions": [
+"unlimited"
+],
+"cards": [
+{
+"id": "19458eee-fc47-4703-a1b6-c3134855115a",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "081",
+"rarity": "super"
+}
+]
+},
+{
+"locales": [
+"it"
+],
+"distrobution": "98462c71-b8b4-4ce4-a2f9-f938918fb3c8",
+"packsPerBox": 24,
+"editions": [
+"unlimited"
+],
+"cards": [
+{
+"id": "19458eee-fc47-4703-a1b6-c3134855115a",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "081",
+"rarity": "super"
+}
+]
+},
+{
+"locales": [
+"de"
+],
+"distrobution": "98462c71-b8b4-4ce4-a2f9-f938918fb3c8",
+"packsPerBox": 24,
+"editions": [
+"unlimited"
+],
+"cards": [
+{
+"id": "19458eee-fc47-4703-a1b6-c3134855115a",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "081",
+"rarity": "super"
+}
+]
+},
+{
+"locales": [
+"fr"
+],
+"distrobution": "98462c71-b8b4-4ce4-a2f9-f938918fb3c8",
+"packsPerBox": 24,
+"editions": [
+"unlimited"
+],
+"cards": [
+{
+"id": "19458eee-fc47-4703-a1b6-c3134855115a",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "081",
+"rarity": "super"
+}
+]
+}
+]
+},
+{
+"id": "2a9481a3-d88f-43df-a25e-e9f9cf1b1813",
+"name": {
+"en": "Battle Pack: Epic Dawn",
+"fr": "Battle Pack: L’Aube Épique",
+"de": "Battle Pack: Epic Dawn",
+"it": "Battle Pack: Alba Epica",
+"es": "Battle Pack: Amanecer Épico"
+},
+"locales": {
+"de": {
+"language": "de",
+"prefix": "BP01-DE",
+"date": "2012-05-24",
+"cardImages": {
+"1st": {
+"574d0ac3-1abc-4228-a26c-fde46b66ad94": "https://ms.yugipedia.com//b/b1/PotofGreed-BP01-DE-R-1E.jpg",
+"857f5257-994b-4793-9538-2971b28e3984": "https://ms.yugipedia.com//7/73/PotofGreed-BP01-DE-SFR-1E.jpg",
+"68984164-5c94-4b36-94c5-602f455c5c16": "https://ms.yugipedia.com//7/73/MirrorForce-BP01-DE-R-1E.jpg",
+"6d6e3938-2ffa-40c5-ba78-d848d435c228": "https://ms.yugipedia.com//7/72/MirrorForce-BP01-DE-SFR-1E.jpg"
+},
+"unlimited": {}
+}
+},
+"it": {
+"language": "it",
+"prefix": "BP01-IT",
+"date": "2012-05-24",
+"cardImages": {
+"1st": {},
+"unlimited": {}
+}
+},
+"sp": {
+"language": "es",
+"prefix": "BP01-SP",
+"date": "2012-05-24",
+"cardImages": {
+"1st": {
+"574d0ac3-1abc-4228-a26c-fde46b66ad94": "https://ms.yugipedia.com//7/76/PotofGreed-BP01-SP-R-1E.jpg",
+"68984164-5c94-4b36-94c5-602f455c5c16": "https://ms.yugipedia.com//6/64/MirrorForce-BP01-SP-R-1E.jpg"
+},
+"unlimited": {}
+}
+},
+"fr": {
+"language": "fr",
+"prefix": "BP01-FR",
+"date": "2012-05-24",
+"cardImages": {
+"1st": {},
+"unlimited": {
+"574d0ac3-1abc-4228-a26c-fde46b66ad94": "https://ms.yugipedia.com//9/9a/PotofGreed-BP01-FR-R-UE.png"
+}
+}
+},
+"en": {
+"language": "en",
+"prefix": "BP01-EN",
+"cardImages": {
+"1st": {
+"574d0ac3-1abc-4228-a26c-fde46b66ad94": "https://ms.yugipedia.com//0/0b/PotofGreed-BP01-EN-R-1E.png",
+"857f5257-994b-4793-9538-2971b28e3984": "https://ms.yugipedia.com//5/5f/PotofGreed-BP01-EN-SFR-1E.png",
+"68984164-5c94-4b36-94c5-602f455c5c16": "https://ms.yugipedia.com//5/5a/MirrorForce-BP01-EN-R-1E.png",
+"6d6e3938-2ffa-40c5-ba78-d848d435c228": "https://ms.yugipedia.com//6/68/MirrorForce-BP01-EN-SFR-1E.png"
+},
+"unlimited": {
+"574d0ac3-1abc-4228-a26c-fde46b66ad94": "https://ms.yugipedia.com//d/da/PotofGreed-BP01-EN-R-UE.png",
+"68984164-5c94-4b36-94c5-602f455c5c16": "https://ms.yugipedia.com//3/3e/MirrorForce-BP01-EN-R-UE.png",
+"6d6e3938-2ffa-40c5-ba78-d848d435c228": "https://ms.yugipedia.com//5/53/MirrorForce-BP01-EN-SFR-UE.png"
+}
+}
+}
+},
+"contents": [
+{
+"locales": [
+"de"
+],
+"distrobution": "af31e407-11ee-4ce6-92ec-8fed1468ad02",
+"packsPerBox": 36,
+"editions": [
+"1st",
+"unlimited"
+],
+"cards": [
+{
+"id": "574d0ac3-1abc-4228-a26c-fde46b66ad94",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "034",
+"rarity": "rare"
+},
+{
+"id": "857f5257-994b-4793-9538-2971b28e3984",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "034",
+"rarity": "starfoil"
+},
+{
+"id": "68984164-5c94-4b36-94c5-602f455c5c16",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "048",
+"rarity": "rare"
+},
+{
+"id": "6d6e3938-2ffa-40c5-ba78-d848d435c228",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "048",
+"rarity": "starfoil"
+}
+]
+},
+{
+"locales": [
+"it"
+],
+"distrobution": "af31e407-11ee-4ce6-92ec-8fed1468ad02",
+"packsPerBox": 36,
+"editions": [
+"1st",
+"unlimited"
+],
+"cards": [
+{
+"id": "574d0ac3-1abc-4228-a26c-fde46b66ad94",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "034",
+"rarity": "rare"
+},
+{
+"id": "857f5257-994b-4793-9538-2971b28e3984",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "034",
+"rarity": "starfoil"
+},
+{
+"id": "68984164-5c94-4b36-94c5-602f455c5c16",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "048",
+"rarity": "rare"
+},
+{
+"id": "6d6e3938-2ffa-40c5-ba78-d848d435c228",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "048",
+"rarity": "starfoil"
+}
+]
+},
+{
+"locales": [
+"sp"
+],
+"distrobution": "af31e407-11ee-4ce6-92ec-8fed1468ad02",
+"packsPerBox": 36,
+"editions": [
+"1st",
+"unlimited"
+],
+"cards": [
+{
+"id": "574d0ac3-1abc-4228-a26c-fde46b66ad94",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "034",
+"rarity": "rare"
+},
+{
+"id": "857f5257-994b-4793-9538-2971b28e3984",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "034",
+"rarity": "starfoil"
+},
+{
+"id": "68984164-5c94-4b36-94c5-602f455c5c16",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "048",
+"rarity": "rare"
+},
+{
+"id": "6d6e3938-2ffa-40c5-ba78-d848d435c228",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "048",
+"rarity": "starfoil"
+}
+]
+},
+{
+"locales": [
+"fr"
+],
+"distrobution": "af31e407-11ee-4ce6-92ec-8fed1468ad02",
+"packsPerBox": 36,
+"editions": [
+"1st",
+"unlimited"
+],
+"cards": [
+{
+"id": "574d0ac3-1abc-4228-a26c-fde46b66ad94",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "034",
+"rarity": "rare"
+},
+{
+"id": "857f5257-994b-4793-9538-2971b28e3984",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "034",
+"rarity": "starfoil"
+},
+{
+"id": "68984164-5c94-4b36-94c5-602f455c5c16",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "048",
+"rarity": "rare"
+},
+{
+"id": "6d6e3938-2ffa-40c5-ba78-d848d435c228",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "048",
+"rarity": "starfoil"
+}
+]
+},
+{
+"locales": [
+"en"
+],
+"distrobution": "af31e407-11ee-4ce6-92ec-8fed1468ad02",
+"packsPerBox": 36,
+"editions": [
+"1st",
+"unlimited"
+],
+"cards": [
+{
+"id": "574d0ac3-1abc-4228-a26c-fde46b66ad94",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "034",
+"rarity": "rare"
+},
+{
+"id": "857f5257-994b-4793-9538-2971b28e3984",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "034",
+"rarity": "starfoil"
+},
+{
+"id": "68984164-5c94-4b36-94c5-602f455c5c16",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "048",
+"rarity": "rare"
+},
+{
+"id": "6d6e3938-2ffa-40c5-ba78-d848d435c228",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "048",
+"rarity": "starfoil"
+}
+]
+}
+]
+},
+{
+"id": "5965bcf2-cf31-44b1-a6a2-f4700deb9b6d",
+"name": {
+"en": "Dark Legion Starter Deck"
+},
+"locales": {
+"na": {
+"language": "en",
+"prefix": "YS15-ENL",
+"date": "2015-05-29",
+"cardImages": {
+"1st": {
+"562db395-f840-4df9-8ee0-188086b32235": "https://ms.yugipedia.com//2/26/MirrorForce-YS15-NA-SHR-1E-L.png"
+}
+}
+}
+},
+"contents": [
+{
+"locales": [
+"na"
+],
+"distrobution": "preconstructed",
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "562db395-f840-4df9-8ee0-188086b32235",
+"card": "0bfcc499-7a45-452e-ad36-d2e2026ad580",
+"suffix": "22",
+"rarity": "shatterfoil"
+}
+]
+}
+]
+},
+{
+"id": "5cddc1ce-c743-4457-ac0c-bdb35d047fed",
+"name": {
+"en": "2017 Mega-Tins",
+"fr": "2017 Méga-Boîte",
+"de": "2017 Mega-Tin",
+"it": "2017 Mega-Tin",
+"pt": "2017 Mega-Lata",
+"es": "2017 Mega-Lata"
+},
+"locales": {
+"it": {
+"language": "it",
+"prefix": "CT14-IT",
+"date": "2017-08-24",
+"cardImages": {
+"limited": {
+"1f5ed8f2-a251-4adf-a9d9-501dc5671931": "https://ms.yugipedia.com//9/9f/DarkMagician-CT14-IT-ScR-LE.png"
+}
+}
+},
+"sp": {
+"language": "es",
+"prefix": "CT14-SP",
+"date": "2017-08-24",
+"cardImages": {
+"limited": {
+"1f5ed8f2-a251-4adf-a9d9-501dc5671931": "https://ms.yugipedia.com//c/ce/DarkMagician-CT14-SP-ScR-LE.png"
+}
+}
+},
+"pt": {
+"language": "pt",
+"prefix": "CT14-PT",
+"date": "2017-10-19",
+"cardImages": {
+"limited": {
+"1f5ed8f2-a251-4adf-a9d9-501dc5671931": "https://ms.yugipedia.com//e/e3/DarkMagician-CT14-PT-ScR-LE.png"
+}
+}
+},
+"en": {
+"language": "en",
+"prefix": "CT14-EN",
+"cardImages": {
+"limited": {
+"1f5ed8f2-a251-4adf-a9d9-501dc5671931": "https://ms.yugipedia.com//6/63/DarkMagician-CT14-EN-ScR-LE.png"
+}
+}
+},
+"fr": {
+"language": "fr",
+"prefix": "CT14-FR",
+"date": "2017-08-24",
+"cardImages": {
+"limited": {
+"1f5ed8f2-a251-4adf-a9d9-501dc5671931": "https://ms.yugipedia.com//3/32/DarkMagician-CT14-FR-ScR-LE.png"
+}
+}
+},
+"de": {
+"language": "de",
+"prefix": "CT14-DE",
+"date": "2017-08-24",
+"cardImages": {
+"limited": {
+"1f5ed8f2-a251-4adf-a9d9-501dc5671931": "https://ms.yugipedia.com//7/7a/DarkMagician-CT14-DE-ScR-LE.png"
+}
+}
+}
+},
+"contents": [
+{
+"locales": [
+"it"
+],
+"editions": [
+"limited"
+],
+"cards": [
+{
+"id": "1f5ed8f2-a251-4adf-a9d9-501dc5671931",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "001",
+"rarity": "secret"
+}
+]
+},
+{
+"locales": [
+"sp"
+],
+"editions": [
+"limited"
+],
+"cards": [
+{
+"id": "1f5ed8f2-a251-4adf-a9d9-501dc5671931",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "001",
+"rarity": "secret"
+}
+]
+},
+{
+"locales": [
+"pt"
+],
+"editions": [
+"limited"
+],
+"cards": [
+{
+"id": "1f5ed8f2-a251-4adf-a9d9-501dc5671931",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "001",
+"rarity": "secret"
+}
+]
+},
+{
+"locales": [
+"en"
+],
+"editions": [
+"limited"
+],
+"cards": [
+{
+"id": "1f5ed8f2-a251-4adf-a9d9-501dc5671931",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "001",
+"rarity": "secret"
+}
+]
+},
+{
+"locales": [
+"fr"
+],
+"editions": [
+"limited"
+],
+"cards": [
+{
+"id": "1f5ed8f2-a251-4adf-a9d9-501dc5671931",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "001",
+"rarity": "secret"
+}
+]
+},
+{
+"locales": [
+"de"
+],
+"editions": [
+"limited"
+],
+"cards": [
+{
+"id": "1f5ed8f2-a251-4adf-a9d9-501dc5671931",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "001",
+"rarity": "secret"
+}
+]
+}
+]
+},
+{
+"id": "9ffba230-8dc5-46af-9270-dee1fd1bced3",
+"name": {
+"en": "Battle Pack 2: War of the Giants",
+"fr": "Battle Pack 2: La Guerre des Géants",
+"de": "Battle Pack 2: War of the Giants",
+"it": "Battle Pack 2: Guerra dei Giganti",
+"pt": "Pacote de Batalha 2: Guerra dos Gigantes",
+"es": "Battle Pack 2: Guerra de los Gigantes"
+},
+"locales": {
+"en": {
+"language": "en",
+"prefix": "BP02-EN",
+"date": "2013-06-28",
+"cardImages": {
+"unlimited": {
+"6b68b257-fdbf-4e8b-b7c2-b2bd5c2ce6d7": "https://ms.yugipedia.com//b/bf/PotofGreed-BP02-EN-R-UE.png"
+},
+"1st": {
+"6b68b257-fdbf-4e8b-b7c2-b2bd5c2ce6d7": "https://ms.yugipedia.com//1/16/PotofGreed-BP02-EN-R-1E.png",
+"d4148ebe-413e-4b82-bebe-0bcb225d24b0": "https://ms.yugipedia.com//3/3c/PotofGreed-BP02-EN-MSR-1E.png"
+}
+}
+},
+"de": {
+"language": "de",
+"prefix": "BP02-DE",
+"date": "2013-06-27",
+"cardImages": {
+"unlimited": {},
+"1st": {
+"d4148ebe-413e-4b82-bebe-0bcb225d24b0": "https://ms.yugipedia.com//9/9a/PotofGreed-BP02-DE-MSR-1E.png"
+}
+}
+},
+"it": {
+"language": "it",
+"prefix": "BP02-IT",
+"date": "2013-06-27",
+"cardImages": {
+"unlimited": {},
+"1st": {}
+}
+},
+"sp": {
+"language": "es",
+"prefix": "BP02-SP",
+"date": "2013-06-27",
+"cardImages": {
+"unlimited": {},
+"1st": {
+"6b68b257-fdbf-4e8b-b7c2-b2bd5c2ce6d7": "https://ms.yugipedia.com//7/7f/PotofGreed-BP02-SP-R-1E.png"
+}
+}
+},
+"pt": {
+"language": "pt",
+"prefix": "BP02-PT",
+"date": "2013-06-28",
+"cardImages": {
+"unlimited": {},
+"1st": {
+"d4148ebe-413e-4b82-bebe-0bcb225d24b0": "https://ms.yugipedia.com//7/71/PotofGreed-BP02-PT-MSR-1E.png"
+}
+}
+},
+"fr": {
+"language": "fr",
+"prefix": "BP02-FR",
+"date": "2013-06-27",
+"cardImages": {
+"unlimited": {},
+"1st": {}
+}
+}
+},
+"contents": [
+{
+"locales": [
+"en"
+],
+"distrobution": "0f1b7746-4bad-499d-a1ea-c52101a51fef",
+"packsPerBox": 36,
+"editions": [
+"unlimited",
+"1st"
+],
+"cards": [
+{
+"id": "6b68b257-fdbf-4e8b-b7c2-b2bd5c2ce6d7",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "129",
+"rarity": "rare"
+},
+{
+"id": "d4148ebe-413e-4b82-bebe-0bcb225d24b0",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "129",
+"rarity": "mosaic"
+}
+]
+},
+{
+"locales": [
+"de"
+],
+"distrobution": "0f1b7746-4bad-499d-a1ea-c52101a51fef",
+"packsPerBox": 36,
+"editions": [
+"unlimited",
+"1st"
+],
+"cards": [
+{
+"id": "6b68b257-fdbf-4e8b-b7c2-b2bd5c2ce6d7",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "129",
+"rarity": "rare"
+},
+{
+"id": "d4148ebe-413e-4b82-bebe-0bcb225d24b0",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "129",
+"rarity": "mosaic"
+}
+]
+},
+{
+"locales": [
+"it"
+],
+"distrobution": "0f1b7746-4bad-499d-a1ea-c52101a51fef",
+"packsPerBox": 36,
+"editions": [
+"unlimited",
+"1st"
+],
+"cards": [
+{
+"id": "6b68b257-fdbf-4e8b-b7c2-b2bd5c2ce6d7",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "129",
+"rarity": "rare"
+},
+{
+"id": "d4148ebe-413e-4b82-bebe-0bcb225d24b0",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "129",
+"rarity": "mosaic"
+}
+]
+},
+{
+"locales": [
+"sp"
+],
+"distrobution": "0f1b7746-4bad-499d-a1ea-c52101a51fef",
+"packsPerBox": 36,
+"editions": [
+"unlimited",
+"1st"
+],
+"cards": [
+{
+"id": "6b68b257-fdbf-4e8b-b7c2-b2bd5c2ce6d7",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "129",
+"rarity": "rare"
+},
+{
+"id": "d4148ebe-413e-4b82-bebe-0bcb225d24b0",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "129",
+"rarity": "mosaic"
+}
+]
+},
+{
+"locales": [
+"pt"
+],
+"distrobution": "0f1b7746-4bad-499d-a1ea-c52101a51fef",
+"packsPerBox": 36,
+"editions": [
+"unlimited",
+"1st"
+],
+"cards": [
+{
+"id": "6b68b257-fdbf-4e8b-b7c2-b2bd5c2ce6d7",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "129",
+"rarity": "rare"
+},
+{
+"id": "d4148ebe-413e-4b82-bebe-0bcb225d24b0",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "129",
+"rarity": "mosaic"
+}
+]
+},
+{
+"locales": [
+"fr"
+],
+"distrobution": "0f1b7746-4bad-499d-a1ea-c52101a51fef",
+"packsPerBox": 36,
+"editions": [
+"unlimited",
+"1st"
+],
+"cards": [
+{
+"id": "6b68b257-fdbf-4e8b-b7c2-b2bd5c2ce6d7",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "129",
+"rarity": "rare"
+},
+{
+"id": "d4148ebe-413e-4b82-bebe-0bcb225d24b0",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "129",
+"rarity": "mosaic"
+}
+]
+}
+]
+},
+{
+"id": "ab66a4d1-4357-467e-976c-40be7f3aaa6e",
+"name": {
+"en": "2025 Mega-Pack Tin",
+"fr": "Boîte 2025 Méga-Pack",
+"de": "2025 Mega-Pack Tin",
+"it": "Tin 2025 Mega-Pack",
+"es": "Lata Mega-Pack 2025",
+"pt": "Lata de Mega-Pacotes 2025"
+},
+"locales": {
+"sp": {
+"language": "es",
+"prefix": "MP25-SP",
+"date": "2025-09-04",
+"cardImages": {
+"1st": {}
+}
+},
+"de": {
+"language": "de",
+"prefix": "MP25-DE",
+"date": "2025-09-04",
+"cardImages": {
+"1st": {}
+}
+},
+"it": {
+"language": "it",
+"prefix": "MP25-IT",
+"date": "2025-09-04",
+"cardImages": {
+"1st": {}
+}
+},
+"pt": {
+"language": "pt",
+"prefix": "MP25-PT",
+"date": "2025-09-04",
+"cardImages": {
+"1st": {}
+}
+},
+"fr": {
+"language": "fr",
+"prefix": "MP25-FR",
+"date": "2025-09-04",
+"cardImages": {
+"1st": {}
+}
+},
+"en": {
+"language": "en",
+"prefix": "MP25-EN",
+"cardImages": {
+"1st": {
+"0205f04d-2005-4766-9e14-187fda161bb5": "https://ms.yugipedia.com//d/d9/PotofGreed-MP25-EN-StR-1E.png"
+}
+}
+}
+},
+"contents": [
+{
+"locales": [
+"sp"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "0205f04d-2005-4766-9e14-187fda161bb5",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "050",
+"rarity": "starlight"
+}
+]
+},
+{
+"locales": [
+"de"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "0205f04d-2005-4766-9e14-187fda161bb5",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "050",
+"rarity": "starlight"
+}
+]
+},
+{
+"locales": [
+"it"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "0205f04d-2005-4766-9e14-187fda161bb5",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "050",
+"rarity": "starlight"
+}
+]
+},
+{
+"locales": [
+"pt"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "0205f04d-2005-4766-9e14-187fda161bb5",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "050",
+"rarity": "starlight"
+}
+]
+},
+{
+"locales": [
+"fr"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "0205f04d-2005-4766-9e14-187fda161bb5",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "050",
+"rarity": "starlight"
+}
+]
+},
+{
+"locales": [
+"en"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "0205f04d-2005-4766-9e14-187fda161bb5",
+"card": "3dc62228-c78c-4cbb-9c5a-72962718d2e4",
+"suffix": "050",
+"rarity": "starlight"
+}
+]
+}
+]
+},
+{
+"id": "ac5c0138-6a9e-490e-bd1d-57e3b991edb4",
+"name": {
+"en": "Battle of Chaos",
+"fr": "La Bataille du Chaos",
+"de": "Battle of Chaos",
+"it": "Battaglia del Chaos",
+"pt": "Batalha do Caos",
+"es": "Batalla del Caos",
+"ja": "バトル・オブ・カオス",
+"ko": "배틀 오브 카오스"
+},
+"locales": {
+"jp": {
+"language": "ja",
+"prefix": "BACH-JP",
+"date": "2021-10-16",
+"cardImages": {
+"unlimited": {}
+}
+},
+"sp": {
+"language": "es",
+"date": "2022-02-10",
+"cardImages": {
+"1st": {}
+}
+},
+"pt": {
+"language": "pt",
+"date": "2022-02-10",
+"cardImages": {
+"1st": {}
+}
+},
+"it": {
+"language": "it",
+"date": "2022-02-10",
+"cardImages": {
+"1st": {}
+}
+},
+"en": {
+"language": "en",
+"cardImages": {
+"1st": {
+"1bafc2e9-beb2-4022-b9eb-ab4c184b0ce0": "https://ms.yugipedia.com//9/9f/DarkMagician-25TH-EN-UR-1E.png"
+}
+}
+},
+"de": {
+"language": "de",
+"date": "2022-02-10",
+"cardImages": {
+"1st": {}
+}
+},
+"kr": {
+"language": "ko",
+"prefix": "BACH-KR",
+"date": "2022-01-19",
+"cardImages": {
+"unlimited": {}
+}
+},
+"fr": {
+"language": "fr",
+"date": "2022-02-10",
+"cardImages": {
+"1st": {}
+}
+}
+},
+"contents": [
+{
+"locales": [
+"sp"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "1bafc2e9-beb2-4022-b9eb-ab4c184b0ce0",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "25TH-SP001",
+"rarity": "ultra"
+}
+]
+},
+{
+"locales": [
+"pt"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "1bafc2e9-beb2-4022-b9eb-ab4c184b0ce0",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "25TH-PT001",
+"rarity": "ultra"
+}
+]
+},
+{
+"locales": [
+"it"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "1bafc2e9-beb2-4022-b9eb-ab4c184b0ce0",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "25TH-IT001",
+"rarity": "ultra"
+}
+]
+},
+{
+"locales": [
+"en"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "1bafc2e9-beb2-4022-b9eb-ab4c184b0ce0",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "25TH-EN001",
+"rarity": "ultra"
+}
+]
+},
+{
+"locales": [
+"de"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "1bafc2e9-beb2-4022-b9eb-ab4c184b0ce0",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "25TH-DE001",
+"rarity": "ultra"
+}
+]
+},
+{
+"locales": [
+"fr"
+],
+"editions": [
+"1st"
+],
+"cards": [
+{
+"id": "1bafc2e9-beb2-4022-b9eb-ab4c184b0ce0",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "25TH-FR001",
+"rarity": "ultra"
+}
+]
+}
+]
+},
+{
+"id": "d186f4b3-12d1-4f54-868e-4f071856b67c",
+"name": {
+"en": "Booster Pack Collectors Tins 2002"
+},
+"locales": {
+"na": {
+"language": "en",
+"prefix": "BPT-",
+"date": "2002-10-04",
+"cardImages": {}
+}
+},
+"contents": [
+{
+"locales": [
+"na"
+],
+"distrobution": "43329e51-6189-4a7b-923b-c97f943f9c10",
+"cards": [
+{
+"id": "0823c711-75d8-40fc-b446-f9ab1ce00ac3",
+"card": "c0285d04-cadd-402d-a865-799a182d7510",
+"suffix": "001",
+"rarity": "secret"
+}
+]
+}
+]
+},
+{
+"id": "046b009e-0dcd-4bae-984c-617b3aee9d04",
+"name": {
+"en": "Extra Pack 2015",
+"ja": "ＥＸＴＲＡ ＰＡＣＫ ２０１５",
+"ko": "ＥＸＴＲＡ　ＰＡＣＫ ２０１５"
+},
+"locales": {
+"jp": {
+"language": "ja",
+"prefix": "EP15-JP",
+"date": "2015-09-19"
+}
+},
+"contents": [
+{
+"locales": [
+"jp"
+],
+"editions": [
+"unlimited"
+],
+"cards": [
+{
+"id": "0be36c64-a86d-48a3-a256-86f0f4c05e03",
+"card": "d423a620-43e4-4c3c-b920-5766b10f2543",
+"suffix": "078",
+"rarity": "extrasecret",
+"replica": true
+}
+]
+}
+]
+}
+],
+"cardmarket_products": [
+{
+"idProduct": 102800,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1064,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 102801,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1077,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 102802,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1014,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 102803,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1039,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 102804,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1094,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 102805,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1059,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 102806,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1061,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 102807,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1051,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 102808,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1075,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 104602,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1029,
+"idMetacard": 103466,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 104603,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1016,
+"idMetacard": 103466,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 105033,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1064,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 105034,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1014,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 105035,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1069,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 105036,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1095,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 105037,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1079,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 105038,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1017,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 105039,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1075,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 105040,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1058,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 106997,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1141,
+"idMetacard": 103466,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 109302,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1169,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 109328,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1169,
+"idMetacard": 103466,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 109672,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1176,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 110723,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1191,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 244108,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1220,
+"idMetacard": 103466,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 244367,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1225,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 244497,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1236,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 246204,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1265,
+"idMetacard": 103466,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 247112,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1066,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 248149,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1282,
+"idMetacard": 103466,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 253843,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1250,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 255002,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1371,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 255016,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1371,
+"idMetacard": 103466,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 255343,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1371,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 255357,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1371,
+"idMetacard": 103466,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 255467,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1376,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 255542,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1379,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 255575,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1380,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 258849,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1411,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 258907,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1411,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 258939,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1411,
+"idMetacard": 103466,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 260272,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1427,
+"idMetacard": 103466,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 260676,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1048,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 262703,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1446,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 262704,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1446,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 262899,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1445,
+"idMetacard": 103466,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 263165,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1077,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 263745,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1044,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 264458,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1460,
+"idMetacard": 103708,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 264527,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1460,
+"idMetacard": 103466,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 265407,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1468,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 265446,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1468,
+"idMetacard": 103466,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 265453,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1468,
+"idMetacard": 102390,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 266498,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1478,
+"idMetacard": 103466,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 268100,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1488,
+"idMetacard": 103466,
+"dateAdded": "2007-01-01 00:00:00"
+},
+{
+"idProduct": 283144,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1651,
+"idMetacard": 103466,
+"dateAdded": "2015-06-01 14:06:51"
+},
+{
+"idProduct": 286111,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1674,
+"idMetacard": 102390,
+"dateAdded": "2015-11-09 14:29:02"
+},
+{
+"idProduct": 286145,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1674,
+"idMetacard": 103466,
+"dateAdded": "2015-11-09 14:37:41"
+},
+{
+"idProduct": 286151,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1674,
+"idMetacard": 102390,
+"dateAdded": "2015-11-09 14:40:40"
+},
+{
+"idProduct": 286175,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1674,
+"idMetacard": 103708,
+"dateAdded": "2015-11-09 14:49:20"
+},
+{
+"idProduct": 286182,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1674,
+"idMetacard": 103466,
+"dateAdded": "2015-11-09 14:54:33"
+},
+{
+"idProduct": 286199,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1674,
+"idMetacard": 102390,
+"dateAdded": "2015-11-09 15:01:32"
+},
+{
+"idProduct": 286226,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1674,
+"idMetacard": 103466,
+"dateAdded": "2015-11-09 15:12:32"
+},
+{
+"idProduct": 286640,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1681,
+"idMetacard": 102390,
+"dateAdded": "2015-11-20 14:49:10"
+},
+{
+"idProduct": 291354,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1711,
+"idMetacard": 102390,
+"dateAdded": "2016-07-19 14:24:16"
+},
+{
+"idProduct": 292086,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1714,
+"idMetacard": 102390,
+"dateAdded": "2016-08-29 11:23:18"
+},
+{
+"idProduct": 293043,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1734,
+"idMetacard": 102390,
+"dateAdded": "2016-10-06 11:04:42"
+},
+{
+"idProduct": 293066,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1734,
+"idMetacard": 103466,
+"dateAdded": "2016-10-06 11:09:03"
+},
+{
+"idProduct": 293252,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1735,
+"idMetacard": 102390,
+"dateAdded": "2016-10-17 19:56:05"
+},
+{
+"idProduct": 293279,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1735,
+"idMetacard": 103466,
+"dateAdded": "2016-10-17 20:00:05"
+},
+{
+"idProduct": 294984,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1711,
+"idMetacard": 102390,
+"dateAdded": "2017-01-11 14:08:39"
+},
+{
+"idProduct": 294991,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1711,
+"idMetacard": 102390,
+"dateAdded": "2017-01-11 14:29:58"
+},
+{
+"idProduct": 295580,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1762,
+"idMetacard": 103466,
+"dateAdded": "2017-02-02 14:58:06"
+},
+{
+"idProduct": 296517,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1744,
+"idMetacard": 103466,
+"dateAdded": "2017-03-27 11:17:18"
+},
+{
+"idProduct": 296552,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1744,
+"idMetacard": 102390,
+"dateAdded": "2017-03-27 11:29:19"
+},
+{
+"idProduct": 299167,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1832,
+"idMetacard": 102390,
+"dateAdded": "2017-07-14 11:28:39"
+},
+{
+"idProduct": 299378,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1804,
+"idMetacard": 103466,
+"dateAdded": "2017-07-18 13:28:35"
+},
+{
+"idProduct": 300630,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1808,
+"idMetacard": 102390,
+"dateAdded": "2017-08-14 13:06:32"
+},
+{
+"idProduct": 302736,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1823,
+"idMetacard": 102390,
+"dateAdded": "2017-10-04 10:55:19"
+},
+{
+"idProduct": 302767,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1823,
+"idMetacard": 103466,
+"dateAdded": "2017-10-04 11:07:20"
+},
+{
+"idProduct": 314329,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1066,
+"idMetacard": 102390,
+"dateAdded": "2017-11-30 13:54:21"
+},
+{
+"idProduct": 315082,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4446,
+"idMetacard": 102390,
+"dateAdded": "2017-12-14 14:08:18"
+},
+{
+"idProduct": 319656,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 2066,
+"idMetacard": 103466,
+"dateAdded": "2018-03-05 17:27:55"
+},
+{
+"idProduct": 327203,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1832,
+"idMetacard": 102390,
+"dateAdded": "2018-04-04 18:03:13"
+},
+{
+"idProduct": 357272,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 2106,
+"idMetacard": 103466,
+"dateAdded": "2018-05-18 12:03:16"
+},
+{
+"idProduct": 361157,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 2170,
+"idMetacard": 103466,
+"dateAdded": "2018-07-10 14:22:47"
+},
+{
+"idProduct": 368145,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1711,
+"idMetacard": 102390,
+"dateAdded": "2019-01-04 15:05:53"
+},
+{
+"idProduct": 369122,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 2391,
+"idMetacard": 102390,
+"dateAdded": "2019-01-22 13:59:26"
+},
+{
+"idProduct": 371759,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 2429,
+"idMetacard": 102390,
+"dateAdded": "2019-03-28 15:35:06"
+},
+{
+"idProduct": 372558,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 2455,
+"idMetacard": 102390,
+"dateAdded": "2019-04-18 18:41:49"
+},
+{
+"idProduct": 389857,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 2592,
+"idMetacard": 103466,
+"dateAdded": "2019-07-30 15:14:50"
+},
+{
+"idProduct": 393877,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 2622,
+"idMetacard": 102390,
+"dateAdded": "2019-08-14 14:04:47"
+},
+{
+"idProduct": 406529,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1711,
+"idMetacard": 102390,
+"dateAdded": "2019-10-08 16:21:35"
+},
+{
+"idProduct": 406559,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1711,
+"idMetacard": 102390,
+"dateAdded": "2019-10-08 16:24:25"
+},
+{
+"idProduct": 460099,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 3029,
+"idMetacard": 102390,
+"dateAdded": "2020-05-12 13:36:16"
+},
+{
+"idProduct": 502870,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 2622,
+"idMetacard": 102390,
+"dateAdded": "2020-09-18 15:35:37"
+},
+{
+"idProduct": 515189,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 3339,
+"idMetacard": 102390,
+"dateAdded": "2020-11-09 13:25:44"
+},
+{
+"idProduct": 517831,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 3439,
+"idMetacard": 102390,
+"dateAdded": "2020-11-18 13:24:41"
+},
+{
+"idProduct": 517836,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 3439,
+"idMetacard": 102390,
+"dateAdded": "2020-11-18 13:25:16"
+},
+{
+"idProduct": 557883,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 3665,
+"idMetacard": 102390,
+"dateAdded": "2021-04-01 12:39:53"
+},
+{
+"idProduct": 568094,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4221,
+"idMetacard": 103466,
+"dateAdded": "2021-06-09 14:30:14"
+},
+{
+"idProduct": 577485,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4411,
+"idMetacard": 102390,
+"dateAdded": "2021-10-12 11:34:36"
+},
+{
+"idProduct": 577606,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4411,
+"idMetacard": 103708,
+"dateAdded": "2021-10-12 13:05:55"
+},
+{
+"idProduct": 577616,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4410,
+"idMetacard": 102390,
+"dateAdded": "2021-10-12 13:59:43"
+},
+{
+"idProduct": 577735,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4410,
+"idMetacard": 102390,
+"dateAdded": "2021-10-12 16:11:06"
+},
+{
+"idProduct": 577849,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4410,
+"idMetacard": 103708,
+"dateAdded": "2021-10-12 17:00:05"
+},
+{
+"idProduct": 577923,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1064,
+"idMetacard": 102390,
+"dateAdded": "2021-10-13 11:53:24"
+},
+{
+"idProduct": 578096,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1064,
+"idMetacard": 102390,
+"dateAdded": "2021-10-13 16:02:16"
+},
+{
+"idProduct": 578097,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1064,
+"idMetacard": 102390,
+"dateAdded": "2021-10-13 16:02:30"
+},
+{
+"idProduct": 578450,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1064,
+"idMetacard": 103708,
+"dateAdded": "2021-10-13 17:35:05"
+},
+{
+"idProduct": 578451,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1064,
+"idMetacard": 103708,
+"dateAdded": "2021-10-13 17:35:18"
+},
+{
+"idProduct": 578742,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4413,
+"idMetacard": 103466,
+"dateAdded": "2021-10-15 11:16:27"
+},
+{
+"idProduct": 579138,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1016,
+"idMetacard": 103466,
+"dateAdded": "2021-10-15 14:28:44"
+},
+{
+"idProduct": 579328,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1016,
+"idMetacard": 103466,
+"dateAdded": "2021-10-15 15:52:28"
+},
+{
+"idProduct": 579593,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4417,
+"idMetacard": 103708,
+"dateAdded": "2021-10-19 10:13:51"
+},
+{
+"idProduct": 579726,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4418,
+"idMetacard": 103708,
+"dateAdded": "2021-10-19 11:31:20"
+},
+{
+"idProduct": 581700,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4424,
+"idMetacard": 102390,
+"dateAdded": "2021-11-01 12:46:07"
+},
+{
+"idProduct": 581751,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4425,
+"idMetacard": 102390,
+"dateAdded": "2021-11-01 14:27:09"
+},
+{
+"idProduct": 581801,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4426,
+"idMetacard": 102390,
+"dateAdded": "2021-11-01 15:11:00"
+},
+{
+"idProduct": 581935,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4427,
+"idMetacard": 102390,
+"dateAdded": "2021-11-02 10:45:29"
+},
+{
+"idProduct": 581983,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4427,
+"idMetacard": 102390,
+"dateAdded": "2021-11-02 11:09:39"
+},
+{
+"idProduct": 582045,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1051,
+"idMetacard": 102390,
+"dateAdded": "2021-11-02 12:25:42"
+},
+{
+"idProduct": 582117,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1051,
+"idMetacard": 102390,
+"dateAdded": "2021-11-02 13:46:03"
+},
+{
+"idProduct": 582252,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4371,
+"idMetacard": 102390,
+"dateAdded": "2021-11-03 09:59:22"
+},
+{
+"idProduct": 586804,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1376,
+"idMetacard": 102390,
+"dateAdded": "2021-12-02 10:36:10"
+},
+{
+"idProduct": 586805,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1376,
+"idMetacard": 102390,
+"dateAdded": "2021-12-02 10:36:23"
+},
+{
+"idProduct": 586806,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1376,
+"idMetacard": 102390,
+"dateAdded": "2021-12-02 10:36:35"
+},
+{
+"idProduct": 587196,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1427,
+"idMetacard": 103466,
+"dateAdded": "2021-12-06 15:05:10"
+},
+{
+"idProduct": 587197,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1427,
+"idMetacard": 103466,
+"dateAdded": "2021-12-06 15:05:19"
+},
+{
+"idProduct": 587198,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1427,
+"idMetacard": 103466,
+"dateAdded": "2021-12-06 15:05:29"
+},
+{
+"idProduct": 607537,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4397,
+"idMetacard": 102390,
+"dateAdded": "2022-02-02 09:35:05"
+},
+{
+"idProduct": 610219,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4398,
+"idMetacard": 102390,
+"dateAdded": "2022-02-25 14:19:35"
+},
+{
+"idProduct": 656398,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4529,
+"idMetacard": 102390,
+"dateAdded": "2022-05-11 13:36:08"
+},
+{
+"idProduct": 656399,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4529,
+"idMetacard": 102390,
+"dateAdded": "2022-05-11 13:36:22"
+},
+{
+"idProduct": 656416,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4529,
+"idMetacard": 103708,
+"dateAdded": "2022-05-11 13:45:55"
+},
+{
+"idProduct": 656429,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4529,
+"idMetacard": 103466,
+"dateAdded": "2022-05-11 13:50:10"
+},
+{
+"idProduct": 656450,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4529,
+"idMetacard": 103708,
+"dateAdded": "2022-05-11 14:03:16"
+},
+{
+"idProduct": 656462,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4529,
+"idMetacard": 103466,
+"dateAdded": "2022-05-11 14:11:54"
+},
+{
+"idProduct": 656486,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4529,
+"idMetacard": 103708,
+"dateAdded": "2022-05-11 14:21:59"
+},
+{
+"idProduct": 656496,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4529,
+"idMetacard": 103466,
+"dateAdded": "2022-05-11 14:26:35"
+},
+{
+"idProduct": 657188,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5043,
+"idMetacard": 103708,
+"dateAdded": "2022-05-13 15:04:13"
+},
+{
+"idProduct": 657268,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5043,
+"idMetacard": 103708,
+"dateAdded": "2022-05-13 15:22:47"
+},
+{
+"idProduct": 657278,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5043,
+"idMetacard": 103466,
+"dateAdded": "2022-05-13 15:26:46"
+},
+{
+"idProduct": 657297,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5043,
+"idMetacard": 103708,
+"dateAdded": "2022-05-13 15:38:04"
+},
+{
+"idProduct": 657311,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5043,
+"idMetacard": 103466,
+"dateAdded": "2022-05-13 15:42:35"
+},
+{
+"idProduct": 657335,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5043,
+"idMetacard": 103708,
+"dateAdded": "2022-05-13 15:51:12"
+},
+{
+"idProduct": 657347,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5043,
+"idMetacard": 103466,
+"dateAdded": "2022-05-13 15:54:35"
+},
+{
+"idProduct": 657900,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4539,
+"idMetacard": 102390,
+"dateAdded": "2022-05-17 13:06:24"
+},
+{
+"idProduct": 657901,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4539,
+"idMetacard": 102390,
+"dateAdded": "2022-05-17 13:06:42"
+},
+{
+"idProduct": 657902,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4539,
+"idMetacard": 102390,
+"dateAdded": "2022-05-17 13:07:04"
+},
+{
+"idProduct": 657903,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4539,
+"idMetacard": 102390,
+"dateAdded": "2022-05-17 13:07:29"
+},
+{
+"idProduct": 657904,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4539,
+"idMetacard": 102390,
+"dateAdded": "2022-05-17 13:07:43"
+},
+{
+"idProduct": 658997,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4542,
+"idMetacard": 102390,
+"dateAdded": "2022-05-18 14:49:00"
+},
+{
+"idProduct": 658998,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4542,
+"idMetacard": 102390,
+"dateAdded": "2022-05-18 14:49:14"
+},
+{
+"idProduct": 661867,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4566,
+"idMetacard": 102390,
+"dateAdded": "2022-06-02 13:48:36"
+},
+{
+"idProduct": 663031,
+"name": "Advanced Crystal Beast Cobalt Eagle",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5081,
+"idMetacard": 409138,
+"dateAdded": "2022-06-13 15:35:17"
+},
+{
+"idProduct": 663032,
+"name": "Advanced Crystal Beast Cobalt Eagle",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5081,
+"idMetacard": 409138,
+"dateAdded": "2022-06-13 15:35:34"
+},
+{
+"idProduct": 663033,
+"name": "Advanced Crystal Beast Sapphire Pegasus",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5081,
+"idMetacard": 409139,
+"dateAdded": "2022-06-13 15:35:56"
+},
+{
+"idProduct": 663034,
+"name": "Advanced Crystal Beast Sapphire Pegasus",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5081,
+"idMetacard": 409139,
+"dateAdded": "2022-06-13 15:36:11"
+},
+{
+"idProduct": 664215,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4571,
+"idMetacard": 103466,
+"dateAdded": "2022-06-17 15:31:34"
+},
+{
+"idProduct": 664216,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4571,
+"idMetacard": 103466,
+"dateAdded": "2022-06-17 15:31:49"
+},
+{
+"idProduct": 666057,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4579,
+"idMetacard": 103466,
+"dateAdded": "2022-06-27 15:13:05"
+},
+{
+"idProduct": 666539,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4585,
+"idMetacard": 103466,
+"dateAdded": "2022-06-30 10:46:30"
+},
+{
+"idProduct": 666744,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4593,
+"idMetacard": 102390,
+"dateAdded": "2022-06-30 16:08:07"
+},
+{
+"idProduct": 667393,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4592,
+"idMetacard": 102390,
+"dateAdded": "2022-07-07 12:12:06"
+},
+{
+"idProduct": 667394,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4592,
+"idMetacard": 102390,
+"dateAdded": "2022-07-07 12:12:23"
+},
+{
+"idProduct": 668122,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4596,
+"idMetacard": 102390,
+"dateAdded": "2022-07-13 14:41:17"
+},
+{
+"idProduct": 670229,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4689,
+"idMetacard": 102390,
+"dateAdded": "2022-08-03 09:39:16"
+},
+{
+"idProduct": 670230,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4689,
+"idMetacard": 102390,
+"dateAdded": "2022-08-03 09:39:29"
+},
+{
+"idProduct": 670961,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4603,
+"idMetacard": 102390,
+"dateAdded": "2022-08-15 11:43:27"
+},
+{
+"idProduct": 670962,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4603,
+"idMetacard": 102390,
+"dateAdded": "2022-08-15 11:43:39"
+},
+{
+"idProduct": 673368,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4596,
+"idMetacard": 102390,
+"dateAdded": "2022-08-31 14:46:50"
+},
+{
+"idProduct": 676715,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4621,
+"idMetacard": 103466,
+"dateAdded": "2022-09-26 11:38:39"
+},
+{
+"idProduct": 679587,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4652,
+"idMetacard": 103466,
+"dateAdded": "2022-10-12 15:31:42"
+},
+{
+"idProduct": 682605,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5086,
+"idMetacard": 103466,
+"dateAdded": "2022-11-02 11:19:24"
+},
+{
+"idProduct": 682606,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5086,
+"idMetacard": 103466,
+"dateAdded": "2022-11-02 11:19:37"
+},
+{
+"idProduct": 684259,
+"name": "Advanced Crystal Beast Cobalt Eagle",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5066,
+"idMetacard": 409138,
+"dateAdded": "2022-11-09 09:30:09"
+},
+{
+"idProduct": 684260,
+"name": "Advanced Crystal Beast Sapphire Pegasus",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5066,
+"idMetacard": 409139,
+"dateAdded": "2022-11-09 09:30:19"
+},
+{
+"idProduct": 685304,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4645,
+"idMetacard": 103466,
+"dateAdded": "2022-11-15 10:02:32"
+},
+{
+"idProduct": 685604,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4647,
+"idMetacard": 102390,
+"dateAdded": "2022-11-16 15:44:22"
+},
+{
+"idProduct": 689824,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4661,
+"idMetacard": 102390,
+"dateAdded": "2022-12-15 11:02:47"
+},
+{
+"idProduct": 689850,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4661,
+"idMetacard": 103466,
+"dateAdded": "2022-12-15 11:08:41"
+},
+{
+"idProduct": 690827,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1365,
+"idMetacard": 102390,
+"dateAdded": "2023-01-05 11:23:23"
+},
+{
+"idProduct": 692276,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4675,
+"idMetacard": 102390,
+"dateAdded": "2023-01-18 09:15:55"
+},
+{
+"idProduct": 692301,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4675,
+"idMetacard": 103466,
+"dateAdded": "2023-01-18 09:22:07"
+},
+{
+"idProduct": 693730,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4682,
+"idMetacard": 102390,
+"dateAdded": "2023-01-23 14:38:28"
+},
+{
+"idProduct": 693731,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4682,
+"idMetacard": 102390,
+"dateAdded": "2023-01-23 14:38:38"
+},
+{
+"idProduct": 694066,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4687,
+"idMetacard": 103466,
+"dateAdded": "2023-01-24 15:27:19"
+},
+{
+"idProduct": 694094,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4687,
+"idMetacard": 103466,
+"dateAdded": "2023-01-24 15:35:42"
+},
+{
+"idProduct": 694336,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4694,
+"idMetacard": 102390,
+"dateAdded": "2023-01-25 11:07:15"
+},
+{
+"idProduct": 695190,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4700,
+"idMetacard": 102390,
+"dateAdded": "2023-01-27 15:28:02"
+},
+{
+"idProduct": 695217,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4700,
+"idMetacard": 103466,
+"dateAdded": "2023-01-27 15:35:22"
+},
+{
+"idProduct": 696968,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4703,
+"idMetacard": 102390,
+"dateAdded": "2023-02-16 13:54:55"
+},
+{
+"idProduct": 696993,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4703,
+"idMetacard": 103708,
+"dateAdded": "2023-02-16 14:01:58"
+},
+{
+"idProduct": 697001,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4703,
+"idMetacard": 103466,
+"dateAdded": "2023-02-16 14:04:09"
+},
+{
+"idProduct": 697512,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4708,
+"idMetacard": 103466,
+"dateAdded": "2023-02-17 14:58:32"
+},
+{
+"idProduct": 705788,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4731,
+"idMetacard": 103466,
+"dateAdded": "2023-04-11 14:59:28"
+},
+{
+"idProduct": 706624,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5236,
+"idMetacard": 102390,
+"dateAdded": "2023-04-14 10:14:26"
+},
+{
+"idProduct": 706625,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5236,
+"idMetacard": 102390,
+"dateAdded": "2023-04-14 10:14:36"
+},
+{
+"idProduct": 706692,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5339,
+"idMetacard": 102390,
+"dateAdded": "2023-04-14 12:06:20"
+},
+{
+"idProduct": 706838,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5339,
+"idMetacard": 103708,
+"dateAdded": "2023-04-14 12:32:16"
+},
+{
+"idProduct": 707038,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5340,
+"idMetacard": 103466,
+"dateAdded": "2023-04-14 14:09:50"
+},
+{
+"idProduct": 707046,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4462,
+"idMetacard": 102390,
+"dateAdded": "2023-04-14 14:27:52"
+},
+{
+"idProduct": 708007,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4735,
+"idMetacard": 103466,
+"dateAdded": "2023-04-18 14:35:40"
+},
+{
+"idProduct": 710318,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4751,
+"idMetacard": 103466,
+"dateAdded": "2023-05-03 14:07:42"
+},
+{
+"idProduct": 710905,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4756,
+"idMetacard": 103466,
+"dateAdded": "2023-05-11 10:41:33"
+},
+{
+"idProduct": 711277,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4760,
+"idMetacard": 102390,
+"dateAdded": "2023-05-11 14:10:49"
+},
+{
+"idProduct": 711300,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4760,
+"idMetacard": 103708,
+"dateAdded": "2023-05-11 14:16:42"
+},
+{
+"idProduct": 711519,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4763,
+"idMetacard": 103466,
+"dateAdded": "2023-05-11 16:49:00"
+},
+{
+"idProduct": 712249,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4779,
+"idMetacard": 103466,
+"dateAdded": "2023-05-15 11:14:39"
+},
+{
+"idProduct": 713257,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4802,
+"idMetacard": 103466,
+"dateAdded": "2023-05-17 11:25:04"
+},
+{
+"idProduct": 713258,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4802,
+"idMetacard": 103466,
+"dateAdded": "2023-05-17 11:25:16"
+},
+{
+"idProduct": 717719,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5395,
+"idMetacard": 102390,
+"dateAdded": "2023-06-12 15:15:31"
+},
+{
+"idProduct": 718966,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4857,
+"idMetacard": 102390,
+"dateAdded": "2023-06-15 13:43:46"
+},
+{
+"idProduct": 720854,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4867,
+"idMetacard": 103708,
+"dateAdded": "2023-06-30 10:24:32"
+},
+{
+"idProduct": 720887,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4868,
+"idMetacard": 103708,
+"dateAdded": "2023-06-30 10:34:47"
+},
+{
+"idProduct": 724307,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4870,
+"idMetacard": 103466,
+"dateAdded": "2023-07-25 10:32:38"
+},
+{
+"idProduct": 724506,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4871,
+"idMetacard": 103708,
+"dateAdded": "2023-07-25 11:53:13"
+},
+{
+"idProduct": 724532,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4872,
+"idMetacard": 103708,
+"dateAdded": "2023-07-25 12:09:59"
+},
+{
+"idProduct": 726017,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4879,
+"idMetacard": 102390,
+"dateAdded": "2023-08-07 13:08:50"
+},
+{
+"idProduct": 726049,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4879,
+"idMetacard": 103708,
+"dateAdded": "2023-08-07 13:18:55"
+},
+{
+"idProduct": 726287,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4882,
+"idMetacard": 103466,
+"dateAdded": "2023-08-07 15:41:40"
+},
+{
+"idProduct": 726773,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4893,
+"idMetacard": 102390,
+"dateAdded": "2023-08-08 15:14:13"
+},
+{
+"idProduct": 726797,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4893,
+"idMetacard": 103708,
+"dateAdded": "2023-08-08 15:19:00"
+},
+{
+"idProduct": 726808,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4893,
+"idMetacard": 103466,
+"dateAdded": "2023-08-08 15:21:14"
+},
+{
+"idProduct": 726901,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5433,
+"idMetacard": 102390,
+"dateAdded": "2023-08-09 10:30:45"
+},
+{
+"idProduct": 727456,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4899,
+"idMetacard": 103466,
+"dateAdded": "2023-08-11 13:02:37"
+},
+{
+"idProduct": 727457,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4899,
+"idMetacard": 103466,
+"dateAdded": "2023-08-11 13:02:48"
+},
+{
+"idProduct": 727712,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5316,
+"idMetacard": 102390,
+"dateAdded": "2023-08-15 05:21:15"
+},
+{
+"idProduct": 727722,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5316,
+"idMetacard": 102390,
+"dateAdded": "2023-08-15 05:23:54"
+},
+{
+"idProduct": 727742,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5316,
+"idMetacard": 102390,
+"dateAdded": "2023-08-15 05:31:24"
+},
+{
+"idProduct": 727902,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5316,
+"idMetacard": 102390,
+"dateAdded": "2023-08-15 06:09:36"
+},
+{
+"idProduct": 731383,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5337,
+"idMetacard": 102390,
+"dateAdded": "2023-08-30 11:41:14"
+},
+{
+"idProduct": 732603,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4904,
+"idMetacard": 102390,
+"dateAdded": "2023-09-12 14:30:13"
+},
+{
+"idProduct": 732604,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4904,
+"idMetacard": 102390,
+"dateAdded": "2023-09-12 14:30:35"
+},
+{
+"idProduct": 732683,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4904,
+"idMetacard": 103708,
+"dateAdded": "2023-09-12 15:00:11"
+},
+{
+"idProduct": 735482,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4914,
+"idMetacard": 103708,
+"dateAdded": "2023-09-29 10:19:25"
+},
+{
+"idProduct": 735702,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4917,
+"idMetacard": 102390,
+"dateAdded": "2023-09-29 12:22:13"
+},
+{
+"idProduct": 735717,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4918,
+"idMetacard": 102390,
+"dateAdded": "2023-09-29 12:30:07"
+},
+{
+"idProduct": 735723,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4918,
+"idMetacard": 103708,
+"dateAdded": "2023-09-29 12:31:18"
+},
+{
+"idProduct": 735734,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4918,
+"idMetacard": 103466,
+"dateAdded": "2023-09-29 12:33:21"
+},
+{
+"idProduct": 735894,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4921,
+"idMetacard": 103466,
+"dateAdded": "2023-09-29 14:07:12"
+},
+{
+"idProduct": 735902,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4922,
+"idMetacard": 102390,
+"dateAdded": "2023-09-29 14:10:51"
+},
+{
+"idProduct": 736004,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4924,
+"idMetacard": 102390,
+"dateAdded": "2023-10-02 10:21:30"
+},
+{
+"idProduct": 736290,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4928,
+"idMetacard": 103708,
+"dateAdded": "2023-10-02 11:45:30"
+},
+{
+"idProduct": 736363,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4930,
+"idMetacard": 102390,
+"dateAdded": "2023-10-02 14:09:54"
+},
+{
+"idProduct": 736535,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4934,
+"idMetacard": 103466,
+"dateAdded": "2023-10-02 15:05:27"
+},
+{
+"idProduct": 736537,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4934,
+"idMetacard": 103466,
+"dateAdded": "2023-10-02 15:05:42"
+},
+{
+"idProduct": 736594,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4937,
+"idMetacard": 102390,
+"dateAdded": "2023-10-02 15:29:45"
+},
+{
+"idProduct": 737281,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4943,
+"idMetacard": 103708,
+"dateAdded": "2023-10-04 11:50:39"
+},
+{
+"idProduct": 737408,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4946,
+"idMetacard": 102390,
+"dateAdded": "2023-10-04 12:36:58"
+},
+{
+"idProduct": 745131,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5543,
+"idMetacard": 103708,
+"dateAdded": "2023-11-13 09:20:42"
+},
+{
+"idProduct": 745132,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5543,
+"idMetacard": 103708,
+"dateAdded": "2023-11-13 09:21:00"
+},
+{
+"idProduct": 749478,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5570,
+"idMetacard": 102390,
+"dateAdded": "2024-01-02 11:12:09"
+},
+{
+"idProduct": 749479,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5570,
+"idMetacard": 102390,
+"dateAdded": "2024-01-02 11:12:30"
+},
+{
+"idProduct": 749480,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5570,
+"idMetacard": 102390,
+"dateAdded": "2024-01-02 11:12:45"
+},
+{
+"idProduct": 750012,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5584,
+"idMetacard": 102390,
+"dateAdded": "2024-01-08 11:04:05"
+},
+{
+"idProduct": 750046,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5584,
+"idMetacard": 103466,
+"dateAdded": "2024-01-08 11:11:57"
+},
+{
+"idProduct": 750984,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5420,
+"idMetacard": 102390,
+"dateAdded": "2024-01-17 10:04:57"
+},
+{
+"idProduct": 756234,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1169,
+"idMetacard": 102390,
+"dateAdded": "2024-02-13 14:32:38"
+},
+{
+"idProduct": 756261,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1169,
+"idMetacard": 103466,
+"dateAdded": "2024-02-13 14:39:41"
+},
+{
+"idProduct": 756301,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1191,
+"idMetacard": 103708,
+"dateAdded": "2024-02-13 14:52:17"
+},
+{
+"idProduct": 759085,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5649,
+"idMetacard": 102390,
+"dateAdded": "2024-02-28 11:41:30"
+},
+{
+"idProduct": 759305,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5649,
+"idMetacard": 102390,
+"dateAdded": "2024-02-28 13:17:54"
+},
+{
+"idProduct": 759512,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5649,
+"idMetacard": 102390,
+"dateAdded": "2024-02-28 14:03:29"
+},
+{
+"idProduct": 759718,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5649,
+"idMetacard": 102390,
+"dateAdded": "2024-02-28 14:51:42"
+},
+{
+"idProduct": 777192,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5821,
+"idMetacard": 102390,
+"dateAdded": "2024-07-08 12:51:36"
+},
+{
+"idProduct": 777326,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5821,
+"idMetacard": 103708,
+"dateAdded": "2024-07-08 13:33:15"
+},
+{
+"idProduct": 785708,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 1176,
+"idMetacard": 102390,
+"dateAdded": "2024-08-29 10:15:36"
+},
+{
+"idProduct": 798469,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5848,
+"idMetacard": 102390,
+"dateAdded": "2024-11-04 16:15:33"
+},
+{
+"idProduct": 798491,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5848,
+"idMetacard": 103466,
+"dateAdded": "2024-11-04 16:18:29"
+},
+{
+"idProduct": 798548,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5848,
+"idMetacard": 102390,
+"dateAdded": "2024-11-04 16:31:57"
+},
+{
+"idProduct": 798585,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5848,
+"idMetacard": 103466,
+"dateAdded": "2024-11-04 16:36:50"
+},
+{
+"idProduct": 803774,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5981,
+"idMetacard": 103466,
+"dateAdded": "2024-12-11 09:34:06"
+},
+{
+"idProduct": 803799,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5981,
+"idMetacard": 103466,
+"dateAdded": "2024-12-11 09:40:24"
+},
+{
+"idProduct": 803824,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5981,
+"idMetacard": 103466,
+"dateAdded": "2024-12-11 09:45:24"
+},
+{
+"idProduct": 803902,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5933,
+"idMetacard": 102390,
+"dateAdded": "2024-12-11 11:32:36"
+},
+{
+"idProduct": 804094,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5933,
+"idMetacard": 102390,
+"dateAdded": "2024-12-11 12:19:41"
+},
+{
+"idProduct": 812376,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6052,
+"idMetacard": 102390,
+"dateAdded": "2025-02-17 17:25:46"
+},
+{
+"idProduct": 812502,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6054,
+"idMetacard": 102390,
+"dateAdded": "2025-02-18 08:57:08"
+},
+{
+"idProduct": 812503,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6054,
+"idMetacard": 102390,
+"dateAdded": "2025-02-18 08:59:28"
+},
+{
+"idProduct": 813115,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6061,
+"idMetacard": 102390,
+"dateAdded": "2025-02-24 11:12:27"
+},
+{
+"idProduct": 813280,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6061,
+"idMetacard": 102390,
+"dateAdded": "2025-02-24 12:44:28"
+},
+{
+"idProduct": 813281,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6061,
+"idMetacard": 102390,
+"dateAdded": "2025-02-24 12:44:36"
+},
+{
+"idProduct": 813282,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6061,
+"idMetacard": 102390,
+"dateAdded": "2025-02-24 12:44:44"
+},
+{
+"idProduct": 813283,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6061,
+"idMetacard": 102390,
+"dateAdded": "2025-02-24 12:44:54"
+},
+{
+"idProduct": 813284,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6061,
+"idMetacard": 102390,
+"dateAdded": "2025-02-24 12:45:04"
+},
+{
+"idProduct": 813285,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6061,
+"idMetacard": 102390,
+"dateAdded": "2025-02-24 12:45:14"
+},
+{
+"idProduct": 813530,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6061,
+"idMetacard": 102390,
+"dateAdded": "2025-02-24 13:23:49"
+},
+{
+"idProduct": 813531,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6061,
+"idMetacard": 102390,
+"dateAdded": "2025-02-24 13:23:57"
+},
+{
+"idProduct": 813532,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6061,
+"idMetacard": 102390,
+"dateAdded": "2025-02-24 13:24:06"
+},
+{
+"idProduct": 813533,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6061,
+"idMetacard": 102390,
+"dateAdded": "2025-02-24 13:24:16"
+},
+{
+"idProduct": 813534,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6061,
+"idMetacard": 102390,
+"dateAdded": "2025-02-24 13:24:25"
+},
+{
+"idProduct": 813536,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6061,
+"idMetacard": 102390,
+"dateAdded": "2025-02-24 13:24:34"
+},
+{
+"idProduct": 813537,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6061,
+"idMetacard": 102390,
+"dateAdded": "2025-02-24 13:24:43"
+},
+{
+"idProduct": 820695,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5989,
+"idMetacard": 102390,
+"dateAdded": "2025-04-04 12:55:00"
+},
+{
+"idProduct": 820964,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5989,
+"idMetacard": 102390,
+"dateAdded": "2025-04-04 16:27:48"
+},
+{
+"idProduct": 820965,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5989,
+"idMetacard": 102390,
+"dateAdded": "2025-04-04 16:28:12"
+},
+{
+"idProduct": 820966,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5989,
+"idMetacard": 102390,
+"dateAdded": "2025-04-04 16:28:24"
+},
+{
+"idProduct": 820967,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5989,
+"idMetacard": 102390,
+"dateAdded": "2025-04-04 16:28:34"
+},
+{
+"idProduct": 820968,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5989,
+"idMetacard": 102390,
+"dateAdded": "2025-04-04 16:28:47"
+},
+{
+"idProduct": 821149,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5989,
+"idMetacard": 102390,
+"dateAdded": "2025-04-04 17:06:59"
+},
+{
+"idProduct": 821150,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5989,
+"idMetacard": 102390,
+"dateAdded": "2025-04-04 17:07:11"
+},
+{
+"idProduct": 821151,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5989,
+"idMetacard": 102390,
+"dateAdded": "2025-04-04 17:07:27"
+},
+{
+"idProduct": 821152,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5989,
+"idMetacard": 102390,
+"dateAdded": "2025-04-04 17:07:37"
+},
+{
+"idProduct": 821153,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5989,
+"idMetacard": 102390,
+"dateAdded": "2025-04-04 17:07:48"
+},
+{
+"idProduct": 826577,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 4724,
+"idMetacard": 103466,
+"dateAdded": "2025-05-21 10:14:58"
+},
+{
+"idProduct": 827274,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6155,
+"idMetacard": 102390,
+"dateAdded": "2025-05-27 16:07:02"
+},
+{
+"idProduct": 833500,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6195,
+"idMetacard": 102390,
+"dateAdded": "2025-07-07 14:04:42"
+},
+{
+"idProduct": 842615,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 5983,
+"idMetacard": 103466,
+"dateAdded": "2025-08-13 11:48:24"
+},
+{
+"idProduct": 845897,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 2622,
+"idMetacard": 103466,
+"dateAdded": "2025-09-01 15:32:59"
+},
+{
+"idProduct": 845983,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6159,
+"idMetacard": 103708,
+"dateAdded": "2025-09-02 13:06:43"
+},
+{
+"idProduct": 869941,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6473,
+"idMetacard": 102390,
+"dateAdded": "2026-01-29 13:16:58"
+},
+{
+"idProduct": 869989,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6473,
+"idMetacard": 102390,
+"dateAdded": "2026-01-29 13:27:30"
+},
+{
+"idProduct": 870038,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6473,
+"idMetacard": 102390,
+"dateAdded": "2026-01-29 13:45:00"
+},
+{
+"idProduct": 881259,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6424,
+"idMetacard": 102390,
+"dateAdded": "2026-04-02 11:28:04"
+},
+{
+"idProduct": 881260,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6424,
+"idMetacard": 102390,
+"dateAdded": "2026-04-02 11:28:20"
+},
+{
+"idProduct": 884395,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6155,
+"idMetacard": 102390,
+"dateAdded": "2026-04-21 11:56:43"
+},
+{
+"idProduct": 902546,
+"name": "Pot of Greed",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6693,
+"idMetacard": 103708,
+"dateAdded": "2026-08-12 14:18:48"
+},
+{
+"idProduct": 913988,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6786,
+"idMetacard": 102390,
+"dateAdded": "2026-09-28 17:16:48"
+},
+{
+"idProduct": 913989,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6786,
+"idMetacard": 102390,
+"dateAdded": "2026-09-28 17:17:09"
+},
+{
+"idProduct": 913990,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6786,
+"idMetacard": 102390,
+"dateAdded": "2026-09-28 17:17:26"
+},
+{
+"idProduct": 913991,
+"name": "Dark Magician",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6786,
+"idMetacard": 102390,
+"dateAdded": "2026-09-28 17:17:46"
+},
+{
+"idProduct": 914060,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6786,
+"idMetacard": 103466,
+"dateAdded": "2026-09-28 17:44:14"
+},
+{
+"idProduct": 914061,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6786,
+"idMetacard": 103466,
+"dateAdded": "2026-09-28 17:44:30"
+},
+{
+"idProduct": 914062,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6786,
+"idMetacard": 103466,
+"dateAdded": "2026-09-28 17:44:48"
+},
+{
+"idProduct": 914063,
+"name": "Mirror Force",
+"idCategory": 5,
+"categoryName": "Yugioh Single",
+"idExpansion": 6786,
+"idMetacard": 103466,
+"dateAdded": "2026-09-28 17:45:02"
+}
+],
+"cardmarket_guides": [
+{
+"idProduct": 102800,
+"trend": 0.02,
+"low": 8,
+"avg": 168.96,
+"avg7": 87.54,
+"avg30": 184.74
+},
+{
+"idProduct": 102801,
+"trend": 16.13,
+"low": 2.5,
+"avg": 17.17,
+"avg7": 17.64,
+"avg30": 13.38
+},
+{
+"idProduct": 102802,
+"trend": 7.51,
+"low": 0.77,
+"avg": 9.92,
+"avg7": 6.87,
+"avg30": 5.78
+},
+{
+"idProduct": 102803,
+"trend": 768.99,
+"low": 239.99,
+"avg": 1499,
+"avg7": 833.56,
+"avg30": 601.46
+},
+{
+"idProduct": 102804,
+"trend": 14.81,
+"low": 3.74,
+"avg": 13.69,
+"avg7": 13.72,
+"avg30": 14.47
+},
+{
+"idProduct": 102805,
+"trend": 36.28,
+"low": 0.95,
+"avg": 30,
+"avg7": 31.76,
+"avg30": 15.72
+},
+{
+"idProduct": 102806,
+"trend": 0.23,
+"low": 0.02,
+"avg": 0.16,
+"avg7": 0.07,
+"avg30": 0.21
+},
+{
+"idProduct": 102807,
+"trend": 2.82,
+"low": 0.1,
+"avg": 16.6,
+"avg7": 6.8,
+"avg30": 5.33
+},
+{
+"idProduct": 102808,
+"trend": 1.31,
+"low": 0.02,
+"avg": 1.52,
+"avg7": 0.94,
+"avg30": 1.55
+},
+{
+"idProduct": 104602,
+"trend": 18.71,
+"low": 1.75,
+"avg": 16.36,
+"avg7": 19.74,
+"avg30": 13.57
+},
+{
+"idProduct": 104603,
+"trend": 40.77,
+"low": 2.99,
+"avg": 49.49,
+"avg7": 44.4,
+"avg30": 31.43
+},
+{
+"idProduct": 105033,
+"trend": 6.3,
+"low": 3.3,
+"avg": 4.29,
+"avg7": 5.47,
+"avg30": 6.72
+},
+{
+"idProduct": 105034,
+"trend": 32.35,
+"low": 5,
+"avg": 32.08,
+"avg7": 31.29,
+"avg30": 25.33
+},
+{
+"idProduct": 105035,
+"trend": 1.96,
+"low": 0.49,
+"avg": 1.76,
+"avg7": 1.69,
+"avg30": 1.69
+},
+{
+"idProduct": 105036,
+"trend": 1.52,
+"low": 0.49,
+"avg": 1.75,
+"avg7": 1.29,
+"avg30": 1.71
+},
+{
+"idProduct": 105037,
+"trend": 2,
+"low": 0.5,
+"avg": 1.77,
+"avg7": 1.87,
+"avg30": 1.71
+},
+{
+"idProduct": 105038,
+"trend": 1.56,
+"low": 0.15,
+"avg": 1.72,
+"avg7": 1.47,
+"avg30": 1.81
+},
+{
+"idProduct": 105039,
+"trend": 1.85,
+"low": 0.4,
+"avg": 1.71,
+"avg7": 1.67,
+"avg30": 1.71
+},
+{
+"idProduct": 105040,
+"trend": 13.22,
+"low": 5.5,
+"avg": 24.99,
+"avg7": 13.11,
+"avg30": 11.82
+},
+{
+"idProduct": 106997,
+"trend": 17.65,
+"low": 9.99,
+"avg": 22.49,
+"avg7": 19.14,
+"avg30": 15.03
+},
+{
+"idProduct": 109302,
+"trend": 0.22,
+"low": 0.02,
+"avg": 0.24,
+"avg7": 0.23,
+"avg30": 0.24
+},
+{
+"idProduct": 109328,
+"trend": 5.14,
+"low": 0.39,
+"avg": 5.39,
+"avg7": 4.9,
+"avg30": 6.28
+},
+{
+"idProduct": 109672,
+"trend": 11.36,
+"low": 1.99,
+"avg": 13.99,
+"avg7": 13.67,
+"avg30": 12.78
+},
+{
+"idProduct": 110723,
+"trend": 120.77,
+"low": 21.9,
+"avg": 120.33,
+"avg7": 124.67,
+"avg30": 102.53
+},
+{
+"idProduct": 244108,
+"trend": 0.91,
+"low": 0.05,
+"avg": 33.1,
+"avg7": 1.16,
+"avg30": 0.74
+},
+{
+"idProduct": 244367,
+"trend": 0.24,
+"low": 0.03,
+"avg": 0.26,
+"avg7": 0.23,
+"avg30": 0.23
+},
+{
+"idProduct": 244497,
+"trend": 3.74,
+"low": 2.89,
+"avg": 1.99,
+"avg7": 4.63,
+"avg30": 6.99
+},
+{
+"idProduct": 246204,
+"trend": 0.56,
+"low": 0.02,
+"avg": 0.48,
+"avg7": 0.48,
+"avg30": 0.47
+},
+{
+"idProduct": 247112,
+"trend": 116.17,
+"low": 49.99,
+"avg": 144.95,
+"avg7": 105.63,
+"avg30": 88.27
+},
+{
+"idProduct": 248149,
+"trend": 0.42,
+"low": 0.02,
+"avg": 0.36,
+"avg7": 0.55,
+"avg30": 0.4
+},
+{
+"idProduct": 253843,
+"trend": 3.14,
+"low": 0.75,
+"avg": 3.01,
+"avg7": 3.2,
+"avg30": 2.76
+},
+{
+"idProduct": 255002,
+"trend": 3.49,
+"low": 2.25,
+"avg": 2.54,
+"avg7": 3.21,
+"avg30": 3.41
+},
+{
+"idProduct": 255016,
+"trend": 1.08,
+"low": 0.3,
+"avg": 1.15,
+"avg7": 0.98,
+"avg30": 0.96
+},
+{
+"idProduct": 255343,
+"trend": 5.62,
+"low": 1.53,
+"avg": 5.55,
+"avg7": 5.64,
+"avg30": 4.92
+},
+{
+"idProduct": 255357,
+"trend": 2.13,
+"low": 0.5,
+"avg": 2,
+"avg7": 2.19,
+"avg30": 2.09
+},
+{
+"idProduct": 255467,
+"trend": 11.43,
+"low": 3,
+"avg": 12,
+"avg7": 8.8,
+"avg30": 9.46
+},
+{
+"idProduct": 255542,
+"trend": 529.99,
+"low": 1999.99,
+"avg": null,
+"avg7": 284.99,
+"avg30": 284.99
+},
+{
+"idProduct": 255575,
+"trend": 1.24,
+"low": 2.29,
+"avg": 5.99,
+"avg7": 4.57,
+"avg30": 7.02
+},
+{
+"idProduct": 258849,
+"trend": 12.5,
+"low": 3.99,
+"avg": 9.82,
+"avg7": 10.23,
+"avg30": 10.12
+},
+{
+"idProduct": 258907,
+"trend": 20.95,
+"low": 9.99,
+"avg": 20.14,
+"avg7": 20.66,
+"avg30": 22
+},
+{
+"idProduct": 258939,
+"trend": 9.07,
+"low": 1.99,
+"avg": 8.56,
+"avg7": 8.56,
+"avg30": 8.41
+},
+{
+"idProduct": 260272,
+"trend": 3.64,
+"low": 1.2,
+"avg": 3.95,
+"avg7": 5.12,
+"avg30": 3.38
+},
+{
+"idProduct": 260676,
+"trend": 6.83,
+"low": 1.75,
+"avg": 7.52,
+"avg7": 4.86,
+"avg30": 5.4
+},
+{
+"idProduct": 262703,
+"trend": 4.11,
+"low": 2,
+"avg": 2.22,
+"avg7": 3.42,
+"avg30": 4.18
+},
+{
+"idProduct": 262704,
+"trend": 2.69,
+"low": 0.8,
+"avg": 2.99,
+"avg7": 2.79,
+"avg30": 2.63
+},
+{
+"idProduct": 262899,
+"trend": 0.83,
+"low": 0.02,
+"avg": 0.94,
+"avg7": 0.42,
+"avg30": 0.8
+},
+{
+"idProduct": 263165,
+"trend": 80.83,
+"low": 24,
+"avg": 34.99,
+"avg7": 85.6,
+"avg30": 168.67
+},
+{
+"idProduct": 263745,
+"trend": 78.57,
+"low": 24,
+"avg": 38.5,
+"avg7": 82.42,
+"avg30": 79.35
+},
+{
+"idProduct": 264458,
+"trend": 13.07,
+"low": 3,
+"avg": 15.59,
+"avg7": 10.79,
+"avg30": 13.17
+},
+{
+"idProduct": 264527,
+"trend": 6.88,
+"low": 2.9,
+"avg": 7.26,
+"avg7": 6.05,
+"avg30": 6.93
+},
+{
+"idProduct": 265407,
+"trend": 0.34,
+"low": 0.02,
+"avg": 0.24,
+"avg7": 0.25,
+"avg30": 0.2
+},
+{
+"idProduct": 265446,
+"trend": 0.65,
+"low": 0.02,
+"avg": 0.65,
+"avg7": 0.49,
+"avg30": 0.59
+},
+{
+"idProduct": 265453,
+"trend": 7.28,
+"low": 0.39,
+"avg": 4.41,
+"avg7": 3.6,
+"avg30": 4.98
+},
+{
+"idProduct": 266498,
+"trend": 2.03,
+"low": 1,
+"avg": 1.88,
+"avg7": 2.17,
+"avg30": 2.05
+},
+{
+"idProduct": 268100,
+"trend": 0.56,
+"low": 0.02,
+"avg": 0.51,
+"avg7": 0.84,
+"avg30": 0.75
+},
+{
+"idProduct": 283144,
+"trend": 0.72,
+"low": 0.05,
+"avg": 0.95,
+"avg7": 0.72,
+"avg30": 0.85
+},
+{
+"idProduct": 286111,
+"trend": 0.41,
+"low": 0.02,
+"avg": 0.25,
+"avg7": 0.36,
+"avg30": 0.31
+},
+{
+"idProduct": 286145,
+"trend": 0.52,
+"low": 0.02,
+"avg": 0.54,
+"avg7": 0.61,
+"avg30": 0.52
+},
+{
+"idProduct": 286151,
+"trend": 0.67,
+"low": 0.1,
+"avg": 0.78,
+"avg7": 0.75,
+"avg30": 0.79
+},
+{
+"idProduct": 286175,
+"trend": 2.84,
+"low": 1.15,
+"avg": 2.18,
+"avg7": 2.56,
+"avg30": 2.38
+},
+{
+"idProduct": 286182,
+"trend": 1.14,
+"low": 0.02,
+"avg": 1.26,
+"avg7": 1.17,
+"avg30": 1.3
+},
+{
+"idProduct": 286199,
+"trend": 0.45,
+"low": 0.04,
+"avg": 0.52,
+"avg7": 0.45,
+"avg30": 0.49
+},
+{
+"idProduct": 286226,
+"trend": 0.34,
+"low": 0.02,
+"avg": 0.43,
+"avg7": 0.36,
+"avg30": 0.41
+},
+{
+"idProduct": 286640,
+"trend": 1.8,
+"low": 0.1,
+"avg": 1.57,
+"avg7": 1.99,
+"avg30": 1.53
+},
+{
+"idProduct": 291354,
+"trend": 1.49,
+"low": 0.1,
+"avg": 1.27,
+"avg7": 1.72,
+"avg30": 1.25
+},
+{
+"idProduct": 292086,
+"trend": 3.78,
+"low": 1.89,
+"avg": 4.69,
+"avg7": 3.58,
+"avg30": 4.41
+},
+{
+"idProduct": 293043,
+"trend": 0.43,
+"low": 0.02,
+"avg": 0.59,
+"avg7": 0.43,
+"avg30": 0.49
+},
+{
+"idProduct": 293066,
+"trend": 0.64,
+"low": 0.02,
+"avg": 0.69,
+"avg7": 0.89,
+"avg30": 0.7
+},
+{
+"idProduct": 293252,
+"trend": 0.35,
+"low": 0.02,
+"avg": 0.52,
+"avg7": 0.59,
+"avg30": 0.48
+},
+{
+"idProduct": 293279,
+"trend": 0.6,
+"low": 0.02,
+"avg": 0.88,
+"avg7": 0.64,
+"avg30": 0.66
+},
+{
+"idProduct": 294984,
+"trend": 1.06,
+"low": 0.4,
+"avg": 1.1,
+"avg7": 1.22,
+"avg30": 1.11
+},
+{
+"idProduct": 294991,
+"trend": 1.57,
+"low": 0.5,
+"avg": 1.87,
+"avg7": 1.31,
+"avg30": 1.61
+},
+{
+"idProduct": 295580,
+"trend": 1.06,
+"low": 0.08,
+"avg": 0.76,
+"avg7": 0.72,
+"avg30": 0.77
+},
+{
+"idProduct": 296517,
+"trend": 2.28,
+"low": 0.5,
+"avg": 2.25,
+"avg7": 2.21,
+"avg30": 2.29
+},
+{
+"idProduct": 296552,
+"trend": 8.02,
+"low": 2,
+"avg": 7.66,
+"avg7": 6.88,
+"avg30": 7.19
+},
+{
+"idProduct": 299167,
+"trend": 1.8,
+"low": 0.4,
+"avg": 1.61,
+"avg7": 1.68,
+"avg30": 1.59
+},
+{
+"idProduct": 299378,
+"trend": 0.48,
+"low": 0.02,
+"avg": 0.46,
+"avg7": 0.36,
+"avg30": 0.43
+},
+{
+"idProduct": 300630,
+"trend": 1.74,
+"low": 0.3,
+"avg": 1.53,
+"avg7": 1.69,
+"avg30": 1.49
+},
+{
+"idProduct": 302736,
+"trend": 0.11,
+"low": 0.02,
+"avg": 0.14,
+"avg7": 0.06,
+"avg30": 0.13
+},
+{
+"idProduct": 302767,
+"trend": 0.71,
+"low": 0.02,
+"avg": 0.76,
+"avg7": 0.85,
+"avg30": 0.79
+},
+{
+"idProduct": 314329,
+"trend": 109.66,
+"low": 130,
+"avg": 116.63,
+"avg7": 119.26,
+"avg30": 99.15
+},
+{
+"idProduct": 315082,
+"trend": 1.71,
+"low": 1,
+"avg": 1.5,
+"avg7": 1.66,
+"avg30": 2.01
+},
+{
+"idProduct": 319656,
+"trend": 2.43,
+"low": 0.4,
+"avg": 1.89,
+"avg7": 2.31,
+"avg30": 2.05
+},
+{
+"idProduct": 327203,
+"trend": 15.42,
+"low": 20,
+"avg": 14.99,
+"avg7": 12.98,
+"avg30": 12.45
+},
+{
+"idProduct": 357272,
+"trend": 1.3,
+"low": 0.3,
+"avg": 0.97,
+"avg7": 1.11,
+"avg30": 1.09
+},
+{
+"idProduct": 361157,
+"trend": 0.46,
+"low": 0.1,
+"avg": 0.45,
+"avg7": 0.5,
+"avg30": 0.46
+},
+{
+"idProduct": 368145,
+"trend": 4.31,
+"low": 3.45,
+"avg": 4.99,
+"avg7": 4.47,
+"avg30": 4.6
+},
+{
+"idProduct": 369122,
+"trend": 0.12,
+"low": 0.02,
+"avg": 0.17,
+"avg7": 0.15,
+"avg30": 0.17
+},
+{
+"idProduct": 371759,
+"trend": 0.53,
+"low": 0.02,
+"avg": 0.37,
+"avg7": 0.57,
+"avg30": 0.47
+},
+{
+"idProduct": 372558,
+"trend": 16.79,
+"low": 11.49,
+"avg": 24.99,
+"avg7": 21.09,
+"avg30": 23.69
+},
+{
+"idProduct": 389857,
+"trend": 0.78,
+"low": 0.02,
+"avg": 0.49,
+"avg7": 0.59,
+"avg30": 0.5
+},
+{
+"idProduct": 393877,
+"trend": 220.11,
+"low": 199,
+"avg": 220,
+"avg7": 226.14,
+"avg30": 307.19
+},
+{
+"idProduct": 406529,
+"trend": 1.98,
+"low": 0.85,
+"avg": 2.32,
+"avg7": 2.19,
+"avg30": 2.46
+},
+{
+"idProduct": 406559,
+"trend": 1.03,
+"low": 0.15,
+"avg": 1,
+"avg7": 1.2,
+"avg30": 0.88
+},
+{
+"idProduct": 460099,
+"trend": 0.35,
+"low": 0.05,
+"avg": 0.55,
+"avg7": 0.36,
+"avg30": 0.28
+},
+{
+"idProduct": 502870,
+"trend": 53.77,
+"low": 119.95,
+"avg": 124.5,
+"avg7": 82.77,
+"avg30": 208.72
+},
+{
+"idProduct": 515189,
+"trend": 5.4,
+"low": 2.59,
+"avg": 5.47,
+"avg7": 4.48,
+"avg30": 5.12
+},
+{
+"idProduct": 517831,
+"trend": 0.17,
+"low": 0.02,
+"avg": 0.19,
+"avg7": 0.19,
+"avg30": 0.17
+},
+{
+"idProduct": 517836,
+"trend": 1.79,
+"low": 0.55,
+"avg": 2.09,
+"avg7": 1.82,
+"avg30": 1.78
+},
+{
+"idProduct": 557883,
+"trend": 540.23,
+"low": 339.99,
+"avg": 379.5,
+"avg7": 530.27,
+"avg30": 479.49
+},
+{
+"idProduct": 568094,
+"trend": 0.65,
+"low": 0.08,
+"avg": 0.6,
+"avg7": 0.68,
+"avg30": 0.59
+},
+{
+"idProduct": 577485,
+"trend": 32.08,
+"low": 15,
+"avg": 38.49,
+"avg7": 36.44,
+"avg30": 36.86
+},
+{
+"idProduct": 577606,
+"trend": 2.92,
+"low": 2.39,
+"avg": 1.69,
+"avg7": 3.27,
+"avg30": 4.02
+},
+{
+"idProduct": 577616,
+"trend": 111.14,
+"low": 9.9,
+"avg": 43.5,
+"avg7": 87.71,
+"avg30": 65.45
+},
+{
+"idProduct": 577735,
+"trend": 57.67,
+"low": 8,
+"avg": 30,
+"avg7": 48.82,
+"avg30": 34.01
+},
+{
+"idProduct": 577849,
+"trend": 2.83,
+"low": 0.69,
+"avg": 2.15,
+"avg7": 2.55,
+"avg30": 3.1
+},
+{
+"idProduct": 577923,
+"trend": 14.95,
+"low": 2,
+"avg": 12.75,
+"avg7": 12.02,
+"avg30": 26.03
+},
+{
+"idProduct": 578096,
+"trend": 170,
+"low": 130,
+"avg": 170,
+"avg7": 235,
+"avg30": 235
+},
+{
+"idProduct": 578097,
+"trend": 435.9,
+"low": 59.99,
+"avg": 1250,
+"avg7": 225.07,
+"avg30": 109.99
+},
+{
+"idProduct": 578450,
+"trend": 10,
+"low": 105,
+"avg": null,
+"avg7": 5.17,
+"avg30": 5.17
+},
+{
+"idProduct": 578451,
+"trend": 6.63,
+"low": 1.99,
+"avg": 5.95,
+"avg7": 4.4,
+"avg30": 3.2
+},
+{
+"idProduct": 578742,
+"trend": 19.57,
+"low": 0.99,
+"avg": 19.84,
+"avg7": 23.73,
+"avg30": 14.4
+},
+{
+"idProduct": 579138,
+"trend": 8.76,
+"low": 2.71,
+"avg": 15.14,
+"avg7": 25.76,
+"avg30": 30.67
+},
+{
+"idProduct": 579328,
+"trend": 92.88,
+"low": 40,
+"avg": 115,
+"avg7": 63.74,
+"avg30": 63.74
+},
+{
+"idProduct": 579593,
+"trend": 6.73,
+"low": 1.5,
+"avg": 14.97,
+"avg7": 7.07,
+"avg30": 5.85
+},
+{
+"idProduct": 579726,
+"trend": 3.05,
+"low": 0.8,
+"avg": 1.09,
+"avg7": 2.5,
+"avg30": 2.77
+},
+{
+"idProduct": 581700,
+"trend": 12.23,
+"low": 2.49,
+"avg": 13.99,
+"avg7": 15.36,
+"avg30": 9.55
+},
+{
+"idProduct": 581751,
+"trend": 12.44,
+"low": 0.99,
+"avg": 4.52,
+"avg7": 5.37,
+"avg30": 10.48
+},
+{
+"idProduct": 581801,
+"trend": 44.17,
+"low": 0.05,
+"avg": 2.67,
+"avg7": 52.36,
+"avg30": 14.82
+},
+{
+"idProduct": 581935,
+"trend": 6.49,
+"low": 0.02,
+"avg": 4.88,
+"avg7": 4.97,
+"avg30": 3.62
+},
+{
+"idProduct": 581983,
+"trend": 7.21,
+"low": 0.47,
+"avg": 14.95,
+"avg7": 4.73,
+"avg30": 5.77
+},
+{
+"idProduct": 582045,
+"trend": 6.47,
+"low": 0.02,
+"avg": 5.53,
+"avg7": 3.54,
+"avg30": 5.87
+},
+{
+"idProduct": 582117,
+"trend": 12.52,
+"low": 2,
+"avg": 10,
+"avg7": 14.63,
+"avg30": 13.17
+},
+{
+"idProduct": 582252,
+"trend": 1.16,
+"low": 0.45,
+"avg": 1.08,
+"avg7": 1.29,
+"avg30": 1.07
+},
+{
+"idProduct": 586804,
+"trend": 19.68,
+"low": 6.9,
+"avg": 25,
+"avg7": 13.79,
+"avg30": 10.04
+},
+{
+"idProduct": 586805,
+"trend": 16.13,
+"low": 4.99,
+"avg": 8.9,
+"avg7": 14.96,
+"avg30": 11.32
+},
+{
+"idProduct": 586806,
+"trend": 15.77,
+"low": 5,
+"avg": 25,
+"avg7": 10.68,
+"avg30": 8.57
+},
+{
+"idProduct": 587196,
+"trend": 2.32,
+"low": 2.45,
+"avg": 1.49,
+"avg7": 2.68,
+"avg30": 3.07
+},
+{
+"idProduct": 587197,
+"trend": 4.02,
+"low": 3.5,
+"avg": null,
+"avg7": 3.88,
+"avg30": 3.88
+},
+{
+"idProduct": 587198,
+"trend": 7.73,
+"low": 3.49,
+"avg": 14.95,
+"avg7": 5.1,
+"avg30": 4.67
+},
+{
+"idProduct": 607537,
+"trend": 27.49,
+"low": 22,
+"avg": 30.68,
+"avg7": 30.68,
+"avg30": 23.82
+},
+{
+"idProduct": 610219,
+"trend": 0.41,
+"low": 0.02,
+"avg": 0.39,
+"avg7": 0.42,
+"avg30": 0.43
+},
+{
+"idProduct": 656398,
+"trend": null,
+"low": 8.75,
+"avg": null,
+"avg7": null,
+"avg30": null
+},
+{
+"idProduct": 656399,
+"trend": null,
+"low": 5,
+"avg": null,
+"avg7": null,
+"avg30": null
+},
+{
+"idProduct": 656416,
+"trend": 2.77,
+"low": 4.5,
+"avg": 4,
+"avg7": 2.26,
+"avg30": 2.23
+},
+{
+"idProduct": 656429,
+"trend": 0.5,
+"low": 0.5,
+"avg": 0.5,
+"avg7": 0.5,
+"avg30": 0.5
+},
+{
+"idProduct": 656450,
+"trend": null,
+"low": null,
+"avg": null,
+"avg7": null,
+"avg30": null
+},
+{
+"idProduct": 656462,
+"trend": 0.02,
+"low": 0.5,
+"avg": 0.2,
+"avg7": 0.2,
+"avg30": 0.36
+},
+{
+"idProduct": 656486,
+"trend": null,
+"low": 2.99,
+"avg": null,
+"avg7": null,
+"avg30": null
+},
+{
+"idProduct": 656496,
+"trend": null,
+"low": null,
+"avg": null,
+"avg7": null,
+"avg30": null
+},
+{
+"idProduct": 657188,
+"trend": 2.93,
+"low": 2.99,
+"avg": 3.5,
+"avg7": 2.36,
+"avg30": 2.36
+},
+{
+"idProduct": 657268,
+"trend": 1.65,
+"low": null,
+"avg": 1.65,
+"avg7": 1.58,
+"avg30": 1.58
+},
+{
+"idProduct": 657278,
+"trend": 0.49,
+"low": null,
+"avg": 0.49,
+"avg7": 0.3,
+"avg30": 0.3
+},
+{
+"idProduct": 657297,
+"trend": 0.15,
+"low": null,
+"avg": 0.15,
+"avg7": 0.15,
+"avg30": 0.15
+},
+{
+"idProduct": 657311,
+"trend": 0.1,
+"low": null,
+"avg": 0.1,
+"avg7": 0.1,
+"avg30": 0.1
+},
+{
+"idProduct": 657335,
+"trend": 0.99,
+"low": null,
+"avg": 0.99,
+"avg7": 0.97,
+"avg30": 0.97
+},
+{
+"idProduct": 657347,
+"trend": 0.1,
+"low": null,
+"avg": 0.1,
+"avg7": 0.1,
+"avg30": 0.1
+},
+{
+"idProduct": 657900,
+"trend": 0.21,
+"low": 0.05,
+"avg": 0.29,
+"avg7": 0.27,
+"avg30": 0.16
+},
+{
+"idProduct": 657901,
+"trend": 1.13,
+"low": 0.8,
+"avg": 1.57,
+"avg7": 1.47,
+"avg30": 2.54
+},
+{
+"idProduct": 657902,
+"trend": 4.42,
+"low": 4.25,
+"avg": 3.01,
+"avg7": 3.75,
+"avg30": 5.19
+},
+{
+"idProduct": 657903,
+"trend": 24.41,
+"low": 11.99,
+"avg": 13.95,
+"avg7": 35.68,
+"avg30": 37.31
+},
+{
+"idProduct": 657904,
+"trend": 15.55,
+"low": 20,
+"avg": 24.99,
+"avg7": 29.7,
+"avg30": 41.93
+},
+{
+"idProduct": 658997,
+"trend": 16.58,
+"low": 9.99,
+"avg": 9.98,
+"avg7": 26.85,
+"avg30": 27.58
+},
+{
+"idProduct": 658998,
+"trend": 2.26,
+"low": 1,
+"avg": 2,
+"avg7": 2.25,
+"avg30": 3.85
+},
+{
+"idProduct": 661867,
+"trend": 22.25,
+"low": 8,
+"avg": 15,
+"avg7": 17.84,
+"avg30": 14.9
+},
+{
+"idProduct": 663031,
+"trend": 0.07,
+"low": 0.02,
+"avg": 0.11,
+"avg7": 0.08,
+"avg30": 0.15
+},
+{
+"idProduct": 663032,
+"trend": 0.02,
+"low": 0.1,
+"avg": 0.5,
+"avg7": 0.43,
+"avg30": 1.2
+},
+{
+"idProduct": 663033,
+"trend": 0.02,
+"low": 0.02,
+"avg": 1,
+"avg7": 0.42,
+"avg30": 2.2
+},
+{
+"idProduct": 663034,
+"trend": 1.92,
+"low": 3,
+"avg": 3.7,
+"avg7": 4.55,
+"avg30": 8.92
+},
+{
+"idProduct": 664215,
+"trend": 9.99,
+"low": 10,
+"avg": null,
+"avg7": 9.99,
+"avg30": 9.99
+},
+{
+"idProduct": 664216,
+"trend": 74.32,
+"low": 62,
+"avg": 54.99,
+"avg7": 65.99,
+"avg30": 65.99
+},
+{
+"idProduct": 666057,
+"trend": 0.88,
+"low": 1.1,
+"avg": 0.91,
+"avg7": 0.88,
+"avg30": 0.88
+},
+{
+"idProduct": 666539,
+"trend": 1.69,
+"low": 1.95,
+"avg": 0.99,
+"avg7": 1.85,
+"avg30": 1.85
+},
+{
+"idProduct": 666744,
+"trend": 40.4,
+"low": 47,
+"avg": 44.99,
+"avg7": 70.03,
+"avg30": 70.03
+},
+{
+"idProduct": 667393,
+"trend": 1.71,
+"low": 1,
+"avg": 1.48,
+"avg7": 1.83,
+"avg30": 2.2
+},
+{
+"idProduct": 667394,
+"trend": 7.74,
+"low": 12,
+"avg": 9.45,
+"avg7": 8.06,
+"avg30": 11.56
+},
+{
+"idProduct": 668122,
+"trend": 13.59,
+"low": 7,
+"avg": 7.48,
+"avg7": 9.81,
+"avg30": 18.18
+},
+{
+"idProduct": 670229,
+"trend": 1.67,
+"low": 0.99,
+"avg": 1.41,
+"avg7": 1.13,
+"avg30": 1.42
+},
+{
+"idProduct": 670230,
+"trend": 2.6,
+"low": 1.7,
+"avg": 3.03,
+"avg7": 3.07,
+"avg30": 3.86
+},
+{
+"idProduct": 670961,
+"trend": 4.99,
+"low": 3.45,
+"avg": 4.99,
+"avg7": 5.05,
+"avg30": 5.05
+},
+{
+"idProduct": 670962,
+"trend": 1.31,
+"low": 1.5,
+"avg": 1.15,
+"avg7": 2.44,
+"avg30": 2.44
+},
+{
+"idProduct": 673368,
+"trend": 63.22,
+"low": 49.9,
+"avg": 65.3,
+"avg7": 71.23,
+"avg30": 74.98
+},
+{
+"idProduct": 676715,
+"trend": 0.63,
+"low": 0.5,
+"avg": 0.7,
+"avg7": 0.54,
+"avg30": 0.39
+},
+{
+"idProduct": 679587,
+"trend": 0.57,
+"low": 0.15,
+"avg": 0.94,
+"avg7": 0.48,
+"avg30": 0.55
+},
+{
+"idProduct": 682605,
+"trend": 92.35,
+"low": 63.99,
+"avg": 70,
+"avg7": 87.97,
+"avg30": 58.49
+},
+{
+"idProduct": 682606,
+"trend": 115.74,
+"low": 480,
+"avg": 159.69,
+"avg7": 133.7,
+"avg30": 128.03
+},
+{
+"idProduct": 684259,
+"trend": 0.42,
+"low": 0.05,
+"avg": 0.55,
+"avg7": 0.56,
+"avg30": 0.53
+},
+{
+"idProduct": 684260,
+"trend": 0.66,
+"low": 0.05,
+"avg": 0.63,
+"avg7": 0.64,
+"avg30": 0.64
+},
+{
+"idProduct": 685304,
+"trend": 1.09,
+"low": 0.99,
+"avg": 1.03,
+"avg7": 1.02,
+"avg30": 1
+},
+{
+"idProduct": 685604,
+"trend": 86.39,
+"low": 59.95,
+"avg": 70,
+"avg7": 70.49,
+"avg30": 57.08
+},
+{
+"idProduct": 689824,
+"trend": 5.05,
+"low": 4,
+"avg": 6.49,
+"avg7": 9.03,
+"avg30": 9.03
+},
+{
+"idProduct": 689850,
+"trend": 0.46,
+"low": 0.2,
+"avg": 0.45,
+"avg7": 0.74,
+"avg30": 0.65
+},
+{
+"idProduct": 690827,
+"trend": 147.38,
+"low": 90,
+"avg": 144,
+"avg7": 136.1,
+"avg30": 124.71
+},
+{
+"idProduct": 692276,
+"trend": 1.61,
+"low": 4.79,
+"avg": 5,
+"avg7": 6.54,
+"avg30": 9.84
+},
+{
+"idProduct": 692301,
+"trend": 1.8,
+"low": 1.5,
+"avg": 1.95,
+"avg7": 1.9,
+"avg30": 2.12
+},
+{
+"idProduct": 693730,
+"trend": 3.6,
+"low": 2.95,
+"avg": 2.9,
+"avg7": 3.71,
+"avg30": 3.71
+},
+{
+"idProduct": 693731,
+"trend": 5,
+"low": 3.99,
+"avg": 5,
+"avg7": 5,
+"avg30": 5
+},
+{
+"idProduct": 694066,
+"trend": 1.49,
+"low": 1.49,
+"avg": null,
+"avg7": 1.15,
+"avg30": 1.15
+},
+{
+"idProduct": 694094,
+"trend": 1.45,
+"low": 1.9,
+"avg": 1.45,
+"avg7": 1.32,
+"avg30": 1.32
+},
+{
+"idProduct": 694336,
+"trend": 21.2,
+"low": 15,
+"avg": 34.5,
+"avg7": 29.26,
+"avg30": 32.88
+},
+{
+"idProduct": 695190,
+"trend": 4.24,
+"low": 4,
+"avg": 3.95,
+"avg7": 4.26,
+"avg30": 4.37
+},
+{
+"idProduct": 695217,
+"trend": 0.35,
+"low": 0.5,
+"avg": 0.4,
+"avg7": 0.29,
+"avg30": 0.25
+},
+{
+"idProduct": 696968,
+"trend": 0.02,
+"low": 2.5,
+"avg": 2.49,
+"avg7": 2.68,
+"avg30": 4.67
+},
+{
+"idProduct": 696993,
+"trend": 6.36,
+"low": 6.98,
+"avg": 6.79,
+"avg7": 6.77,
+"avg30": 7.68
+},
+{
+"idProduct": 697001,
+"trend": 0.98,
+"low": 0.98,
+"avg": 1,
+"avg7": 0.87,
+"avg30": 0.79
+},
+{
+"idProduct": 697512,
+"trend": 0.6,
+"low": 0.5,
+"avg": 0.7,
+"avg7": 0.43,
+"avg30": 0.43
+},
+{
+"idProduct": 705788,
+"trend": 0.56,
+"low": null,
+"avg": 0.6,
+"avg7": 0.53,
+"avg30": 0.52
+},
+{
+"idProduct": 706624,
+"trend": 0.25,
+"low": 0.05,
+"avg": 0.37,
+"avg7": 0.32,
+"avg30": 0.36
+},
+{
+"idProduct": 706625,
+"trend": 2.88,
+"low": 1.49,
+"avg": 3.03,
+"avg7": 3.09,
+"avg30": 3.01
+},
+{
+"idProduct": 706692,
+"trend": 15.65,
+"low": 7,
+"avg": 12.71,
+"avg7": 15.63,
+"avg30": 17.37
+},
+{
+"idProduct": 706838,
+"trend": 4.4,
+"low": 3,
+"avg": 4.32,
+"avg7": 4.59,
+"avg30": 4.25
+},
+{
+"idProduct": 707038,
+"trend": 13.82,
+"low": 10,
+"avg": 12.92,
+"avg7": 16.7,
+"avg30": 14.3
+},
+{
+"idProduct": 707046,
+"trend": 150,
+"low": 250,
+"avg": 150,
+"avg7": 150,
+"avg30": 150
+},
+{
+"idProduct": 708007,
+"trend": 1.9,
+"low": 1.8,
+"avg": 1.7,
+"avg7": 1.83,
+"avg30": 1.43
+},
+{
+"idProduct": 710318,
+"trend": 1.95,
+"low": 2.16,
+"avg": 1.95,
+"avg7": 1.95,
+"avg30": 1.95
+},
+{
+"idProduct": 710905,
+"trend": 5.45,
+"low": 20,
+"avg": 5.45,
+"avg7": 5.45,
+"avg30": 5.45
+},
+{
+"idProduct": 711277,
+"trend": null,
+"low": 5,
+"avg": null,
+"avg7": null,
+"avg30": null
+},
+{
+"idProduct": 711300,
+"trend": 6.35,
+"low": 5,
+"avg": 6.52,
+"avg7": 6.05,
+"avg30": 6.37
+},
+{
+"idProduct": 711519,
+"trend": 0.55,
+"low": 0.51,
+"avg": 0.6,
+"avg7": 0.52,
+"avg30": 0.44
+},
+{
+"idProduct": 712249,
+"trend": 1.05,
+"low": 0.39,
+"avg": 0.99,
+"avg7": 1,
+"avg30": 0.82
+},
+{
+"idProduct": 713257,
+"trend": 0.61,
+"low": 0.75,
+"avg": 0.7,
+"avg7": 0.66,
+"avg30": 0.74
+},
+{
+"idProduct": 713258,
+"trend": 1.16,
+"low": 1,
+"avg": 1.24,
+"avg7": 1.25,
+"avg30": 1.22
+},
+{
+"idProduct": 717719,
+"trend": 9.72,
+"low": 8.3,
+"avg": 10.98,
+"avg7": 11.28,
+"avg30": 20.61
+},
+{
+"idProduct": 718966,
+"trend": null,
+"low": 0.4,
+"avg": null,
+"avg7": null,
+"avg30": null
+},
+{
+"idProduct": 720854,
+"trend": 2.75,
+"low": 3.5,
+"avg": 2.95,
+"avg7": 2.46,
+"avg30": 1.95
+},
+{
+"idProduct": 720887,
+"trend": 2.89,
+"low": 3.49,
+"avg": 2.9,
+"avg7": 2.65,
+"avg30": 3.19
+},
+{
+"idProduct": 724307,
+"trend": 2.66,
+"low": 1,
+"avg": 3.43,
+"avg7": 3.04,
+"avg30": 3.08
+},
+{
+"idProduct": 724506,
+"trend": 3.13,
+"low": 0.5,
+"avg": 4.94,
+"avg7": 3.43,
+"avg30": 2.56
+},
+{
+"idProduct": 724532,
+"trend": 2.43,
+"low": 1.25,
+"avg": 2.99,
+"avg7": 2.77,
+"avg30": 2.09
+},
+{
+"idProduct": 726017,
+"trend": 5,
+"low": 2.5,
+"avg": 5,
+"avg7": 5.9,
+"avg30": 5.9
+},
+{
+"idProduct": 726049,
+"trend": 10.37,
+"low": 12,
+"avg": 9,
+"avg7": 10.29,
+"avg30": 10.29
+},
+{
+"idProduct": 726287,
+"trend": 1.54,
+"low": 0.8,
+"avg": 1.76,
+"avg7": 1.37,
+"avg30": 1.14
+},
+{
+"idProduct": 726773,
+"trend": 0.58,
+"low": 0.09,
+"avg": 0.82,
+"avg7": 0.73,
+"avg30": 0.98
+},
+{
+"idProduct": 726797,
+"trend": 2.73,
+"low": 1.45,
+"avg": 3.15,
+"avg7": 2.89,
+"avg30": 2.39
+},
+{
+"idProduct": 726808,
+"trend": 1.47,
+"low": 0.75,
+"avg": 1.49,
+"avg7": 1.42,
+"avg30": 1.51
+},
+{
+"idProduct": 726901,
+"trend": 17.3,
+"low": 14,
+"avg": 17.5,
+"avg7": 15.57,
+"avg30": 16.02
+},
+{
+"idProduct": 727456,
+"trend": 10.56,
+"low": 1.99,
+"avg": null,
+"avg7": 7.38,
+"avg30": 7.38
+},
+{
+"idProduct": 727457,
+"trend": 7.5,
+"low": 9.99,
+"avg": 10,
+"avg7": 9.51,
+"avg30": 10.03
+},
+{
+"idProduct": 727712,
+"trend": 0.18,
+"low": 0.02,
+"avg": 0.17,
+"avg7": 0.16,
+"avg30": 0.18
+},
+{
+"idProduct": 727722,
+"trend": 0.85,
+"low": 0.2,
+"avg": 0.94,
+"avg7": 0.82,
+"avg30": 0.91
+},
+{
+"idProduct": 727742,
+"trend": 0.32,
+"low": 0.02,
+"avg": 0.31,
+"avg7": 0.47,
+"avg30": 0.28
+},
+{
+"idProduct": 727902,
+"trend": 5.57,
+"low": 3,
+"avg": 7.42,
+"avg7": 4.54,
+"avg30": 6.63
+},
+{
+"idProduct": 731383,
+"trend": 8.3,
+"low": 5.99,
+"avg": 8.14,
+"avg7": 7.87,
+"avg30": 8.01
+},
+{
+"idProduct": 732603,
+"trend": 5.85,
+"low": 1.99,
+"avg": 5,
+"avg7": 5.35,
+"avg30": 5.35
+},
+{
+"idProduct": 732604,
+"trend": 8.96,
+"low": 11,
+"avg": 12.45,
+"avg7": 10.89,
+"avg30": 10.9
+},
+{
+"idProduct": 732683,
+"trend": 2.19,
+"low": null,
+"avg": 1,
+"avg7": 1.97,
+"avg30": 1.97
+},
+{
+"idProduct": 735482,
+"trend": 3.84,
+"low": 2.55,
+"avg": 4.43,
+"avg7": 4.25,
+"avg30": 3.71
+},
+{
+"idProduct": 735702,
+"trend": 197.84,
+"low": 40,
+"avg": 287,
+"avg7": 215.4,
+"avg30": 224.59
+},
+{
+"idProduct": 735717,
+"trend": 2.05,
+"low": 0.5,
+"avg": 2.38,
+"avg7": 2.12,
+"avg30": 2.4
+},
+{
+"idProduct": 735723,
+"trend": 4.05,
+"low": 2.99,
+"avg": 5.42,
+"avg7": 4.33,
+"avg30": 3.38
+},
+{
+"idProduct": 735734,
+"trend": 2.49,
+"low": 2.45,
+"avg": 2.7,
+"avg7": 3.31,
+"avg30": 2.58
+},
+{
+"idProduct": 735894,
+"trend": 8.35,
+"low": 3,
+"avg": 6.79,
+"avg7": 8,
+"avg30": 6.26
+},
+{
+"idProduct": 735902,
+"trend": 1.95,
+"low": 0.35,
+"avg": 2.28,
+"avg7": 2.65,
+"avg30": 2.85
+},
+{
+"idProduct": 736004,
+"trend": 4.42,
+"low": 1.5,
+"avg": 3.41,
+"avg7": 4.72,
+"avg30": 8.79
+},
+{
+"idProduct": 736290,
+"trend": 4.02,
+"low": 3.49,
+"avg": 4.3,
+"avg7": 4.14,
+"avg30": 3.97
+},
+{
+"idProduct": 736363,
+"trend": 21.49,
+"low": 15,
+"avg": 22.56,
+"avg7": 21.63,
+"avg30": 25.68
+},
+{
+"idProduct": 736535,
+"trend": 24.11,
+"low": 10,
+"avg": 16.48,
+"avg7": 24.6,
+"avg30": 25
+},
+{
+"idProduct": 736537,
+"trend": 47.46,
+"low": 45,
+"avg": 47.5,
+"avg7": 44.5,
+"avg30": 44.5
+},
+{
+"idProduct": 736594,
+"trend": 0.22,
+"low": 1.25,
+"avg": 8.12,
+"avg7": 7.04,
+"avg30": 10.76
+},
+{
+"idProduct": 737281,
+"trend": 5.73,
+"low": 4.79,
+"avg": 4.02,
+"avg7": 5.29,
+"avg30": 5.16
+},
+{
+"idProduct": 737408,
+"trend": 54.88,
+"low": 34.5,
+"avg": 40,
+"avg7": 61.35,
+"avg30": 55.46
+},
+{
+"idProduct": 745131,
+"trend": 123.6,
+"low": 119.9,
+"avg": 136.72,
+"avg7": 138.69,
+"avg30": 151.41
+},
+{
+"idProduct": 745132,
+"trend": 24.51,
+"low": 17,
+"avg": 24,
+"avg7": 25.83,
+"avg30": 26.7
+},
+{
+"idProduct": 749478,
+"trend": 1.68,
+"low": 1.5,
+"avg": 1.05,
+"avg7": 2.31,
+"avg30": 1.44
+},
+{
+"idProduct": 749479,
+"trend": 4.9,
+"low": 3.9,
+"avg": 4.63,
+"avg7": 4.63,
+"avg30": 4.14
+},
+{
+"idProduct": 749480,
+"trend": 27.37,
+"low": 20,
+"avg": 20,
+"avg7": 35.55,
+"avg30": 35.55
+},
+{
+"idProduct": 750012,
+"trend": 5.28,
+"low": 4,
+"avg": 4.99,
+"avg7": 4.81,
+"avg30": 4.49
+},
+{
+"idProduct": 750046,
+"trend": 1.83,
+"low": null,
+"avg": 1.8,
+"avg7": 1.63,
+"avg30": 1.5
+},
+{
+"idProduct": 750984,
+"trend": 0.3,
+"low": 0.02,
+"avg": 0.24,
+"avg7": 0.24,
+"avg30": 0.23
+},
+{
+"idProduct": 756234,
+"trend": 0.68,
+"low": 0.05,
+"avg": 0.99,
+"avg7": 0.65,
+"avg30": 0.58
+},
+{
+"idProduct": 756261,
+"trend": 11.99,
+"low": 7.8,
+"avg": 12.81,
+"avg7": 11.09,
+"avg30": 10.51
+},
+{
+"idProduct": 756301,
+"trend": 109.49,
+"low": 84.5,
+"avg": 80,
+"avg7": 101.84,
+"avg30": 96
+},
+{
+"idProduct": 759085,
+"trend": 1.97,
+"low": 1,
+"avg": 0.89,
+"avg7": 2.49,
+"avg30": 2
+},
+{
+"idProduct": 759305,
+"trend": 7.99,
+"low": 8,
+"avg": 6.82,
+"avg7": 8.04,
+"avg30": 9.98
+},
+{
+"idProduct": 759512,
+"trend": 86.28,
+"low": 75,
+"avg": 89,
+"avg7": 83.67,
+"avg30": 83.67
+},
+{
+"idProduct": 759718,
+"trend": 24.54,
+"low": 14.95,
+"avg": 20.48,
+"avg7": 23.08,
+"avg30": 23.68
+},
+{
+"idProduct": 777192,
+"trend": 2.61,
+"low": 2.3,
+"avg": 2.48,
+"avg7": 2.75,
+"avg30": 4.4
+},
+{
+"idProduct": 777326,
+"trend": 2.53,
+"low": 1.6,
+"avg": 2.34,
+"avg7": 2.12,
+"avg30": 2.33
+},
+{
+"idProduct": 785708,
+"trend": 7.18,
+"low": 6.99,
+"avg": 6.73,
+"avg7": 6.94,
+"avg30": 9.56
+},
+{
+"idProduct": 798469,
+"trend": 2.51,
+"low": 1.24,
+"avg": 2.78,
+"avg7": 2.56,
+"avg30": 2.7
+},
+{
+"idProduct": 798491,
+"trend": 11.62,
+"low": 5,
+"avg": 11.3,
+"avg7": 11.66,
+"avg30": 11.47
+},
+{
+"idProduct": 798548,
+"trend": 45.52,
+"low": 38.99,
+"avg": 43.2,
+"avg7": 43.19,
+"avg30": 47.72
+},
+{
+"idProduct": 798585,
+"trend": 68.51,
+"low": 43.5,
+"avg": 60.07,
+"avg7": 57.57,
+"avg30": 61.2
+},
+{
+"idProduct": 803774,
+"trend": 3.92,
+"low": 2.9,
+"avg": 3.79,
+"avg7": 3.81,
+"avg30": 3.69
+},
+{
+"idProduct": 803799,
+"trend": 1.52,
+"low": 1,
+"avg": 0.99,
+"avg7": 1.46,
+"avg30": 1.28
+},
+{
+"idProduct": 803824,
+"trend": 4.24,
+"low": 2.3,
+"avg": 3.71,
+"avg7": 4.16,
+"avg30": 4.02
+},
+{
+"idProduct": 803902,
+"trend": 0.43,
+"low": 0.14,
+"avg": 0.57,
+"avg7": 0.24,
+"avg30": 0.57
+},
+{
+"idProduct": 804094,
+"trend": 3.23,
+"low": 2.5,
+"avg": 3.77,
+"avg7": 4.12,
+"avg30": 6.59
+},
+{
+"idProduct": 812376,
+"trend": 31.4,
+"low": 23.9,
+"avg": 32.79,
+"avg7": 35.73,
+"avg30": 24.21
+},
+{
+"idProduct": 812502,
+"trend": 5.38,
+"low": 4.19,
+"avg": 6.19,
+"avg7": 5.95,
+"avg30": 6.1
+},
+{
+"idProduct": 812503,
+"trend": 23.63,
+"low": 23.9,
+"avg": 22,
+"avg7": 23.66,
+"avg30": 23.67
+},
+{
+"idProduct": 813115,
+"trend": 0.22,
+"low": 0.07,
+"avg": 0.23,
+"avg7": 0.12,
+"avg30": 0.09
+},
+{
+"idProduct": 813280,
+"trend": 1.02,
+"low": 0.8,
+"avg": 1.99,
+"avg7": 1.31,
+"avg30": 1.43
+},
+{
+"idProduct": 813281,
+"trend": 1.32,
+"low": 1,
+"avg": 1,
+"avg7": 1.45,
+"avg30": 1.24
+},
+{
+"idProduct": 813282,
+"trend": 1.25,
+"low": 0.5,
+"avg": 0.33,
+"avg7": 0.95,
+"avg30": 1.26
+},
+{
+"idProduct": 813283,
+"trend": 1.41,
+"low": 0.9,
+"avg": 1.99,
+"avg7": 1.38,
+"avg30": 1.41
+},
+{
+"idProduct": 813284,
+"trend": 1.4,
+"low": 0.5,
+"avg": 0.99,
+"avg7": 1.53,
+"avg30": 1.43
+},
+{
+"idProduct": 813285,
+"trend": 3.14,
+"low": 2.45,
+"avg": 2.5,
+"avg7": 3.71,
+"avg30": 4.59
+},
+{
+"idProduct": 813530,
+"trend": 9.13,
+"low": 6.5,
+"avg": 7.45,
+"avg7": 9.91,
+"avg30": 9.91
+},
+{
+"idProduct": 813531,
+"trend": 11.79,
+"low": 9.5,
+"avg": 10,
+"avg7": 12.83,
+"avg30": 13.05
+},
+{
+"idProduct": 813532,
+"trend": 8.46,
+"low": 8.99,
+"avg": 8,
+"avg7": 9.78,
+"avg30": 9.78
+},
+{
+"idProduct": 813533,
+"trend": 8.66,
+"low": 8.95,
+"avg": 9.43,
+"avg7": 9.13,
+"avg30": 9.64
+},
+{
+"idProduct": 813534,
+"trend": 10.29,
+"low": 9,
+"avg": 10.25,
+"avg7": 10.29,
+"avg30": 10.29
+},
+{
+"idProduct": 813536,
+"trend": 26.45,
+"low": 25,
+"avg": 27.95,
+"avg7": 30.71,
+"avg30": 30.71
+},
+{
+"idProduct": 813537,
+"trend": 75,
+"low": 82.99,
+"avg": 75,
+"avg7": 47.23,
+"avg30": 47.23
+},
+{
+"idProduct": 820695,
+"trend": 32.35,
+"low": 25,
+"avg": 30.66,
+"avg7": 33.76,
+"avg30": 30.2
+},
+{
+"idProduct": 820964,
+"trend": 1.89,
+"low": 1,
+"avg": 1.88,
+"avg7": 1.85,
+"avg30": 1.85
+},
+{
+"idProduct": 820965,
+"trend": 2,
+"low": 0.9,
+"avg": 1.93,
+"avg7": 1.6,
+"avg30": 1.84
+},
+{
+"idProduct": 820966,
+"trend": 4.68,
+"low": 2.6,
+"avg": 4.23,
+"avg7": 4.25,
+"avg30": 4.14
+},
+{
+"idProduct": 820967,
+"trend": 2.12,
+"low": 0.7,
+"avg": 2.18,
+"avg7": 2.18,
+"avg30": 2.28
+},
+{
+"idProduct": 820968,
+"trend": 1.81,
+"low": 0.7,
+"avg": 1.49,
+"avg7": 1.44,
+"avg30": 1.5
+},
+{
+"idProduct": 821149,
+"trend": 11.65,
+"low": 5.99,
+"avg": 9.2,
+"avg7": 8.27,
+"avg30": 10.83
+},
+{
+"idProduct": 821150,
+"trend": 11.82,
+"low": 7.99,
+"avg": 11.46,
+"avg7": 10.74,
+"avg30": 11.24
+},
+{
+"idProduct": 821151,
+"trend": 20.36,
+"low": 13.9,
+"avg": 20.07,
+"avg7": 20.29,
+"avg30": 20.19
+},
+{
+"idProduct": 821152,
+"trend": 18.32,
+"low": 8.9,
+"avg": 16.89,
+"avg7": 17.6,
+"avg30": 19.32
+},
+{
+"idProduct": 821153,
+"trend": 9.57,
+"low": 6,
+"avg": 10.93,
+"avg7": 9.86,
+"avg30": 8.01
+},
+{
+"idProduct": 826577,
+"trend": 2.26,
+"low": 2,
+"avg": 1.38,
+"avg7": 1.94,
+"avg30": 1.94
+},
+{
+"idProduct": 827274,
+"trend": 127.36,
+"low": 119.99,
+"avg": 129.99,
+"avg7": 133.84,
+"avg30": 133.99
+},
+{
+"idProduct": 833500,
+"trend": 0.59,
+"low": 0.2,
+"avg": 0.5,
+"avg7": 0.46,
+"avg30": 0.34
+},
+{
+"idProduct": 842615,
+"trend": 13.1,
+"low": 11.9,
+"avg": 13,
+"avg7": 12.74,
+"avg30": 12.74
+},
+{
+"idProduct": 845897,
+"trend": 16.28,
+"low": 15,
+"avg": 16,
+"avg7": 18.77,
+"avg30": 14.88
+},
+{
+"idProduct": 845983,
+"trend": 4.29,
+"low": 2,
+"avg": 4.21,
+"avg7": 4.4,
+"avg30": 4.33
+},
+{
+"idProduct": 869941,
+"trend": 0.96,
+"low": 0.65,
+"avg": 0.68,
+"avg7": 1.35,
+"avg30": 2.56
+},
+{
+"idProduct": 869989,
+"trend": 4.95,
+"low": 2,
+"avg": 4.4,
+"avg7": 5.69,
+"avg30": 6.25
+},
+{
+"idProduct": 870038,
+"trend": 25.81,
+"low": 29.99,
+"avg": 27,
+"avg7": 43.47,
+"avg30": 43.47
+},
+{
+"idProduct": 881259,
+"trend": 0.49,
+"low": 0.09,
+"avg": 0.46,
+"avg7": 0.47,
+"avg30": 0.48
+},
+{
+"idProduct": 881260,
+"trend": 4.33,
+"low": 3,
+"avg": 4.37,
+"avg7": 4.41,
+"avg30": 4.39
+},
+{
+"idProduct": 884395,
+"trend": null,
+"low": 1400,
+"avg": null,
+"avg7": null,
+"avg30": null
+},
+{
+"idProduct": 902546,
+"trend": null,
+"low": null,
+"avg": null,
+"avg7": null,
+"avg30": null
+},
+{
+"idProduct": 913988,
+"trend": 19.03,
+"low": 15,
+"avg": 25,
+"avg7": 20.71,
+"avg30": 20.71
+},
+{
+"idProduct": 913989,
+"trend": 60,
+"low": 34.99,
+"avg": 60,
+"avg7": 60,
+"avg30": 60
+},
+{
+"idProduct": 913990,
+"trend": 22.11,
+"low": 10,
+"avg": 40,
+"avg7": 24,
+"avg30": 25.23
+},
+{
+"idProduct": 913991,
+"trend": 61.28,
+"low": 80,
+"avg": 55,
+"avg7": 56.67,
+"avg30": 56.67
+},
+{
+"idProduct": 914060,
+"trend": 13.22,
+"low": 12,
+"avg": 19.93,
+"avg7": 24.95,
+"avg30": 24.95
+},
+{
+"idProduct": 914061,
+"trend": 5,
+"low": 5.5,
+"avg": 8,
+"avg7": 8,
+"avg30": 8
+},
+{
+"idProduct": 914062,
+"trend": 8.89,
+"low": 6.79,
+"avg": 7.5,
+"avg7": 9.7,
+"avg30": 9.7
+},
+{
+"idProduct": 914063,
+"trend": 4.25,
+"low": 2.99,
+"avg": 7.5,
+"avg7": 6.42,
+"avg30": 6.42
+}
+]
+}

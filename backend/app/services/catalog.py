@@ -22,7 +22,7 @@ from app.games.base import (
     catalog_version,
 )
 from app.models import Card, CardName, CardSet, Game, Printing
-from app.services import prices
+from app.services import prices, translations
 
 
 @dataclass
@@ -36,6 +36,8 @@ class SyncReport:
     # Cards left without printings (a printing moved to another card).
     pruned_cards: int = 0
     pruned_sets: int = 0
+    # Latin names copied from a card sharing a non-Latin name (`translations`).
+    translations: int = 0
     catalog_version: int = 1
 
 
@@ -387,6 +389,7 @@ async def sync_catalog(
         )
     )
     writer.report.pruned_sets = empty.rowcount
+    writer.report.translations = await translations.fill_translations(session, provider.id)
     writer.report.catalog_version = catalog_version(provider)
     await session.execute(
         update(Game).where(Game.id == provider.id).values(last_catalog_sync=datetime.now(UTC))

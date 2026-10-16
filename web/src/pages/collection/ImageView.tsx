@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { ConditionBadge, FinishBadge, LangFlag } from '../../components/Badges'
 import { CardImage } from '../../components/CardImage'
+import { RarityBadge } from '../../components/RarityBadge'
 import { ShownName } from '../../components/ShownName'
 import { TrendIcons } from '../../components/TrendIcon'
 import { formatMoney } from '../../lib/format'
@@ -18,7 +19,7 @@ export function ImageView({ items, games, showGame, busy, step, edit }: ViewProp
         return (
           <div key={item.id} className="flex flex-col gap-2">
             <Link to={itemLink(item)} className="group relative">
-              <CardImage src={item.image} back={item.back_image} alt={item.name} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
+              <CardImage src={item.image} back={item.back_image} alt={item.name} landscape={item.orientation === 'landscape'} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
               <span className="badge badge-neutral absolute bottom-[3%] left-[3%] font-semibold shadow">×{item.quantity}</span>
             </Link>
             <div className="flex flex-col gap-1">
@@ -29,6 +30,7 @@ export function ImageView({ items, games, showGame, busy, step, edit }: ViewProp
                 {item.set.code} {item.collector_number}
                 {showGame && ` · ${g?.name ?? item.game_id}`}
               </span>
+              <RarityBadge game={g} rarity={item.rarity} code={item.rarity_code} className="text-xs text-base-content/70" />
               <div className="flex flex-wrap items-center gap-1 text-xs">
                 <FinishBadge game={g} finish={item.finish} />
                 <ConditionBadge condition={item.condition} />

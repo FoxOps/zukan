@@ -1,0 +1,1171 @@
+{
+"en": {
+"metadata": {
+"formatVersion": "2.4.0",
+"generatedOn": "2026-10-10T17:54:17",
+"language": "en"
+},
+"sets": {
+"1": {
+"prereleaseDate": "2023-08-18",
+"releaseDate": "2023-09-01",
+"hasAllCards": true,
+"type": "expansion",
+"number": 1,
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2025-09-05",
+"rotationGroup": 1
+},
+"Infinity": {
+"allowed": true
+}
+},
+"allowedInTournamentsFromDate": "2023-09-08",
+"name": "The First Chapter",
+"cardCounts": {
+"base": 204,
+"nonBase": 12,
+"promo": 29,
+"total": 245
+}
+},
+"3": {
+"prereleaseDate": "2024-02-23",
+"releaseDate": "2024-03-08",
+"hasAllCards": true,
+"type": "expansion",
+"number": 3,
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2025-09-05",
+"rotationGroup": 1
+},
+"Infinity": {
+"allowed": true
+}
+},
+"allowedInTournamentsFromDate": "2024-03-15",
+"name": "Into the Inklands",
+"cardCounts": {
+"base": 208,
+"nonBase": 19,
+"promo": 7,
+"total": 234
+}
+},
+"7": {
+"prereleaseDate": "2025-03-07",
+"releaseDate": "2025-03-21",
+"hasAllCards": true,
+"type": "expansion",
+"number": 7,
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2026-07-17",
+"rotationGroup": 2
+},
+"Infinity": {
+"allowed": true
+}
+},
+"allowedInTournamentsFromDate": "2025-03-28",
+"name": "Archazia's Island",
+"cardCounts": {
+"base": 204,
+"nonBase": 20,
+"promo": 15,
+"total": 239
+}
+}
+},
+"cards": [
+{
+"id": 1,
+"fullName": "Ariel - On Human Legs",
+"name": "Ariel",
+"version": "On Human Legs",
+"number": 1,
+"setCode": "1",
+"rarity": "Uncommon",
+"foilTypes": [
+"None",
+"Silver"
+],
+"color": "Amber",
+"type": "Character",
+"subtypes": [
+"Storyborn",
+"Hero",
+"Princess"
+],
+"story": "The Little Mermaid",
+"cost": 4,
+"inkwell": true,
+"strength": 3,
+"willpower": 4,
+"lore": 2,
+"fullText": "VOICELESS This character can't ⟳ to sing songs.",
+"artistsText": "Matthew Robert Davies",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/en/set1/1_ea50bda8825b4ccdf7e71c7052ee9688f92e75ab.jpg"
+},
+"externalLinks": {
+"cardTraderId": 258961,
+"cardTraderUrl": "https://www.cardtrader.com/cards/258961",
+"cardmarketId": 727081,
+"cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/The-First-Chapter/Ariel-On-Human-Legs?language=1",
+"tcgPlayerId": 494102,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/494102"
+},
+"fullIdentifier": "1/204 • EN • 1",
+"allowedInTournamentsFromDate": "2023-09-08"
+},
+{
+"id": 5,
+"fullName": "Hades - King of Olympus",
+"name": "Hades",
+"version": "King of Olympus",
+"number": 5,
+"setCode": "1",
+"rarity": "Rare",
+"foilTypes": [
+"None",
+"Silver"
+],
+"color": "Amber",
+"type": "Character",
+"subtypes": [
+"Floodborn",
+"Villain",
+"King",
+"Deity"
+],
+"story": "Hercules",
+"cost": 8,
+"inkwell": false,
+"strength": 6,
+"willpower": 7,
+"lore": 1,
+"fullText": "Shift 6 (You may pay 6 ⬡ to play this on top of\none of your characters named Hades.)\nSINISTER PLOT This character gets +1 ◊ for\neach other Villain character you have in play.",
+"artistsText": "Alex Accorsi",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/en/set1/5_eb74bbe5d3dfea633d596496243d7972e930b81a.jpg"
+},
+"externalLinks": {
+"cardTraderId": 258949,
+"cardTraderUrl": "https://www.cardtrader.com/cards/258949",
+"cardmarketId": 727085,
+"cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/The-First-Chapter/Hades-King-of-Olympus-V1?language=1",
+"tcgPlayerId": 485364,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/485364"
+},
+"fullIdentifier": "5/204 • EN • 1",
+"allowedInTournamentsFromDate": "2023-09-08"
+},
+{
+"id": 205,
+"fullName": "Hades - King of Olympus",
+"name": "Hades",
+"version": "King of Olympus",
+"number": 205,
+"setCode": "1",
+"rarity": "Enchanted",
+"foilTypes": [
+"Lava"
+],
+"color": "Amber",
+"type": "Character",
+"subtypes": [
+"Floodborn",
+"Villain",
+"King",
+"Deity"
+],
+"story": "Hercules",
+"cost": 8,
+"inkwell": false,
+"strength": 6,
+"willpower": 7,
+"lore": 1,
+"fullText": "Shift 6 (You may pay 6 ⬡ to play this on top of one\nof your characters named Hades.)\nSINISTER PLOT This character gets +1 ◊ for each\nother Villain character you have in play.",
+"artistsText": "Juan Diego Leon",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/en/set1/205_b39a86f5b11b007683bbdc7d0f181d8a94134581.jpg"
+},
+"externalLinks": {
+"cardTraderId": 258459,
+"cardTraderUrl": "https://www.cardtrader.com/cards/258459",
+"cardmarketId": 729393,
+"cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/The-First-Chapter/Hades-King-of-Olympus-V2?language=1",
+"tcgPlayerId": 510148,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/510148"
+},
+"fullIdentifier": "205/204 • EN • 1",
+"allowedInTournamentsFromDate": "2023-09-08"
+},
+{
+"id": 436,
+"fullName": "Dalmatian Puppy - Tail Wagger",
+"name": "Dalmatian Puppy",
+"version": "Tail Wagger",
+"number": 4,
+"variant": "a",
+"setCode": "3",
+"rarity": "Common",
+"foilTypes": [
+"None",
+"Silver"
+],
+"color": "Amber",
+"type": "Character",
+"subtypes": [
+"Storyborn",
+"Puppy"
+],
+"story": "101 Dalmatians",
+"cost": 2,
+"inkwell": true,
+"strength": 2,
+"willpower": 3,
+"lore": 1,
+"fullText": "WHERE DID THEY ALL COME FROM? You may have\nup to 99 copies of Dalmatian Puppy - Tail Wagger\nin your deck.",
+"artistsText": "Kapik",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/en/set3/4a_515320f9bcecb1bc02487ee7ddea903c936dd83e.jpg"
+},
+"externalLinks": {
+"cardTraderId": 274521,
+"cardTraderUrl": "https://www.cardtrader.com/cards/274521",
+"cardmarketId": 755566,
+"cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Into-the-Inklands/Dalmatian-Puppy-Tail-Wagger-V1?language=1",
+"tcgPlayerId": 532867,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/532867"
+},
+"fullIdentifier": "4a/204 • EN • 3",
+"allowedInTournamentsFromDate": "2024-03-15"
+},
+{
+"id": 659,
+"fullName": "Mickey Mouse - Brave Little Tailor",
+"name": "Mickey Mouse",
+"version": "Brave Little Tailor",
+"number": 1,
+"setCode": "1",
+"promoGrouping": "P1",
+"rarity": "Special",
+"foilTypes": [
+"None"
+],
+"color": "Ruby",
+"type": "Character",
+"subtypes": [
+"Dreamborn",
+"Hero"
+],
+"story": "Brave Little Tailor",
+"cost": 8,
+"inkwell": true,
+"strength": 5,
+"willpower": 5,
+"lore": 4,
+"fullText": "Evasive (Only characters with Evasive can challenge this\ncharacter.)",
+"artistsText": "Nicholas Kole",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/en/promo1/1_62ec0c3084773497fc59cccc9274ad5a4d8af386.jpg"
+},
+"externalLinks": {
+"cardTraderId": 259086,
+"cardTraderUrl": "https://www.cardtrader.com/cards/259086",
+"cardmarketId": 726997,
+"cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Promos/Mickey-Mouse-Brave-Little-Tailor?language=1",
+"tcgPlayerId": 454233,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/454233"
+},
+"fullIdentifier": "1 TFC • EN • 1/P1",
+"allowedInTournamentsFromDate": "2023-09-08"
+},
+{
+"id": 1434,
+"fullName": "Rhino - Motivational Speaker",
+"name": "Rhino",
+"version": "Motivational Speaker",
+"number": 1,
+"setCode": "7",
+"rarity": "Rare",
+"foilTypes": [
+"None",
+"Silver"
+],
+"color": "Amber-Steel",
+"colors": [
+"Amber",
+"Steel"
+],
+"type": "Character",
+"subtypes": [
+"Storyborn",
+"Ally"
+],
+"story": "Bolt",
+"cost": 6,
+"inkwell": false,
+"strength": 4,
+"willpower": 7,
+"lore": 2,
+"fullText": "DESTINY CALLING Your other characters get +2 ⛉.",
+"artistsText": "Stefano Zanchi",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/en/set7/1_a32a6dfd2862b3c52e889edcbb8022fd19d42af5.jpg"
+},
+"externalLinks": {
+"cardTraderId": 322728,
+"cardTraderUrl": "https://www.cardtrader.com/cards/322728",
+"cardmarketId": 814035,
+"cardmarketUrl": "https://www.cardmarket.com/en/Lorcana/Products/Singles/Archazias-Island/Rhino-Motivational-Speaker?language=1",
+"tcgPlayerId": 619407,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/619407"
+},
+"fullIdentifier": "1/204 • EN • 7",
+"allowedInTournamentsFromDate": "2025-03-28"
+}
+]
+},
+"fr": {
+"metadata": {
+"formatVersion": "2.3.5",
+"generatedOn": "2026-09-30T17:37:56",
+"language": "fr"
+},
+"sets": {
+"1": {
+"prereleaseDate": "2023-08-18",
+"releaseDate": "2023-09-01",
+"hasAllCards": true,
+"type": "expansion",
+"number": 1,
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2025-09-05",
+"rotationGroup": 1
+},
+"Infinity": {
+"allowed": true
+}
+},
+"allowedInTournamentsFromDate": "2023-09-08",
+"name": "Premier Chapitre",
+"cardCounts": {
+"base": 204,
+"nonBase": 12,
+"promo": 4,
+"total": 220
+}
+},
+"3": {
+"prereleaseDate": "2024-02-23",
+"releaseDate": "2024-03-08",
+"hasAllCards": true,
+"type": "expansion",
+"number": 3,
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2025-09-05",
+"rotationGroup": 1
+},
+"Infinity": {
+"allowed": true
+}
+},
+"allowedInTournamentsFromDate": "2024-03-15",
+"name": "Les Terres d'Encres",
+"cardCounts": {
+"base": 208,
+"nonBase": 19,
+"promo": 5,
+"total": 232
+}
+},
+"7": {
+"prereleaseDate": "2025-03-07",
+"releaseDate": "2025-03-21",
+"hasAllCards": true,
+"type": "expansion",
+"number": 7,
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2026-07-17",
+"rotationGroup": 2
+},
+"Infinity": {
+"allowed": true
+}
+},
+"allowedInTournamentsFromDate": "2025-03-28",
+"name": "L'île d'Archazia",
+"cardCounts": {
+"base": 204,
+"nonBase": 20,
+"promo": 8,
+"total": 232
+}
+}
+},
+"cards": [
+{
+"id": 1,
+"fullName": "Ariel - Sur des jambes humaines",
+"name": "Ariel",
+"version": "Sur des jambes humaines",
+"number": 1,
+"setCode": "1",
+"rarity": "Inhabituelle",
+"foilTypes": [
+"None",
+"Silver"
+],
+"color": "Ambre",
+"type": "Personnage",
+"subtypes": [
+"Storyborn",
+"Héros",
+"Princesse"
+],
+"story": "La Petite Sirène",
+"cost": 4,
+"inkwell": true,
+"strength": 3,
+"willpower": 4,
+"lore": 2,
+"fullText": "SANS VOIX Ce personnage ne peut pas être ⟳\npour chanter des chansons.",
+"artistsText": "Matthew Robert Davies",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/fr/set1/1_6ce0c0681772fec10c3127a0d320164c165a7111.jpg"
+},
+"externalLinks": {
+"cardTraderId": 258961,
+"cardTraderUrl": "https://www.cardtrader.com/cards/258961",
+"cardmarketId": 727081,
+"cardmarketUrl": "https://www.cardmarket.com/fr/Lorcana/Products/Singles/The-First-Chapter/Ariel-On-Human-Legs?language=2",
+"tcgPlayerId": 494102,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/494102"
+},
+"fullIdentifier": "1/204 • FR • 1",
+"allowedInTournamentsFromDate": "2023-09-08"
+},
+{
+"id": 5,
+"fullName": "Hadès - Roi de l'Olympe",
+"name": "Hadès",
+"version": "Roi de l'Olympe",
+"number": 5,
+"setCode": "1",
+"rarity": "Rare",
+"foilTypes": [
+"None",
+"Silver"
+],
+"color": "Ambre",
+"type": "Personnage",
+"subtypes": [
+"Floodborn",
+"Méchant",
+"Roi",
+"Dieu"
+],
+"story": "Hercule",
+"cost": 8,
+"inkwell": false,
+"strength": 6,
+"willpower": 7,
+"lore": 1,
+"fullText": "Alter 6 (Vous pouvez payer 6 ⬡ pour jouer ce personnage\nsur l'un de vos personnages Hadès.)\nSINISTRE COMPLOT Ce personnage a + 1 ◊ pour chaque\nautre personnage Méchant que vous avez en jeu.",
+"artistsText": "Alex Accorsi",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/fr/set1/5_60a75d181447979a177ccfb0fede2c1a662488ff.jpg"
+},
+"externalLinks": {
+"cardTraderId": 258949,
+"cardTraderUrl": "https://www.cardtrader.com/cards/258949",
+"cardmarketId": 727085,
+"cardmarketUrl": "https://www.cardmarket.com/fr/Lorcana/Products/Singles/The-First-Chapter/Hades-King-of-Olympus-V1?language=2",
+"tcgPlayerId": 485364,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/485364"
+},
+"fullIdentifier": "5/204 • FR • 1",
+"allowedInTournamentsFromDate": "2023-09-08"
+},
+{
+"id": 205,
+"fullName": "Hades - Roi de l'Olympe",
+"name": "Hades",
+"version": "Roi de l'Olympe",
+"number": 205,
+"setCode": "1",
+"rarity": "Enchantée",
+"foilTypes": [
+"Lava"
+],
+"color": "Ambre",
+"type": "Personnage",
+"subtypes": [
+"Floodborn",
+"Méchant",
+"Roi",
+"Dieu"
+],
+"story": "Hercule",
+"cost": 8,
+"inkwell": false,
+"strength": 6,
+"willpower": 7,
+"lore": 1,
+"fullText": "Alter 6 (Vous pouvez payer 6 ⬡ pour jouer ce\npersonnage sur l'un de vos personnages Hadès.)\nSINISTRE COMPLOT Ce personnage a + 1 ◊ pour\nchaque autre personnage Méchant que vous avez\nen jeu.",
+"artistsText": "Juan Diego Leon",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/fr/set1/205_15864b6733f135455981bd8e069a4d397cc2b28f.jpg"
+},
+"externalLinks": {
+"cardTraderId": 258459,
+"cardTraderUrl": "https://www.cardtrader.com/cards/258459",
+"cardmarketId": 729393,
+"cardmarketUrl": "https://www.cardmarket.com/fr/Lorcana/Products/Singles/The-First-Chapter/Hades-King-of-Olympus-V2?language=2",
+"tcgPlayerId": 510148,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/510148"
+},
+"fullIdentifier": "205/204 • FR • 1",
+"allowedInTournamentsFromDate": "2023-09-08"
+},
+{
+"id": 436,
+"fullName": "Chiot dalmatien - Frétille de joie",
+"name": "Chiot dalmatien",
+"version": "Frétille de joie",
+"number": 4,
+"variant": "a",
+"setCode": "3",
+"rarity": "Commune",
+"foilTypes": [
+"None",
+"Silver"
+],
+"color": "Ambre",
+"type": "Personnage",
+"subtypes": [
+"Storyborn",
+"Chiot"
+],
+"story": "Les 101 Dalmatiens",
+"cost": 2,
+"inkwell": true,
+"strength": 2,
+"willpower": 3,
+"lore": 1,
+"fullText": "D'OÙ SORTENT-ILS, ENFIN ? Vous pouvez avoir\njusqu'à 99 copies de Chiot dalmatien - Frétille de\njoie dans votre deck.",
+"artistsText": "Kapik",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/fr/set3/4a_135ef432a92d6dccd9f99edfadb256933b071bbd.jpg"
+},
+"externalLinks": {
+"cardTraderId": 274521,
+"cardTraderUrl": "https://www.cardtrader.com/cards/274521",
+"cardmarketId": 755566,
+"cardmarketUrl": "https://www.cardmarket.com/fr/Lorcana/Products/Singles/Into-the-Inklands/Dalmatian-Puppy-Tail-Wagger-V1?language=2",
+"tcgPlayerId": 532867,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/532867"
+},
+"fullIdentifier": "4a/204 • FR • 3",
+"allowedInTournamentsFromDate": "2024-03-15"
+},
+{
+"id": 1434,
+"fullName": "Rhino - Orateur motivant",
+"name": "Rhino",
+"version": "Orateur motivant",
+"number": 1,
+"setCode": "7",
+"rarity": "Rare",
+"foilTypes": [
+"None",
+"Silver"
+],
+"color": "Ambre-Acier",
+"colors": [
+"Ambre",
+"Acier"
+],
+"type": "Personnage",
+"subtypes": [
+"Storyborn",
+"Allié"
+],
+"story": "Volt, star malgré lui",
+"cost": 6,
+"inkwell": false,
+"strength": 4,
+"willpower": 7,
+"lore": 2,
+"fullText": "L'APPEL DU DESTIN Vos autres personnages\ngagnent +2 ⛉.",
+"artistsText": "Stefano Zanchi",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/fr/set7/1_e8c8c81ab156e9560b28baae7a5eb2d7ecbcee30.jpg"
+},
+"externalLinks": {
+"cardTraderId": 322728,
+"cardTraderUrl": "https://www.cardtrader.com/cards/322728",
+"cardmarketId": 814035,
+"cardmarketUrl": "https://www.cardmarket.com/fr/Lorcana/Products/Singles/Archazias-Island/Rhino-Motivational-Speaker?language=2",
+"tcgPlayerId": 619407,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/619407"
+},
+"fullIdentifier": "1/204 • FR • 7",
+"allowedInTournamentsFromDate": "2025-03-28"
+}
+]
+},
+"de": {
+"metadata": {
+"formatVersion": "2.3.5",
+"generatedOn": "2026-09-30T17:38:00",
+"language": "de"
+},
+"sets": {
+"1": {
+"prereleaseDate": "2023-08-18",
+"releaseDate": "2023-09-01",
+"hasAllCards": true,
+"type": "expansion",
+"number": 1,
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2025-09-05",
+"rotationGroup": 1
+},
+"Infinity": {
+"allowed": true
+}
+},
+"allowedInTournamentsFromDate": "2023-09-08",
+"name": "Das Erste Kapitel",
+"cardCounts": {
+"base": 204,
+"nonBase": 12,
+"promo": 4,
+"total": 220
+}
+},
+"3": {
+"prereleaseDate": "2024-02-23",
+"releaseDate": "2024-03-08",
+"hasAllCards": true,
+"type": "expansion",
+"number": 3,
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2025-09-05",
+"rotationGroup": 1
+},
+"Infinity": {
+"allowed": true
+}
+},
+"allowedInTournamentsFromDate": "2024-03-15",
+"name": "Die Tintenlande",
+"cardCounts": {
+"base": 208,
+"nonBase": 19,
+"promo": 5,
+"total": 232
+}
+},
+"7": {
+"prereleaseDate": "2025-03-07",
+"releaseDate": "2025-03-21",
+"hasAllCards": true,
+"type": "expansion",
+"number": 7,
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2026-07-17",
+"rotationGroup": 2
+},
+"Infinity": {
+"allowed": true
+}
+},
+"allowedInTournamentsFromDate": "2025-03-28",
+"name": "Archazias Insel",
+"cardCounts": {
+"base": 204,
+"nonBase": 20,
+"promo": 8,
+"total": 232
+}
+}
+},
+"cards": [
+{
+"id": 1,
+"fullName": "Arielle - Auf menschlichen Beinen",
+"name": "Arielle",
+"version": "Auf menschlichen Beinen",
+"number": 1,
+"setCode": "1",
+"rarity": "Ungewöhnlich",
+"foilTypes": [
+"None",
+"Silver"
+],
+"color": "Bernstein",
+"type": "Charakter",
+"subtypes": [
+"Sagengestalt",
+"Heldin",
+"Prinzessin"
+],
+"story": "Arielle, die Meerjungfrau",
+"cost": 4,
+"inkwell": true,
+"strength": 3,
+"willpower": 4,
+"lore": 2,
+"fullText": "VERSTUMMT Dieser Charakter kann nicht ⟳,\num Lieder zu singen.",
+"artistsText": "Matthew Robert Davies",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/de/set1/1_1fb260ab94f93837de47d6716414f5f564ef4a48.jpg"
+},
+"externalLinks": {
+"cardTraderId": 258961,
+"cardTraderUrl": "https://www.cardtrader.com/cards/258961",
+"cardmarketId": 727081,
+"cardmarketUrl": "https://www.cardmarket.com/de/Lorcana/Products/Singles/The-First-Chapter/Ariel-On-Human-Legs?language=3",
+"tcgPlayerId": 494102,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/494102"
+},
+"fullIdentifier": "1/204 • DE • 1",
+"allowedInTournamentsFromDate": "2023-09-08"
+},
+{
+"id": 5,
+"fullName": "Hades - König des Olymps",
+"name": "Hades",
+"version": "König des Olymps",
+"number": 5,
+"setCode": "1",
+"rarity": "Selten",
+"foilTypes": [
+"None",
+"Silver"
+],
+"color": "Bernstein",
+"type": "Charakter",
+"subtypes": [
+"Flutgestalt",
+"Schurke",
+"König",
+"Gottheit"
+],
+"story": "Hercules",
+"cost": 8,
+"inkwell": false,
+"strength": 6,
+"willpower": 7,
+"lore": 1,
+"fullText": "Gestaltwandel 6 (Du kannst 6 ⬡ zahlen, um diesen\nCharakter auf einen deiner Hades-Charaktere auszuspielen.)\nFINSTERE VERSCHWÖRUNG Dieser Charakter erhält +1 ◊ für\njede weitere Schurkin und jeden weiteren Schurken, die du\nim Spiel hast.",
+"artistsText": "Alex Accorsi",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/de/set1/5_6a33478c3c7fa822f073e46fad790a9ad30c9561.jpg"
+},
+"externalLinks": {
+"cardTraderId": 258949,
+"cardTraderUrl": "https://www.cardtrader.com/cards/258949",
+"cardmarketId": 727085,
+"cardmarketUrl": "https://www.cardmarket.com/de/Lorcana/Products/Singles/The-First-Chapter/Hades-King-of-Olympus-V1?language=3",
+"tcgPlayerId": 485364,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/485364"
+},
+"fullIdentifier": "5/204 • DE • 1",
+"allowedInTournamentsFromDate": "2023-09-08"
+},
+{
+"id": 205,
+"fullName": "Hades - König des Olymps",
+"name": "Hades",
+"version": "König des Olymps",
+"number": 205,
+"setCode": "1",
+"rarity": "Verzaubert",
+"foilTypes": [
+"Lava"
+],
+"color": "Bernstein",
+"type": "Charakter",
+"subtypes": [
+"Flutgestalt",
+"Schurke",
+"König",
+"Gottheit"
+],
+"story": "Hercules",
+"cost": 8,
+"inkwell": false,
+"strength": 6,
+"willpower": 7,
+"lore": 1,
+"fullText": "Gestaltwandel 6 (Du kannst 6 ⬡ zahlen, um diesen Charakter\nauf einen deiner Hades-Charaktere auszuspielen.)\nFINSTERE VERSCHWÖRUNG Dieser Charakter erhält +1 ◊ für\njede weitere Schurkin und jeden weiteren Schurken, die du im\nSpiel hast.",
+"artistsText": "Juan Diego Leon",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/de/set1/205_fad528170bc922bde469e671e724ee6214f35ff7.jpg"
+},
+"externalLinks": {
+"cardTraderId": 258459,
+"cardTraderUrl": "https://www.cardtrader.com/cards/258459",
+"cardmarketId": 729393,
+"cardmarketUrl": "https://www.cardmarket.com/de/Lorcana/Products/Singles/The-First-Chapter/Hades-King-of-Olympus-V2?language=3",
+"tcgPlayerId": 510148,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/510148"
+},
+"fullIdentifier": "205/204 • DE • 1",
+"allowedInTournamentsFromDate": "2023-09-08"
+},
+{
+"id": 436,
+"fullName": "Dalmatiner Welpe - Schwanzwedler",
+"name": "Dalmatiner Welpe",
+"version": "Schwanzwedler",
+"number": 4,
+"variant": "a",
+"setCode": "3",
+"rarity": "Gewöhnlich",
+"foilTypes": [
+"None",
+"Silver"
+],
+"color": "Bernstein",
+"type": "Charakter",
+"subtypes": [
+"Sagengestalt",
+"Welpe"
+],
+"story": "101 Dalmatiner",
+"cost": 2,
+"inkwell": true,
+"strength": 2,
+"willpower": 3,
+"lore": 1,
+"fullText": "WO KOMMEN DIE DENN ALLE HER? Dein Deck darf\nDalmatiner Welpe - Schwanzwedler bis zu 99-mal\nenthalten.",
+"artistsText": "Kapik",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/de/set3/4a_9fb36fe151ce90c7c7d557b6725903ee3491ab3d.jpg"
+},
+"externalLinks": {
+"cardTraderId": 274521,
+"cardTraderUrl": "https://www.cardtrader.com/cards/274521",
+"cardmarketId": 755566,
+"cardmarketUrl": "https://www.cardmarket.com/de/Lorcana/Products/Singles/Into-the-Inklands/Dalmatian-Puppy-Tail-Wagger-V1?language=3",
+"tcgPlayerId": 532867,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/532867"
+},
+"fullIdentifier": "4a/204 • DE • 3",
+"allowedInTournamentsFromDate": "2024-03-15"
+},
+{
+"id": 1434,
+"fullName": "Dino - Motivationsredner",
+"name": "Dino",
+"version": "Motivationsredner",
+"number": 1,
+"setCode": "7",
+"rarity": "Selten",
+"foilTypes": [
+"None",
+"Silver"
+],
+"color": "Bernstein-Stahl",
+"colors": [
+"Bernstein",
+"Stahl"
+],
+"type": "Charakter",
+"subtypes": [
+"Sagengestalt",
+"Verbündeter"
+],
+"story": "Bolt – Ein Hund für alle Fälle",
+"cost": 6,
+"inkwell": false,
+"strength": 4,
+"willpower": 7,
+"lore": 2,
+"fullText": "DAS SCHICKSAL RUFT Deine anderen Charaktere\nerhalten +2 ⛉.",
+"artistsText": "Stefano Zanchi",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/de/set7/1_34cf500d4ca8101b9483f7d23c53c8437e242aa2.jpg"
+},
+"externalLinks": {
+"cardTraderId": 322728,
+"cardTraderUrl": "https://www.cardtrader.com/cards/322728",
+"cardmarketId": 814035,
+"cardmarketUrl": "https://www.cardmarket.com/de/Lorcana/Products/Singles/Archazias-Island/Rhino-Motivational-Speaker?language=3",
+"tcgPlayerId": 619407,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/619407"
+},
+"fullIdentifier": "1/204 • DE • 7",
+"allowedInTournamentsFromDate": "2025-03-28"
+}
+]
+},
+"it": {
+"metadata": {
+"formatVersion": "2.3.5",
+"generatedOn": "2026-09-30T17:38:03",
+"language": "it"
+},
+"sets": {
+"3": {
+"prereleaseDate": "2024-02-23",
+"releaseDate": "2024-03-08",
+"hasAllCards": true,
+"type": "expansion",
+"number": 3,
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2025-09-05",
+"rotationGroup": 1
+},
+"Infinity": {
+"allowed": true
+}
+},
+"allowedInTournamentsFromDate": "2024-03-15",
+"name": "Nelle Terre d'Inchiostro",
+"cardCounts": {
+"base": 208,
+"nonBase": 19,
+"promo": 5,
+"total": 232
+}
+},
+"7": {
+"prereleaseDate": "2025-03-07",
+"releaseDate": "2025-03-21",
+"hasAllCards": true,
+"type": "expansion",
+"number": 7,
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2026-07-17",
+"rotationGroup": 2
+},
+"Infinity": {
+"allowed": true
+}
+},
+"allowedInTournamentsFromDate": "2025-03-28",
+"name": "L'Isola di Archazia",
+"cardCounts": {
+"base": 204,
+"nonBase": 18,
+"promo": 8,
+"total": 230
+}
+}
+},
+"cards": [
+{
+"id": 436,
+"fullName": "Cucciolo di Dalmata - Scodinzolante",
+"name": "Cucciolo di Dalmata",
+"version": "Scodinzolante",
+"number": 4,
+"variant": "a",
+"setCode": "3",
+"rarity": "Comune",
+"foilTypes": [
+"None",
+"Silver"
+],
+"color": "Ambra",
+"type": "Personaggio",
+"subtypes": [
+"Classico",
+"Cucciolo"
+],
+"story": "La carica dei 101",
+"cost": 2,
+"inkwell": true,
+"strength": 2,
+"willpower": 3,
+"lore": 1,
+"fullText": "DA DOVE VERRANNO? Puoi avere fino a 99 copie\ndi Cucciolo di Dalmata - Scodinzolante nel tuo\nmazzo.",
+"artistsText": "Kapik",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/it/set3/4a_baf0072d772654314949b6e1ca9b277d4efb3963.jpg"
+},
+"externalLinks": {
+"cardTraderId": 274521,
+"cardTraderUrl": "https://www.cardtrader.com/cards/274521",
+"cardmarketId": 755566,
+"cardmarketUrl": "https://www.cardmarket.com/it/Lorcana/Products/Singles/Into-the-Inklands/Dalmatian-Puppy-Tail-Wagger-V1?language=5",
+"tcgPlayerId": 532867,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/532867"
+},
+"fullIdentifier": "4a/204 • IT • 3",
+"allowedInTournamentsFromDate": "2024-03-15"
+},
+{
+"id": 1434,
+"fullName": "Rhino - Motivatore",
+"name": "Rhino",
+"version": "Motivatore",
+"number": 1,
+"setCode": "7",
+"rarity": "Rara",
+"foilTypes": [
+"None",
+"Silver"
+],
+"color": "Ambra-Acciaio",
+"colors": [
+"Ambra",
+"Acciaio"
+],
+"type": "Personaggio",
+"subtypes": [
+"Classico",
+"Alleato"
+],
+"story": "Bolt - Un eroe a quattro zampe",
+"cost": 6,
+"inkwell": false,
+"strength": 4,
+"willpower": 7,
+"lore": 2,
+"fullText": "CHIAMATA DEL DESTINO I tuoi altri personaggi\nricevono +2 ⛉.",
+"artistsText": "Stefano Zanchi",
+"images": {
+"full": "https://api.lorcana.ravensburger.com/images/it/set7/1_4c2b21459132faacb4665c9b053b422de914ba47.jpg"
+},
+"externalLinks": {
+"cardTraderId": 322728,
+"cardTraderUrl": "https://www.cardtrader.com/cards/322728",
+"cardmarketId": 814035,
+"cardmarketUrl": "https://www.cardmarket.com/it/Lorcana/Products/Singles/Archazias-Island/Rhino-Motivational-Speaker?language=5",
+"tcgPlayerId": 619407,
+"tcgPlayerUrl": "https://www.tcgplayer.com/product/619407"
+},
+"fullIdentifier": "1/204 • IT • 7",
+"allowedInTournamentsFromDate": "2025-03-28"
+}
+]
+},
+"cardmarket_guides": [
+{
+"idProduct": 726997,
+"idCategory": 1629,
+"avg": 1862.5,
+"low": 1000,
+"trend": 1112.85,
+"avg1": 725,
+"avg7": 1311.11,
+"avg30": 1258.9,
+"avg-foil": null,
+"low-foil": null,
+"trend-foil": 0,
+"avg1-foil": null,
+"avg7-foil": null,
+"avg30-foil": null
+},
+{
+"idProduct": 727081,
+"idCategory": 1629,
+"avg": 0.06,
+"low": 0.02,
+"trend": 0.07,
+"avg1": 0.02,
+"avg7": 0.06,
+"avg30": 0.06,
+"avg-foil": 0.42,
+"low-foil": 0.1,
+"trend-foil": 0.42,
+"avg1-foil": 0.34,
+"avg7-foil": 0.38,
+"avg30-foil": 0.58
+},
+{
+"idProduct": 727085,
+"idCategory": 1629,
+"avg": 0.16,
+"low": 0.02,
+"trend": 0.2,
+"avg1": 0.08,
+"avg7": 0.14,
+"avg30": 0.15,
+"avg-foil": 0.36,
+"low-foil": 0.1,
+"trend-foil": 0.46,
+"avg1-foil": 0.2,
+"avg7-foil": 0.34,
+"avg30-foil": 0.5
+},
+{
+"idProduct": 729393,
+"idCategory": 1629,
+"avg": null,
+"low": 50,
+"trend": 113.29,
+"avg1": 119.92,
+"avg7": 103.46,
+"avg30": 120.17,
+"avg-foil": 76.37,
+"low-foil": 50,
+"trend-foil": 91.12,
+"avg1-foil": 135,
+"avg7-foil": 71.34,
+"avg30-foil": 69.87
+},
+{
+"idProduct": 755566,
+"idCategory": 1629,
+"avg": 0.39,
+"low": 0.02,
+"trend": 0.31,
+"avg1": 0.2,
+"avg7": 0.33,
+"avg30": 0.3,
+"avg-foil": 0.21,
+"low-foil": 0.09,
+"trend-foil": 0.64,
+"avg1-foil": 0.89,
+"avg7-foil": 0.44,
+"avg30-foil": 0.42
+},
+{
+"idProduct": 814035,
+"idCategory": 1629,
+"avg": 0.07,
+"low": 0.02,
+"trend": 0.09,
+"avg1": 0.14,
+"avg7": 0.06,
+"avg30": 0.08,
+"avg-foil": 0.68,
+"low-foil": 0.05,
+"trend-foil": 0.53,
+"avg1-foil": 1,
+"avg7-foil": 0.46,
+"avg30-foil": 0.42
+}
+]
+}

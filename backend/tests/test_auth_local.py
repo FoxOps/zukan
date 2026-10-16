@@ -213,7 +213,9 @@ async def test_games_metadata(client, session):
     await make_user(session)
     headers = await bearer(client, "alice")
     games = {g["id"]: g for g in (await client.get("/api/games", headers=headers)).json()}
-    assert set(games) == {"mtg", "pokemon", "sorcery", "riftbound"}
+    assert set(games) == {"mtg", "pokemon", "sorcery", "riftbound", "yugioh", "lorcana"}
+    assert [r["code"] for r in games["lorcana"]["rarities"]][:3] == ["common", "uncommon", "rare"]
+    assert games["yugioh"]["finishes"][1] == {"code": "first", "name": "1st Edition"}
     assert [c["code"] for c in games["mtg"]["colors"]][:5] == ["W", "U", "B", "R", "G"]
     assert games["sorcery"]["has_prices"] is True
     # tcgcsv prices Sorcery and Riftbound on TCGplayer.

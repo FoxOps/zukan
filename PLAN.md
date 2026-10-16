@@ -100,6 +100,8 @@ Standard OpenID Connect only, so Keycloak, Authentik, Authelia, Zitadel, Google 
 - **Sorcery**: `GET /api/cards` (30 req/min, one call is enough), printings with finishes Standard/Foil/Rainbow; images from public image folder; English only; no prices (manual).
 - **Riftbound** (since 0.9.0): Riot content API (approved key) or Riftcodex, plus Riot's card gallery (newest set, Simplified Chinese); Cardmarket game 22 and TCGplayer (tcgcsv) prices.
 - **Gap sources** (since 0.9.0, `app/sources/`): tcgcsv, tcg-api.eu, apitcg fill what the game's own sources lack, for every game they cover.
+- **Yu-Gi-Oh!** (since 0.10.0): YGOPRODeck (TCG cards, sets, printings per code + rarity, EU names, TCGplayer prices), YGOJSON (Asian names, OCG sets), Konami database (newer cards, budgeted); Cardmarket game 3.
+- **Lorcana** (since 0.10.0): LorcanaJSON (en/fr/de/it, Cardmarket + TCGplayer ids); Cardmarket game 19, TCGplayer via tcgcsv 71.
 
 ## OCR identification (`services/identify.py`, `POST /scan/identify`)
 Phone sends OCR text lines + bounding boxes + chosen game (or auto). Server:
@@ -972,6 +974,98 @@ Progress:
     footer; internal attributes (`finishes_guessed`, `finishes_confirmed`, `domains`) hidden.
 - [ ] User: a Riot product key for Riftbound (developer portal application), then check the
   Riot path; keys for tcg-api.eu / apitcg in `.env` on deployments.
+
+
+## Backlog 2026-10-16 #2 (server 0.10.0, Android 0.8.0)
+Branch `2026-10-16-001-ygo-lorcana-rarity-icons`. User list: rarity pictograms for every
+game (Cardmarket's or other sources) next to the rarity text; Riftbound landscape pictures
+turned to fit; own Riftbound colorless symbol; Catalog list view (images stay default);
+"Name (Translation)" for every non-Latin script, not only Japanese; new games Yu-Gi-Oh!
+(YGOPRODeck, Konami database) and Lorcana (best of lorcana-api.com, api-lorcana.com,
+Lorcast, LorcanaJSON); Android on par with the server (games, visual cues); `.env.example`
+up to date. API keys given for tests: environment only, never committed.
+
+Decisions (Q&A 2026-10-16):
+- Rarity pictograms: Cardmarket's inline SVGs (product lists, "Rarity" column), collected
+  once from a browser and shipped in `backend/app/games/<game>/rarities/<code>.svg`
+  (`scripts/install_rarity_icons.py`); own SVG only where Cardmarket has none. Cloudflare
+  refuses scripted requests (403) and rate-limits browsers hard (429 after ~3 pages, blocks
+  of 10+ minutes): pages were opened one at a time, minutes apart.
+- Yu-Gi-Oh!: YGOPRODeck main; YGOJSON (MIT, frozen 2026-04) for translations and OCG sets;
+  Konami database (scraping agreed: the publisher's own data) only for newer cards,
+  budgeted. Printing = set code + rarity; finishes = editions (Unlimited / 1st / Limited).
+- Rotation: Riftbound only (printing attribute `orientation`).
+- Lorcana: LorcanaJSON (official Ravensburger data in 4 languages with Cardmarket and
+  TCGplayer ids; Lorcast is English only, the others have less). No Japanese/Chinese data
+  anywhere yet.
+
+Probed (2026-10-16): YGOPRODeck `cardinfo.php` 21 MB, 14 615 cards, 44 667 TCG printings,
+142 set codes reused by several sets (tins) → sets keyed on their name (migration widens
+`card_set.external_id` to 128, `printing.rarity` to 64, rarities up to 39 characters);
+YGOJSON `individual.zip` 57 MB, read entry by entry (3.4 s, 146 MB peak), 2080 OCG sets /
+82 878 printings; Konami card pages give the Japanese/Korean name and every pack line
+(date, `YAC1-JP071`, pack, rarity code). Cardmarket Yu-Gi-Oh! = game 3 (87 390 products,
+no numbers), Lorcana = 19; tcgcsv Yu-Gi-Oh! 2, Lorcana 71.
+Translation gaps (test service DB): 2 387 Japanese and 1 131 Simplified Chinese Pokémon
+cards without any Latin name: Trainers/Energies (no source pairs them with English names),
+regional / Mega / Radiant forms, owner forms ("ナツメのゴース"), fan names in old TCGdex
+Japanese listings.
+
+Progress:
+- [x] Display: any name shown in a non-Latin script gets its Latin translation, whatever
+  chose it (UI language zh/ja/ko on a Latin card, Riftbound Simplified Chinese).
+- [x] Pokémon names: form words derived to English (Galarian/Alolan/Hisuian/Paldean, Mega
+  X/Y ex, Radiant, Shining, Dark, Single/Rapid Strike, δ), species found without dex id;
+  after every catalog sync (any game) a card without Latin name copies those of the only
+  card of the same category sharing one of its names (zh-hans ↔ zh-hant via opencc), report
+  `translations`. Owner forms and Trainers without a paired card stay untranslated.
+- [x] Riftbound: `orientation` on `PrintingOut` / `CardSummaryOut` / `ItemOut`, web
+  `CardImage landscape` (picture turned a quarter, not cropped); colorless = gray diamond
+  SVG shipped (`ColorDef.icon_file`).
+- [x] Rarities: `RarityDef` per game (code, name, aliases of every source's spelling),
+  `rarity_of`, `GameOut.rarities` with icon links, `GET /api/games/{id}/rarities/{code}/icon`,
+  `rarity_code` on printings, summaries and items, rarity filter ordered by rarity. Web
+  `RarityBadge` (pictogram + text): card page header and printings table, collection list
+  and images, item dialog, catalog tiles and list.
+- [x] Catalog list view (`pages/catalog/`: images default, list with picture, name, version,
+  rarity, colors, price), shared `ViewToggle` / `useView` (`lib/views.tsx`) with Collection;
+  `CardSummaryOut.set` / `collector_number` of the shown printing.
+- [x] Yu-Gi-Oh! (`games/yugioh/`): colors = attributes (YGOPRODeck icons) + Spell / Trap;
+  Cardmarket matched by expansion name overlap (97 % of TCG printings, 4.5 s), several
+  rarities of a name paired in rarity order; TCGplayer from `set_price`; OCR of the set
+  code (region letters give the language, European codes stored under the English one).
+- [x] Lorcana (`games/lorcana/`): card = full name, printing = LorcanaJSON id, promos in a
+  set per promo group, variants a/b/c, finishes from foil types, symbols written out in texts
+  (⬡ Ink, ◊ Lore, ⟳ [Exert]...), OCR of the collector line.
+- [x] Android 0.8.0: rarity pictogram + text, color symbols (SVG via `coil-svg`), landscape
+  pictures turned, flip button for double-faced cards, collection price trends (24h/7d/30d);
+  games come from the server (Yu-Gi-Oh!, Lorcana need no app change).
+- [x] `.env.example`: `TCG_YUGIOH_LANGUAGES`, `TCG_YUGIOH_KONAMI_DAILY_REQUESTS`, source notes.
+- [x] Rarity pictograms: Cardmarket's for Lorcana (8) and Riftbound (5); Cloudflare then
+  blocked this address for hours, so the others are drawn for Zukan
+  (`scripts/draw_rarity_icons.py`, only where no file exists): Pokémon's printed shapes
+  (● ◆ ★, black / silver / gold, one to three stars), colored gems per tier for MTG, Sorcery,
+  Yu-Gi-Oh!, Lorcana Special and Riftbound Promo; dark shapes have a light outline for the
+  dark theme. Collecting Cardmarket's later: `install_rarity_icons.py` overwrites them.
+- [x] Gap sources: a code's several rarities pair by rarity (`rarity_in_printing` for
+  Yu-Gi-Oh!), rarity spellings of one game rarity are no difference ("Short Print" = Common),
+  TCGplayer editions map to Yu-Gi-Oh! finishes; Yu-Gi-Oh! texts not compared (errata).
+- [x] Web: card page keeps its picture column when the price stats are wide; Yu-Gi-Oh!
+  `konami_id` / `frame` hidden; French texts of the new games (383 texts).
+- [x] Tests: 161 backend, web build / lint / i18n, Android 32 unit tests + lint + debug APK,
+  migration on a fresh database + `alembic check`.
+- [x] Live check (2026-10-16, fresh database `zukan_live`, CLI jobs, API on port 8011):
+  - Lorcana: 20 s, 28 sets / 2785 cards / 3556 printings, 5893 Cardmarket prices; tcgcsv
+    differences 57 → 18 after writing symbols out (left: TCGplayer typos, "Quest" rarity).
+  - Yu-Gi-Oh!: 6–9 min, 2577 sets (1036 TCG, 885 ja, 518 ko, 120 zh-hans, 18 zh-hant) /
+    14 869 cards / 124 625 printings / 84 995 prices (Cardmarket + TCGplayer); Konami pages
+    added newer packs (LPST-JP / LPST-KR); 1420 pages wanted at first (≈5 days at 300 a day).
+    tcgcsv differences 11 045 → 1 045 (texts no longer compared, rarity pairing).
+  - Riftbound: battlefields upright in the frame, colorless diamond; browser: Lorcana catalog
+    images + list views with rarity pictograms, Dark Magician page (10 languages, OCG sets).
+- [ ] User: Chinese UI check on real Pokémon data after the next catalog sync (translations
+  copied are counted in the job report); Cardmarket pictograms for Pokémon, MTG, Sorcery,
+  Yu-Gi-Oh! if wanted (browser, a page every few minutes).
 
 
 ## Build phases

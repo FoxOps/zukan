@@ -128,4 +128,6 @@
     <string name="card_of_other_game_help">Elle appartient à un autre jeu que celui choisi en haut.</string>
     <string name="switch_game">Changer</string>
     <string name="error_identify">La carte n’a pas pu être identifiée</string>
+    <string name="show_back">Voir le dos</string>
+    <string name="show_front">Voir le recto</string>
 </resources>

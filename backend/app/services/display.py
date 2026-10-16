@@ -7,8 +7,10 @@ Non-Latin cards (every printing in a non-Latin set, see `scripts`):
   image language: UI language if non-Latin > set language > first available non-Latin
   language > English > first available language;
   name: "Name (Translation)", the name in the UI language if non-Latin > set language >
-  first available non-Latin language, the translation in the UI language if Latin >
-  English > first available Latin language.
+  first available non-Latin language.
+Any name shown in a non-Latin script (a non-Latin card, or a non-Latin UI language on a
+Latin card) carries a translation: the name in the UI language if Latin > English > first
+available Latin language (dropped when missing or identical).
 The language comes first, then the printing having an image in it: latest set, else
 first, else any (undated sets last). No image at all: a placeholder (None).
 """
@@ -84,13 +86,16 @@ def pick_name(
     langs = ordered(names)
     latin_langs = [lang for lang in langs if is_latin(lang)]
     non_latin = [lang for lang in langs if not is_latin(lang)]
+    lang = None
     if not latin:
-        own = _first([None if is_latin(ui_lang) else ui_lang, set_lang, *non_latin], non_latin)
-        if own is not None:
-            other = _first(
-                [ui_lang if is_latin(ui_lang) else None, "en", *latin_langs], latin_langs
-            )
-            translation = names[other] if other else None
-            return ShownName(names[own], translation if translation != names[own] else None)
-    lang = _first([ui_lang, "en", *langs], langs)
-    return ShownName(names[lang] if lang else default)
+        lang = _first([None if is_latin(ui_lang) else ui_lang, set_lang, *non_latin], non_latin)
+    if lang is None:
+        lang = _first([ui_lang, "en", *langs], langs)
+    if lang is None:
+        return ShownName(default)
+    if is_latin(lang):
+        return ShownName(names[lang])
+    # Every name in a non-Latin script gets its Latin translation, whatever chose it.
+    other = _first([ui_lang if is_latin(ui_lang) else None, "en", *latin_langs], latin_langs)
+    translation = names[other] if other else None
+    return ShownName(names[lang], translation if translation != names[lang] else None)

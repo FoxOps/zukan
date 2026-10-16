@@ -176,7 +176,7 @@ private fun ItemRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        AsyncImage(model = imageUrl(item.image), contentDescription = null, imageLoader = imageLoader, modifier = Modifier.width(44.dp).aspectRatio(63f / 88f))
+        CardPicture(item.image, imageUrl, imageLoader, Modifier.width(44.dp), landscape = item.orientation == "landscape")
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(shownName(item.name, item.translation), style = MaterialTheme.typography.titleSmall, maxLines = 1)
             Text(
@@ -188,7 +188,10 @@ private fun ItemRow(
                 FinishBadge(game, item.finish)
                 ConditionBadge(item.condition)
                 LangFlag(item.language)
+                ColorSymbols(game, item.colors, imageUrl, imageLoader, size = 14)
+                RarityBadge(game, item.rarity, item.rarityCode, imageUrl, imageLoader)
             }
+            TrendIcons(item.trends)
         }
         Column(horizontalAlignment = Alignment.End) {
             Row(verticalAlignment = Alignment.CenterVertically) {

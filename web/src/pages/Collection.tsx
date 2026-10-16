@@ -11,18 +11,11 @@ import { Pagination } from '../components/Pagination'
 import { Select } from '../components/Select'
 import { CONDITIONS, finishName, formatMoney, languageName } from '../lib/format'
 import { useUrlState } from '../lib/hooks'
+import { ViewToggle } from '../components/ViewToggle'
+import { useView } from '../lib/views'
 import { COLLECTION_VIEWS } from './collection/views'
 
 type Item = Schemas['ItemOut']
-const VIEW_KEY = 'tcg.collectionView'
-
-function savedView(): string | null {
-  try {
-    return localStorage.getItem(VIEW_KEY)
-  } catch {
-    return null
-  }
-}
 const PAGE_SIZE = 50
 const SORTS = {
   name: 'Name',
@@ -41,17 +34,8 @@ export default function Collection() {
   const { data: games = [] } = useGames()
   const adjust = useAdjust()
   const [editing, setEditing] = useState<Item | null>(null)
-  // View in the URL, else the last one used on this browser, else the first.
-  const view = COLLECTION_VIEWS.find((v) => v.id === (url.get('view') || savedView())) ?? COLLECTION_VIEWS[0]
+  const [view, chooseView] = useView(COLLECTION_VIEWS, 'tcg.collectionView')
   const View = view.component
-  const chooseView = (id: string) => {
-    try {
-      localStorage.setItem(VIEW_KEY, id)
-    } catch {
-      // Storage refused: the URL still keeps it.
-    }
-    url.set({ view: id }, false)
-  }
   const filters = {
     game: game || undefined,
     q: url.get('q') || undefined,
@@ -156,19 +140,7 @@ export default function Collection() {
               {t('{{count}} items', { count: items.data.total })} · {t('this page {{value}}', { value: pageValue })}
               {items.isPlaceholderData && <span className="loading loading-spinner loading-xs" aria-label={t('Loading')} />}
             </div>
-            <div className="join" role="group" aria-label={t('View')}>
-              {COLLECTION_VIEWS.map((v) => (
-                <button
-                  key={v.id}
-                  className={`btn join-item btn-sm ${v.id === view.id ? 'btn-active' : ''}`}
-                  aria-pressed={v.id === view.id}
-                  onClick={() => chooseView(v.id)}
-                >
-                  {v.icon}
-                  {t(v.label)}
-                </button>
-              ))}
-            </div>
+            <ViewToggle views={COLLECTION_VIEWS} value={view.id} onChange={chooseView} />
           </div>
           <View items={items.data.items} games={games} showGame={!game} busy={adjust.isPending} step={step} edit={setEditing} />
           <div className="flex justify-center">
