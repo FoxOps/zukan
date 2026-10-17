@@ -5,6 +5,8 @@ export const HIDDEN = new Set([
   'finishes_guessed', 'finishes_confirmed', 'domains',
   // Yu-Gi-Oh! ids and frame (shown by the card type).
   'konami_id', 'frame',
+  // Codes printed per language (shown next to the collector number).
+  'numbers',
 ])
 
 export function hasVisibleAttributes(data: Record<string, unknown>): boolean {

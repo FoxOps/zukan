@@ -18,10 +18,11 @@ from app.games.base import (
     CatalogBatch,
     GameProvider,
     PrintingData,
+    PrintingMove,
     SetData,
     catalog_version,
 )
-from app.models import Card, CardName, CardSet, Game, Printing
+from app.models import Card, CardName, CardSet, CollectionItem, Game, Printing, StockTransaction
 from app.services import prices, translations
 
 
@@ -38,6 +39,8 @@ class SyncReport:
     pruned_sets: int = 0
     # Latin names copied from a card sharing a non-Latin name (`translations`).
     translations: int = 0
+    # Printings stored under other ids before, owned copies carried over (`moved`).
+    moved: int = 0
     catalog_version: int = 1
 
 
@@ -198,6 +201,73 @@ class CatalogWriter:
             self.report.prices += await prices.store_quotes(
                 self.session, batch.prices, prices.today(), ids
             )
+        if batch.moved:
+            await self._move_printings(batch.moved)
+
+    async def _printing_ids(self, keys: Sequence[tuple[str, str]]) -> dict[tuple[str, str], int]:
+        rows = await self.session.execute(
+            select(Printing.id, CardSet.external_id, Printing.external_id)
+            .join(CardSet)
+            .where(
+                CardSet.game_id == self.game_id,
+                tuple_(CardSet.external_id, Printing.external_id).in_(keys),
+            )
+        )
+        return {(set_ext, ext): pid for pid, set_ext, ext in rows}
+
+    async def _move_printings(self, moves: list[PrintingMove]) -> None:
+        """Carry owned copies of printings stored under old ids over to their new
+        printing, then delete the old printings (names and prices go with them)."""
+        for chunk in _chunks(moves):
+            old = await self._printing_ids(
+                [(m.set_external_id, m.printing_external_id) for m in chunk]
+            )
+            if not old:
+                continue
+            new = await self._printing_ids(
+                [(m.to_set_external_id, m.to_printing_external_id) for m in chunk]
+            )
+            gone: list[int] = []
+            for m in chunk:
+                from_id = old.get((m.set_external_id, m.printing_external_id))
+                to_id = new.get((m.to_set_external_id, m.to_printing_external_id))
+                if from_id is None or to_id is None or from_id == to_id:
+                    continue
+                await self._move_items(from_id, to_id)
+                gone.append(from_id)
+            if gone:
+                await self.session.execute(delete(Printing).where(Printing.id.in_(gone)))
+                self.report.moved += len(gone)
+
+    async def _move_items(self, from_id: int, to_id: int) -> None:
+        items = await self.session.scalars(
+            select(CollectionItem).where(CollectionItem.printing_id == from_id)
+        )
+        for item in items:
+            same = await self.session.scalar(
+                select(CollectionItem).where(
+                    CollectionItem.user_id == item.user_id,
+                    CollectionItem.printing_id == to_id,
+                    CollectionItem.finish == item.finish,
+                    CollectionItem.condition == item.condition,
+                    CollectionItem.language == item.language,
+                )
+            )
+            if same is None:
+                item.printing_id = to_id
+                continue
+            # The user already has that copy on the new printing: one line, its history
+            # kept.
+            same.quantity += item.quantity
+            same.manual_price = same.manual_price or item.manual_price
+            same.notes = same.notes or item.notes
+            await self.session.execute(
+                update(StockTransaction)
+                .where(StockTransaction.item_id == item.id)
+                .values(item_id=same.id)
+            )
+            await self.session.delete(item)
+        await self.session.flush()
 
     async def _upsert_sets(self, sets: list[SetData]) -> None:
         unique = list({s.external_id: s for s in sets}.values())

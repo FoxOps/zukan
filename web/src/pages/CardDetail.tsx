@@ -93,6 +93,12 @@ function sortPrintings(printings: PrintingOut[], sort: PrintingSort, source: str
   return fn ? [...printings].sort(fn) : printings
 }
 
+/** Codes printed on the printing's other languages ("BETB-KR024" under "BETB-EN024"). */
+function regionNumbers(p: PrintingOut): Record<string, string> {
+  const numbers = p.attributes.numbers
+  return numbers && typeof numbers === 'object' ? (numbers as Record<string, string>) : {}
+}
+
 export default function CardDetail() {
   const { t } = useTranslation()
   const { cardId, printingId } = useParams()
@@ -191,7 +197,9 @@ export default function CardDetail() {
   const printings = sortPrintings(
     words.length
       ? c.printings.filter((p) => {
-          const text = normalize(`${p.set.name} ${p.set.code} ${p.collector_number ?? ''} ${p.set.release_date?.slice(0, 4) ?? ''}`)
+          const text = normalize(
+            `${p.set.name} ${p.set.code} ${p.collector_number ?? ''} ${Object.values(regionNumbers(p)).join(' ')} ${p.set.release_date?.slice(0, 4) ?? ''}`,
+          )
           return words.every((w) => text.includes(w))
         })
       : c.printings,
@@ -428,7 +436,15 @@ export default function CardDetail() {
                       )}
                     </div>
                   </td>
-                  <td>{p.collector_number}</td>
+                  <td>
+                    {p.collector_number}
+                    {Object.entries(regionNumbers(p)).map(([lang, number]) => (
+                      <div key={lang} className="flex items-center gap-1 text-xs text-base-content/60">
+                        <LangFlag lang={lang} className="h-3" />
+                        {number}
+                      </div>
+                    ))}
+                  </td>
                   <td><RarityBadge game={game} rarity={p.rarity} code={p.rarity_code} /></td>
                   <td>
                     <div className="flex flex-wrap gap-1">

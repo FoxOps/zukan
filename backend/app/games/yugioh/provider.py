@@ -38,6 +38,7 @@ from app.games.base import (
     PriceQuote,
     PriceTarget,
     PrintingData,
+    PrintingMove,
     SetData,
 )
 from app.games.ocr import by_position, clean, has_cjk, letter_ratio, script_language
@@ -46,7 +47,10 @@ from app.games.yugioh.codes import (
     ASIAN_REGIONS,
     CODE,
     REGIONS,
+    base_code,
+    number_key,
     prefix_of,
+    rarity_key,
     tag,
 )
 from app.games.yugioh.konami import Page
@@ -69,6 +73,8 @@ GUESSED_FINISHES = ["first", "unlimited"]
 CATALOG_TTL = 3600
 _cached: tuple[float, CatalogBatch] | None = None
 
+# Languages of TCG printings sold on Cardmarket and TCGplayer.
+TCG_LANGS = {"en", "fr", "de", "it", "pt", "es"}
 _PASSWORD = re.compile(r"^\s*([0-9]{8})\s*$")
 
 
@@ -133,6 +139,87 @@ def _ocg_colors(attributes: dict[str, Any]) -> list[str]:
     return [attribute] if attribute else []
 
 
+def tcg_name(name: str) -> str:
+    return f"{name} (TCG)"
+
+
+def ocg_name(name: str) -> str:
+    return f"{name} (OCG)"
+
+
+class _Placer:
+    """Puts Korean and Chinese printings (YGOJSON, Konami) in the TCG set of their code:
+    "BETB-KR024" is a language of "BETB-EN024" when it is the same card and rarity, else a
+    printing of its own in that set. Codes no TCG set has keep a set of their own.
+    Japanese printings make the OCG sets."""
+
+    def __init__(
+        self, cards: dict[str, CardData], sets: dict[str, SetData], taken: set[tuple[str, str]]
+    ):
+        self.sets = sets
+        self.taken = taken
+        self.moved: list[PrintingMove] = []
+        # TCG printings by code without region, with their card.
+        self.by_number: dict[str, list[tuple[CardData, PrintingData]]] = {}
+        # TCG sets by code ("BETB").
+        self.by_code: dict[str, list[str]] = {}
+        self.added: dict[tuple[str, str], PrintingData] = {}
+        for s in sets.values():
+            self.by_code.setdefault(s.code.upper(), []).append(s.external_id)
+        for card in cards.values():
+            for printing in card.printings:
+                if printing.collector_number:
+                    key = number_key(printing.collector_number)
+                    self.by_number.setdefault(key, []).append((card, printing))
+
+    def place(
+        self,
+        card: CardData,
+        old_set: str,
+        number: str,
+        rarity: str | None,
+        lang: str,
+        finishes: list[str],
+        image: str | None,
+    ) -> bool:
+        """Add an Asian printing (stored in `old_set` before) to its TCG set. False when
+        no TCG set has its code."""
+        old_id = f"{number}~{tag(rarity)}"
+        same_card = [(c, p) for c, p in self.by_number.get(number_key(number), []) if c is card]
+        match = next((p for _, p in same_card if rarity_key(p.rarity) == rarity_key(rarity)), None)
+        if match is None:
+            if same_card:
+                target = same_card[0][1].set_external_id
+            elif len(found := self.by_code.get(base_code(number), [])) == 1:
+                target = found[0]
+            else:
+                return False
+            match = self.added.get((target, old_id))
+            if match is None:
+                match = self.added[(target, old_id)] = PrintingData(
+                    external_id=old_id,
+                    set_external_id=target,
+                    collector_number=number,
+                    rarity=rarity,
+                    finishes=[],
+                    languages=[],
+                    attributes={},
+                )
+                self.taken.add((target, old_id))
+                card.printings.append(match)
+        if lang not in match.languages:
+            match.languages.append(lang)
+        match.finishes.extend(f for f in finishes if f not in match.finishes)
+        if image:
+            match.images.setdefault(lang, image)
+        match.attributes.setdefault("numbers", {})[lang] = number
+        if (match.set_external_id, match.external_id) != (old_set, old_id):
+            self.moved.append(
+                PrintingMove(old_set, old_id, match.set_external_id, match.external_id)
+            )
+        return True
+
+
 def build_catalog(
     raw_cards: list[dict[str, Any]],
     raw_sets: list[dict[str, Any]],
@@ -142,7 +229,12 @@ def build_catalog(
     languages: list[str] = DEFAULT_LANGUAGES,
 ) -> CatalogBatch:
     """Catalog from YGOPRODeck cards and sets, names by language, YGOJSON and Konami
-    pages (by Konami id and locale)."""
+    pages (by Konami id and locale).
+
+    TCG sets ("Burst of Destiny (TCG)") hold every language printed with their code:
+    European (YGOPRODeck, YGOJSON), Korean and Chinese (YGOJSON, Konami). Japanese sets
+    are the OCG ones ("バースト・オブ・デスティニー (OCG)"). Sets stay keyed on their
+    YGOPRODeck name / Asian code prefix."""
     translations = translations or {}
     pages = pages or {}
     wanted = set(languages)
@@ -152,7 +244,7 @@ def build_catalog(
         sets[name] = SetData(
             external_id=name,
             code=raw.get("set_code") or name,
-            name=name,
+            name=tcg_name(name),
             lang="en",
             release_date=_date(raw.get("tcg_date")),
             total=raw.get("num_of_cards"),
@@ -184,7 +276,8 @@ def build_catalog(
             if not set_name or not number:
                 continue
             if set_name not in sets:
-                sets[set_name] = SetData(set_name, prefix_of(number).split("-")[0], set_name, "en")
+                code = prefix_of(number).split("-")[0]
+                sets[set_name] = SetData(set_name, code, tcg_name(set_name), "en")
             rarity = clean_rarity(entry.get("set_rarity"))
             external_id = f"{number}~{tag(rarity)}"
             if external_id in seen:
@@ -222,10 +315,16 @@ def build_catalog(
         cards[card.external_id] = card
         by_password[password] = card
 
+    placer = _Placer(cards, sets, taken)
     if yj is not None:
-        _add_ygojson(yj, cards, by_password, sets, wanted, taken)
-    _add_konami(pages, cards, sets, wanted, taken)
-    return CatalogBatch(sets=list(sets.values()), cards=list(cards.values()), prices=quotes)
+        _add_ygojson(yj, cards, by_password, sets, wanted, taken, placer)
+    _add_konami(pages, cards, sets, wanted, taken, placer)
+    return CatalogBatch(
+        sets=list(sets.values()),
+        cards=list(cards.values()),
+        prices=quotes,
+        moved=placer.moved,
+    )
 
 
 def _add_ygojson(
@@ -235,6 +334,7 @@ def _add_ygojson(
     sets: dict[str, SetData],
     wanted: set[str],
     taken: set[tuple[str, str]],
+    placer: _Placer,
 ) -> None:
     by_uuid: dict[str, CardData] = {}
     for yc in yj.cards.values():
@@ -247,10 +347,8 @@ def _add_ygojson(
     for ys in yj.sets:
         if ys.lang not in wanted:
             continue
-        sets.setdefault(
-            ys.external_id,
-            SetData(ys.external_id, ys.external_id, ys.name, ys.lang, ys.release_date),
-        )
+        name = ocg_name(ys.name) if ys.lang == "ja" else tcg_name(ys.name)
+        own_set = SetData(ys.external_id, ys.external_id, name, ys.lang, ys.release_date)
         for yp in ys.printings:
             # Codes not known yet when YGOJSON read them ("DDS2-JP0??").
             if "?" in yp.number:
@@ -271,10 +369,15 @@ def _add_ygojson(
                     attributes=yc.attributes,
                     names=names,
                 )
+            if ys.lang != "ja" and placer.place(
+                card, ys.external_id, yp.number, yp.rarity, ys.lang, yp.finishes, yp.image
+            ):
+                continue
             external_id = f"{yp.number}~{tag(yp.rarity)}"
             if (ys.external_id, external_id) in taken:
                 continue
             taken.add((ys.external_id, external_id))
+            sets.setdefault(ys.external_id, own_set)
             card.printings.append(
                 PrintingData(
                     external_id=external_id,
@@ -294,6 +397,7 @@ def _add_konami(
     sets: dict[str, SetData],
     wanted: set[str],
     taken: set[tuple[str, str]],
+    placer: _Placer,
 ) -> None:
     by_konami = {
         c.attributes["konami_id"]: c for c in cards.values() if "konami_id" in c.attributes
@@ -314,15 +418,24 @@ def _add_konami(
                 if REGIONS[match.group(2)] != lang:
                     continue
                 prefix = prefix_of(pack.number)
-                if prefix not in sets:
-                    sets[prefix] = SetData(
-                        prefix, prefix, pack.name or prefix, lang, _date(pack.released)
-                    )
                 rarity = KONAMI_CODES.get(pack.rarity or "", pack.rarity)
+                if lang != "ja" and placer.place(
+                    card, prefix, pack.number, rarity, lang, ["unlimited"], None
+                ):
+                    continue
                 external_id = f"{pack.number}~{tag(rarity)}"
                 if (prefix, external_id) in taken:
                     continue
                 taken.add((prefix, external_id))
+                if prefix not in sets:
+                    name = pack.name or prefix
+                    sets[prefix] = SetData(
+                        prefix,
+                        prefix,
+                        ocg_name(name) if lang == "ja" else tcg_name(name),
+                        lang,
+                        _date(pack.released),
+                    )
                 card.printings.append(
                     PrintingData(
                         external_id=external_id,
@@ -394,6 +507,8 @@ class YugiohProvider:
         FilterDef("rarity", "Rarity"),
     ]
     cardmarket_path = "YuGiOh"
+    # 2: TCG / OCG sets, Korean and Chinese printings in the TCG sets.
+    catalog_version = 2
     short_names = ["yugioh", "ygo", "yu-gi-oh"]
     legal_notice = LEGAL_NOTICE
     # No `text_attribute`: printings carry the text of their time (errata, "Graveyard"
@@ -444,7 +559,11 @@ class YugiohProvider:
                 CardData(
                     c.external_id,
                     c.name,
-                    printings=[p for p in c.printings if p.set_external_id in tcg_sets],
+                    printings=[
+                        p
+                        for p in c.printings
+                        if p.set_external_id in tcg_sets and not TCG_LANGS.isdisjoint(p.languages)
+                    ],
                 )
                 for c in catalog.cards
             ]
@@ -480,6 +599,20 @@ class YugiohProvider:
     def image_file_stems(self, printing: Printing) -> list[str]:
         return []
 
+    def code_lookup(self, text: str) -> tuple[list[str], list[str]] | None:
+        """Set codes and stored collector numbers of a printed code: European, Korean and
+        Chinese printings are languages of the TCG printing ("BETB-FR024", "BETB-KR024" ->
+        "BETB-EN024"), or their own printing in that set or in a set of their own."""
+        printed = text.strip().upper()
+        match = CODE.fullmatch(printed)
+        if not match:
+            return None
+        code, region, digits = match.group(1), match.group(2) or "", match.group(3)
+        if region == "JP":
+            return [f"{code}-JP"], [printed]
+        numbers = [f"{code}-EN{digits}", f"{code}-E{digits}", f"{code}-{digits}", printed]
+        return [code, f"{code}-{region}"], list(dict.fromkeys(numbers))
+
     def parse_ocr(self, lines: list[OcrLine]) -> OcrHints:
         ordered = by_position([OcrLine(clean(line.text), line.left, line.top) for line in lines])
         text = " ".join(line.text for line in ordered)
@@ -491,7 +624,9 @@ class YugiohProvider:
                 code, region, digits = match.group(1), match.group(2) or "", match.group(3)
                 lang = REGIONS.get(region)
                 if region in ASIAN_REGIONS:
-                    set_code, number = f"{code}-{region}", f"{code}-{region}{digits}"
+                    # Japanese: OCG sets; Korean and Chinese: found by `code_lookup`.
+                    base = f"{code}-{region}" if region == "JP" else code
+                    set_code, number = base, f"{code}-{region}{digits}"
                 else:
                     # European printings are stored under their English code ("FR" ->
                     # "EN", old one-letter codes "F" -> "E").

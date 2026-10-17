@@ -149,6 +149,17 @@ class PriceQuote:
     source: str = field(default="cardmarket", kw_only=True)
 
 
+@dataclass(frozen=True)
+class PrintingMove:
+    """A printing stored under other ids before (its set or id changed): collection items
+    move to the new printing, then the old one is deleted."""
+
+    set_external_id: str
+    printing_external_id: str
+    to_set_external_id: str
+    to_printing_external_id: str
+
+
 @dataclass
 class CatalogBatch:
     """A chunk of catalog data. Sets referenced by printings must be in this batch or an
@@ -157,6 +168,8 @@ class CatalogBatch:
     sets: list[SetData] = field(default_factory=list)
     cards: list[CardData] = field(default_factory=list)
     prices: list[PriceQuote] = field(default_factory=list)
+    # Printings of this batch that had other ids in earlier syncs.
+    moved: list[PrintingMove] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
