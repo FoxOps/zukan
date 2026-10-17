@@ -63,7 +63,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid items-start gap-6 lg:grid-cols-2">
         <ValueByGame value={value.data} gameName={gameName} />
         <TopCards />
         <Movers />

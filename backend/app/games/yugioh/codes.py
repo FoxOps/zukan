@@ -19,11 +19,12 @@ REGIONS = {
     "S": "es",
     "JP": "ja",
     "KR": "ko",
+    "K": "ko",
     "SC": "zh-hans",
     "TC": "zh-hant",
     "AE": "en",
 }
-ASIAN_REGIONS = {"JP", "KR", "SC", "TC"}
+ASIAN_REGIONS = {"JP", "KR", "K", "SC", "TC"}
 
 
 def tag(rarity: str | None) -> str:

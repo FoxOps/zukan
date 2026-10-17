@@ -201,6 +201,20 @@ async def test_konami_unreachable_stops_and_reports_progress(session, tmp_path, 
     assert await session.scalar(used) == before
 
 
+def test_sets_ygojson_lacks_get_every_european_language(tmp_path):
+    yj = parsed_ygojson(tmp_path)
+    batch = yugioh.build_catalog(DATA["cards"], DATA["sets"], {}, yj, {})
+    sets = {s.external_id: s for s in batch.sets}
+    tcg = [p for c in batch.cards for p in c.printings if sets[p.set_external_id].lang == "en"]
+    unknown = [p for p in tcg if not yj.knows_set(p.collector_number)]
+    assert unknown and all(
+        p.languages == yugioh.EUROPEAN_LANGS and p.attributes["languages_guessed"] for p in unknown
+    )
+    # A set YGOJSON lists in English only stays English.
+    ys15 = next(p for p in tcg if p.collector_number == "YS15-ENL22")
+    assert ys15.languages == ["en"] and "languages_guessed" not in ys15.attributes
+
+
 def test_korean_printings_join_the_tcg_set(tmp_path):
     names = {"fr": {int(k): v for k, v in DATA["names_fr"].items()}}
     batch = yugioh.build_catalog(
@@ -313,6 +327,8 @@ def test_codes_without_region():
     assert codes.number_key("SDK-E001") == "SDK-001"
     assert codes.number_key("YS15-ENL22") == "YS15-L22"
     assert codes.region_of("BETB-KR024") == "KR" and codes.base_code("BETB-KR024") == "BETB"
+    # Old Korean codes: one letter.
+    assert codes.number_key("MRD-K001") == codes.number_key("MRD-E001") == "MRD-001"
     assert codes.rarity_key("PLatinum Secret Rare") == codes.rarity_key("platinumsecret")
     assert codes.rarity_key("Rare") == "rare" and codes.rarity_key("Starlight Rare") == "starlight"
 

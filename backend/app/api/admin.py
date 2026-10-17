@@ -5,6 +5,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select, update
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import selectinload
 
 from app.api import games
@@ -122,7 +123,7 @@ async def overview(_: AdminUser, session: SessionDep) -> OverviewOut:
     """Data sync at a glance: latest run of each job per game, quotas used this period."""
     latest = (
         select(SyncRun)
-        .distinct(SyncRun.game_id, SyncRun.kind)
+        .ext(distinct_on(SyncRun.game_id, SyncRun.kind))
         .order_by(SyncRun.game_id, SyncRun.kind, SyncRun.started_at.desc())
     )
     runs: dict[str, list[LastRunOut]] = {game_id: [] for game_id in registry()}

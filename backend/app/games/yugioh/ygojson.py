@@ -19,7 +19,7 @@ from typing import Any
 import httpx
 
 from app.core.progress import progress
-from app.games.yugioh.codes import number_key, rarity_key
+from app.games.yugioh.codes import base_code, number_key, rarity_key
 from app.games.yugioh.rarities import slug_name
 
 URL = "https://github.com/iconmaster5326/YGOJSON/releases/download/v1/individual.zip"
@@ -37,6 +37,8 @@ NAME_LANGS = {
     "zh-TW": "zh-hant",
 }
 EU_LOCALES = {"en": "en", "fr": "fr", "de": "de", "it": "it", "pt": "pt", "sp": "es"}
+# English printings of one region (North America, Europe, Oceania).
+REGION_LOCALES = {"na", "eu", "oc"}
 ASIAN_LOCALES = {"jp": "ja", "kr": "ko", "sc": "zh-hans", "tc": "zh-hant"}
 EDITIONS = {"1st": "first", "unlimited": "unlimited", "limited": "limited"}
 
@@ -78,6 +80,12 @@ class YgoJson:
     european: dict[tuple[str, str], tuple[list[str], list[str]]] = field(default_factory=dict)
     # Rarity keys of each code without region.
     european_rarities: dict[str, set[str]] = field(default_factory=dict)
+    # Set codes ("LOB") YGOJSON lists English or European printings of.
+    european_sets: set[str] = field(default_factory=set)
+
+    def knows_set(self, number: str) -> bool:
+        """Whether YGOJSON lists European printings of the set of `number`."""
+        return base_code(number) in self.european_sets
 
     def european_of(self, number: str, rarity: str | None) -> tuple[list[str], list[str]] | None:
         """Languages and finishes of a TCG printing ("LOB-EN001", "Starlight Rare"): by
@@ -133,6 +141,9 @@ def _read_set(raw: dict[str, Any], data: YgoJson) -> None:
     names = raw.get("name") or {}
     locales = raw.get("locales") or {}
     asian: dict[str, YSet] = {}
+    for loc, info in locales.items():
+        if (loc in EU_LOCALES or loc in REGION_LOCALES) and (info or {}).get("prefix"):
+            data.european_sets.add(base_code(info["prefix"]))
     for content in raw.get("contents") or []:
         finishes = [EDITIONS[e] for e in content.get("editions") or [] if e in EDITIONS]
         for loc in content.get("locales") or []:

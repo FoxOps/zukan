@@ -1068,6 +1068,84 @@ Progress:
   Yu-Gi-Oh! if wanted (browser, a page every few minutes).
 
 
+## Backlog 2026-10-17 (server 0.11.0, Android unchanged 0.8.0)
+Branch `2026-10-17-000-ygo-tcg-ocg-languages`. User list: Yu-Gi-Oh! catalog job "Stuck: no
+progress for 15 min"; languages missing on Magic and Yu-Gi-Oh! (priority); Lorcana ink,
+Sorcery colorless, Yu-Gi-Oh! Spell / Trap pictograms; trademark notices on an "À propos"
+page; a richer dashboard; Yu-Gi-Oh! TCG / OCG sets. Android: nothing.
+
+Findings:
+- Stuck job: from the worker container every Konami database request timed out in the TLS
+  handshake (30 s). Timeouts never reach the response hook that reports progress, so 30 of
+  them made the 15 minutes; failed requests also used the day's budget and were asked
+  again every run. Cause: the host goes through WireGuard (MTU 1420), Docker's bridge
+  used 1500 and Imperva's large handshake packets were lost (same request: 30 s timeout
+  on the default bridge, 200 in 1.4 s on a 1420 network).
+- Languages: no stored data was lost. Card pages opened on the newest printing with a
+  picture in the UI language, often an English-only Secret Lair / promo (≈ 6 000 Magic
+  cards, 1 500 Yu-Gi-Oh!), and the header listed that printing's names only. Yu-Gi-Oh!
+  had a real bug since 0.10.0: YGOJSON rarity slugs (starlight, platinumsecret...) never
+  equalled YGOPRODeck's names, so 2 300 printings kept English only.
+
+Decisions (Q&A 2026-10-17):
+- Magic (every game): a card shows a printing sold in several languages before a newer
+  single-language one; the header lists the card's names over every printing.
+- Yu-Gi-Oh!: one rule for every region. A TCG set ("Burst of Destiny (TCG)") holds every
+  language printed with its code: BETB-EN/FR/DE/IT/PT/SP/KR/SC/TC024 are languages of
+  BETB-EN024 when it is the same card and rarity, else their own printing in that set.
+  Japanese sets are the OCG ones, named in Japanese ("… (OCG)"). A code no TCG set has
+  (Korean-only products) keeps a set of its own, original name + " (TCG)".
+- Dashboard: value by game, most valuable cards, price movers, data sync status (admins).
+- Notices: one short line on every page + "À propos" page with each publisher's notice.
+
+Progress:
+- [x] Stuck job: `konami.fill` reports progress after every attempt, gives the budget back
+  on network errors (`RequestBudget.refund`), stops after 5 network errors in a row; YGOJSON
+  download reports progress per MB. Compose networks on `TCG_NETWORK_MTU` (default 1420).
+- [x] Yu-Gi-Oh! languages: `yugioh/codes.py` (`rarity_key`, `number_key` without region,
+  "LOB-001" = "LOB-EN001", old one-letter regions E / F / G / I / P / S / K),
+  `YgoJson.european_of` (code + rarity, or code alone when YGOJSON has one rarity).
+- [x] `display.pick_image`: multi-language printings first. `CardOut.names`: every name.
+- [x] Yu-Gi-Oh! TCG / OCG (`catalog_version` 2): `_Placer` puts Korean / Chinese printings
+  (YGOJSON, Konami) in the TCG set of their code; printing attribute `numbers` (printed
+  code per language, shown under the collector number). Generic `CatalogBatch.moved`
+  (`PrintingMove`): owned copies move to the new printing (merged with an existing line,
+  history kept), the old printing is deleted (report `moved`). Cardmarket matching skips
+  printings with no European language. Gap sources also match sets on their external id
+  (plain YGOPRODeck name).
+- [x] Printed codes of any region: provider `code_lookup` used by the catalog search
+  ("BETB-FR024", "BETB-KR024") and scan identification.
+- [x] Pictograms drawn for Zukan (`scripts/draw_color_symbols.py`): Lorcana ink hexagons,
+  Sorcery colorless (cards without element, `catalog_version` 3), Yu-Gi-Oh! Spell / Trap.
+- [x] Notices for Magic (Wizards Fan Content Policy), Pokémon, Sorcery; Riftbound data
+  credit. Web `/about` page, footer line + link on every page, sidebar link.
+- [x] Dashboard: `GET /api/collection/movers` (value change × quantity), `GET
+  /api/admin/overview` (latest run per game and kind, quotas); widgets value by game,
+  most valuable cards, movers 24h / 7d / 30d, data sync (admins).
+- [x] Yu-Gi-Oh! sets YGOJSON (frozen 2026-04) lists in no English / European locale
+  (BETB, MAMO, RA05...): their TCG printings get the six European languages, flagged
+  `languages_guessed` (hidden in the web UI). Sets YGOJSON lists in English only (North
+  America "na" locale) stay English. Set names unescaped ("Legendary 5D's Decks").
+- [x] Versions: server 0.11.0. Tests: 169 backend, web build / lint / i18n (401 texts),
+  `alembic check` (no schema change).
+- [x] Live check (2026-10-17, copy of the 0.10.0 database `zukan_live` as `zukan_check`,
+  CLI from the worktree, API on port 8011):
+  - Konami from a 1420-MTU Docker network: 200 in 1.4 s (default bridge: 30 s timeout).
+  - Yu-Gi-Oh! sync 13 min (5 min without new data): 15 207 Korean / Chinese printings
+    moved into TCG sets; owned copies followed (DUNE-KR001 → Duelist Nexus (TCG)
+    DUNE-EN001 with ko + zh-hans, MRD-K001 → Metal Raiders MRD-001, BP2-KR001 kept in its
+    Korean set "비기너즈팩2 (TCG)"). Sets: 1031 TCG, 885 OCG (Japanese names), 464
+    Korean / Chinese-only. English-only TCG printings 5 717 → 4 267; Mosaic 0, Platinum
+    Secret 1, Starfoil 9 left English-only. No card lost (`pruned_cards` 400 as in 0.10.0).
+  - Search: DUNE-EN001 / -FR001 / -KR001 / MRD-K001 / BETB-DE024 find the TCG card,
+    DUNE-JP001 the OCG printing.
+  - Browser: dashboard widgets, About page, footer, card page (regional codes under the
+    collector number, every language's name in the header).
+- [ ] User: keep `TCG_NETWORK_MTU` at 1420 (lower for tunnels with less room), then
+  `docker compose down && docker compose up -d` so the network is recreated; check the
+  stock dialog languages on Magic cards after deploying.
+
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.

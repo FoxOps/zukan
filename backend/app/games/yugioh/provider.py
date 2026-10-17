@@ -15,6 +15,7 @@ Prices: Cardmarket's public price guide (game 3, matched by expansion and name, 
 only) and TCGplayer's market price from YGOPRODeck's `set_price` (USD).
 """
 
+import html
 import logging
 import re
 import time
@@ -76,8 +77,9 @@ _cached: tuple[float, CatalogBatch] | None = None
 
 # Spell and Trap: YGOPRODeck has no symbol (drawn for Zukan, scripts/draw_color_symbols.py).
 SYMBOLS = Path(__file__).parent / "symbols"
-# Languages of TCG printings sold on Cardmarket and TCGplayer.
-TCG_LANGS = {"en", "fr", "de", "it", "pt", "es"}
+# Languages of TCG printings, sold on Cardmarket and TCGplayer.
+EUROPEAN_LANGS = ["en", "fr", "de", "it", "pt", "es"]
+TCG_LANGS = set(EUROPEAN_LANGS)
 _PASSWORD = re.compile(r"^\s*([0-9]{8})\s*$")
 
 
@@ -143,7 +145,8 @@ def _ocg_colors(attributes: dict[str, Any]) -> list[str]:
 
 
 def tcg_name(name: str) -> str:
-    return f"{name} (TCG)"
+    # YGOPRODeck writes some names with HTML entities ("Legendary 5D&apos;s Decks").
+    return f"{html.unescape(name)} (TCG)"
 
 
 def ocg_name(name: str) -> str:
@@ -290,7 +293,14 @@ def build_catalog(
                 # Two cards listed under one code and rarity (alternate artworks).
                 external_id = f"{external_id}~{password}"
             taken.add((set_name, external_id))
-            langs, finishes = (yj.european_of(number, rarity) if yj else None) or (["en"], [])
+            found = yj.european_of(number, rarity) if yj else None
+            langs, finishes = found or (["en"], [])
+            attributes: dict[str, Any] = {} if finishes else {"finishes_guessed": True}
+            if found is None and yj is not None and not yj.knows_set(number):
+                # YGOJSON (frozen in 2026-04) has no European printing of the set at all:
+                # newer TCG sets are printed in every European language.
+                langs = EUROPEAN_LANGS
+                attributes["languages_guessed"] = True
             printing = PrintingData(
                 external_id=external_id,
                 set_external_id=set_name,
@@ -299,7 +309,7 @@ def build_catalog(
                 finishes=list(finishes) or list(GUESSED_FINISHES),
                 languages=[lang for lang in langs if lang in wanted] or ["en"],
                 images={"en": image} if image else {},
-                attributes={} if finishes else {"finishes_guessed": True},
+                attributes=attributes,
             )
             card.printings.append(printing)
             price = _decimal(entry.get("set_price"))
@@ -510,7 +520,8 @@ class YugiohProvider:
         FilterDef("rarity", "Rarity"),
     ]
     cardmarket_path = "YuGiOh"
-    # 2: TCG / OCG sets, Korean and Chinese printings in the TCG sets.
+    # 2: TCG / OCG sets, Korean and Chinese printings in the TCG sets, European
+    # languages of sets YGOJSON lacks.
     catalog_version = 2
     short_names = ["yugioh", "ygo", "yu-gi-oh"]
     legal_notice = LEGAL_NOTICE
