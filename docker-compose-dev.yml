@@ -65,3 +65,9 @@ services:
       - ./deploy/keycloak:/opt/keycloak/data/import:ro
     ports:
       - "8080:8080"
+
+networks:
+  default:
+    driver_opts:
+      # See docker-compose.yml.
+      com.docker.network.driver.mtu: ${TCG_NETWORK_MTU:-1420}

@@ -5,10 +5,12 @@ import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 
+import httpx
 import pytest
 import respx
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 
+from app.core import progress
 from app.core.config import get_settings
 from app.core.http import http_client
 from app.games.base import OcrLine, get_provider, rarity_of
@@ -123,6 +125,31 @@ async def test_konami_requests_only_missing_pages(session, tmp_path):
         async with http_client() as http:
             assert await konami.fill(http, cache, [(2, "ja")], daily=1) == 0
     assert route.call_count == 0
+
+
+async def test_konami_unreachable_stops_and_reports_progress(session, tmp_path, monkeypatch):
+    """Timeouts never reach the response hook: the loop reports progress itself, gives the
+    budget back and stops after a few network errors in a row (no 15-minute stall)."""
+    monkeypatch.setattr(konami, "MAX_FAILURES", 2)
+    state = progress.Progress(run_id=0, last=0.0)
+    token = progress.current.set(state)
+    used = text("SELECT coalesce(sum(requests), 0) FROM api_usage WHERE source = 'konami'")
+    before = await session.scalar(used)
+    try:
+        with respx.mock() as router:
+            route = router.get(url__startswith=konami.URL).mock(
+                side_effect=httpx.ConnectTimeout("handshake timed out")
+            )
+            async with http_client() as http:
+                read = await konami.fill(
+                    http, konami.Cache(tmp_path / "k.json"), [(7, "ja"), (8, "ja"), (9, "ja")], 5
+                )
+    finally:
+        progress.current.reset(token)
+    assert read == 0 and route.call_count == 2
+    assert state.last > 0
+    await session.rollback()
+    assert await session.scalar(used) == before
 
 
 def test_konami_wanted_newest_first(tmp_path):

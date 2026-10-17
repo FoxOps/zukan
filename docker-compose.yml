@@ -54,3 +54,11 @@ services:
     volumes:
       - ./data/images:/data/images
     command: ["python", "-m", "app.worker"]
+
+networks:
+  default:
+    driver_opts:
+      # Below the usual 1500 so containers also work when the host reaches the Internet
+      # through WireGuard or another tunnel: some sites (Konami's card database) never
+      # finish the TLS handshake otherwise. Lower it further for tunnels with less room.
+      com.docker.network.driver.mtu: ${TCG_NETWORK_MTU:-1420}

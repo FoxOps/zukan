@@ -18,6 +18,7 @@ from typing import Any
 
 import httpx
 
+from app.core.progress import progress
 from app.games.yugioh.rarities import slug_name
 
 URL = "https://github.com/iconmaster5326/YGOJSON/releases/download/v1/individual.zip"
@@ -82,6 +83,8 @@ async def download(http: httpx.AsyncClient, target: Path) -> None:
         with target.open("wb") as out:
             async for chunk in response.aiter_bytes(1 << 20):
                 out.write(chunk)
+                # Only the headers reach the response hook: a slow download still moves.
+                await progress()
 
 
 def _date(value: str | None) -> date | None:
