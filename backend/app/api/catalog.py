@@ -112,6 +112,8 @@ class CardOut(BaseModel):
     translation: str | None = None
     # Printing shown for the card, as in the catalog: the card's page opens on it.
     default_printing_id: int | None = None
+    # The card's name in every language any of its printings is known in.
+    names: dict[str, str] = {}
     colors: list[str]
     attributes: dict[str, Any]
     printings: list[PrintingOut]
@@ -571,12 +573,19 @@ async def get_card(
     card_names, printing_names = await load_names(session, [card.id])
     shown = show_card(card, card_names, printing_names, user.language, default_name=name)
     default = shown.printing or (printings[0] if printings else None)
+    # Card names win over printed names (a printing's own spelling).
+    all_names: dict[str, str] = {}
+    for p in printings:
+        for lang, printed in printing_names.get(p.id, {}).items():
+            all_names.setdefault(lang, printed)
+    all_names.update(card_names.get(card.id, {}))
     return CardOut(
         id=card.id,
         game_id=card.game_id,
         name=shown.name.name,
         translation=shown.name.translation,
         default_printing_id=default.id if default else None,
+        names=all_names,
         colors=card.colors,
         attributes=card.attributes,
         printings=described,

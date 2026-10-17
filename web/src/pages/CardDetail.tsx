@@ -129,7 +129,10 @@ export default function CardDetail() {
   // Shown as printed in the printing's own set ("ビードル (Aspicot)").
   const name = selected?.name || c.name
   const translation = selected?.name ? selected.translation : c.translation
-  const localNames = Object.entries(selected?.names ?? {}).filter(([, n]) => n !== name && n !== translation)
+  // The card's names in every language of every printing, each spelling once.
+  const localNames = Object.entries(c.names ?? {}).filter(
+    ([, n], i, all) => n !== name && n !== translation && all.findIndex(([, other]) => other === n) === i,
+  )
   const goTo = (p: PrintingOut) => {
     // Another printing has other finishes: only the sort order is kept.
     const sortParam = url.get('sort')

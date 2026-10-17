@@ -971,6 +971,13 @@ export interface components {
             translation?: string | null;
             /** Default Printing Id */
             default_printing_id?: number | null;
+            /**
+             * Names
+             * @default {}
+             */
+            names: {
+                [key: string]: string;
+            };
             /** Colors */
             colors: string[];
             /** Attributes */

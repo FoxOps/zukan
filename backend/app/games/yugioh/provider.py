@@ -42,6 +42,13 @@ from app.games.base import (
 )
 from app.games.ocr import by_position, clean, has_cjk, letter_ratio, script_language
 from app.games.yugioh import konami, ygojson, ygoprodeck
+from app.games.yugioh.codes import (
+    ASIAN_REGIONS,
+    CODE,
+    REGIONS,
+    prefix_of,
+    tag,
+)
 from app.games.yugioh.konami import Page
 from app.games.yugioh.rarities import KONAMI_CODES, RARITIES, clean_rarity
 from app.games.yugioh.ygojson import YgoJson
@@ -62,29 +69,7 @@ GUESSED_FINISHES = ["first", "unlimited"]
 CATALOG_TTL = 3600
 _cached: tuple[float, CatalogBatch] | None = None
 
-# Printed set code: "LOB-EN001", "SDK-E001", "RA03-FR045", "BE2-JP001", "SR14-KR024".
-_CODE = re.compile(r"\b([A-Z0-9]{2,5})-([A-Z]{1,2})?([A-Z]?[0-9]{3})\b")
 _PASSWORD = re.compile(r"^\s*([0-9]{8})\s*$")
-_REGIONS = {
-    "EN": "en",
-    "E": "en",
-    "FR": "fr",
-    "F": "fr",
-    "DE": "de",
-    "G": "de",
-    "IT": "it",
-    "I": "it",
-    "PT": "pt",
-    "P": "pt",
-    "SP": "es",
-    "S": "es",
-    "JP": "ja",
-    "KR": "ko",
-    "SC": "zh-hans",
-    "TC": "zh-hant",
-    "AE": "en",
-}
-_ASIAN_REGIONS = {"JP", "KR", "SC", "TC"}
 
 
 class YugiohSettings(BaseSettings):
@@ -109,16 +94,6 @@ def _date(value: str | None) -> date | None:
         return date.fromisoformat(value[:10]) if value else None
     except ValueError:
         return None
-
-
-def _tag(rarity: str | None) -> str:
-    """Rarity part of a printing id: "Ultra Rare" -> "ultrarare"."""
-    return re.sub(r"[^a-z0-9]", "", (rarity or "").casefold()) or "none"
-
-
-def prefix_of(number: str) -> str:
-    """Set part of a printed code: "YAC1-JP071" -> "YAC1-JP"."""
-    return number.rstrip("0123456789") or number
 
 
 def _colors(card: dict[str, Any]) -> list[str]:
@@ -211,7 +186,7 @@ def build_catalog(
             if set_name not in sets:
                 sets[set_name] = SetData(set_name, prefix_of(number).split("-")[0], set_name, "en")
             rarity = clean_rarity(entry.get("set_rarity"))
-            external_id = f"{number}~{_tag(rarity)}"
+            external_id = f"{number}~{tag(rarity)}"
             if external_id in seen:
                 continue
             seen.add(external_id)
@@ -219,10 +194,7 @@ def build_catalog(
                 # Two cards listed under one code and rarity (alternate artworks).
                 external_id = f"{external_id}~{password}"
             taken.add((set_name, external_id))
-            langs, finishes = (yj.european.get((number, rarity or "")) if yj else None) or (
-                ["en"],
-                [],
-            )
+            langs, finishes = (yj.european_of(number, rarity) if yj else None) or (["en"], [])
             printing = PrintingData(
                 external_id=external_id,
                 set_external_id=set_name,
@@ -299,7 +271,7 @@ def _add_ygojson(
                     attributes=yc.attributes,
                     names=names,
                 )
-            external_id = f"{yp.number}~{_tag(yp.rarity)}"
+            external_id = f"{yp.number}~{tag(yp.rarity)}"
             if (ys.external_id, external_id) in taken:
                 continue
             taken.add((ys.external_id, external_id))
@@ -336,10 +308,10 @@ def _add_konami(
             if page.name:
                 card.names.setdefault(lang, page.name)
             for pack in page.packs:
-                match = _CODE.search(pack.number)
-                if not match or (match.group(2) or "") not in _ASIAN_REGIONS:
+                match = CODE.search(pack.number)
+                if not match or (match.group(2) or "") not in ASIAN_REGIONS:
                     continue
-                if _REGIONS[match.group(2)] != lang:
+                if REGIONS[match.group(2)] != lang:
                     continue
                 prefix = prefix_of(pack.number)
                 if prefix not in sets:
@@ -347,7 +319,7 @@ def _add_konami(
                         prefix, prefix, pack.name or prefix, lang, _date(pack.released)
                     )
                 rarity = KONAMI_CODES.get(pack.rarity or "", pack.rarity)
-                external_id = f"{pack.number}~{_tag(rarity)}"
+                external_id = f"{pack.number}~{tag(rarity)}"
                 if (prefix, external_id) in taken:
                     continue
                 taken.add((prefix, external_id))
@@ -514,11 +486,11 @@ class YugiohProvider:
         recognized = "konami" in text.casefold()
         set_code = number = lang = None
         for line in ordered:
-            match = _CODE.search(line.text.upper())
+            match = CODE.search(line.text.upper())
             if match:
                 code, region, digits = match.group(1), match.group(2) or "", match.group(3)
-                lang = _REGIONS.get(region)
-                if region in _ASIAN_REGIONS:
+                lang = REGIONS.get(region)
+                if region in ASIAN_REGIONS:
                     set_code, number = f"{code}-{region}", f"{code}-{region}{digits}"
                 else:
                     # European printings are stored under their English code ("FR" ->
@@ -536,7 +508,7 @@ class YugiohProvider:
             for line in ordered
             if len(line.text) >= 2
             and (has_cjk(line.text) or (len(line.text) >= 3 and letter_ratio(line.text) > 0.7))
-            and not _CODE.search(line.text.upper())
+            and not CODE.search(line.text.upper())
             and not line.text.startswith("©")
         ]
         return OcrHints(

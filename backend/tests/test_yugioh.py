@@ -15,7 +15,7 @@ from app.core.config import get_settings
 from app.core.http import http_client
 from app.games.base import OcrLine, get_provider, rarity_of
 from app.games.cardmarket import DOWNLOAD_URL as CARDMARKET_URL
-from app.games.yugioh import konami, ygojson, ygoprodeck
+from app.games.yugioh import codes, konami, ygojson, ygoprodeck
 from app.main import register_games
 from app.models import Card, CardName, CardSet, PriceSnapshot, Printing
 from app.services.catalog import sync_catalog
@@ -80,6 +80,15 @@ def test_catalog_names_printings_and_prices(tmp_path):
     # Editions and European languages of the printing from YGOJSON.
     assert mega.finishes == ["limited"] and {"en", "fr", "de"} <= set(mega.languages)
     assert rarity_of("yugioh", mega.rarity).code == "secret"
+    # YGOJSON rarity slugs ("starlight", "mosaic") pair with YGOPRODeck's names.
+    special = {
+        p.collector_number: p
+        for c in batch.cards
+        for p in c.printings
+        if p.rarity in ("Starlight Rare", "Mosaic Rare", "Starfoil Rare")
+    }
+    assert {"fr", "de", "it"} <= set(special["MP25-EN050"].languages)
+    assert {"fr", "de"} <= set(special["BP02-EN129"].languages)
     # Japanese printings in a set of their own.
     sets = {s.external_id: s for s in batch.sets}
     jp = [p for c in batch.cards for p in c.printings if sets[p.set_external_id].lang == "ja"]
@@ -150,6 +159,15 @@ async def test_konami_unreachable_stops_and_reports_progress(session, tmp_path, 
     assert state.last > 0
     await session.rollback()
     assert await session.scalar(used) == before
+
+
+def test_codes_without_region():
+    assert codes.number_key("LOB-EN001") == codes.number_key("LOB-001") == "LOB-001"
+    assert codes.number_key("SDK-E001") == "SDK-001"
+    assert codes.number_key("YS15-ENL22") == "YS15-L22"
+    assert codes.region_of("BETB-KR024") == "KR" and codes.base_code("BETB-KR024") == "BETB"
+    assert codes.rarity_key("PLatinum Secret Rare") == codes.rarity_key("platinumsecret")
+    assert codes.rarity_key("Rare") == "rare" and codes.rarity_key("Starlight Rare") == "starlight"
 
 
 def test_konami_wanted_newest_first(tmp_path):

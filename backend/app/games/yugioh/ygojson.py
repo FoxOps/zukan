@@ -19,6 +19,7 @@ from typing import Any
 import httpx
 
 from app.core.progress import progress
+from app.games.yugioh.codes import number_key, rarity_key
 from app.games.yugioh.rarities import slug_name
 
 URL = "https://github.com/iconmaster5326/YGOJSON/releases/download/v1/individual.zip"
@@ -72,9 +73,20 @@ class YgoJson:
     cards: dict[str, YCard] = field(default_factory=dict)
     # OCG sets, one per set and Asian locale.
     sets: list[YSet] = field(default_factory=list)
-    # Printings of European locales by (English number "LOB-EN001", rarity name):
-    # languages they exist in and finishes.
+    # Printings of European locales by (code without region "LOB-001", rarity key, see
+    # `codes`): languages they exist in and finishes.
     european: dict[tuple[str, str], tuple[list[str], list[str]]] = field(default_factory=dict)
+    # Rarity keys of each code without region.
+    european_rarities: dict[str, set[str]] = field(default_factory=dict)
+
+    def european_of(self, number: str, rarity: str | None) -> tuple[list[str], list[str]] | None:
+        """Languages and finishes of a TCG printing ("LOB-EN001", "Starlight Rare"): by
+        code and rarity, or by code alone when YGOJSON knows one rarity for it."""
+        code = number_key(number)
+        found = self.european.get((code, rarity_key(rarity)))
+        if found is None and len(keys := self.european_rarities.get(code, ())) == 1:
+            found = self.european[(code, next(iter(keys)))]
+        return found
 
 
 async def download(http: httpx.AsyncClient, target: Path) -> None:
@@ -140,7 +152,9 @@ def _read_set(raw: dict[str, Any], data: YgoJson) -> None:
                     rarity = slug_name(c.get("rarity"))
                     if not rarity:
                         continue
-                    key = (f"{en_prefix}{c.get('suffix') or ''}", rarity)
+                    code = number_key(f"{en_prefix}{c.get('suffix') or ''}")
+                    key = (code, rarity_key(rarity))
+                    data.european_rarities.setdefault(code, set()).add(key[1])
                     langs, editions = data.european.setdefault(key, ([], []))
                     if EU_LOCALES[loc] not in langs:
                         langs.append(EU_LOCALES[loc])
