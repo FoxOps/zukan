@@ -18,6 +18,7 @@ import logging
 import time
 from collections.abc import AsyncIterator
 from datetime import date, datetime
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -52,6 +53,7 @@ CARDMARKET_GAME = 25
 # the site changes them, the download fails, the UI shows colored badges and the next
 # start tries again (update the names here).
 SYMBOLS_URL = "https://sorcerytcg.com/_next/static/media"
+SYMBOLS = Path(__file__).parent / "symbols"
 # Cardmarket expansion id -> Sorcery set code. Expansions missing here (new sets) are
 # matched to the set sharing the most card names.
 CARDMARKET_EXPANSIONS = {
@@ -111,7 +113,7 @@ def parse_cards(raw: list[dict[str, Any]]) -> CatalogBatch:
         card = CardData(
             external_id=item["slug"],
             name=item["name"],
-            colors=elements,
+            colors=elements or ["colorless"],
             attributes=_card_attributes(engine),
             names={"en": item["name"]},
         )
@@ -187,6 +189,8 @@ class SorceryProvider:
         ColorDef("earth", "Earth", "#8B7355", f"{SYMBOLS_URL}/earth.1ecox-b66v_sg.png"),
         ColorDef("fire", "Fire", "#D9534F", f"{SYMBOLS_URL}/fire.1-a6d1dh1sjri.png"),
         ColorDef("water", "Water", "#3B7DD8", f"{SYMBOLS_URL}/water.1t_7z-bl67xy7.png"),
+        # Cards without element (drawn for Zukan, scripts/draw_color_symbols.py).
+        ColorDef("colorless", "Colorless", "#9CA3AF", icon_file=SYMBOLS / "colorless.svg"),
     ]
     finishes = [
         FinishDef("standard", "Standard"),
@@ -221,8 +225,8 @@ class SorceryProvider:
     }
     # About 1600 printings: every image is cached, not only those of owned cards.
     cache_all_images = True
-    # 2: image URLs (databases upgraded from 0.2 had none).
-    catalog_version = 2
+    # 2: image URLs (databases upgraded from 0.2 had none). 3: colorless cards.
+    catalog_version = 3
 
     async def _catalog(self, http: httpx.AsyncClient) -> CatalogBatch:
         # Whole catalog in one call (API limit: 30 requests/minute).

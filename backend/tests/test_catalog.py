@@ -74,7 +74,7 @@ def test_parse_groups_finishes_per_set_and_product():
     }
 
     assert by_id(batch, "aqueduct").colors == ["earth", "water"]
-    assert by_id(batch, "13_treasures_of_britain").colors == []
+    assert by_id(batch, "13_treasures_of_britain").colors == ["colorless"]
 
     archimago = {p.external_id: p.finishes for p in by_id(batch, "archimago").printings}
     assert archimago["archimago-op"] == ["rainbow"]

@@ -21,6 +21,7 @@ import time
 from collections.abc import AsyncIterator
 from datetime import date
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -73,6 +74,8 @@ GUESSED_FINISHES = ["first", "unlimited"]
 CATALOG_TTL = 3600
 _cached: tuple[float, CatalogBatch] | None = None
 
+# Spell and Trap: YGOPRODeck has no symbol (drawn for Zukan, scripts/draw_color_symbols.py).
+SYMBOLS = Path(__file__).parent / "symbols"
 # Languages of TCG printings sold on Cardmarket and TCGplayer.
 TCG_LANGS = {"en", "fr", "de", "it", "pt", "es"}
 _PASSWORD = re.compile(r"^\s*([0-9]{8})\s*$")
@@ -489,8 +492,8 @@ class YugiohProvider:
         ColorDef("fire", "Fire", "#D2412F", f"{ICON_URL}/FIRE.jpg"),
         ColorDef("wind", "Wind", "#3F9E4F", f"{ICON_URL}/WIND.jpg"),
         ColorDef("divine", "Divine", "#C8A24A", f"{ICON_URL}/DIVINE.jpg"),
-        ColorDef("spell", "Spell", "#1D9A86"),
-        ColorDef("trap", "Trap", "#B5307A"),
+        ColorDef("spell", "Spell", "#1D9A86", icon_file=SYMBOLS / "spell.svg"),
+        ColorDef("trap", "Trap", "#B5307A", icon_file=SYMBOLS / "trap.svg"),
     ]
     finishes = [
         FinishDef("unlimited", "Unlimited"),
