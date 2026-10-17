@@ -47,6 +47,11 @@ from app.models import Printing
 log = logging.getLogger(__name__)
 
 API_URL = "https://api.sorcerytcg.com/api/cards"
+LEGAL_NOTICE = (
+    "Sorcery: Contested Realm is a trademark of Erik's Curiosa Limited. Zukan is not "
+    "produced, endorsed, supported or affiliated with Erik's Curiosa. Card data from the "
+    "official Sorcery card API."
+)
 IMAGE_URL = "https://d27a44hjr9gen3.cloudfront.net/cards"
 CARDMARKET_GAME = 25
 # Element symbols of the sorcerytcg.com card gallery. The names carry a build hash: when
@@ -214,6 +219,7 @@ class SorceryProvider:
     cardmarket_path = "Sorcery"
     text_attribute = "rules"
     short_names = ["sorcery", "sor", "sct"]
+    legal_notice = LEGAL_NOTICE
     # Set codes are numbers; these are the abbreviations players use.
     set_aliases = {
         "001": ["ALP", "alpha"],

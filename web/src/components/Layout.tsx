@@ -1,9 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
+import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { api, ApiError, onSessionExpired } from '../api/client'
-import { useGames, useHealth, useMe } from '../api/queries'
+import { useHealth, useMe } from '../api/queries'
 import { useServerLanguage } from '../i18n'
 import { LanguageMenu } from './I18n'
 import { ErrorScreen } from './ErrorPage'
@@ -41,7 +41,6 @@ export function Layout() {
   const client = useQueryClient()
   const [dark, setDark] = useTheme()
   const health = useHealth()
-  const games = useGames()
   useServerLanguage(me.data?.language)
 
   useEffect(
@@ -106,14 +105,11 @@ export function Layout() {
         <main className="flex-1 p-4 lg:p-6">
           <Outlet />
         </main>
-        {/* Notices publishers require fan tools to show (Riot Games), in their own words. */}
-        {games.data?.some((g) => g.legal_notice) && (
-          <footer className="space-y-1 border-t border-base-300 px-4 py-3 text-xs text-base-content/50 lg:px-6">
-            {games.data.filter((g) => g.legal_notice).map((g) => (
-              <p key={g.id} lang="en">{g.legal_notice}</p>
-            ))}
-          </footer>
-        )}
+        {/* Publishers' notices (Riot Games, Wizards...) in full on the About page. */}
+        <footer className="border-t border-base-300 px-4 py-3 text-xs text-base-content/50 lg:px-6">
+          {t('Trademarks belong to their owners. Zukan is not affiliated with any game publisher.')}{' '}
+          <Link to="/about" className="link">{t('About')}</Link>
+        </footer>
       </div>
       <div className="drawer-side z-40">
         <label htmlFor="nav-drawer" className="drawer-overlay" aria-label={t('Close menu')} />
@@ -135,9 +131,10 @@ export function Layout() {
               </>
             )}
           </ul>
-          {health.data?.version && (
-            <div className="mt-auto px-6 py-4 text-xs text-base-content/40">v{health.data.version}</div>
-          )}
+          <div className="mt-auto flex gap-2 px-6 py-4 text-xs text-base-content/40">
+            {health.data?.version && <span>v{health.data.version}</span>}
+            <Link to="/about" className="link link-hover" onClick={closeDrawer}>{t('About')}</Link>
+          </div>
         </aside>
       </div>
     </div>

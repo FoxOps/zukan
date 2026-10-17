@@ -55,6 +55,12 @@ from app.models import Printing
 log = logging.getLogger(__name__)
 
 API_URL = "https://api.tcgdex.net/v2"
+LEGAL_NOTICE = (
+    "Pokémon is a trademark of Nintendo, Creatures Inc. and GAME FREAK inc.; the card game "
+    "is published by The Pokémon Company. Zukan is not produced, endorsed, supported or "
+    "affiliated with Nintendo, Creatures, GAME FREAK or The Pokémon Company. Card data from "
+    "TCGdex, the Pokémon TCG API data, PTCG-database and PTCG-CHS-Datasets."
+)
 CONCURRENCY = 8
 # Series that are not physical cards (Pokémon TCG Pocket is a mobile game).
 DIGITAL_SERIES = {"tcgp"}
@@ -530,6 +536,7 @@ class PokemonProvider:
         FilterDef("rarity", "Rarity"),
     ]
     short_names = ["pkm", "pokemon", "poke", "ptcg"]
+    legal_notice = LEGAL_NOTICE
     # 2: one set per set id across Asian languages, names from species names.
     # 3: Asian sets reusing an international id stored apart, Asian names fixed.
     # 4: Thai and Indonesian, Korean and Simplified Chinese from open datasets.
