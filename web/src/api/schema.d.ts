@@ -573,6 +573,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/collection/movers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Movers
+         * @description Owned items whose market price moved most over the period, by value of the copies
+         *     held (price change × quantity): biggest rises and falls.
+         */
+        get: operations["movers_api_collection_movers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/collection/value/history": {
         parameters: {
             query?: never;
@@ -661,6 +682,26 @@ export interface paths {
         };
         /** List Jobs */
         get: operations["list_jobs_api_admin_jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Overview
+         * @description Data sync at a glance: latest run of each job per game, quotas used this period.
+         */
+        get: operations["overview_api_admin_overview_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1189,6 +1230,13 @@ export interface components {
             /** Legal Notice */
             legal_notice?: string | null;
         };
+        /** GameStatusOut */
+        GameStatusOut: {
+            /** Game Id */
+            game_id: string;
+            /** Runs */
+            runs: components["schemas"]["LastRunOut"][];
+        };
         /** GameValueOut */
         GameValueOut: {
             /** Game Id */
@@ -1418,6 +1466,20 @@ export interface components {
          * @enum {string}
          */
         JobTrigger: "auto" | "manual";
+        /** LastRunOut */
+        LastRunOut: {
+            kind: components["schemas"]["JobKind"];
+            status: components["schemas"]["JobStatus"];
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** Error */
+            error: string | null;
+        };
         /** LinkOut */
         LinkOut: {
             /** Source */
@@ -1467,6 +1529,24 @@ export interface components {
             /** Price Sources */
             price_sources: string[];
         };
+        /** MoverOut */
+        MoverOut: {
+            item: components["schemas"]["ItemOut"];
+            /** Change */
+            change: string;
+        };
+        /** MoversOut */
+        MoversOut: {
+            /**
+             * Period
+             * @enum {string}
+             */
+            period: "d1" | "d7" | "d30";
+            /** Risers */
+            risers: components["schemas"]["MoverOut"][];
+            /** Fallers */
+            fallers: components["schemas"]["MoverOut"][];
+        };
         /** OcrLineIn */
         OcrLineIn: {
             /** Text */
@@ -1488,6 +1568,13 @@ export interface components {
             nonce: string;
             /** Access Token */
             access_token?: string | null;
+        };
+        /** OverviewOut */
+        OverviewOut: {
+            /** Games */
+            games: components["schemas"]["GameStatusOut"][];
+            /** Quotas */
+            quotas: components["schemas"]["QuotaOut"][];
         };
         /** OwnedOut */
         OwnedOut: {
@@ -1625,6 +1712,20 @@ export interface components {
             local_login_enabled: boolean;
             /** Providers */
             providers: components["schemas"]["ProviderOut"][];
+        };
+        /** QuotaOut */
+        QuotaOut: {
+            /** Source */
+            source: string;
+            /**
+             * Period
+             * @enum {string}
+             */
+            period: "day" | "month";
+            /** Used */
+            used: number;
+            /** Limit */
+            limit: number;
         };
         /** RarityOut */
         RarityOut: {
@@ -2997,6 +3098,38 @@ export interface operations {
             };
         };
     };
+    movers_api_collection_movers_get: {
+        parameters: {
+            query?: {
+                period?: "d1" | "d7" | "d30";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoversOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     value_history_api_collection_value_history_get: {
         parameters: {
             query?: {
@@ -3157,6 +3290,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    overview_api_admin_overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverviewOut"];
                 };
             };
         };

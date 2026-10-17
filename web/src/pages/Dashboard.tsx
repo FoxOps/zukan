@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { api, call } from '../api/client'
-import { useGames } from '../api/queries'
+import { useGames, useMe } from '../api/queries'
 import { ConditionBadge, FinishBadge, LangFlag } from '../components/Badges'
 import { useInvalidateStock } from '../api/stock'
 import { PriceChart } from '../components/PriceChart'
@@ -11,12 +11,14 @@ import { Select } from '../components/Select'
 import { useToast } from '../components/toast'
 import { formatDateTime, formatMoney } from '../lib/format'
 import { ShownName } from '../components/ShownName'
+import { Movers, SyncStatus, TopCards, ValueByGame } from './dashboard/Widgets'
 
 const RANGES = [30, 90, 365]
 
 export default function Dashboard() {
   const { t } = useTranslation()
   const { data: games = [] } = useGames()
+  const me = useMe()
   const [days, setDays] = useState(90)
   const [game, setGame] = useState('')
   const toast = useToast()
@@ -59,16 +61,13 @@ export default function Dashboard() {
               .map((x) => ` · + ${formatMoney(x.total, x.currency)}`)}
           </div>
         </div>
-        {value.data?.games.map((g) => (
-          <div key={g.game_id} className="stat">
-            <div className="stat-title">{gameName(g.game_id)}</div>
-            <div className="stat-value text-2xl">{formatMoney(g.total, g.currency)}</div>
-            <div className="stat-desc">
-              {t('{{count}} cards', { count: g.quantity })}
-              {g.unpriced > 0 && ` · ${t('{{count}} without price', { count: g.unpriced })}`}
-            </div>
-          </div>
-        ))}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ValueByGame value={value.data} gameName={gameName} />
+        <TopCards />
+        <Movers />
+        {me.data?.role === 'admin' && <SyncStatus games={games} />}
       </div>
 
       <div className="card bg-base-200">

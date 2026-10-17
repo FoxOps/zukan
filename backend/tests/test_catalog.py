@@ -430,6 +430,13 @@ async def test_admin_job_endpoints(client, session, sorcery_api):
     assert runs[0]["report"]["cards"] == 7
     assert runs[0]["elapsed_seconds"] >= 0
 
+    overview = await client.get("/api/admin/overview", headers=admin)
+    assert (await client.get("/api/admin/overview", headers=user)).status_code == 403
+    games = {g["game_id"]: g["runs"] for g in overview.json()["games"]}
+    assert [(r["kind"], r["status"]) for r in games["sorcery"]] == [("catalog", "success")]
+    quotas = {q["source"]: q for q in overview.json()["quotas"]}
+    assert quotas["apitcg"]["period"] == "month" and quotas["konami"]["used"] >= 0
+
     await jobs.start_job("sorcery", JobKind.catalog)
     running = (await client.get("/api/admin/jobs", headers=admin)).json()[0]
     assert running["status"] == "running" and running["elapsed_seconds"] >= 0

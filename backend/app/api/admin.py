@@ -9,10 +9,12 @@ from sqlalchemy.orm import selectinload
 
 from app.api import games
 from app.api.deps import AdminUser, SessionDep
+from app.core.budget import period_start
 from app.core.config import get_settings
 from app.core.http import http_client
 from app.games.base import registry
 from app.models import (
+    ApiUsage,
     Card,
     CardSet,
     CatalogDiscrepancy,
@@ -73,6 +75,71 @@ async def list_jobs(
         query = query.where(SyncRun.game_id == game)
     now = datetime.now(UTC)
     return [_job_out(run, now) for run in await session.scalars(query)]
+
+
+class LastRunOut(BaseModel):
+    kind: JobKind
+    status: JobStatus
+    started_at: datetime
+    finished_at: datetime | None
+    error: str | None
+
+
+class GameStatusOut(BaseModel):
+    game_id: str
+    # Latest run of each job kind.
+    runs: list[LastRunOut]
+
+
+class QuotaOut(BaseModel):
+    source: str
+    period: Literal["day", "month"]
+    used: int
+    limit: int
+
+
+class OverviewOut(BaseModel):
+    games: list[GameStatusOut]
+    quotas: list[QuotaOut]
+
+
+def _quotas() -> list[tuple[str, Literal["day", "month"], int]]:
+    """External APIs counted in `api_usage`, with their period and limit."""
+    settings = get_settings()
+    quotas: list[tuple[str, Literal["day", "month"], int]] = [
+        ("apitcg", "month", settings.apitcg_monthly_requests),
+        ("tcgapi_eu", "day", settings.tcgapi_eu_daily_requests),
+    ]
+    if "yugioh" in registry():
+        from app.games.yugioh.provider import YugiohSettings
+
+        quotas.append(("konami", "day", YugiohSettings().konami_daily_requests))
+    return quotas
+
+
+@router.get("/overview")
+async def overview(_: AdminUser, session: SessionDep) -> OverviewOut:
+    """Data sync at a glance: latest run of each job per game, quotas used this period."""
+    latest = (
+        select(SyncRun)
+        .distinct(SyncRun.game_id, SyncRun.kind)
+        .order_by(SyncRun.game_id, SyncRun.kind, SyncRun.started_at.desc())
+    )
+    runs: dict[str, list[LastRunOut]] = {game_id: [] for game_id in registry()}
+    for run in await session.scalars(latest):
+        if run.game_id in runs:
+            runs[run.game_id].append(LastRunOut.model_validate(run, from_attributes=True))
+    quotas = []
+    for source, period, limit in _quotas():
+        used = await session.scalar(
+            select(ApiUsage.requests).where(
+                ApiUsage.source == source, ApiUsage.period_start == period_start(period)
+            )
+        )
+        quotas.append(QuotaOut(source=source, period=period, used=used or 0, limit=limit))
+    return OverviewOut(
+        games=[GameStatusOut(game_id=g, runs=r) for g, r in runs.items()], quotas=quotas
+    )
 
 
 class ScheduleOut(BaseModel):

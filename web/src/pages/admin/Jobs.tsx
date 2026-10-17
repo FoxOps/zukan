@@ -37,6 +37,7 @@ const REPORT: Record<string, string> = {
   pruned_prices: 'old prices removed',
   pruned_cards: 'empty cards removed',
   translations: 'translations copied',
+  moved: 'printings moved',
   cross_checked: 'cross-checked',
   discrepancies: 'differences',
   arbitrated: 'arbitrated values written',

@@ -379,3 +379,23 @@ async def test_price_trends(client, session, alice):
     }
     # No price history.
     assert trends["foil"] == {"d1": None, "d7": None, "d30": None}
+
+
+async def test_movers(client, session, alice):
+    abundance = await printing_id(session, "001", "abundance-b")
+    aqueduct = await printing_id(session, "001", "aqueduct-b")
+    today = date.today()
+    for printing, before, now in ((abundance, "1.00", "2.50"), (aqueduct, "4.00", "3.00")):
+        await add_price(session, printing, "standard", today - timedelta(days=1), Decimal(before))
+        await add_price(session, printing, "standard", today, Decimal(now))
+    await adjust(client, alice, abundance, 3)
+    await adjust(client, alice, aqueduct, 2)
+    # No price history: never a mover.
+    await adjust(client, alice, abundance, 1, finish="foil")
+    movers = (
+        await client.get("/api/collection/movers", params={"period": "d1"}, headers=alice)
+    ).json()
+    assert [(m["item"]["name"], m["change"]) for m in movers["risers"]] == [("Abundance", "4.50")]
+    assert [(m["item"]["name"], m["change"]) for m in movers["fallers"]] == [("Aqueduct", "-2.00")]
+    week = (await client.get("/api/collection/movers", headers=alice)).json()
+    assert week["period"] == "d7" and week["risers"] == []
