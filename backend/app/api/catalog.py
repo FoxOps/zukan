@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated, Any, Literal
@@ -112,6 +112,8 @@ class CardOut(BaseModel):
     translation: str | None = None
     # Printing shown for the card, as in the catalog: the card's page opens on it.
     default_printing_id: int | None = None
+    # The card's name in every language any of its printings is known in.
+    names: dict[str, str] = {}
     colors: list[str]
     attributes: dict[str, Any]
     printings: list[PrintingOut]
@@ -198,6 +200,8 @@ class CodeQuery:
     game: str | None
     set_ids: list[int]
     number: str | None
+    # Collector numbers as stored for a printed code ("BETB-FR024" -> "BETB-EN024").
+    numbers: list[str] = field(default_factory=list)
 
 
 async def parse_code_query(session: SessionDep, q: str, game: str | None) -> CodeQuery | None:
@@ -213,6 +217,24 @@ async def parse_code_query(session: SessionDep, q: str, game: str | None) -> Cod
             tokens = tokens[1:]
     game = game or named_game
     plain = CodeQuery(named_game, [], None) if named_game else None
+    if len(tokens) == 1:
+        # A whole printed code ("BETB-FR024"), read by the game.
+        for gid, provider in registry().items():
+            lookup = getattr(provider, "code_lookup", None)
+            found = lookup(tokens[0]) if lookup and (game is None or gid == game) else None
+            if not found:
+                continue
+            set_codes, numbers = found
+            set_ids = list(
+                await session.scalars(
+                    select(CardSet.id).where(
+                        CardSet.game_id == gid,
+                        func.lower(CardSet.code).in_([c.lower() for c in set_codes]),
+                    )
+                )
+            )
+            if set_ids:
+                return CodeQuery(named_game, set_ids, None, numbers)
     number = tokens[1].split("/")[0] if len(tokens) == 2 else None
     if len(tokens) > 2 or (number is not None and not any(ch.isdigit() for ch in number)):
         return plain
@@ -416,6 +438,8 @@ async def search_cards(
         in_set = select(Printing.card_id).where(Printing.set_id.in_(code.set_ids))
         if code.number:
             in_set = in_set.where(number_matches(Printing.collector_number, code.number))
+        if code.numbers:
+            in_set = in_set.where(Printing.collector_number.in_(code.numbers))
         named = select(CardName.card_id).where(name_matches(q))
         query = query.where(or_(Card.id.in_(in_set), Card.id.in_(named)))
         ordering.insert(0, case((Card.id.in_(in_set), 0), else_=1))
@@ -571,12 +595,19 @@ async def get_card(
     card_names, printing_names = await load_names(session, [card.id])
     shown = show_card(card, card_names, printing_names, user.language, default_name=name)
     default = shown.printing or (printings[0] if printings else None)
+    # Card names win over printed names (a printing's own spelling).
+    all_names: dict[str, str] = {}
+    for p in printings:
+        for lang, printed in printing_names.get(p.id, {}).items():
+            all_names.setdefault(lang, printed)
+    all_names.update(card_names.get(card.id, {}))
     return CardOut(
         id=card.id,
         game_id=card.game_id,
         name=shown.name.name,
         translation=shown.name.translation,
         default_printing_id=default.id if default else None,
+        names=all_names,
         colors=card.colors,
         attributes=card.attributes,
         printings=described,

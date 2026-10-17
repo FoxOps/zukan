@@ -156,10 +156,13 @@ def match_sets(ours: dict[str, SetData], theirs: list[ExternalSet], game_id: str
     for s in candidates:
         for code in (s.code, s.external_id, *aliases.get(s.code, [])):
             by_code.setdefault(code_key(code), s.external_id)
-    by_name_date = {(_name(s.name), s.release_date): s.external_id for s in candidates}
+    # Sets keyed on their plain name (Yu-Gi-Oh!) show another one ("... (TCG)").
+    by_name_date: dict[tuple[str, Any], str] = {}
     names: dict[str, list[str]] = {}
     for s in candidates:
-        names.setdefault(_name(s.name), []).append(s.external_id)
+        for name in dict.fromkeys(_name(n) for n in (s.name, s.external_id)):
+            by_name_date.setdefault((name, s.release_date), s.external_id)
+            names.setdefault(name, []).append(s.external_id)
     matches: dict[Any, str] = {}
     used: set[str] = set()
     for raw in theirs:

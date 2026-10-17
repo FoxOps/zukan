@@ -58,6 +58,12 @@ from app.models import Printing
 log = logging.getLogger(__name__)
 
 API_URL = "https://api.scryfall.com"
+# Wizards of the Coast's Fan Content Policy wording.
+LEGAL_NOTICE = (
+    "Zukan is unofficial Fan Content permitted under the Fan Content Policy. Not "
+    "approved/endorsed by Wizards. Portions of the materials used are property of Wizards "
+    "of the Coast. ©Wizards of the Coast LLC. Card data from Scryfall and MTGJSON."
+)
 BATCH_SIZE = 2000
 REQUEST_DELAY = 0.1
 
@@ -366,6 +372,7 @@ class MtgProvider:
     # 2: card types and subtypes (advanced search).
     catalog_version = 2
     short_names = ["mtg", "magic"]
+    legal_notice = LEGAL_NOTICE
 
     async def _bulk(self, http: httpx.AsyncClient, kind: str) -> AsyncIterator[dict[str, Any]]:
         meta = (await get_with_retry(http, f"{API_URL}/bulk-data/{kind}")).json()

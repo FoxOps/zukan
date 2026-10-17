@@ -74,7 +74,7 @@ def test_parse_groups_finishes_per_set_and_product():
     }
 
     assert by_id(batch, "aqueduct").colors == ["earth", "water"]
-    assert by_id(batch, "13_treasures_of_britain").colors == []
+    assert by_id(batch, "13_treasures_of_britain").colors == ["colorless"]
 
     archimago = {p.external_id: p.finishes for p in by_id(batch, "archimago").printings}
     assert archimago["archimago-op"] == ["rainbow"]
@@ -429,6 +429,13 @@ async def test_admin_job_endpoints(client, session, sorcery_api):
     assert runs[0]["status"] == "success"
     assert runs[0]["report"]["cards"] == 7
     assert runs[0]["elapsed_seconds"] >= 0
+
+    overview = await client.get("/api/admin/overview", headers=admin)
+    assert (await client.get("/api/admin/overview", headers=user)).status_code == 403
+    games = {g["game_id"]: g["runs"] for g in overview.json()["games"]}
+    assert [(r["kind"], r["status"]) for r in games["sorcery"]] == [("catalog", "success")]
+    quotas = {q["source"]: q for q in overview.json()["quotas"]}
+    assert quotas["apitcg"]["period"] == "month" and quotas["konami"]["used"] >= 0
 
     await jobs.start_job("sorcery", JobKind.catalog)
     running = (await client.get("/api/admin/jobs", headers=admin)).json()[0]

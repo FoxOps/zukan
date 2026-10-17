@@ -18,6 +18,7 @@ import logging
 import re
 from collections.abc import AsyncIterator
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -61,6 +62,8 @@ _PROMO_LINE = re.compile(
 )
 _INKS = {"amber", "amethyst", "emerald", "ruby", "sapphire", "steel"}
 # Game symbols of LorcanaJSON's texts, spelled out as other sources (TCGplayer) write them.
+# Ink symbols drawn for Zukan (scripts/draw_color_symbols.py).
+SYMBOLS = Path(__file__).parent / "symbols"
 _SYMBOLS = {"⬡": "Ink", "¤": "Strength", "⟳": "[Exert]", "◊": "Lore", "⛉": "Willpower",
             "◉": "Inkwell"}  # fmt: skip
 
@@ -240,12 +243,12 @@ class LorcanaProvider:
     id = "lorcana"
     name = "Disney Lorcana"
     colors = [
-        ColorDef("amber", "Amber", "#F2B32E"),
-        ColorDef("amethyst", "Amethyst", "#7E4A9C"),
-        ColorDef("emerald", "Emerald", "#2E8B57"),
-        ColorDef("ruby", "Ruby", "#C8243B"),
-        ColorDef("sapphire", "Sapphire", "#1F6FB5"),
-        ColorDef("steel", "Steel", "#8A949E"),
+        ColorDef("amber", "Amber", "#F2B32E", icon_file=SYMBOLS / "amber.svg"),
+        ColorDef("amethyst", "Amethyst", "#7E4A9C", icon_file=SYMBOLS / "amethyst.svg"),
+        ColorDef("emerald", "Emerald", "#2E8B57", icon_file=SYMBOLS / "emerald.svg"),
+        ColorDef("ruby", "Ruby", "#C8243B", icon_file=SYMBOLS / "ruby.svg"),
+        ColorDef("sapphire", "Sapphire", "#1F6FB5", icon_file=SYMBOLS / "sapphire.svg"),
+        ColorDef("steel", "Steel", "#8A949E", icon_file=SYMBOLS / "steel.svg"),
     ]
     finishes = [FinishDef("normal", "Normal"), FinishDef("foil", "Foil")]
     rarities = [

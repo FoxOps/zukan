@@ -18,6 +18,8 @@ from typing import Any
 
 import httpx
 
+from app.core.progress import progress
+from app.games.yugioh.codes import base_code, number_key, rarity_key
 from app.games.yugioh.rarities import slug_name
 
 URL = "https://github.com/iconmaster5326/YGOJSON/releases/download/v1/individual.zip"
@@ -35,6 +37,8 @@ NAME_LANGS = {
     "zh-TW": "zh-hant",
 }
 EU_LOCALES = {"en": "en", "fr": "fr", "de": "de", "it": "it", "pt": "pt", "sp": "es"}
+# English printings of one region (North America, Europe, Oceania).
+REGION_LOCALES = {"na", "eu", "oc"}
 ASIAN_LOCALES = {"jp": "ja", "kr": "ko", "sc": "zh-hans", "tc": "zh-hant"}
 EDITIONS = {"1st": "first", "unlimited": "unlimited", "limited": "limited"}
 
@@ -71,9 +75,26 @@ class YgoJson:
     cards: dict[str, YCard] = field(default_factory=dict)
     # OCG sets, one per set and Asian locale.
     sets: list[YSet] = field(default_factory=list)
-    # Printings of European locales by (English number "LOB-EN001", rarity name):
-    # languages they exist in and finishes.
+    # Printings of European locales by (code without region "LOB-001", rarity key, see
+    # `codes`): languages they exist in and finishes.
     european: dict[tuple[str, str], tuple[list[str], list[str]]] = field(default_factory=dict)
+    # Rarity keys of each code without region.
+    european_rarities: dict[str, set[str]] = field(default_factory=dict)
+    # Set codes ("LOB") YGOJSON lists English or European printings of.
+    european_sets: set[str] = field(default_factory=set)
+
+    def knows_set(self, number: str) -> bool:
+        """Whether YGOJSON lists European printings of the set of `number`."""
+        return base_code(number) in self.european_sets
+
+    def european_of(self, number: str, rarity: str | None) -> tuple[list[str], list[str]] | None:
+        """Languages and finishes of a TCG printing ("LOB-EN001", "Starlight Rare"): by
+        code and rarity, or by code alone when YGOJSON knows one rarity for it."""
+        code = number_key(number)
+        found = self.european.get((code, rarity_key(rarity)))
+        if found is None and len(keys := self.european_rarities.get(code, ())) == 1:
+            found = self.european[(code, next(iter(keys)))]
+        return found
 
 
 async def download(http: httpx.AsyncClient, target: Path) -> None:
@@ -82,6 +103,8 @@ async def download(http: httpx.AsyncClient, target: Path) -> None:
         with target.open("wb") as out:
             async for chunk in response.aiter_bytes(1 << 20):
                 out.write(chunk)
+                # Only the headers reach the response hook: a slow download still moves.
+                await progress()
 
 
 def _date(value: str | None) -> date | None:
@@ -118,6 +141,9 @@ def _read_set(raw: dict[str, Any], data: YgoJson) -> None:
     names = raw.get("name") or {}
     locales = raw.get("locales") or {}
     asian: dict[str, YSet] = {}
+    for loc, info in locales.items():
+        if (loc in EU_LOCALES or loc in REGION_LOCALES) and (info or {}).get("prefix"):
+            data.european_sets.add(base_code(info["prefix"]))
     for content in raw.get("contents") or []:
         finishes = [EDITIONS[e] for e in content.get("editions") or [] if e in EDITIONS]
         for loc in content.get("locales") or []:
@@ -137,7 +163,9 @@ def _read_set(raw: dict[str, Any], data: YgoJson) -> None:
                     rarity = slug_name(c.get("rarity"))
                     if not rarity:
                         continue
-                    key = (f"{en_prefix}{c.get('suffix') or ''}", rarity)
+                    code = number_key(f"{en_prefix}{c.get('suffix') or ''}")
+                    key = (code, rarity_key(rarity))
+                    data.european_rarities.setdefault(code, set()).add(key[1])
                     langs, editions = data.european.setdefault(key, ([], []))
                     if EU_LOCALES[loc] not in langs:
                         langs.append(EU_LOCALES[loc])

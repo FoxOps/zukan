@@ -48,6 +48,7 @@ const router = createBrowserRouter([
       { path: '/cards/:cardId/:printingId', lazy: page(() => import('./pages/CardDetail')) },
       { path: '/import', lazy: page(() => import('./pages/ImportExport')) },
       { path: '/settings', lazy: page(() => import('./pages/Settings')) },
+      { path: '/about', lazy: page(() => import('./pages/About')) },
       { path: '/admin/users', lazy: page(() => import('./pages/admin/Users')) },
       { path: '/admin/jobs', lazy: page(() => import('./pages/admin/Jobs')) },
       { path: '/admin/checks', lazy: page(() => import('./pages/admin/Checks')) },
