@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
-from app.games.base import rarity_icon_file, rarity_of, registry  # noqa: E402
+from app.games.base import rarity_of, registry, shipped_rarity_icon  # noqa: E402
 
 GAMES = {
     "Magic": "mtg",
@@ -52,12 +52,12 @@ def main(path: str) -> None:
             if rarity is None:
                 print(f"{game}: no rarity for {name!r}")
                 continue
-            if rarity_icon_file(game, rarity.code) and rarity.name.casefold() != name.casefold():
+            if shipped_rarity_icon(game, rarity.code) and rarity.name.casefold() != name.casefold():
                 continue  # the rarity's own name wins over an alias
             folder.mkdir(exist_ok=True)
             (folder / f"{rarity.code}.svg").write_text(clean(svg))
             print(f"{game}: {name} -> {rarity.code}")
-        missing = [r.code for r in provider.rarities if not rarity_icon_file(game, r.code)]
+        missing = [r.code for r in provider.rarities if not shipped_rarity_icon(game, r.code)]
         if missing:
             print(f"{game}: no pictogram for {', '.join(missing)}")
 

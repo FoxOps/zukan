@@ -300,16 +300,28 @@ async def test_symbols_downloaded_once(client, alice):
         attributes = router.get(url__startswith="https://images.ygoprodeck.com/").respond(
             content=png(), headers={"content-type": "image/jpeg"}
         )
+        # Konami's Spell and Trap symbols: unreachable at first, then there.
+        konami = router.get(url__startswith="https://www.db.yugioh-card.com/").mock(
+            side_effect=[
+                httpx.Response(503),
+                httpx.Response(503),
+                httpx.Response(200, content=png(), headers={"content-type": "image/png"}),
+                httpx.Response(200, content=png(), headers={"content-type": "image/png"}),
+            ]
+        )
         stored = await symbols.ensure_symbols()
-        # Symbols to download: Riftbound's and Sorcery's colorless, Yu-Gi-Oh! spells and
-        # traps and Lorcana inks are drawn for Zukan (shipped).
-        downloaded = [
-            c for p in registry().values() for c in p.colors if c.icon_url and not c.icon_file
-        ]
-        assert stored == len(downloaded)
+        # Symbols to download (Riftbound's and Sorcery's colorless and Lorcana inks are
+        # only drawn for Zukan, shipped).
+        downloaded = [c for p in registry().values() for c in p.colors if c.icon_url]
+        assert stored == len(downloaded) - 2
         assert attributes.call_count == 7
         assert (sprite.call_count, svg.call_count, elements.call_count) == (1, 6, 4)
         assert domains.call_count == 6
+        # Meanwhile, the drawn Spell symbol.
+        assert symbols.symbol_file("yugioh", "spell").suffix == ".svg"
+        assert await symbols.ensure_symbols() == 2
+        assert konami.call_count == 4
+        assert symbols.symbol_file("yugioh", "spell").suffix == ".png"
         assert await symbols.ensure_symbols() == 0
 
     games = {g["id"]: g for g in (await client.get("/api/games", headers=alice)).json()}
@@ -326,8 +338,6 @@ async def test_symbols_downloaded_once(client, alice):
     for game, code in [
         ("riftbound", "colorless"),
         ("sorcery", "colorless"),
-        ("yugioh", "spell"),
-        ("yugioh", "trap"),
         ("lorcana", "amber"),
         ("lorcana", "steel"),
     ]:

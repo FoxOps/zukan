@@ -1,6 +1,8 @@
 """Official game color symbols (mana, energy types, elements), downloaded once.
 
-Stored as `symbols/{game}/{color}.{svg|png}` under `settings.image_dir`. The API fetches
+Stored as `{game}/symbols/{color}.{svg|png}` under `settings.image_dir`, where a file put
+by hand (svg, png or webp) is never replaced. Downloaded or own files win over the ones
+shipped with Zukan, which stay as fallback. The API fetches
 missing ones in the background on start, so a new game or color gets its symbol on the
 next restart, and a failed download is retried then.
 """
@@ -16,25 +18,24 @@ from PIL import Image
 from app.core.config import get_settings
 from app.core.http import http_client
 from app.games.base import ColorDef, registry
+from app.services import layout
 
 log = logging.getLogger(__name__)
 
-_SUFFIXES = (".svg", ".png")
-
 
 def _folder(game_id: str) -> Path:
-    return get_settings().image_dir / "symbols" / game_id
+    return layout.game_folder(get_settings().image_dir, game_id, layout.SYMBOLS)
 
 
 def symbol_file(game_id: str, code: str) -> Path | None:
     provider = registry().get(game_id)
     color = next((c for c in provider.colors if c.code == code), None) if provider else None
-    if color is not None and color.icon_file is not None and color.icon_file.is_file():
+    if color is None:
+        return None
+    if (own := layout.own_picture(_folder(game_id), code)) is not None:
+        return own
+    if color.icon_file is not None and color.icon_file.is_file():
         return color.icon_file
-    for suffix in _SUFFIXES:
-        path = _folder(game_id) / f"{code}{suffix}"
-        if path.is_file():
-            return path
     return None
 
 
@@ -80,7 +81,8 @@ async def ensure_symbols() -> int:
         (provider.id, color)
         for provider in registry().values()
         for color in provider.colors
-        if color.icon_url and not color.icon_file and symbol_file(provider.id, color.code) is None
+        # A shipped symbol is only the fallback of a source's (`symbol_file`).
+        if color.icon_url and layout.own_picture(_folder(provider.id), color.code) is None
     ]
     if not missing:
         return 0

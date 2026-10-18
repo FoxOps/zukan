@@ -23,7 +23,7 @@ from app.games.base import (
     catalog_version,
 )
 from app.models import Card, CardName, CardSet, CollectionItem, Game, Printing, StockTransaction
-from app.services import prices, translations
+from app.services import layout, prices, translations
 
 
 @dataclass
@@ -480,13 +480,15 @@ class ResetReport:
 def _remove_image_files(
     root: Path, game_id: str, kept_printings: set[int], kept_sets: set[int]
 ) -> None:
-    """Cached card images (`<game>/<set>/<printing>-<lang>.<ext>`) and set icons
-    (`sets/<game>/<set>.<ext>`) of removed printings and sets."""
-    for path in (root / game_id).glob("*/*") if (root / game_id).is_dir() else []:
+    """Cached card images (`<game>/cards/<set>/<printing>-<lang>.<ext>`) and set icons
+    (`<game>/sets/<set>.<ext>`) of removed printings and sets."""
+    cards = layout.game_folder(root, game_id, layout.CARDS)
+    for path in cards.glob("*/*") if cards.is_dir() else []:
         printing = path.name.split("-", 1)[0]
         if printing.isdigit() and int(printing) not in kept_printings:
             path.unlink(missing_ok=True)
-    for path in (root / "sets" / game_id).glob("*") if (root / "sets" / game_id).is_dir() else []:
+    sets = layout.game_folder(root, game_id, layout.SETS)
+    for path in sets.glob("*") if sets.is_dir() else []:
         if path.stem.isdigit() and int(path.stem) not in kept_sets:
             path.unlink(missing_ok=True)
 
