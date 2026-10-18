@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
-from app.games.base import rarity_icon_file, registry  # noqa: E402
+from app.games.base import registry, shipped_rarity_icon  # noqa: E402
 
 BLACK, SILVER, GOLD = ("#1f2937", "#d1d5db"), ("#e5e7eb", "#4b5563"), ("#f5c542", "#8a6212")
 STAR = "M8 .9l2.1 4.6 5 .5-3.8 3.4 1.1 4.9L8 11.8l-4.4 2.5 1.1-4.9L.9 6l5-.5Z"
@@ -81,6 +81,21 @@ def tier(name: str) -> str:
     return gem(*TIERS[name])
 
 
+def lantern() -> str:
+    """Lorcana Illumineer's Quest: a lit lantern (Cardmarket's logo could not be fetched)."""
+    fill, stroke = GOLD
+    return _svg(
+        f'<path d="M6 3.2a2 2 0 0 1 4 0" fill="none" stroke="{stroke}" stroke-width="1"/>'
+        f'<rect x="4.6" y="3.2" width="6.8" height="1.6" rx=".5" fill="{fill}" '
+        f'stroke="{stroke}" stroke-width=".8"/>'
+        f'<path d="M5.4 4.8h5.2l.9 6.6H4.5Z" fill="{fill}" stroke="{stroke}" stroke-width=".8" '
+        f'stroke-linejoin="round"/>'
+        '<ellipse cx="8" cy="8.1" rx="1.4" ry="2.1" fill="#fff7d6"/>'
+        f'<rect x="3.8" y="11.4" width="8.4" height="1.8" rx=".5" fill="{fill}" '
+        f'stroke="{stroke}" stroke-width=".8"/>'
+    )
+
+
 DRAWINGS = {
     "pokemon": {
         "common": circle(),
@@ -135,7 +150,7 @@ DRAWINGS = {
         "extra_secret": tier("red"),
         "quarter_century": gem("#fbbf24", "#b91c1c"),
     },
-    "lorcana": {"special": tier("purple")},
+    "lorcana": {"quest": lantern()},
     "riftbound": {"promo": tier("purple")},
 }
 
@@ -146,7 +161,7 @@ def main() -> None:
         folder = ROOT / "backend" / Path(type(provider).__module__.replace(".", "/")).parent
         folder = folder / "rarities"
         for rarity in provider.rarities:
-            if rarity.code in drawings and rarity_icon_file(game, rarity.code) is None:
+            if rarity.code in drawings and shipped_rarity_icon(game, rarity.code) is None:
                 folder.mkdir(exist_ok=True)
                 (folder / f"{rarity.code}.svg").write_text(drawings[rarity.code])
                 print(f"{game}: drew {rarity.code}")

@@ -124,15 +124,48 @@ can be imported instead: unzip it into `./import/sorcery`, then run
 
 Game color symbols (Scryfall mana symbols, the energy types of pokemon.com's card
 database, the element symbols of the sorcerytcg.com card gallery, Riftbound's domains,
-YGOPRODeck's Yu-Gi-Oh! attributes) are downloaded once when the API starts, into
-`./data/images/symbols`. A symbol that fails to download is shown as a colored badge and
-tried again on the next start. Riftbound's colorless symbol (a gray diamond) is drawn for
-Zukan and shipped with it.
+YGOPRODeck's Yu-Gi-Oh! attributes, the Spell and Trap symbols of Konami's card database)
+are downloaded once when the API starts. A symbol that fails to download is shown as a
+colored badge and tried again on the next start. Symbols no source has (Riftbound and
+Sorcery colorless, Lorcana inks, Pokémon "No type") are drawn for Zukan and shipped with it
+(`scripts/draw_color_symbols.py`); drawn Spell and Trap symbols stand in while Konami's
+cannot be downloaded.
 
 Rarities are shown with their pictogram next to their name. The pictograms are the ones
 Cardmarket draws, collected once and shipped with each game
-(`backend/app/games/<game>/rarities/`, see `scripts/install_rarity_icons.py`); rarities
-without one show their name only.
+(`backend/app/games/<game>/rarities/`, see `scripts/install_rarity_icons.py`), or drawn
+for Zukan (`scripts/draw_rarity_icons.py`).
+
+#### Image folders
+
+Everything is kept per game, `<game>` being the game id (`mtg`, `pokemon`, `sorcery`,
+`riftbound`, `yugioh`, `lorcana`):
+
+```
+data/images/<game>/cards/     card pictures, <set id>/<printing id>-<language>.<ext>
+data/images/<game>/sets/      set icons
+data/images/<game>/symbols/   color symbols
+data/images/<game>/rarity/    your own rarity pictograms
+data/images/cache/            source caches (Konami card pages)
+```
+
+Folders from before 0.12.0 (`<game>/<set id>/`, `sets/<game>/`, `symbols/<game>/`) are
+moved by the database migration when the new version starts.
+
+**Your own pictograms**: copy a file named after the rarity or color code
+(`.svg`, `.png` or `.webp`) into `data/images/<game>/rarity/` or
+`data/images/<game>/symbols/`, e.g. `data/images/yugioh/rarity/secret.png`. It replaces
+the shipped one at once (no restart; reload the page). Delete it to get the shipped one
+back. Codes:
+
+| Game | Rarity codes | Color codes |
+|------|--------------|-------------|
+| lorcana | `common`, `uncommon`, `rare`, `super_rare`, `legendary`, `epic`, `enchanted`, `iconic`, `quest`, `promo` | `amber`, `amethyst`, `emerald`, `ruby`, `sapphire`, `steel` |
+| mtg | `common`, `uncommon`, `rare`, `mythic`, `special` | `W`, `U`, `B`, `R`, `G`, `C` |
+| pokemon | `common`, `uncommon`, `rare`, `holo_rare`, `double_rare`, `triple_rare`, `ace_spec`, `radiant`, `amazing`, `illustration_rare`, `character_rare`, `ultra_rare`, `character_super_rare`, `special_illustration_rare`, `shiny_rare`, `shiny_ultra_rare`, `secret_rare`, `hyper_rare`, `promo` | `grass`, `fire`, `water`, `lightning`, `psychic`, `fighting`, `darkness`, `metal`, `fairy`, `dragon`, `colorless`, `none` (Trainers, special Energies) |
+| riftbound | `common`, `uncommon`, `rare`, `epic`, `showcase`, `promo` | `fury`, `calm`, `mind`, `body`, `chaos`, `order`, `colorless` |
+| sorcery | `ordinary`, `exceptional`, `elite`, `unique` | `air`, `earth`, `fire`, `water`, `colorless` |
+| yugioh | `common`, `rare`, `super`, `ultra`, `secret`, `ultimate`, `ghost`, `gold`, `parallel`, `prismatic`, `collectors`, `starlight`, `platinum`, `starfoil`, `millennium`, `extra_secret`, `quarter_century` | `dark`, `light`, `earth`, `water`, `fire`, `wind`, `divine`, `spell`, `trap` |
 
 Landscape pictures (Riftbound battlefields) are turned a quarter to fit the card frame.
 
@@ -232,7 +265,7 @@ From the command line:
 
 ```sh
 gh workflow run docker-dev.yml --ref my-branch
-gh workflow run docker-prod.yml --ref main -f version=0.11.0
+gh workflow run docker-prod.yml --ref main -f version=0.13.0
 gh workflow run android-prod.yml --ref main -f version=0.8.0
 ```
 

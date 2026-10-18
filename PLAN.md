@@ -1146,6 +1146,58 @@ Progress:
   stock dialog languages on Magic cards after deploying.
 
 
+## Backlog 2026-10-18 (server 0.12.0, Android unchanged 0.8.0)
+Branch `2026-10-18-000-image-folders` (on top of 0.11.0's branch, not merged yet). User
+asked where to put their own rarity pictograms (they were only shipped inside the app, so
+not possible), and for the image folder reorganized per game.
+
+Progress:
+- [x] Layout (`services/layout.py`): `data/images/<game>/cards/<set id>/`,
+  `<game>/sets/`, `<game>/symbols/`, `<game>/rarity/` (`<game>` = game id); `cache/`
+  stays at the root (source caches).
+- [x] Own pictures: `<game>/rarity/<code>.<svg|png|webp>` and `<game>/symbols/<code>...`
+  win over the shipped ones (`rarity_icon_file`, `symbol_file`; `shipped_rarity_icon` for
+  the scripts). Icon links carry `?v=<file time>`, so a replaced file shows at once
+  (browsers keep icons a month). README lists the rarity and color codes per game.
+- [x] Migration `e4a7c2d9b815`: moves the old folders (`<game>/<set id>/`,
+  `sets/<game>/`, `symbols/<game>/`, idempotent, an interrupted move is finished) and
+  rewrites `printing.image_paths`; downgrade moves them back. Runs before the API starts
+  (`alembic upgrade head` in the image command).
+- [x] Tests: 172 backend (move and back, stored paths, own rarity / symbol served with
+  their own type). Live: `zukan_check` + its image folder upgraded (42 files, 50 stored
+  paths), downgraded and upgraded again, `alembic check` clean.
+- [x] Yu-Gi-Oh! Spell / Trap: the official 魔 / 罠 symbols (the ones the user pointed to
+  on the Yu-Gi-Oh! Fandom wiki, whose pages and CDN answer 403 to scripts and browsers
+  here) downloaded from Konami's card database
+  (`…/external/image/parts/attribute/attribute_icon_{spell,trap}.png`) like the other
+  attributes; the drawn ones stay as fallback. A downloaded symbol now wins over a shipped
+  one (`ensure_symbols` downloads whenever the game folder has none).
+- [ ] User: after deploying, check `data/images` has one folder per game; put own
+  rarity pictograms in `data/images/<game>/rarity/`.
+
+
+## Backlog 2026-10-19 (server 0.13.0, Android unchanged 0.8.0)
+Branch `2026-10-19-000-lorcana-quest-promo` (on top of 0.12.0's branch). User list:
+Lorcana's "Special" rarity mixes Illumineer's Quest cards and promos; Pokémon needs a
+symbol for cards without type.
+
+Progress:
+- [x] Lorcana (`catalog_version` 2): LorcanaJSON's "Special" split by `_rarity`: sets of
+  type "quest" (Q1–Q3) → Quest, a `promoGrouping` → Promo (every Special card is one of
+  them: 104 Quest, 215 Promo). Rarities `quest` ("Illumineer's Quest") and `promo`
+  replace `special`. Pictograms: the official promo symbol (link given by the user,
+  shipped as `rarities/promo.png`; shipped pictograms may now be PNG / WebP), a drawn
+  lantern for Quest (the Illumineer's Quest logo is on Fandom, which answers 403 to
+  every request from here: the user can drop it in `data/images/lorcana/rarity/quest.*`).
+- [x] Pokémon (`catalog_version` 5): color `none` ("No type", drawn: gray disc with ∅,
+  Colorless being a type) for Trainers and Energies without type, in TCGdex, Korean and
+  Chinese data (`pokemon/types.card_colors`); a Pokémon without type stays without (data
+  gap).
+- [x] Tests: 173 backend, i18n 402 texts. Live (`zukan_check`): Abu - Cheeky Phantasm
+  (Palace Heist 15) Quest, Baymax - Armored Companion (Promos C1) Promo, no Special left.
+- [ ] User: Illumineer's Quest logo into `data/images/lorcana/rarity/quest.webp` if wanted.
+
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.

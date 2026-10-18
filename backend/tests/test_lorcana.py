@@ -52,6 +52,23 @@ def test_catalog():
     assert {s.external_id for s in batch.sets} >= {"1", "P1"}
 
 
+def test_quest_and_promo_rarities():
+    files = json.loads(json.dumps(FILES))
+    files["en"]["sets"]["Q2"] = {"type": "quest", "name": "Illumineer's Quest: Palace Heist"}
+    quest = next(c for c in files["en"]["cards"] if c.get("promoGrouping"))
+    files["en"]["cards"].append(
+        {**quest, "id": 99999, "setCode": "Q2", "promoGrouping": None, "fullName": "Abu - Q"}
+    )
+    batch = lorcana.build_catalog(files)
+    cards = by_name(batch)
+    # LorcanaJSON's "Special": a promo (promo group) or an Illumineer's Quest card.
+    promo = next(p for p in cards[quest["fullName"]].printings if p.set_external_id == "P1")
+    assert promo.rarity == "Promo" and rarity_of("lorcana", promo.rarity).code == "promo"
+    (abu,) = cards["Abu - Q"].printings
+    assert abu.rarity == "Quest" and rarity_of("lorcana", abu.rarity).code == "quest"
+    assert not any(p.rarity == "Special" for c in batch.cards for p in c.printings)
+
+
 def test_rules_text_spells_out_symbols():
     assert lorcana.rules_text("Shift 3 ⬡ (pay 3 ⬡)") == "Shift 3 Ink (pay 3 Ink)"
     assert lorcana.rules_text("can ⟳ to sing, +1 ◊") == "can [Exert] to sing, +1 Lore"

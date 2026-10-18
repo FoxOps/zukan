@@ -115,7 +115,8 @@ async def test_sync_sets_translations_and_exclusive_sets(client, session, tcgdex
         "ja:トロピウス",
     }
     assert cards["en:furret"].colors == ["colorless"]
-    assert cards["en:spikemuth"].colors == []
+    # A Trainer: "No type" (Colorless is a type of its own).
+    assert cards["en:spikemuth"].colors == ["none"]
     assert cards["en:spikemuth"].attributes["category"] == "Trainer"
     assert cards["ja:トロピウス"].colors == ["grass"]
 

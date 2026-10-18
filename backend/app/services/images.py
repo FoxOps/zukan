@@ -1,10 +1,10 @@
 """Local card image cache.
 
 A printing can have one image per language (`Printing.image_urls`). Images are stored
-under `settings.image_dir` as `{game}/{set_id}/{printing_id}-{lang}.{ext}` (database ids
+under `settings.image_dir` as `{game}/cards/{set_id}/{printing_id}-{lang}.{ext}` (database ids
 only, so no user or provider text ends up in paths). They are fetched on first view,
 pre-fetched by the worker (owned printings, or every printing for small catalogs), or
-imported from a folder.
+imported from a folder. Folder layout: `layout`.
 
 Users see a card in their interface language when that scan exists, else in English,
 else in Japanese, else in whatever language exists.
@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.games.base import GameProvider, get_provider
 from app.models import Card, CardSet, CollectionItem, Printing
+from app.services import layout
 
 log = logging.getLogger(__name__)
 
@@ -88,7 +89,7 @@ def cached_file(printing: Printing, lang: str) -> Path | None:
 
 
 def _relative_path(game_id: str, printing: Printing, lang: str, extension: str) -> str:
-    return f"{game_id}/{printing.set_id}/{printing.id}-{lang}{extension}"
+    return f"{game_id}/{layout.CARDS}/{printing.set_id}/{printing.id}-{lang}{extension}"
 
 
 def _set_path(printing: Printing, lang: str, relative: str) -> None:
@@ -199,11 +200,11 @@ async def cached_asset(http: httpx.AsyncClient, url: str | None, stem: str) -> P
 
 
 def back_stem(game_id: str, printing: Printing) -> str:
-    return f"{game_id}/{printing.set_id}/{printing.id}-back"
+    return f"{game_id}/{layout.CARDS}/{printing.set_id}/{printing.id}-back"
 
 
 def set_icon_stem(card_set: CardSet) -> str:
-    return f"sets/{card_set.game_id}/{card_set.id}"
+    return f"{card_set.game_id}/{layout.SETS}/{card_set.id}"
 
 
 async def get_or_fetch(

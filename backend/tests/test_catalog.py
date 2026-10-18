@@ -273,6 +273,7 @@ async def test_remote_image_fetched_once(client, session, synced):
 
     await session.refresh(printing)
     assert printing.image_paths["en"].endswith(f"/{printing.id}-en.jpg")
+    assert printing.image_paths["en"].startswith("sorcery/cards/")
 
 
 async def test_remote_image_rejects_non_images(client, session, synced):
@@ -679,8 +680,8 @@ async def test_reset_catalog_keeps_owned_printings(client, session, sorcery_api)
     )  # fmt: skip
     root = get_settings().image_dir
     files = [
-        root / "sorcery" / str(owned.set_id) / f"{owned_id}-en.webp",
-        root / "sorcery" / str(other.set_id) / f"{other_id}-en.webp",
+        root / "sorcery" / "cards" / str(owned.set_id) / f"{owned_id}-en.webp",
+        root / "sorcery" / "cards" / str(other.set_id) / f"{other_id}-en.webp",
     ]
     for path in files:
         path.parent.mkdir(parents=True, exist_ok=True)
