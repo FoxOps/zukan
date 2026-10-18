@@ -75,7 +75,9 @@ GUESSED_FINISHES = ["first", "unlimited"]
 CATALOG_TTL = 3600
 _cached: tuple[float, CatalogBatch] | None = None
 
-# Spell and Trap: YGOPRODeck has no symbol (drawn for Zukan, scripts/draw_color_symbols.py).
+# Spell and Trap: YGOPRODeck has no symbol; Konami's card database has (Fandom shows the
+# same ones, but refuses scripts). Drawn for Zukan as fallback (scripts/draw_color_symbols.py).
+KONAMI_ICON_URL = "https://www.db.yugioh-card.com/yugiohdb/external/image/parts/attribute"
 SYMBOLS = Path(__file__).parent / "symbols"
 # Languages of TCG printings, sold on Cardmarket and TCGplayer.
 EUROPEAN_LANGS = ["en", "fr", "de", "it", "pt", "es"]
@@ -502,8 +504,21 @@ class YugiohProvider:
         ColorDef("fire", "Fire", "#D2412F", f"{ICON_URL}/FIRE.jpg"),
         ColorDef("wind", "Wind", "#3F9E4F", f"{ICON_URL}/WIND.jpg"),
         ColorDef("divine", "Divine", "#C8A24A", f"{ICON_URL}/DIVINE.jpg"),
-        ColorDef("spell", "Spell", "#1D9A86", icon_file=SYMBOLS / "spell.svg"),
-        ColorDef("trap", "Trap", "#B5307A", icon_file=SYMBOLS / "trap.svg"),
+        # Konami's own (魔 / 罠); drawn ones while it cannot be reached.
+        ColorDef(
+            "spell",
+            "Spell",
+            "#1D9A86",
+            f"{KONAMI_ICON_URL}/attribute_icon_spell.png",
+            icon_file=SYMBOLS / "spell.svg",
+        ),
+        ColorDef(
+            "trap",
+            "Trap",
+            "#B5307A",
+            f"{KONAMI_ICON_URL}/attribute_icon_trap.png",
+            icon_file=SYMBOLS / "trap.svg",
+        ),
     ]
     finishes = [
         FinishDef("unlimited", "Unlimited"),

@@ -1,7 +1,8 @@
 """Official game color symbols (mana, energy types, elements), downloaded once.
 
 Stored as `{game}/symbols/{color}.{svg|png}` under `settings.image_dir`, where a file put
-by hand (svg, png or webp) wins over the one shipped with Zukan. The API fetches
+by hand (svg, png or webp) is never replaced. Downloaded or own files win over the ones
+shipped with Zukan, which stay as fallback. The API fetches
 missing ones in the background on start, so a new game or color gets its symbol on the
 next restart, and a failed download is retried then.
 """
@@ -80,7 +81,8 @@ async def ensure_symbols() -> int:
         (provider.id, color)
         for provider in registry().values()
         for color in provider.colors
-        if color.icon_url and not color.icon_file and symbol_file(provider.id, color.code) is None
+        # A shipped symbol is only the fallback of a source's (`symbol_file`).
+        if color.icon_url and layout.own_picture(_folder(provider.id), color.code) is None
     ]
     if not missing:
         return 0

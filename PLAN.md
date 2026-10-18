@@ -1166,6 +1166,12 @@ Progress:
 - [x] Tests: 172 backend (move and back, stored paths, own rarity / symbol served with
   their own type). Live: `zukan_check` + its image folder upgraded (42 files, 50 stored
   paths), downgraded and upgraded again, `alembic check` clean.
+- [x] Yu-Gi-Oh! Spell / Trap: the official 魔 / 罠 symbols (the ones the user pointed to
+  on the Yu-Gi-Oh! Fandom wiki, whose pages and CDN answer 403 to scripts and browsers
+  here) downloaded from Konami's card database
+  (`…/external/image/parts/attribute/attribute_icon_{spell,trap}.png`) like the other
+  attributes; the drawn ones stay as fallback. A downloaded symbol now wins over a shipped
+  one (`ensure_symbols` downloads whenever the game folder has none).
 - [ ] User: after deploying, check `data/images` has one folder per game; put own
   rarity pictograms in `data/images/<game>/rarity/`.
 

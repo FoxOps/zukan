@@ -124,10 +124,12 @@ can be imported instead: unzip it into `./import/sorcery`, then run
 
 Game color symbols (Scryfall mana symbols, the energy types of pokemon.com's card
 database, the element symbols of the sorcerytcg.com card gallery, Riftbound's domains,
-YGOPRODeck's Yu-Gi-Oh! attributes) are downloaded once when the API starts. A symbol that
-fails to download is shown as a colored badge and tried again on the next start. Symbols
-no source has (Riftbound and Sorcery colorless, Lorcana inks, Yu-Gi-Oh! Spell and Trap)
-are drawn for Zukan and shipped with it (`scripts/draw_color_symbols.py`).
+YGOPRODeck's Yu-Gi-Oh! attributes, the Spell and Trap symbols of Konami's card database)
+are downloaded once when the API starts. A symbol that fails to download is shown as a
+colored badge and tried again on the next start. Symbols no source has (Riftbound and
+Sorcery colorless, Lorcana inks) are drawn for Zukan and shipped with it
+(`scripts/draw_color_symbols.py`); drawn Spell and Trap symbols stand in while Konami's
+cannot be downloaded.
 
 Rarities are shown with their pictogram next to their name. The pictograms are the ones
 Cardmarket draws, collected once and shipped with each game
