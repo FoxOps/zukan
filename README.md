@@ -127,7 +127,7 @@ database, the element symbols of the sorcerytcg.com card gallery, Riftbound's do
 YGOPRODeck's Yu-Gi-Oh! attributes, the Spell and Trap symbols of Konami's card database)
 are downloaded once when the API starts. A symbol that fails to download is shown as a
 colored badge and tried again on the next start. Symbols no source has (Riftbound and
-Sorcery colorless, Lorcana inks) are drawn for Zukan and shipped with it
+Sorcery colorless, Lorcana inks, Pokémon "No type") are drawn for Zukan and shipped with it
 (`scripts/draw_color_symbols.py`); drawn Spell and Trap symbols stand in while Konami's
 cannot be downloaded.
 
@@ -160,9 +160,9 @@ back. Codes:
 
 | Game | Rarity codes | Color codes |
 |------|--------------|-------------|
-| lorcana | `common`, `uncommon`, `rare`, `super_rare`, `legendary`, `epic`, `enchanted`, `iconic`, `special` | `amber`, `amethyst`, `emerald`, `ruby`, `sapphire`, `steel` |
+| lorcana | `common`, `uncommon`, `rare`, `super_rare`, `legendary`, `epic`, `enchanted`, `iconic`, `quest`, `promo` | `amber`, `amethyst`, `emerald`, `ruby`, `sapphire`, `steel` |
 | mtg | `common`, `uncommon`, `rare`, `mythic`, `special` | `W`, `U`, `B`, `R`, `G`, `C` |
-| pokemon | `common`, `uncommon`, `rare`, `holo_rare`, `double_rare`, `triple_rare`, `ace_spec`, `radiant`, `amazing`, `illustration_rare`, `character_rare`, `ultra_rare`, `character_super_rare`, `special_illustration_rare`, `shiny_rare`, `shiny_ultra_rare`, `secret_rare`, `hyper_rare`, `promo` | `grass`, `fire`, `water`, `lightning`, `psychic`, `fighting`, `darkness`, `metal`, `fairy`, `dragon`, `colorless` |
+| pokemon | `common`, `uncommon`, `rare`, `holo_rare`, `double_rare`, `triple_rare`, `ace_spec`, `radiant`, `amazing`, `illustration_rare`, `character_rare`, `ultra_rare`, `character_super_rare`, `special_illustration_rare`, `shiny_rare`, `shiny_ultra_rare`, `secret_rare`, `hyper_rare`, `promo` | `grass`, `fire`, `water`, `lightning`, `psychic`, `fighting`, `darkness`, `metal`, `fairy`, `dragon`, `colorless`, `none` (Trainers, special Energies) |
 | riftbound | `common`, `uncommon`, `rare`, `epic`, `showcase`, `promo` | `fury`, `calm`, `mind`, `body`, `chaos`, `order`, `colorless` |
 | sorcery | `ordinary`, `exceptional`, `elite`, `unique` | `air`, `earth`, `fire`, `water`, `colorless` |
 | yugioh | `common`, `rare`, `super`, `ultra`, `secret`, `ultimate`, `ghost`, `gold`, `parallel`, `prismatic`, `collectors`, `starlight`, `platinum`, `starfoil`, `millennium`, `extra_secret`, `quarter_century` | `dark`, `light`, `earth`, `water`, `fire`, `wind`, `divine`, `spell`, `trap` |
@@ -265,7 +265,7 @@ From the command line:
 
 ```sh
 gh workflow run docker-dev.yml --ref my-branch
-gh workflow run docker-prod.yml --ref main -f version=0.12.0
+gh workflow run docker-prod.yml --ref main -f version=0.13.0
 gh workflow run android-prod.yml --ref main -f version=0.8.0
 ```
 

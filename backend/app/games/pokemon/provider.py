@@ -24,6 +24,7 @@ import re
 from collections.abc import AsyncIterator, Iterable
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
@@ -50,11 +51,14 @@ from app.games.base import (
 from app.games.ocr import bottom_part, by_position, clean, letter_ratio, script_language
 from app.games.pokemon import asia, pokemontcg
 from app.games.pokemon.species import derive_names, species_names
+from app.games.pokemon.types import NO_TYPE, card_colors
 from app.models import Printing
 
 log = logging.getLogger(__name__)
 
 API_URL = "https://api.tcgdex.net/v2"
+# Symbols drawn for Zukan (scripts/draw_color_symbols.py).
+SYMBOLS = Path(__file__).parent / "symbols"
 LEGAL_NOTICE = (
     "Pokémon is a trademark of Nintendo, Creatures Inc. and GAME FREAK inc.; the card game "
     "is published by The Pokémon Company. Zukan is not produced, endorsed, supported or "
@@ -210,7 +214,7 @@ def parse_card(raw: dict[str, Any], set_id: str, lang: str) -> CardData:
     return CardData(
         external_id=card_key(lang, raw["name"]),
         name=raw["name"],
-        colors=[t.lower() for t in raw.get("types") or []],
+        colors=card_colors(raw.get("types") or [], raw.get("category")),
         attributes=attributes,
         printings=[printing],
         names=names,
@@ -480,6 +484,8 @@ class PokemonProvider:
         ColorDef("fairy", "Fairy", "#EE99AC", ENERGY_SPRITE, (50, 0, 25, 25)),
         ColorDef("dragon", "Dragon", "#7038F8", ENERGY_SPRITE, (0, 25, 25, 25)),
         ColorDef("colorless", "Colorless", "#A8A878", ENERGY_SPRITE, (25, 0, 25, 25)),
+        # Trainers and special Energies (drawn for Zukan, scripts/draw_color_symbols.py).
+        ColorDef(NO_TYPE, "No type", "#D1D5DB", icon_file=SYMBOLS / "none.svg"),
     ]
     finishes = [
         FinishDef("normal", "Standard"),
@@ -540,7 +546,8 @@ class PokemonProvider:
     # 2: one set per set id across Asian languages, names from species names.
     # 3: Asian sets reusing an international id stored apart, Asian names fixed.
     # 4: Thai and Indonesian, Korean and Simplified Chinese from open datasets.
-    catalog_version = 4
+    # 5: "No type" for Trainers and special Energies.
+    catalog_version = 5
 
     async def _get(self, http: httpx.AsyncClient, path: str) -> Any:
         return (await get_with_retry(http, f"{API_URL}{path}")).json()

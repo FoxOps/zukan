@@ -1176,6 +1176,28 @@ Progress:
   rarity pictograms in `data/images/<game>/rarity/`.
 
 
+## Backlog 2026-10-19 (server 0.13.0, Android unchanged 0.8.0)
+Branch `2026-10-19-000-lorcana-quest-promo` (on top of 0.12.0's branch). User list:
+Lorcana's "Special" rarity mixes Illumineer's Quest cards and promos; Pokémon needs a
+symbol for cards without type.
+
+Progress:
+- [x] Lorcana (`catalog_version` 2): LorcanaJSON's "Special" split by `_rarity`: sets of
+  type "quest" (Q1–Q3) → Quest, a `promoGrouping` → Promo (every Special card is one of
+  them: 104 Quest, 215 Promo). Rarities `quest` ("Illumineer's Quest") and `promo`
+  replace `special`. Pictograms: the official promo symbol (link given by the user,
+  shipped as `rarities/promo.png`; shipped pictograms may now be PNG / WebP), a drawn
+  lantern for Quest (the Illumineer's Quest logo is on Fandom, which answers 403 to
+  every request from here: the user can drop it in `data/images/lorcana/rarity/quest.*`).
+- [x] Pokémon (`catalog_version` 5): color `none` ("No type", drawn: gray disc with ∅,
+  Colorless being a type) for Trainers and Energies without type, in TCGdex, Korean and
+  Chinese data (`pokemon/types.card_colors`); a Pokémon without type stays without (data
+  gap).
+- [x] Tests: 173 backend, i18n 402 texts. Live (`zukan_check`): Abu - Cheeky Phantasm
+  (Palace Heist 15) Quest, Baymax - Armored Companion (Promos C1) Promo, no Special left.
+- [ ] User: Illumineer's Quest logo into `data/images/lorcana/rarity/quest.webp` if wanted.
+
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.
