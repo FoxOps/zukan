@@ -265,7 +265,7 @@ From the command line:
 
 ```sh
 gh workflow run docker-dev.yml --ref my-branch
-gh workflow run docker-prod.yml --ref main -f version=0.13.0
+gh workflow run docker-prod.yml --ref main -f version=0.13.1
 gh workflow run android-prod.yml --ref main -f version=0.8.0
 ```
 
