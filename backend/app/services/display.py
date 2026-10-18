@@ -11,8 +11,10 @@ Non-Latin cards (every printing in a non-Latin set, see `scripts`):
 Any name shown in a non-Latin script (a non-Latin card, or a non-Latin UI language on a
 Latin card) carries a translation: the name in the UI language if Latin > English > first
 available Latin language (dropped when missing or identical).
-The language comes first, then the printing having an image in it: latest set, else
-first, else any (undated sets last). No image at all: a placeholder (None).
+The language comes first, then the printing having an image in it: printings sold in
+several languages before single-language ones (English-only promos and specials would
+hide the card's translations), then latest set (undated sets last). No image at all: a
+placeholder (None).
 """
 
 from collections.abc import Iterable, Mapping, Sequence
@@ -48,6 +50,11 @@ def _age(printing: Printing) -> tuple[bool, date, str]:
     return (released is None, -(released or date.min).toordinal(), printing.collector_number or "")
 
 
+def _shown_first(printing: Printing) -> tuple[bool, bool, date, str]:
+    """Sort key of the printing showing a card: multi-language printings, then latest."""
+    return (len(printing.languages or ()) <= 1, *_age(printing))
+
+
 def _first(chain: Iterable[str | None], available: Iterable[str]) -> str | None:
     found = set(available)
     return next((lang for lang in chain if lang in found), None)
@@ -66,7 +73,7 @@ def pick_image(
 ) -> tuple[Printing, str] | None:
     """The printing and language whose image shows the card (sets must be loaded)."""
     by_lang: dict[str, list[Printing]] = {}
-    for printing in sorted(printings, key=_age):
+    for printing in sorted(printings, key=_shown_first):
         for lang in images.image_languages(printing):
             # An empty path: the image server refused that download.
             if printing.image_paths.get(lang) != "":

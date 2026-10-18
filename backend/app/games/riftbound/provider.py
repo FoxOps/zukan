@@ -52,7 +52,7 @@ LEGAL_NOTICE = (
     "Zukan isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot "
     "Games or anyone officially involved in producing or managing Riot Games properties. "
     "Riot Games, and all associated properties are trademarks or registered trademarks of "
-    "Riot Games, Inc."
+    "Riot Games, Inc. Card data from Riftcodex and Riot Games' official card gallery."
 )
 # Rarities sold in both versions; the others are foil only.
 _BOTH_FINISHES = {"common", "uncommon"}

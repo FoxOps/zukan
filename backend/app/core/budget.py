@@ -65,6 +65,11 @@ class RequestBudget:
         self._last = time.monotonic()
         self.used += 1
 
+    async def refund(self) -> None:
+        """Give back the last request taken: it never reached the source (network error)."""
+        await self._count(-1)
+        self.used -= 1
+
     async def remaining(self) -> int:
         return max(0, self.limit - await self._count(0))
 

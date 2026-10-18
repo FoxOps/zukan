@@ -495,6 +495,60 @@ async def value(user: CurrentUser, session: SessionDep) -> ValueOut:
     )
 
 
+class MoverOut(BaseModel):
+    item: ItemOut
+    # Value change of the copies held over the period (market price), in `item.currency`.
+    change: Decimal
+
+
+class MoversOut(BaseModel):
+    period: Literal["d1", "d7", "d30"]
+    risers: list[MoverOut]
+    fallers: list[MoverOut]
+
+
+@router.get("/movers")
+async def movers(
+    user: CurrentUser,
+    session: SessionDep,
+    period: Literal["d1", "d7", "d30"] = "d7",
+    limit: Annotated[int, Query(ge=1, le=50)] = 5,
+) -> MoversOut:
+    """Owned items whose market price moved most over the period, by value of the copies
+    held (price change × quantity): biggest rises and falls."""
+    items = (
+        await session.scalars(
+            _item_query()
+            .join(Printing, CollectionItem.printing_id == Printing.id)
+            .where(CollectionItem.user_id == user.id, CollectionItem.quantity > 0)
+        )
+    ).all()
+    games = {i.printing_id: i.printing.set.game_id for i in items}
+    now = await collection.user_prices(session, user.price_source, games)
+    trends = await collection.price_trends(session, user.price_source, games, now)
+    changes: list[tuple[Decimal, CollectionItem]] = []
+    for item in items:
+        key = (item.printing_id, item.finish)
+        trend, point = trends.get(key, {}).get(period), now.get(key)
+        if trend is None or point is None or trend.direction == "flat":
+            continue
+        past = point.trend / (1 + Decimal(str(trend.change)))
+        changes.append(((point.trend - past) * item.quantity, item))
+    rising = sorted((c for c in changes if c[0] > 0), key=lambda c: -c[0])[:limit]
+    falling = sorted((c for c in changes if c[0] < 0), key=lambda c: c[0])[:limit]
+    described = {
+        out.id: out
+        for out in await _items_out(
+            session, [i for _, i in rising + falling], user.language, user.price_source
+        )
+    }
+    return MoversOut(
+        period=period,
+        risers=[MoverOut(item=described[i.id], change=round(c, 2)) for c, i in rising],
+        fallers=[MoverOut(item=described[i.id], change=round(c, 2)) for c, i in falling],
+    )
+
+
 @router.get("/value/history")
 async def value_history(
     user: CurrentUser,

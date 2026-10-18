@@ -44,6 +44,16 @@ def test_latin_card_language_first_then_latest_printing():
     assert pick_image([jp], "fr", True) == (jp, "ja")
 
 
+def test_multi_language_printing_before_newer_single_language_one():
+    # Magic: a newer English-only Secret Lair would hide the card's translations.
+    core = printing(None, date(2021, 1, 1), ["en"], languages=["en", "fr", "de", "ja"])
+    secret_lair = printing(None, date(2025, 1, 1), ["en"], languages=["en"])
+    assert pick_image([secret_lair, core], "en", True) == (core, "en")
+    # Only single-language printings: the newest.
+    other = printing(None, date(2019, 1, 1), ["en"], languages=["en"])
+    assert pick_image([other, secret_lair], "en", True) == (secret_lair, "en")
+
+
 def test_latest_then_first_then_undated():
     undated = printing("fr", None, ["fr"])
     first = printing("fr", date(1999, 1, 1), ["fr"])

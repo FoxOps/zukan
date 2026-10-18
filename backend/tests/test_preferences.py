@@ -301,8 +301,8 @@ async def test_symbols_downloaded_once(client, alice):
             content=png(), headers={"content-type": "image/jpeg"}
         )
         stored = await symbols.ensure_symbols()
-        # Symbols to download: Riftbound's colorless is drawn for Zukan (shipped), Yu-Gi-Oh!
-        # spells and traps and Lorcana inks have none.
+        # Symbols to download: Riftbound's and Sorcery's colorless, Yu-Gi-Oh! spells and
+        # traps and Lorcana inks are drawn for Zukan (shipped).
         downloaded = [
             c for p in registry().values() for c in p.colors if c.icon_url and not c.icon_file
         ]
@@ -323,9 +323,18 @@ async def test_symbols_downloaded_once(client, alice):
     assert (
         await client.get("/api/games/mtg/colors/..%2F..%2Fx/icon", headers=alice)
     ).status_code == 404
-    colorless = next(c for c in games["riftbound"]["colors"] if c["code"] == "colorless")
-    shipped = await client.get(colorless["icon"], headers=alice)
-    assert shipped.status_code == 200 and shipped.content.startswith(b"<svg")
+    for game, code in [
+        ("riftbound", "colorless"),
+        ("sorcery", "colorless"),
+        ("yugioh", "spell"),
+        ("yugioh", "trap"),
+        ("lorcana", "amber"),
+        ("lorcana", "steel"),
+    ]:
+        color = next(c for c in games[game]["colors"] if c["code"] == code)
+        shipped = await client.get(color["icon"], headers=alice)
+        assert shipped.status_code == 200 and shipped.content.startswith(b"<svg"), code
+    assert all(c["icon"] for c in games["lorcana"]["colors"])
 
 
 def test_api_tokens_follow_the_naming_rule(monkeypatch):

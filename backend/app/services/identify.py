@@ -50,6 +50,24 @@ def number_matches(column, number: str):
 async def _exact(session: AsyncSession, game_id: str, hints: OcrHints) -> list[Printing]:
     if not (hints.set_code and hints.collector_number):
         return []
+    lookup = getattr(registry().get(game_id), "code_lookup", None)
+    found = lookup(hints.collector_number) if lookup else None
+    if found:
+        # A code printed differently than stored ("BETB-KR024" under "BETB-EN024").
+        set_codes, numbers = found
+        printings = list(
+            await session.scalars(
+                select(Printing)
+                .join(CardSet)
+                .where(
+                    CardSet.game_id == game_id,
+                    func.lower(CardSet.code).in_([c.lower() for c in set_codes]),
+                    Printing.collector_number.in_(numbers),
+                )
+            )
+        )
+        if printings:
+            return printings
     code = hints.set_code.lower()
     return list(
         await session.scalars(

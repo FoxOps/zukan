@@ -221,7 +221,8 @@ async def test_games_metadata(client, session):
     # tcgcsv prices Sorcery and Riftbound on TCGplayer.
     assert [s["id"] for s in games["sorcery"]["price_sources"]] == ["cardmarket", "tcgplayer"]
     assert games["riftbound"]["legal_notice"].startswith("Zukan isn't endorsed by Riot Games")
-    assert games["mtg"]["legal_notice"] is None
+    assert all(g["legal_notice"] for g in games.values())
+    assert games["mtg"]["legal_notice"].startswith("Zukan is unofficial Fan Content")
     assert (await client.get("/api/games")).status_code == 401
 
 

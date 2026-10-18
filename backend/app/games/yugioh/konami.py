@@ -21,6 +21,7 @@ import httpx
 
 from app.core.budget import BudgetSpent, RequestBudget
 from app.core.config import get_settings
+from app.core.progress import progress
 
 log = logging.getLogger(__name__)
 
@@ -28,6 +29,8 @@ URL = "https://www.db.yugioh-card.com/yugiohdb/card_search.action"
 SOURCE = "konami"
 LOCALES = {"ja": "ja", "ko": "ko"}
 RETRY_AFTER = timedelta(days=30)
+# Network errors in a row after which the site is taken as unreachable for this run.
+MAX_FAILURES = 5
 
 _NAME = re.compile(r'id="cardname"[^>]*>\s*<h1>(.*?)</h1>', re.S)
 _ROW = re.compile(r'<div class="t_row[^"]*">(.*?)<!-- \.icon -->', re.S)
@@ -138,7 +141,7 @@ async def fill(
     if not todo or daily <= 0:
         return 0
     budget = RequestBudget(SOURCE, "day", daily, per_minute=60)
-    read = 0
+    read = failures = 0
     try:
         for cid, lang in todo:
             await budget.take()
@@ -147,9 +150,26 @@ async def fill(
                     URL, params={"ope": "2", "cid": str(cid), "request_locale": lang}, timeout=30
                 )
                 response.raise_for_status()
+            except httpx.TransportError as exc:
+                # Timeouts never reach the response hook: report progress here, and do not
+                # charge the day's budget for a request the site never answered.
+                await budget.refund()
+                await progress()
+                failures += 1
+                log.warning("Konami database: card %s (%s) not read: %r", cid, lang, exc)
+                if failures >= MAX_FAILURES:
+                    log.warning(
+                        "Konami database unreachable (%s network errors in a row), "
+                        "%s pages left for the next run",
+                        failures,
+                        len(todo) - read,
+                    )
+                    break
+                continue
             except httpx.HTTPError as exc:
                 log.warning("Konami database: card %s (%s) not read: %s", cid, lang, exc)
                 continue
+            failures = 0
             page = parse(response.text)
             page.fetched_at = now.isoformat()
             cache.put(cid, lang, page)
