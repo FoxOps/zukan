@@ -1,4 +1,5 @@
 import time
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
@@ -76,9 +77,9 @@ async def list_games(_: CurrentUser) -> list[GameOut]:
                     code=c.code,
                     name=c.name,
                     hex=c.hex,
-                    icon=f"/api/games/{p.id}/colors/{c.code}/icon"
-                    if symbol_file(p.id, c.code)
-                    else None,
+                    icon=_icon_link(
+                        f"/api/games/{p.id}/colors/{c.code}/icon", symbol_file(p.id, c.code)
+                    ),
                 )
                 for c in p.colors
             ],
@@ -87,9 +88,9 @@ async def list_games(_: CurrentUser) -> list[GameOut]:
                 RarityOut(
                     code=r.code,
                     name=r.name,
-                    icon=f"/api/games/{p.id}/rarities/{r.code}/icon"
-                    if rarity_icon_file(p.id, r.code)
-                    else None,
+                    icon=_icon_link(
+                        f"/api/games/{p.id}/rarities/{r.code}/icon", rarity_icon_file(p.id, r.code)
+                    ),
                 )
                 for r in getattr(p, "rarities", [])
             ],
@@ -123,7 +124,17 @@ async def rarity_icon(game_id: str, code: str, _: CurrentUser) -> FileResponse:
     path = rarity_icon_file(game_id, code) if game_id in registry() else None
     if path is None or code not in {r.code for r in getattr(registry()[game_id], "rarities", [])}:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown rarity")
-    return FileResponse(path, media_type="image/svg+xml", headers=_SYMBOL_HEADERS)
+    return FileResponse(path, headers=_SYMBOL_HEADERS)
+
+
+def _icon_link(url: str, path: Path | None) -> str | None:
+    """Link to a pictogram, changing when its file is replaced (browsers keep them a month)."""
+    if path is None:
+        return None
+    try:
+        return f"{url}?v={int(path.stat().st_mtime)}"
+    except OSError:
+        return None
 
 
 # SVG files: never run anything they contain.

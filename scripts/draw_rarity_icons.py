@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
-from app.games.base import rarity_icon_file, registry  # noqa: E402
+from app.games.base import registry, shipped_rarity_icon  # noqa: E402
 
 BLACK, SILVER, GOLD = ("#1f2937", "#d1d5db"), ("#e5e7eb", "#4b5563"), ("#f5c542", "#8a6212")
 STAR = "M8 .9l2.1 4.6 5 .5-3.8 3.4 1.1 4.9L8 11.8l-4.4 2.5 1.1-4.9L.9 6l5-.5Z"
@@ -146,7 +146,7 @@ def main() -> None:
         folder = ROOT / "backend" / Path(type(provider).__module__.replace(".", "/")).parent
         folder = folder / "rarities"
         for rarity in provider.rarities:
-            if rarity.code in drawings and rarity_icon_file(game, rarity.code) is None:
+            if rarity.code in drawings and shipped_rarity_icon(game, rarity.code) is None:
                 folder.mkdir(exist_ok=True)
                 (folder / f"{rarity.code}.svg").write_text(drawings[rarity.code])
                 print(f"{game}: drew {rarity.code}")
