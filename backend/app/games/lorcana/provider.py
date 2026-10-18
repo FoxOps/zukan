@@ -102,6 +102,18 @@ def _set_of(raw: dict[str, Any]) -> str:
     return raw.get("promoGrouping") or raw["setCode"]
 
 
+def _rarity(raw: dict[str, Any], sets: dict[str, Any]) -> str | None:
+    """LorcanaJSON calls every card outside the booster rarities "Special": Illumineer's
+    Quest cards (sets of type "quest") and promos (a `promoGrouping`), told apart here."""
+    rarity = raw.get("rarity")
+    if rarity == "Special":
+        if (sets.get(raw.get("setCode")) or {}).get("type") == "quest":
+            return "Quest"
+        if raw.get("promoGrouping"):
+            return "Promo"
+    return rarity
+
+
 def _number(raw: dict[str, Any]) -> str:
     return f"{raw['number']}{raw.get('variant') or ''}"
 
@@ -184,7 +196,7 @@ def build_catalog(by_lang: dict[str, dict[str, Any]]) -> CatalogBatch:
             collector_number=_number(raw)
             if not raw.get("promoGrouping")
             else f"{raw['number']}/{raw['promoGrouping']}",
-            rarity=raw.get("rarity"),
+            rarity=_rarity(raw, english.get("sets", {})),
             artist=raw.get("artistsText"),
             finishes=_finishes(foil_types),
             languages=["en"],
@@ -260,7 +272,9 @@ class LorcanaProvider:
         RarityDef("epic", "Epic"),
         RarityDef("enchanted", "Enchanted"),
         RarityDef("iconic", "Iconic"),
-        RarityDef("special", "Special", ("Promo",)),
+        # Illumineer's Quest cards and promos (both "Special" in LorcanaJSON).
+        RarityDef("quest", "Quest", ("Illumineer's Quest",)),
+        RarityDef("promo", "Promo"),
     ]
     languages = LANGUAGES
     price_sources = ["cardmarket", "tcgplayer"]
@@ -275,6 +289,8 @@ class LorcanaProvider:
     short_names = ["lorcana", "lor"]
     # About 3500 printings: every picture is cached.
     cache_all_images = True
+    # 2: Quest and Promo rarities instead of LorcanaJSON's "Special".
+    catalog_version = 2
     legal_notice = LEGAL_NOTICE
     text_attribute = "text"
     source_keys = {"tcgcsv": 71, "tcgapi_eu": "lorcana", "apitcg": "lorcana"}
