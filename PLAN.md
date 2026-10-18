@@ -1197,6 +1197,12 @@ Progress:
   (Palace Heist 15) Quest, Baymax - Armored Companion (Promos C1) Promo, no Special left.
 - [ ] User: Illumineer's Quest logo into `data/images/lorcana/rarity/quest.webp` if wanted.
 
+Release note (2026-10-19): the 0.11.0, 0.12.0 and 0.13.0 images were all built from
+a14bbae (main after #11 only: #12 and #13 had been merged into their base branches, then
+brought to main by #14 / #15), so their images were deleted and their tags still point at
+a14bbae. Server 0.13.1 is the first release with everything (same code as 0.13.0 on
+main); Android unchanged 0.8.0.
+
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
