@@ -26,6 +26,7 @@ import httpx
 from app.core.http import get_with_retry
 from app.games.base import CardData, PrintingData, SetData
 from app.games.pokemon.species import derive_names, find_species
+from app.games.pokemon.types import card_colors
 
 log = logging.getLogger(__name__)
 
@@ -111,7 +112,7 @@ def korean_card(raw: dict[str, Any], set_id: str) -> CardData | None:
     return CardData(
         external_id=f"ko:{name.casefold()}",
         name=name,
-        colors=[t.lower() for t in raw.get("types_en") or []],
+        colors=card_colors(raw.get("types_en") or [], category),
         attributes=attributes,
         printings=[printing],
         names=names,
@@ -230,7 +231,7 @@ def chinese_card(raw: dict[str, Any], set_id: str) -> CardData | None:
     return CardData(
         external_id=f"zh-hans:{name.casefold()}",
         name=name,
-        colors=[color] if color else [],
+        colors=card_colors([color], category),
         attributes=attributes,
         printings=[printing],
         names=names,

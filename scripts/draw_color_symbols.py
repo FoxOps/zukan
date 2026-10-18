@@ -1,5 +1,5 @@
 """Draw Zukan's own color symbols where no source has one: Lorcana inks, Sorcery colorless,
-Yu-Gi-Oh! Spell and Trap. Written to `backend/app/games/<game>/symbols/<code>.svg`
+Pokémon "No type", Yu-Gi-Oh! Spell and Trap (fallback of Konami's). Written to `backend/app/games/<game>/symbols/<code>.svg`
 (`ColorDef.icon_file`); existing files are kept.
 
     python scripts/draw_color_symbols.py
@@ -75,6 +75,15 @@ DRAWINGS = {
             "#3B4249",
             f'<path d="M32 14 47 19V31C47 40 41 46.5 32 50.5 23 46.5 17 40 17 31V19Z" {WHITE}/>'
             '<path d="M32 14V50.5" fill="none" stroke="#111827" stroke-width="1.5"/>',
+        ),
+    },
+    "pokemon": {
+        # Trainers and special Energies: an empty set sign, apart from Colorless (a type).
+        "none": disc(
+            "#E5E7EB",
+            "#6B7280",
+            '<circle cx="32" cy="32" r="13" fill="none" stroke="#4B5563" stroke-width="4"/>'
+            '<path d="M21 43 43 21" stroke="#4B5563" stroke-width="4" stroke-linecap="round"/>',
         ),
     },
     "sorcery": {

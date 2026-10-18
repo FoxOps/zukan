@@ -74,12 +74,13 @@ def rarity_of(game_id: str, raw: str | None) -> RarityDef | None:
 
 
 def shipped_rarity_icon(game_id: str, code: str) -> Path | None:
-    """The pictogram shipped with Zukan (`games/<game>/rarities/<code>.svg`)."""
+    """The pictogram shipped with Zukan (`games/<game>/rarities/<code>.<svg|png|webp>`)."""
+    from app.services import layout
+
     provider = registry().get(game_id)
     if provider is None:
         return None
-    path = Path(inspect.getfile(type(provider))).parent / "rarities" / f"{code}.svg"
-    return path if path.is_file() else None
+    return layout.own_picture(Path(inspect.getfile(type(provider))).parent / "rarities", code)
 
 
 def rarity_icon_file(game_id: str, code: str) -> Path | None:
