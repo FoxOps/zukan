@@ -18,7 +18,7 @@ import respx  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 
-from app.core import oidc  # noqa: E402
+from app.core import oidc, ratelimit  # noqa: E402
 from app.core.config import get_settings  # noqa: E402
 from app.core.db import get_engine, get_sessionmaker  # noqa: E402
 from app.core.http import http_client  # noqa: E402
@@ -85,6 +85,12 @@ def no_network(monkeypatch) -> None:
 
 @pytest.fixture(autouse=True)
 def reset_auth_config() -> None:
+    for counter in (
+        ratelimit.failed_by_name,
+        ratelimit.failed_by_address,
+        ratelimit.auth_by_address,
+    ):
+        counter.clear()
     settings = get_settings()
     settings.oidc_providers = []
     settings.local_login_enabled = True

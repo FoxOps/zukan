@@ -24,6 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.http import get_limited
 from app.games.base import GameProvider, get_provider
 from app.models import Card, CardSet, CollectionItem, Printing
 from app.services import layout
@@ -130,8 +131,7 @@ async def download_image(
     if not url:
         return False
     try:
-        response = await http.get(url)
-        response.raise_for_status()
+        response, data = await get_limited(http, url, _MAX_IMAGE_BYTES)
     except httpx.HTTPStatusError as exc:
         log.warning("Image download failed for printing %s/%s: %s", printing.id, lang, exc)
         if 400 <= exc.response.status_code < 500:
@@ -142,8 +142,7 @@ async def download_image(
         return False
     content_type = response.headers.get("content-type", "").split(";")[0].strip()
     extension = _EXTENSIONS.get(content_type)
-    data = response.content
-    if extension is None or len(data) > _MAX_IMAGE_BYTES:
+    if extension is None or data is None:
         log.warning("Rejected image for printing %s (%s)", printing.id, content_type)
         return False
     if len(data) > _REENCODE_ABOVE_BYTES:
@@ -182,20 +181,21 @@ async def cached_asset(http: httpx.AsyncClient, url: str | None, stem: str) -> P
     if not url or time.monotonic() - _asset_failures.get(stem, -_ASSET_RETRY) < _ASSET_RETRY:
         return None
     try:
-        response = await http.get(url, headers={"Accept": "image/*"})
-        response.raise_for_status()
+        response, data = await get_limited(
+            http, url, _MAX_IMAGE_BYTES, headers={"Accept": "image/*"}
+        )
     except httpx.HTTPError as exc:
         log.warning("Download of %s failed: %s", url, exc)
         _asset_failures[stem] = time.monotonic()
         return None
     content_type = response.headers.get("content-type", "").split(";")[0].strip()
     extension = _ASSET_EXTENSIONS.get(content_type)
-    if extension is None or len(response.content) > _MAX_IMAGE_BYTES:
+    if extension is None or data is None:
         log.warning("Rejected %s (%s)", url, content_type)
         _asset_failures[stem] = time.monotonic()
         return None
     path = image_root() / f"{stem}{extension}"
-    await asyncio.to_thread(_write_atomic, path, response.content)
+    await asyncio.to_thread(_write_atomic, path, data)
     return path
 
 

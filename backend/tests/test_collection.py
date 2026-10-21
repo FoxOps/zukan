@@ -317,6 +317,64 @@ async def test_csv_import_rejects_invalid_files(client, session, alice):
     assert binary.status_code == 400
 
 
+async def test_csv_export_keeps_formulas_as_text(client, session, alice):
+    import csv
+    import io
+
+    notes = '=1+1 "quoted"\nsecond line'
+    await import_file(client, alice, CSV)
+    items = (await client.get("/api/collection", params={"sort": "set"}, headers=alice)).json()
+    first, second = items["items"]
+    await client.patch(f"/api/collection/items/{first['id']}", json={"notes": notes}, headers=alice)
+    await client.patch(
+        f"/api/collection/items/{second['id']}", json={"notes": " @SUM(A1)"}, headers=alice
+    )
+    exported = (await client.get("/api/collection/export.csv", headers=alice)).text
+    rows = list(csv.DictReader(io.StringIO(exported)))
+    assert sorted(r["notes"] for r in rows) == ["' @SUM(A1)", "'" + notes]
+    assert {r["quantity"] for r in rows} == {"1", "2"}
+    # Imported back, the notes are the original ones.
+    await make_user(session, "bob")
+    bob = await bearer(client, "bob")
+    result = (await import_file(client, bob, exported)).json()
+    assert result["imported"] == 2, result
+    page = (await client.get("/api/collection", headers=bob)).json()
+    assert sorted(i["notes"] for i in page["items"]) == [" @SUM(A1)", notes]
+
+
+@pytest.mark.parametrize(
+    "price", ["NaN", "sNaN", "Infinity", "-Infinity", "-1", "1.234", "10000000000"]
+)
+async def test_csv_import_rejects_invalid_prices(client, session, alice, price):
+    text = (
+        f"game,set_code,collector_number,quantity,manual_price\nsorcery,001,abundance-b,1,{price}\n"
+    )
+    report = await import_file(client, alice, text, dry_run=True)
+    assert report.status_code == 200
+    assert report.json()["errors"][0]["line"] == 2
+
+
+async def test_csv_import_limits_and_malformed_rows(client, session, alice):
+    head = "game,set_code,collector_number,quantity,notes\n"
+    big = (await import_file(client, alice, head + "sorcery,001,abundance-b,100001,\n")).json()
+    assert "Invalid quantity" in big["errors"][0]["message"]
+    long = (
+        await import_file(client, alice, head + f"sorcery,001,abundance-b,1,{'x' * 1001}\n")
+    ).json()
+    assert "Notes" in long["errors"][0]["message"]
+    # A quote left open with a NUL byte inside: a CSV error, not a server error.
+    nul = (await import_file(client, alice, head + 'sorcery,001,abundance-b,1,"a\x00\n')).json()
+    assert "NUL" in nul["errors"][0]["message"]
+    added = await adjust(client, alice, await printing_id(session, "001", "abundance-b"), 1)
+    item_id = added.json()["item"]["id"]
+    patch = await client.patch(
+        f"/api/collection/items/{item_id}", json={"notes": "a\x00"}, headers=alice
+    )
+    assert patch.status_code == 422
+    # Rejected files imported nothing.
+    assert (await client.get("/api/collection", headers=alice)).json()["total"] == 1
+
+
 async def test_sort_by_price(client, session, alice):
     abundance = await printing_id(session, "001", "abundance-b")
     beta = await printing_id(session, "002", "abundance-b")

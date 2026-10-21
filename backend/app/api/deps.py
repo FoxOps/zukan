@@ -1,3 +1,4 @@
+import uuid
 from typing import Annotated
 
 import jwt
@@ -5,7 +6,7 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.core.security import unsign
+from app.core.security import session_alive, unsign
 from app.models import Role, User
 
 ACCESS_COOKIE = "tcg_access"
@@ -35,11 +36,17 @@ async def current_user(request: Request, session: SessionDep) -> User:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
     try:
         claims = unsign(token, audience="access")
-    except jwt.PyJWTError as exc:
+        session_id = uuid.UUID(claims["sid"])
+        version = int(claims["ver"])
+    except (jwt.PyJWTError, KeyError, TypeError, ValueError) as exc:
+        # Tokens issued before 0.14.0 have no session: clients refresh them.
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token") from exc
     user = await session.get(User, int(claims["sub"]))
     if user is None or user.disabled:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Account unavailable")
+    # Password changed, account disabled, or this session logged out.
+    if version != user.auth_version or not await session_alive(session, session_id):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session ended")
     return user
 
 

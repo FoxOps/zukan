@@ -29,6 +29,8 @@ services:
     env_file: .env
     environment:
       TCG_DATABASE_URL: postgresql+asyncpg://tcg:${POSTGRES_PASSWORD}@db:5432/tcg
+      # Proxies trusted for X-Forwarded-For / -Proto (see .env.example).
+      FORWARDED_ALLOW_IPS: ${TCG_FORWARDED_ALLOW_IPS:-127.0.0.1}
     volumes:
       - ./data-dev/images:/data/images
       # Put downloaded image folders here (e.g. Sorcery Google Drive) to import them.

@@ -75,19 +75,22 @@ export default function Catalog() {
           <div className="flex flex-wrap items-center gap-3">
             <SetSelect game={game} value={setId} onChange={(v) => url.set({ set: v, sort: v ? sort : null })} />
             {setId && (
-              <Select
-                className="w-full sm:w-56"
-                value={sort}
-                onChange={(v) => url.set({ sort: v || null })}
-                aria-label={t('Sort')}
-                options={[
-                  { value: '', label: t('Best match') },
-                  { value: 'number_asc', label: t('Card number (ascending)') },
-                  { value: 'number_desc', label: t('Card number (descending)') },
-                  { value: 'name_asc', label: t('Name (A to Z)') },
-                  { value: 'name_desc', label: t('Name (Z to A)') },
-                ]}
-              />
+              <label className="flex w-full items-center gap-2 sm:w-auto">
+                <span className="whitespace-nowrap text-sm font-medium text-base-content/70">{t('Sort by')}</span>
+                <Select
+                  className="w-full sm:w-56"
+                  value={sort}
+                  onChange={(v) => url.set({ sort: v || null })}
+                  aria-label={t('Sort by')}
+                  options={[
+                    { value: '', label: t('Best match') },
+                    { value: 'number_asc', label: t('Card number (ascending)') },
+                    { value: 'number_desc', label: t('Card number (descending)') },
+                    { value: 'name_asc', label: t('Name (A to Z)') },
+                    { value: 'name_desc', label: t('Name (Z to A)') },
+                  ]}
+                />
+              </label>
             )}
           </div>
           <ColorFilter

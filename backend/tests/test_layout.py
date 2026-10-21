@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select, text
 
 from app.core.config import get_settings
-from app.games.base import rarity_icon_file, shipped_rarity_icon
+from app.games.base import rarity_icon_file, shipped_folders, shipped_rarity_icon
 from app.main import register_games
 from app.models import Card, CardSet, Printing
 from app.services import layout
@@ -18,6 +18,7 @@ OLD = {
     "sets/mtg/12.svg": b"<svg/>",
     "symbols/mtg/W.svg": b"<svg/>",
     "cache/yugioh-konami.json": b"{}",
+    "default/mtg/rarity/rare.svg": b"<svg/>",
 }
 NEW = {
     "mtg/cards/12/34-en.jpg": b"card",
@@ -26,6 +27,7 @@ NEW = {
     "mtg/sets/12.svg": b"<svg/>",
     "mtg/symbols/W.svg": b"<svg/>",
     "cache/yugioh-konami.json": b"{}",
+    "default/mtg/rarity/rare.svg": b"<svg/>",
 }
 
 
@@ -116,3 +118,23 @@ async def test_own_rarity_and_symbol_pictures_win(client, session, image_dir):
     (image_dir / "yugioh" / "rarity" / "nope.png").write_bytes(b"x")
     missing = await client.get("/api/games/yugioh/rarities/nope/icon", headers=alice)
     assert missing.status_code == 404
+
+
+async def test_shipped_pictures_copied_to_default_folder(image_dir):
+    shipped = shipped_folders()
+    assert layout.install_defaults(image_dir, shipped) > 0
+    rarity = image_dir / "default" / "yugioh" / "rarity"
+    symbols = image_dir / "default" / "yugioh" / "symbols"
+    assert (rarity / "secret.svg").is_file() and (symbols / "spell.svg").is_file()
+    # The copies are served when there is no own picture.
+    assert shipped_rarity_icon("yugioh", "secret") == rarity / "secret.svg"
+    amber = image_dir / "default" / "lorcana" / "symbols" / "amber.svg"
+    assert symbol_file("lorcana", "amber") == amber
+    # Nothing to do on the next start; an edited or stray file is put back in line.
+    assert layout.install_defaults(image_dir, shipped) == 0
+    (rarity / "secret.svg").write_text("edited")
+    (rarity / "gone.svg").write_text("old")
+    assert layout.install_defaults(image_dir, shipped) == 1
+    original = shipped["yugioh"]["rarity"] / "secret.svg"
+    assert (rarity / "secret.svg").read_bytes() == original.read_bytes()
+    assert not (rarity / "gone.svg").exists()

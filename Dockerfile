@@ -32,4 +32,6 @@ ENV TCG_IMAGE_DIR=/data/images TCG_IMPORT_DIR=/data/import TCG_WEB_DIR=/app/web
 EXPOSE 8000
 # Starts as root to fix data folder ownership, then runs as `tcg`.
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]
+# Forwarded headers are only read from the proxies in FORWARDED_ALLOW_IPS (127.0.0.1 by
+# default; compose sets it from TCG_FORWARDED_ALLOW_IPS).
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers"]

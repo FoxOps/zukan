@@ -49,7 +49,7 @@ from app.games.base import (
     SetData,
 )
 from app.games.ocr import bottom_part, by_position, clean, letter_ratio, script_language
-from app.games.pokemon import asia, pokemontcg
+from app.games.pokemon import asia
 from app.games.pokemon.species import derive_names, species_names
 from app.games.pokemon.types import NO_TYPE, card_colors
 from app.models import Printing
@@ -496,7 +496,6 @@ class PokemonProvider:
     languages = list(LANGUAGES.values())
     price_sources = ["cardmarket", "tcgplayer"]
     cardmarket_path = "Pokemon"
-    secondary_sources = [pokemontcg.source]
     rarities = [
         RarityDef("common", "Common", ("C", "●")),
         RarityDef("uncommon", "Uncommon", ("U", "◆")),
@@ -547,7 +546,8 @@ class PokemonProvider:
     # 3: Asian sets reusing an international id stored apart, Asian names fixed.
     # 4: Thai and Indonesian, Korean and Simplified Chinese from open datasets.
     # 5: "No type" for Trainers and special Energies.
-    catalog_version = 5
+    # 6: Pokémon TCG API dropped, English pictures it gave refilled from the other sources.
+    catalog_version = 6
 
     async def _get(self, http: httpx.AsyncClient, path: str) -> Any:
         return (await get_with_retry(http, f"{API_URL}{path}")).json()

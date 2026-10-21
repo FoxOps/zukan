@@ -33,6 +33,16 @@ class Settings(BaseSettings):
     default_admin_username: str = "admin"
     default_admin_password: str = "changeme"
 
+    # Sign-in limits (0: none): failed password sign-ins per account name and per client
+    # address within `login_window_seconds`, then refresh and SSO requests per address and
+    # minute. Answered with 429 and Retry-After.
+    login_max_failures: int = 10
+    login_ip_max_failures: int = 50
+    login_window_seconds: int = 15 * 60
+    auth_requests_per_minute: int = 60
+    # Largest request body accepted (CSV imports are up to 5 MB), refused before parsing.
+    max_request_bytes: int = 6 * 1024 * 1024
+
     # Built web UI (`npm run build` in web/), served at `/` when present.
     web_dir: Path = Path("../web/dist")
 
@@ -66,7 +76,7 @@ def api_token(kind: str, name: str, category: str | None = None) -> str | None:
 
     `kind` is the plugin type (GAMES, PRICES...), `category` narrows it (the game's short
     code for game sources: MTG, PKM, SOR), `name` is the API. Examples:
-    TCG_APITOKEN_GAMES_PKM_POKEMONTCG, TCG_APITOKEN_PRICES_CARDNEXUS. Read from the
+    TCG_APITOKEN_GAMES_RFB_RIOT, TCG_APITOKEN_PRICES_CARDNEXUS. Read from the
     environment, else from `.env`. None when unset or empty."""
     parts = ["TCG_APITOKEN", kind, *([category] if category else []), name]
     key = "_".join(part.upper().replace("-", "_") for part in parts)

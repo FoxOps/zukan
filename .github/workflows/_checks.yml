@@ -74,6 +74,9 @@ jobs:
       - name: Translations
         working-directory: web
         run: npm run check:i18n
+      - name: Dependency audit
+        working-directory: web
+        run: npm audit --audit-level=moderate
       - name: Lint, build and API types
         if: inputs.full
         working-directory: web

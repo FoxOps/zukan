@@ -251,3 +251,146 @@ async def test_change_own_email(client, session):
         "/api/auth/email", json={"email": None, "current_password": "password123"}, headers=headers
     )
     assert cleared.json()["email"] is None
+
+
+async def _login(client, username="alice", password="password123"):
+    response = await client.post(
+        "/api/auth/login", json={"username": username, "password": password}
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    return {"Authorization": f"Bearer {body['access_token']}"}, body["refresh_token"]
+
+
+async def _refresh(client, token):
+    return (await client.post("/api/auth/refresh", json={"refresh_token": token})).status_code
+
+
+async def test_password_change_ends_every_session(client, session):
+    await make_user(session)
+    await make_user(session, "bob")
+    access, refresh = await _login(client)
+    other_access, other_refresh = await _login(client)
+    bob, _ = await _login(client, "bob")
+    change = {"current_password": "password123", "new_password": "newpassword1"}
+    assert (await client.post("/api/auth/password", json=change, headers=access)).status_code == 204
+    for headers in (access, other_access):
+        assert (await client.get("/api/auth/me", headers=headers)).status_code == 401
+    assert await _refresh(client, refresh) == 401
+    assert await _refresh(client, other_refresh) == 401
+    # Other accounts keep their sessions; only the new password signs in.
+    assert (await client.get("/api/auth/me", headers=bob)).status_code == 200
+    old = await client.post(
+        "/api/auth/login", json={"username": "alice", "password": "password123"}
+    )
+    assert old.status_code == 401
+    new, _ = await _login(client, password="newpassword1")
+    assert (await client.get("/api/auth/me", headers=new)).status_code == 200
+
+
+async def test_browser_keeps_its_session_after_password_change(client, session):
+    await make_user(session)
+    body = {"username": "alice", "password": "password123", "mode": "cookie"}
+    assert (await client.post("/api/auth/login", json=body, headers=CSRF)).status_code == 200
+    old_refresh = client.cookies["tcg_refresh"]
+    change = {"current_password": "password123", "new_password": "newpassword1"}
+    assert (await client.post("/api/auth/password", json=change, headers=CSRF)).status_code == 204
+    # New cookies: still signed in, the previous refresh token is dead.
+    assert client.cookies["tcg_refresh"] != old_refresh
+    assert (await client.get("/api/auth/me")).status_code == 200
+    assert await _refresh(client, old_refresh) == 401
+
+
+async def test_admin_reset_and_disable_end_sessions(client, session):
+    await make_user(session, "root", role=Role.admin)
+    alice = await make_user(session)
+    admin = await bearer(client, "root")
+    access, refresh = await _login(client)
+    reset = await client.patch(
+        f"/api/users/{alice.id}", json={"password": "resetpass12"}, headers=admin
+    )
+    assert reset.status_code == 200
+    assert (await client.get("/api/auth/me", headers=access)).status_code == 401
+    assert await _refresh(client, refresh) == 401
+
+    access, refresh = await _login(client, password="resetpass12")
+    url = f"/api/users/{alice.id}"
+    assert (await client.patch(url, json={"disabled": True}, headers=admin)).status_code == 200
+    assert (await client.patch(url, json={"disabled": False}, headers=admin)).status_code == 200
+    # Enabled again, the sessions from before stay ended.
+    assert (await client.get("/api/auth/me", headers=access)).status_code == 401
+    assert await _refresh(client, refresh) == 401
+    # Other changes (role, email) keep them.
+    access, refresh = await _login(client, password="resetpass12")
+    assert (await client.patch(url, json={"email": "a@b.c"}, headers=admin)).status_code == 200
+    assert (await client.get("/api/auth/me", headers=access)).status_code == 200
+
+
+async def test_logout_ends_access_token_of_that_session_only(client, session):
+    await make_user(session)
+    access, refresh = await _login(client)
+    other, _ = await _login(client)
+    assert (
+        await client.post("/api/auth/logout", json={"refresh_token": refresh})
+    ).status_code == 200
+    assert (await client.get("/api/auth/me", headers=access)).status_code == 401
+    assert (await client.get("/api/auth/me", headers=other)).status_code == 200
+
+
+async def test_token_without_session_refused(client, session):
+    from app.core.security import sign
+
+    user = await make_user(session)
+    # Shape of access tokens before 0.14.0.
+    token = sign({"sub": str(user.id), "role": "user"}, timedelta(minutes=5), "access")
+    response = await client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 401
+
+
+async def test_failed_logins_are_rate_limited(client, session, monkeypatch):
+    from app.core import ratelimit
+
+    now = [1000.0]
+    for counter in (ratelimit.failed_by_name, ratelimit.failed_by_address):
+        monkeypatch.setattr(counter, "clock", lambda: now[0])
+    settings = get_settings()
+    monkeypatch.setattr(settings, "login_max_failures", 3)
+    monkeypatch.setattr(settings, "login_ip_max_failures", 5)
+    await make_user(session)
+    await make_user(session, "bob")
+    wrong = {"username": "alice", "password": "wrong-password"}
+    for _ in range(3):
+        assert (await client.post("/api/auth/login", json=wrong)).status_code == 401
+    # Blocked, even with the right password, for the rest of the window.
+    blocked = await client.post(
+        "/api/auth/login", json={"username": "Alice ", "password": "password123"}
+    )
+    assert blocked.status_code == 429 and int(blocked.headers["Retry-After"]) > 0
+    # Another account from the same address still signs in.
+    await bearer(client, "bob")
+    # A forwarded address from a client that is not a trusted proxy changes nothing.
+    spoofed = await client.post(
+        "/api/auth/login",
+        json={"username": "alice", "password": "password123"},
+        headers={"X-Forwarded-For": "203.0.113.9"},
+    )
+    assert spoofed.status_code == 429
+    now[0] += settings.login_window_seconds + 1
+    await bearer(client, "alice")
+    # Too many failures from one address, whatever the account.
+    for name in ("x1", "x2", "x3", "x4", "x5"):
+        bad = {"username": name, "password": "nope-nope"}
+        assert (await client.post("/api/auth/login", json=bad)).status_code == 401
+    refused = await client.post(
+        "/api/auth/login", json={"username": "bob", "password": "password123"}
+    )
+    assert refused.status_code == 429
+
+
+async def test_refresh_requests_capped_per_address(client, session, monkeypatch):
+    monkeypatch.setattr(get_settings(), "auth_requests_per_minute", 2)
+    for _ in range(2):
+        response = await client.post("/api/auth/refresh", json={"refresh_token": "x"})
+        assert response.status_code == 401
+    response = await client.post("/api/auth/refresh", json={"refresh_token": "x"})
+    assert response.status_code == 429

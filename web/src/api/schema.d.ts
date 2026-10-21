@@ -120,7 +120,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Change Password */
+        /**
+         * Change Password
+         * @description Change the password and end every session. A browser gets a new session at once;
+         *     token clients (the app) sign in again.
+         */
         post: operations["change_password_api_auth_password_post"];
         delete?: never;
         options?: never;

@@ -38,6 +38,13 @@ Back up these folders.
 All configuration lives in `.env`: `.env.example` documents every variable (only the
 two above are mandatory; the rest is commented out with its default). Serving the web
 UI over plain HTTP (no TLS)? Set `TCG_COOKIE_SECURE=false` or web sign-in will not stick.
+Behind a reverse proxy, set `TCG_FORWARDED_ALLOW_IPS` to its address so the API sees real
+client addresses (sign-in limits count failures per address).
+
+Sessions: changing a password (own or by an administrator) or disabling an account signs
+it out everywhere; the browser changing its own password stays signed in. Sign-in is
+limited (`TCG_LOGIN_*` in `.env.example`): past the limit the API answers 429 for the rest
+of the window.
 
 Update: `docker compose pull && docker compose up -d` (migrations run on start).
 `ZUKAN_TAG` in `.env` pins a version (`0.1.0`) or tries a dev build (`dev-<branch>`).
@@ -69,7 +76,7 @@ Prices come from Cardmarket (EUR) and TCGplayer (USD), never scraped from their 
 
 ### Card data sources
 
-Each game has its own sources (Scryfall + MTGJSON, TCGdex + Pokémon TCG API + Asian
+Each game has its own sources (Scryfall + MTGJSON, TCGdex + Asian
 datasets, the Sorcery API, Riftbound below). Card databases covering several games only fill
 what those leave empty (English pictures, rarities, artists, TCGplayer ids, finishes) for
 the sets with such gaps, and report where they disagree (admin "Data checks"):
@@ -146,8 +153,15 @@ data/images/<game>/cards/     card pictures, <set id>/<printing id>-<language>.<
 data/images/<game>/sets/      set icons
 data/images/<game>/symbols/   color symbols
 data/images/<game>/rarity/    your own rarity pictograms
+data/images/default/<game>/rarity/    pictures shipped with Zukan (reference copy)
+data/images/default/<game>/symbols/
 data/images/cache/            source caches (Konami card pages)
 ```
+
+`default/` holds a copy of every pictogram and symbol shipped with Zukan, rewritten each
+time the API starts: look there for the file names, and copy one into
+`data/images/<game>/...` to change it (edits made in `default/` itself are undone on the
+next start).
 
 Folders from before 0.12.0 (`<game>/<set id>/`, `sets/<game>/`, `symbols/<game>/`) are
 moved by the database migration when the new version starts.

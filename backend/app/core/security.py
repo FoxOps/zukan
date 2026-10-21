@@ -47,9 +47,12 @@ def unsign(token: str, audience: str) -> dict[str, Any]:
 ROTATION_GRACE = timedelta(seconds=60)
 
 
-def create_access_token(user: User) -> str:
+def create_access_token(user: User, session_id: uuid.UUID) -> str:
+    """Access token of one session (`session_id`: its refresh token family), valid while
+    that session and the account's `auth_version` last."""
     ttl = timedelta(seconds=get_settings().access_token_ttl_seconds)
-    return sign({"sub": str(user.id), "role": user.role}, ttl, audience="access")
+    claims = {"sub": str(user.id), "role": user.role, "ver": user.auth_version}
+    return sign({**claims, "sid": str(session_id)}, ttl, audience="access")
 
 
 def _hash_token(token: str) -> str:
@@ -58,23 +61,46 @@ def _hash_token(token: str) -> str:
 
 async def issue_refresh_token(
     session: AsyncSession, user: User, family_id: uuid.UUID | None = None
-) -> str:
+) -> tuple[str, uuid.UUID]:
+    """A new refresh token in `family_id` (a new session when None): (token, family)."""
     token = secrets.token_urlsafe(48)
+    family_id = family_id or uuid.uuid4()
     session.add(
         RefreshToken(
             user_id=user.id,
             token_hash=_hash_token(token),
-            family_id=family_id or uuid.uuid4(),
+            family_id=family_id,
             expires_at=datetime.now(UTC)
             + timedelta(seconds=get_settings().refresh_token_ttl_seconds),
         )
     )
     await session.flush()
-    return token
+    return token, family_id
 
 
-async def rotate_refresh_token(session: AsyncSession, token: str) -> tuple[User, str] | None:
-    """Exchange a refresh token for a new one. Returns None when invalid.
+async def start_session(session: AsyncSession, user: User) -> tuple[str, str]:
+    """A new session for `user`: (access token, refresh token)."""
+    refresh, family_id = await issue_refresh_token(session, user)
+    return create_access_token(user, family_id), refresh
+
+
+async def session_alive(session: AsyncSession, family_id: uuid.UUID) -> bool:
+    """Whether a session (refresh token family) is neither logged out nor expired."""
+    alive = await session.scalar(
+        select(RefreshToken.id)
+        .where(
+            RefreshToken.family_id == family_id,
+            RefreshToken.revoked_at.is_(None),
+            RefreshToken.expires_at > datetime.now(UTC),
+        )
+        .limit(1)
+    )
+    return alive is not None
+
+
+async def rotate_refresh_token(session: AsyncSession, token: str) -> tuple[User, str, str] | None:
+    """Exchange a refresh token for a new one: (user, access token, refresh token), None
+    when invalid.
 
     Presenting an already revoked token revokes its whole family, unless it was rotated
     less than `ROTATION_GRACE` ago: concurrent refreshes (two tabs, a reload during a
@@ -106,8 +132,8 @@ async def rotate_refresh_token(session: AsyncSession, token: str) -> tuple[User,
     if row.revoked_at is None:
         row.revoked_at = now
         row.rotated_at = now
-    new_token = await issue_refresh_token(session, user, row.family_id)
-    return user, new_token
+    new_token, _ = await issue_refresh_token(session, user, row.family_id)
+    return user, create_access_token(user, row.family_id), new_token
 
 
 async def revoke_refresh_token(session: AsyncSession, token: str) -> None:
@@ -122,5 +148,16 @@ async def revoke_family(session: AsyncSession, family_id: uuid.UUID) -> None:
     await session.execute(
         update(RefreshToken)
         .where(RefreshToken.family_id == family_id, RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=datetime.now(UTC))
+    )
+
+
+async def end_all_sessions(session: AsyncSession, user: User) -> None:
+    """Log `user` out everywhere: every refresh token revoked and access tokens refused
+    (`auth_version` raised). For password changes and disabled accounts."""
+    user.auth_version += 1
+    await session.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None))
         .values(revoked_at=datetime.now(UTC))
     )

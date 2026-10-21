@@ -15,9 +15,11 @@ from app import __version__
 from app.api import admin, auth, catalog, collection, games, scan, users
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
+from app.core.middleware import BodyLimit, SecurityHeaders
 from app.core.security import hash_password
-from app.games.base import registry
+from app.games.base import registry, shipped_folders
 from app.models import Game, Role, User
+from app.services import layout
 from app.services.jobs import reap_runs
 from app.services.symbols import ensure_symbols
 
@@ -65,6 +67,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await create_default_admin()
     # Jobs this API process ran before a restart are gone.
     await reap_runs()
+    # Reference copy of the shipped pictures, next to the user's own.
+    try:
+        layout.install_defaults(get_settings().image_dir, shipped_folders())
+    except OSError as exc:
+        logger.warning("Shipped pictures not copied to the image folder: %s", exc)
     # Game symbols are downloaded once; the API serves requests meanwhile.
     symbols = asyncio.create_task(ensure_symbols())
     yield
@@ -101,6 +108,9 @@ def create_app() -> FastAPI:
 
     app.include_router(api)
     mount_web(app, get_settings().web_dir)
+    # Last added runs first: headers on every answer, the 413 included.
+    app.add_middleware(BodyLimit)
+    app.add_middleware(SecurityHeaders)
     return app
 
 

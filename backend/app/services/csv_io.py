@@ -6,6 +6,9 @@ Generic format, one row per collection item:
 `collector_number` is the printed number, or the provider's printing id for games
 without one (Sorcery). `name` is informational on import. Semicolon or tab separated
 files (spreadsheet exports in many locales) are accepted too.
+
+Text that spreadsheets would read as a formula (starting with = + - @, possibly after
+spaces or control characters) is exported behind a `'`, which the import removes again.
 """
 
 import csv
@@ -36,6 +39,26 @@ COLUMNS = [
 ]
 REQUIRED = {"game", "set_code", "collector_number", "quantity"}
 MAX_ROWS = 50_000
+# Same limits as the item edit form (`api.collection.ItemUpdateIn`).
+MAX_QUANTITY = 100_000
+MAX_NOTES = 1000
+_FORMULA_START = ("=", "+", "-", "@")
+# Spaces and control characters spreadsheets skip before a formula.
+_BLANKS = "".join(map(chr, range(33)))
+
+
+def _is_formula(text: str) -> bool:
+    return text.startswith(("\t", "\r")) or text.lstrip(_BLANKS).startswith(_FORMULA_START)
+
+
+def spreadsheet_text(text: str) -> str:
+    """`text` kept as text by spreadsheets: a formula gets a leading `'`."""
+    return f"'{text}" if _is_formula(text) else text
+
+
+def from_spreadsheet_text(text: str) -> str:
+    """Undo `spreadsheet_text`."""
+    return text[1:] if text.startswith("'") and _is_formula(text[1:]) else text
 
 
 async def export_csv(session: AsyncSession, user_id: int, game_id: str | None) -> str:
@@ -53,18 +76,21 @@ async def export_csv(session: AsyncSession, user_id: int, game_id: str | None) -
     writer = csv.writer(out, lineterminator="\n")
     writer.writerow(COLUMNS)
     for item, printing, card_set, card in await session.execute(query):
+        text = [
+            card_set.game_id,
+            card_set.code,
+            printing.collector_number or printing.external_id,
+            card.name,
+            item.language,
+            item.finish,
+            item.condition,
+        ]
         writer.writerow(
             [
-                card_set.game_id,
-                card_set.code,
-                printing.collector_number or printing.external_id,
-                card.name,
-                item.language,
-                item.finish,
-                item.condition,
+                *map(spreadsheet_text, text),
                 item.quantity,
                 "" if item.manual_price is None else item.manual_price,
-                item.notes or "",
+                spreadsheet_text(item.notes or ""),
             ]
         )
     return out.getvalue()
@@ -95,11 +121,13 @@ class _Row:
 
 
 def _reader(text: str) -> csv.DictReader:
+    # Only the delimiter is guessed from the header: quoting stays the usual one (quotes
+    # doubled inside quoted cells), which the header alone does not show.
     try:
-        dialect = csv.Sniffer().sniff(text.split("\n", 1)[0], delimiters=",;\t")
+        delimiter = csv.Sniffer().sniff(text.split("\n", 1)[0], delimiters=",;\t").delimiter
     except csv.Error:
-        dialect = csv.excel
-    return csv.DictReader(io.StringIO(text), dialect=dialect)
+        delimiter = ","
+    return csv.DictReader(io.StringIO(text), delimiter=delimiter)
 
 
 class _PrintingLookup:
@@ -132,20 +160,31 @@ async def _parse(
     session: AsyncSession, text: str, set_mode: bool, report: ImportReport
 ) -> list[_Row]:
     reader = _reader(text)
-    missing = REQUIRED - set(reader.fieldnames or [])
+    try:
+        missing = REQUIRED - set(reader.fieldnames or [])
+    except csv.Error as exc:
+        report.errors.append(RowError(1, f"Invalid CSV: {exc}"))
+        return []
     if missing:
         report.errors.append(RowError(1, f"Missing columns: {', '.join(sorted(missing))}"))
         return []
     lookup = _PrintingLookup(session)
     games = registry()
     rows: list[_Row] = []
-    for raw in reader:
+    while True:
+        try:
+            raw = next(reader)
+        except StopIteration:
+            break
+        except csv.Error as exc:
+            report.errors.append(RowError(reader.line_num, f"Invalid CSV: {exc}"))
+            break
         line = reader.line_num
         report.rows += 1
         if report.rows > MAX_ROWS:
             report.errors.append(RowError(line, f"More than {MAX_ROWS} rows"))
             break
-        value = {k.strip(): (v or "").strip() for k, v in raw.items() if k}
+        value = {k.strip(): from_spreadsheet_text((v or "").strip()) for k, v in raw.items() if k}
         game_id = value["game"].lower()
         if game_id not in games:
             report.errors.append(RowError(line, f"Unknown game {value['game']!r}"))
@@ -160,11 +199,22 @@ async def _parse(
         except (ValueError, InvalidOperation):
             report.errors.append(RowError(line, "Invalid quantity or price"))
             continue
-        if price is not None and not (0 <= price < 10**10):
-            report.errors.append(RowError(line, f"Invalid price {price}"))
+        # Not a number (NaN), infinite, negative, too large or finer than a cent.
+        if price is not None and (
+            not price.is_finite()
+            or not (0 <= price < 10**10)
+            or int(price.as_tuple().exponent) < -2
+        ):
+            report.errors.append(RowError(line, f"Invalid price {value['manual_price']}"))
             continue
-        if quantity < 0 if set_mode else quantity == 0:
+        if (quantity < 0 if set_mode else quantity == 0) or abs(quantity) > MAX_QUANTITY:
             report.errors.append(RowError(line, f"Invalid quantity {quantity}"))
+            continue
+        if any("\x00" in v for v in value.values()):
+            report.errors.append(RowError(line, "Invalid character (NUL)"))
+            continue
+        if len(value.get("notes") or "") > MAX_NOTES:
+            report.errors.append(RowError(line, f"Notes longer than {MAX_NOTES} characters"))
             continue
         matches = await lookup.find(game_id, value["set_code"], value["collector_number"])
         if len(matches) != 1:

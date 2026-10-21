@@ -1204,6 +1204,58 @@ a14bbae. Server 0.13.1 is the first release with everything (same code as 0.13.0
 main); Android unchanged 0.8.0.
 
 
+## Backlog 2026-10-21 (server 0.14.0, Android unchanged 0.8.0)
+Branch `2026-10-21-000-security-audit-dashboard-ptcg-removal` (from main after 0.13.1).
+User report on 0.13.x + fixes from `docs/security-audit-2026-10-19.md`. Android: no
+change (tokens are opaque to it, it already refreshes on 401).
+
+Progress:
+- [x] MTU comment shortened (`.env.example`, `docker-compose.yml`): "VPN tunnel".
+- [x] Shipped pictures copied to `data/images/default/<game>/rarity|symbols/` on every API
+  start (`layout.install_defaults`, `games.base.shipped_folders`): changed files rewritten,
+  files no longer shipped removed. Lookup: own / downloaded file in `<game>/...` → copy in
+  `default/` → package file. `default/` is skipped by the folder migrations. README.
+- [x] Pokémon TCG API removed (`games/pokemon/pokemontcg.py`): Pokémon has no own secondary
+  source left (gap sources still fill). Migration `f1c8d3a5b207` deletes its catalog
+  checks and field rules and the `images.pokemontcg.io` picture URLs with their cached
+  files; `catalog_version` 6 makes the worker resync Pokémon so TCGdex / gap sources refill.
+  Live: 1 185 checks and 641 picture URLs removed on the test instance; after the resync
+  614 came back from other sources (751 English printings without picture, 724 in 0.13.1).
+- [x] Dashboard: value by game back as stat tiles in the top bar; most valuable cards
+  (6) on one line (`sm:grid-cols-6`); price movers and data sync each on their own line.
+- [x] Collection and Catalog: visible "Sort by" label before the sort list.
+- [x] Audit S01: `user.auth_version` (migration `a6e2b9d4c713`); access tokens carry `ver` and
+  `sid` (refresh family). `current_user` refuses a token whose version changed or whose
+  session is logged out / expired. Password change (own: the browser gets a new session),
+  admin reset, disable and `zukan create-admin` reset end every session
+  (`security.end_all_sessions`). Pre-0.14.0 access tokens are refused once, clients refresh.
+- [x] Audit S02: in-memory sliding windows (`core/ratelimit.py`, one API process): failed
+  password sign-ins per account name (10) and per address (50) within 15 min → 429 +
+  Retry-After; refresh / SSO requests 60 a minute per address. `TCG_LOGIN_*`,
+  `TCG_AUTH_REQUESTS_PER_MINUTE`. Login fields length-limited.
+- [x] Audit S03: CSV export puts `'` before text starting with = + - @ (after blanks) or
+  tab / CR; import removes it (exact round trip).
+- [x] Audit B01: CSV prices must be finite, 0 ≤ price < 10¹⁰, 2 decimals; quantity ≤ 100 000,
+  notes ≤ 1000, no NUL (also refused by the item edit API, was a 500), malformed CSV is an
+  import error. Found on the way: the sniffed CSV dialect lost doubled quotes, so exported
+  notes with `"` could not be imported back; only the delimiter is guessed now.
+- [x] Audit D01: npm override `postcss-selector-parser` ^7.1.6 (typography 0.5.20 is the
+  latest and pins 6.0.10); prose CSS identical; `npm audit` in CI.
+- [x] Hardening: `X-Frame-Options: DENY`, CSP `frame-ancestors 'none'` (added to the SVG
+  routes' own policy), `nosniff`, `Referrer-Policy: same-origin` on every answer
+  (`core/middleware.SecurityHeaders`); request bodies over `TCG_MAX_REQUEST_BYTES` (6 MB)
+  refused with 413 before parsing (`BodyLimit`); forwarded headers only from
+  `TCG_FORWARDED_ALLOW_IPS` (default 127.0.0.1, was `*`); card / asset downloads streamed
+  and cut at 15 MB (`http.get_limited`).
+- [x] Tests: 192 backend. Live (test instance on 0.14.0): password change / admin reset /
+  logout end old tokens, 12 bad sign-ins → 10×401 then 429, CSV `NaN` → row error, 7 MB
+  upload → 413, headers on `/login`. Browser: dashboard and sort labels.
+- Deferred: S04 (bootstrap `admin` / `changeme`) until just before 1.0, by user decision;
+  Android cleartext / Keystore tokens; Python lockfile and image digest pinning.
+- [ ] User: behind a reverse proxy, set `TCG_FORWARDED_ALLOW_IPS`; drop own pictures in
+  `data/images/<game>/...`, not in `default/`.
+
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.

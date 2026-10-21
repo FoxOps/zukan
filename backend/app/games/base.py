@@ -73,14 +73,37 @@ def rarity_of(game_id: str, raw: str | None) -> RarityDef | None:
     return _rarity_table(game_id).get(rarity_key(raw))
 
 
+def shipped_folders() -> dict[str, dict[str, Path]]:
+    """Pictures shipped with each provider: `{game: {"rarity" | "symbols": folder}}`
+    (`games/<game>/rarities/` and `games/<game>/symbols/`)."""
+    from app.services import layout
+
+    folders: dict[str, dict[str, Path]] = {}
+    for game_id, provider in registry().items():
+        package = Path(inspect.getfile(type(provider))).parent
+        kinds = {
+            kind: package / name
+            for kind, name in ((layout.RARITY, "rarities"), (layout.SYMBOLS, "symbols"))
+            if (package / name).is_dir()
+        }
+        if kinds:
+            folders[game_id] = kinds
+    return folders
+
+
 def shipped_rarity_icon(game_id: str, code: str) -> Path | None:
-    """The pictogram shipped with Zukan (`games/<game>/rarities/<code>.<svg|png|webp>`)."""
+    """The pictogram shipped with Zukan: its copy in `<image dir>/default/<game>/rarity/`,
+    else the package's (`games/<game>/rarities/<code>.<svg|png|webp>`)."""
+    from app.core.config import get_settings
     from app.services import layout
 
     provider = registry().get(game_id)
     if provider is None:
         return None
-    return layout.own_picture(Path(inspect.getfile(type(provider))).parent / "rarities", code)
+    copy = layout.default_folder(get_settings().image_dir, game_id, layout.RARITY)
+    return layout.own_picture(copy, code) or layout.own_picture(
+        Path(inspect.getfile(type(provider))).parent / "rarities", code
+    )
 
 
 def rarity_icon_file(game_id: str, code: str) -> Path | None:

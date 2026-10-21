@@ -117,7 +117,8 @@ class AdjustOut(BaseModel):
 class ItemUpdateIn(BaseModel):
     quantity: int | None = Field(default=None, ge=0, le=100_000)
     manual_price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
-    notes: str | None = Field(default=None, max_length=1000)
+    # No NUL: the database refuses it.
+    notes: str | None = Field(default=None, max_length=1000, pattern=r"^[^\x00]*$")
 
 
 class TransactionOut(BaseModel):

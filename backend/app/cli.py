@@ -16,7 +16,7 @@ from pathlib import Path
 from sqlalchemy import select
 
 from app.core.db import get_sessionmaker
-from app.core.security import hash_password
+from app.core.security import end_all_sessions, hash_password
 from app.games.base import get_provider
 from app.main import register_games
 from app.models import JobKind, Role, User
@@ -29,6 +29,9 @@ async def create_admin(username: str, password: str) -> None:
         if user is None:
             user = User(username=username)
             session.add(user)
+        else:
+            # A reset password ends the account's sessions.
+            await end_all_sessions(session, user)
         user.role = Role.admin
         user.disabled = False
         user.password_hash = hash_password(password)

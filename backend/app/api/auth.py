@@ -3,7 +3,7 @@ from datetime import timedelta
 from urllib.parse import quote
 
 import jwt
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
@@ -29,15 +29,15 @@ from app.api.schemas import (
     TokenOut,
     UserOut,
 )
-from app.core import oidc
+from app.core import oidc, ratelimit
 from app.core.config import get_settings
 from app.core.security import (
-    create_access_token,
+    end_all_sessions,
     hash_password,
-    issue_refresh_token,
     revoke_refresh_token,
     rotate_refresh_token,
     sign,
+    start_session,
     unsign,
     verify_password,
 )
@@ -53,6 +53,8 @@ SSO_PROVIDER_COOKIE = "tcg_sso_provider"
 _STATE_TTL = timedelta(minutes=10)
 # Max age of an ID token presented by the mobile app to the exchange endpoint.
 _MOBILE_ID_TOKEN_MAX_AGE = 300
+# Refresh and SSO requests: capped per client address.
+_LIMITED = Depends(ratelimit.limit_auth_requests)
 
 
 def _set_session_cookies(response: Response, access: str, refresh: str) -> None:
@@ -121,12 +123,24 @@ async def login(body: LoginIn, request: Request, response: Response, session: Se
         check_csrf(request)
     if not oidc.local_login_enabled():
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Local login is disabled, use SSO")
+    settings = get_settings()
+    window = settings.login_window_seconds
+    name, address = body.username.strip().casefold(), ratelimit.client_address(request)
+    wait = ratelimit.failed_by_name.retry_after(name, settings.login_max_failures, window)
+    if wait is None:
+        wait = ratelimit.failed_by_address.retry_after(
+            address, settings.login_ip_max_failures, window
+        )
+    if wait is not None:
+        raise ratelimit.too_many(wait)
     user = await session.scalar(select(User).where(User.username == body.username))
     valid = verify_password(body.password, user.password_hash if user else None)
     if user is None or not valid or user.disabled:
+        ratelimit.failed_by_name.hit(name, window)
+        ratelimit.failed_by_address.hit(address, window)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid username or password")
-    access = create_access_token(user)
-    refresh = await issue_refresh_token(session, user)
+    ratelimit.failed_by_name.clear(name)
+    access, refresh = await start_session(session, user)
     await session.commit()
     if body.mode == "cookie":
         _set_session_cookies(response, access, refresh)
@@ -134,7 +148,7 @@ async def login(body: LoginIn, request: Request, response: Response, session: Se
     return _token_out(access, refresh)
 
 
-@router.post("/refresh", response_model=TokenOut | UserOut)
+@router.post("/refresh", response_model=TokenOut | UserOut, dependencies=[_LIMITED])
 async def refresh(body: RefreshIn, request: Request, response: Response, session: SessionDep):
     cookie_mode = body.refresh_token is None
     token = request.cookies.get(REFRESH_COOKIE) if cookie_mode else body.refresh_token
@@ -149,8 +163,7 @@ async def refresh(body: RefreshIn, request: Request, response: Response, session
         if cookie_mode:
             _clear_session_cookies(response)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid refresh token")
-    user, new_refresh = result
-    access = create_access_token(user)
+    user, access, new_refresh = result
     if cookie_mode:
         _set_session_cookies(response, access, new_refresh)
         return UserOut.model_validate(user)
@@ -238,11 +251,25 @@ async def change_email(body: EmailChangeIn, user: CurrentUser, session: SessionD
 
 
 @router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
-async def change_password(body: PasswordChangeIn, user: CurrentUser, session: SessionDep):
+async def change_password(
+    body: PasswordChangeIn,
+    request: Request,
+    response: Response,
+    user: CurrentUser,
+    session: SessionDep,
+):
+    """Change the password and end every session. A browser gets a new session at once;
+    token clients (the app) sign in again."""
     if user.password_hash and not verify_password(body.current_password or "", user.password_hash):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is wrong")
     user.password_hash = hash_password(body.new_password)
+    await end_all_sessions(session, user)
+    cookie_mode = not request.headers.get("Authorization", "").lower().startswith("bearer ")
+    if cookie_mode:
+        access, refresh = await start_session(session, user)
     await session.commit()
+    if cookie_mode:
+        _set_session_cookies(response, access, refresh)
 
 
 @router.delete("/identities/{identity_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -277,7 +304,7 @@ def _login_error_redirect(message: str) -> RedirectResponse:
     return response
 
 
-@router.get("/oidc/{provider}/login")
+@router.get("/oidc/{provider}/login", dependencies=[_LIMITED])
 async def oidc_login(
     provider: str, request: Request, session: SessionDep, link: bool = False, next: str = "/"
 ):
@@ -318,7 +345,7 @@ async def oidc_login(
     return response
 
 
-@router.get("/oidc/{provider}/callback")
+@router.get("/oidc/{provider}/callback", dependencies=[_LIMITED])
 async def oidc_callback(
     provider: str,
     request: Request,
@@ -356,8 +383,7 @@ async def oidc_callback(
         await session.rollback()
         return _login_error_redirect(str(exc))
 
-    access = create_access_token(user)
-    refresh_token = await issue_refresh_token(session, user)
+    access, refresh_token = await start_session(session, user)
     await session.commit()
     response = RedirectResponse(saved["next"], status.HTTP_303_SEE_OTHER)
     response.delete_cookie(STATE_COOKIE, path="/api/auth/oidc")
@@ -374,7 +400,7 @@ async def oidc_callback(
     return response
 
 
-@router.post("/oidc/{provider}/exchange")
+@router.post("/oidc/{provider}/exchange", dependencies=[_LIMITED])
 async def oidc_exchange(provider: str, body: OidcExchangeIn, session: SessionDep) -> TokenOut:
     """Mobile SSO: the app ran authorization code + PKCE itself (AppAuth) and hands over
     the ID token. Only the provider's mobile client is accepted as audience."""
@@ -394,7 +420,6 @@ async def oidc_exchange(provider: str, body: OidcExchangeIn, session: SessionDep
     except oidc.OidcError as exc:
         await session.rollback()
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(exc)) from exc
-    access = create_access_token(user)
-    refresh_token = await issue_refresh_token(session, user)
+    access, refresh_token = await start_session(session, user)
     await session.commit()
     return _token_out(access, refresh_token)

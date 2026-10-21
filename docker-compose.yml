@@ -32,6 +32,8 @@ services:
     env_file: .env
     environment:
       TCG_DATABASE_URL: postgresql+asyncpg://tcg:${POSTGRES_PASSWORD}@db:5432/tcg
+      # Proxies trusted for X-Forwarded-For / -Proto (see .env.example).
+      FORWARDED_ALLOW_IPS: ${TCG_FORWARDED_ALLOW_IPS:-127.0.0.1}
     volumes:
       - ./data/images:/data/images
       # Put downloaded image folders here (e.g. Sorcery Google Drive) to import them.
@@ -58,7 +60,6 @@ services:
 networks:
   default:
     driver_opts:
-      # Below the usual 1500 so containers also work when the host reaches the Internet
-      # through WireGuard or another tunnel: some sites (Konami's card database) never
-      # finish the TLS handshake otherwise. Lower it further for tunnels with less room.
+      # Below 1500 so the server also works when the host goes through a VPN tunnel.
+      # Lower it for tunnels with less room.
       com.docker.network.driver.mtu: ${TCG_NETWORK_MTU:-1420}

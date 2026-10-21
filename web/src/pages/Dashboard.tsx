@@ -11,7 +11,7 @@ import { Select } from '../components/Select'
 import { useToast } from '../components/toast'
 import { formatDateTime, formatMoney } from '../lib/format'
 import { ShownName } from '../components/ShownName'
-import { Movers, SyncStatus, TopCards, ValueByGame } from './dashboard/Widgets'
+import { Movers, SyncStatus, TopCards } from './dashboard/Widgets'
 
 const RANGES = [30, 90, 365]
 
@@ -61,14 +61,22 @@ export default function Dashboard() {
               .map((x) => ` · + ${formatMoney(x.total, x.currency)}`)}
           </div>
         </div>
+        {value.data?.games.map((g) => (
+          <div key={g.game_id} className="stat">
+            <div className="stat-title">{gameName(g.game_id)}</div>
+            <div className="stat-value text-2xl">{formatMoney(g.total, g.currency)}</div>
+            <div className="stat-desc">
+              {t('{{count}} cards', { count: g.quantity })}
+              {g.unpriced > 0 && ` · ${t('{{count}} without price', { count: g.unpriced })}`}
+            </div>
+          </div>
+        ))}
       </div>
 
-      <div className="grid items-start gap-6 lg:grid-cols-2">
-        <ValueByGame value={value.data} gameName={gameName} />
-        <TopCards />
-        <Movers />
-        {me.data?.role === 'admin' && <SyncStatus games={games} />}
-      </div>
+      {/* One widget per line. */}
+      <TopCards />
+      <Movers />
+      {me.data?.role === 'admin' && <SyncStatus games={games} />}
 
       <div className="card bg-base-200">
         <div className="card-body">
