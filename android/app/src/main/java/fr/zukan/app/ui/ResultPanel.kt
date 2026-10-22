@@ -210,7 +210,7 @@ fun ResultPanel(
             IconButton(onClick = { if (quantity < 99) quantity++ }) { Icon(Icons.Default.Add, stringResource(R.string.more)) }
             Spacer(Modifier.weight(1f))
             OutlinedButton(onClick = { onAdjust(finish, condition, language, -quantity) }, enabled = !state.busy) { Text(stringResource(R.string.remove)) }
-            Button(onClick = { onAdjust(finish, condition, language, quantity) }, enabled = !state.busy && finish.isNotEmpty()) { Text(stringResource(R.string.add)) }
+            Button(onClick = { onAdjust(finish, condition, language, quantity) }, colors = ctaColors(), enabled = !state.busy && finish.isNotEmpty()) { Text(stringResource(R.string.add)) }
         }
         TextButton(onClick = onClose, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.scan_next)) }
     }

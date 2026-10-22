@@ -26,7 +26,7 @@ export function ImageView({ cards, games, showGame }: CatalogViewProps) {
               faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]"
             />
             <div className="flex flex-col gap-1">
-              <span className="break-words font-medium group-hover:text-primary">
+              <span className="break-words font-medium group-hover:text-secondary">
                 <ShownName name={card.name} translation={card.translation} />
               </span>
               <span className="text-xs text-base-content/60">

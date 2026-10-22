@@ -23,7 +23,7 @@ Decisions from Q&A:
 - **Backend**: Python 3.13, FastAPI, SQLAlchemy 2 + Alembic, PostgreSQL 17 with `pg_trgm` (fuzzy OCR name match). Background jobs: separate `worker` process with APScheduler (catalog sync, daily price snapshot, image cache). httpx for API calls.
 - **Web UI**: React + TypeScript + Vite, TanStack Query/Table, typed client generated from FastAPI OpenAPI (`openapi-typescript`).
 - **Styling**: Tailwind CSS v4 (`@tailwindcss/vite`), no custom CSS framework. Plugins loaded with `@plugin` in `web/src/index.css`:
-  - `daisyui` (v5): components (navbar, drawer, card, table, modal, badge, stat), themes light/dark + custom theme
+  - `daisyui` (v5): components (navbar, drawer, card, table, modal, badge, stat), custom themes `zukan` (light) / `zukan-dark` from the Zukan identity (since 0.15.0)
   - `@tailwindcss/typography`: `prose` for card rules text / docs pages
   - `@tailwindcss/forms`: form resets for filters, stock edit, CSV mapping (`strategy: "class"` to avoid clashing with daisyUI inputs)
   - `tailwindcss-animate`: enter/exit animations for modals, toasts, scan feedback
@@ -1254,6 +1254,60 @@ Progress:
   Android cleartext / Keystore tokens; Python lockfile and image digest pinning.
 - [ ] User: behind a reverse proxy, set `TCG_FORWARDED_ALLOW_IPS`; drop own pictures in
   `data/images/<game>/...`, not in `default/`.
+
+
+## Backlog 2026-10-23 (server 0.15.0, Android 0.9.0)
+Branch `2026-10-23-000-visual-identity-android-tls` (from main after 0.14.0).
+User report on 0.14.0: move the GUI to the new Zukan visual identity (pack "Zukan
+Identité visuelle v1.0": owl logo, palette, Nunito / Inter); Android cannot connect to an
+FQDN, only error "certificate?" (nginx / NPM on 443 with TLS, 80 → 301; works in Chrome).
+
+Android connection:
+- Cause in the app: every `SSLException` became `error_ssl` and the real reason was dropped.
+  With the user's setup the likely cause is a proxy sending the leaf without its
+  intermediate: Chrome fetches it (AIA), OkHttp refuses.
+- [x] `data/Tls.kt`: `SSLException.sslKind()` → HOSTNAME (`SSLPeerUnverifiedException`),
+  UNTRUSTED (`CertPathValidatorException` / `CertificateException` in the cause chain),
+  PLAIN (TLS sent to a plain HTTP port), OTHER; `sslDetail()` = issuer of the last
+  certificate sent (shows the missing intermediate) or the innermost message.
+  `userMessage` maps each to its own EN / FR string, detail in brackets.
+- [x] `connect()`: `ApiClient.redirectedBaseUrl()` follows a proxy redirect on
+  `api/health` (http → https) and keeps the final base URL, so POSTs are not turned into
+  GETs by a 301; https → http redirects are ignored (`ServerUrl.redirectedBase`).
+- [x] `ServerUrl.normalize`: typed scheme case-insensitive (`HTTPS://x` → `https://x/`).
+- [x] Tests (`TlsTest`, `okhttp-tls` test dependency): real local TLS servers — full chain
+  works, missing intermediate → UNTRUSTED, other name → HOSTNAME, plain port → PLAIN,
+  301 to another base followed. `ServerUrlTest` scheme case + redirect rules.
+- [x] README "HTTPS with a reverse proxy": full chain, NPM intermediate field, nginx
+  example, `openssl s_client` check, no `:8000` with https.
+- [ ] User: install the 0.9.0 APK, connect; the message now names the cause. Most likely
+  fix on the proxy: serve `fullchain.pem`.
+
+Visual identity:
+- [x] Web: daisyUI themes `zukan` / `zukan-dark` (replace built-in light / dark; stored
+  `tcg.theme` values unchanged, `lib/theme.ts` maps them and applies the saved theme before
+  the first render so the login page follows it). Radii 12 / 16 px, no depth / noise.
+  Gold is a fill (buttons, active menu item); text on cream uses chocolate or green: the
+  dashboard total, card page links and catalog tile hover no longer use `text-primary`.
+- [x] Web: Nunito 800 headings (unlayered rule, beats `font-semibold`), Inter body; Latin
+  woff2 subsets (Inter `opsz` pinned at 14: 132 KB, Nunito 64 KB) + OFL licences in
+  `web/src/assets/fonts/`.
+- [x] Web: chocolate sidebar with the cream-lettering logo and gold active item, mascot +
+  "Zukan" in the mobile navbar, logo on the login page (light / dark variant, `Logo`
+  component), mascot on About. Favicons (ico, 16 / 32 / 48), apple-touch-icon,
+  `manifest.webmanifest` (192 / 512), `theme-color`; old `favicon.svg` removed.
+- [x] Android: `ui/Theme.kt` palette (light `primary` chocolate so text buttons stay
+  readable, gold `primaryContainer`; dark `primary` gold), Nunito / Inter variable fonts
+  (`res/font/`), shapes 12 / 16 / 20; gold call-to-action buttons (`ctaColors()`); login
+  logo (`drawable-nodpi` / `drawable-night-nodpi/zukan_logo.webp`); window background
+  cream / night; adaptive launcher icon: gold background, mascot foreground and
+  monochrome (themed icons) per density; OFL licences in `assets/licenses/`.
+- Domain colours unchanged: rarity gradients, conditions, game colours, price trend.
+- [x] Versions: server 0.15.0 (`pyproject.toml`, README, `.env.example` comment), Android
+  0.9.0. No new variable.
+- [x] Checks: web build, oxlint, i18n; Android `testDebugUnitTest lint assembleDebug`
+  (39 unit tests); browser (Vite against the 0.14.0 test API): login, dashboard, catalog,
+  card page, light / dark, 390 px width, no console errors, manifest / icons served.
 
 
 ## Build phases

@@ -2,6 +2,7 @@ package fr.zukan.app.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +29,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -53,7 +55,11 @@ fun LoginScreen(session: SessionViewModel, state: SessionState) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Spacer(Modifier.height(32.dp))
-        Text("Zukan", style = MaterialTheme.typography.displaySmall)
+        Image(
+            painterResource(R.drawable.zukan_logo),
+            contentDescription = "Zukan",
+            modifier = Modifier.fillMaxWidth(0.75f),
+        )
         Text(stringResource(R.string.tagline), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
         Spacer(Modifier.height(16.dp))
 
@@ -67,7 +73,7 @@ fun LoginScreen(session: SessionViewModel, state: SessionState) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
                 modifier = Modifier.fillMaxWidth(),
             )
-            Button(onClick = { session.connect(server) }, enabled = server.isNotBlank() && !state.busy, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = { session.connect(server) }, colors = ctaColors(), enabled = server.isNotBlank() && !state.busy, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.connect))
             }
         } else {
@@ -93,6 +99,7 @@ fun LoginScreen(session: SessionViewModel, state: SessionState) {
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Button(
+                    colors = ctaColors(),
                     onClick = { session.login(username, password) },
                     enabled = username.isNotBlank() && password.isNotEmpty() && !state.busy,
                     modifier = Modifier.fillMaxWidth(),

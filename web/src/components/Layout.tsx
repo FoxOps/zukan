@@ -7,6 +7,8 @@ import { useHealth, useMe } from '../api/queries'
 import { useServerLanguage } from '../i18n'
 import { LanguageMenu } from './I18n'
 import { ErrorScreen } from './ErrorPage'
+import { Logo, Mascot } from './Logo'
+import { applyTheme, savedDark } from '../lib/theme'
 
 const NAV = [
   { to: '/', label: 'Dashboard', end: true },
@@ -22,14 +24,8 @@ const ADMIN_NAV = [
 ]
 
 function useTheme() {
-  const [dark, setDark] = useState(() => {
-    const saved = localStorage.getItem('tcg.theme')
-    return saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches
-  })
-  useEffect(() => {
-    document.documentElement.dataset.theme = dark ? 'dark' : 'light'
-    localStorage.setItem('tcg.theme', dark ? 'dark' : 'light')
-  }, [dark])
+  const [dark, setDark] = useState(savedDark)
+  useEffect(() => applyTheme(dark, true), [dark])
   return [dark, setDark] as const
 }
 
@@ -85,7 +81,10 @@ export function Layout() {
           <label htmlFor="nav-drawer" className="btn btn-square btn-ghost lg:hidden" aria-label={t('Menu')}>
             <svg viewBox="0 0 24 24" className="h-6 w-6 fill-none stroke-current stroke-2"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
           </label>
-          <span className="flex-1 px-2 text-lg font-semibold lg:hidden">Zukan</span>
+          <Link to="/" className="flex flex-1 items-center gap-2 px-2 font-display text-xl font-extrabold lg:hidden">
+            <Mascot className="h-8 w-8 object-contain" />
+            Zukan
+          </Link>
           <div className="ml-auto flex items-center gap-2">
             <LanguageMenu />
             <label className="swap swap-rotate btn btn-ghost btn-circle" title={t('Toggle theme')}>
@@ -113,10 +112,10 @@ export function Layout() {
       </div>
       <div className="drawer-side z-40">
         <label htmlFor="nav-drawer" className="drawer-overlay" aria-label={t('Close menu')} />
-        <aside className="flex min-h-full w-60 flex-col bg-base-200">
-          <div className="px-6 py-5">
-            <div className="text-xl font-bold">Zukan</div>
-            <div className="text-xs text-base-content/50"><span lang="ja">図鑑</span> · {t('card encyclopedia')}</div>
+        <aside className="zukan-nav flex min-h-full w-60 flex-col bg-neutral text-neutral-content">
+          <div className="px-5 py-5">
+            <Link to="/" onClick={closeDrawer}><Logo onDark className="w-44" /></Link>
+            <div className="mt-1 text-xs text-neutral-content/60"><span lang="ja">図鑑</span> · {t('card encyclopedia')}</div>
           </div>
           <ul className="menu w-full gap-1 px-3" onClick={closeDrawer}>
             {NAV.map((n) => (
@@ -131,7 +130,7 @@ export function Layout() {
               </>
             )}
           </ul>
-          <div className="mt-auto flex gap-2 px-6 py-4 text-xs text-base-content/40">
+          <div className="mt-auto flex gap-2 px-6 py-4 text-xs text-neutral-content/50">
             {health.data?.version && <span>v{health.data.version}</span>}
             <Link to="/about" className="link link-hover" onClick={closeDrawer}>{t('About')}</Link>
           </div>

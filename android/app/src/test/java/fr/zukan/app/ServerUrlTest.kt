@@ -18,4 +18,20 @@ class ServerUrlTest {
         assertEquals("https://cards.example.org/", ServerUrl.normalize("cards.example.org"))
         assertEquals("http://cards.example.org/sub/", ServerUrl.normalize("http://cards.example.org/sub"))
     }
+
+    @Test
+    fun typedSchemeIgnoresCase() {
+        assertEquals("https://cards.example.org/", ServerUrl.normalize("HTTPS://cards.example.org"))
+        assertEquals("http://nas:8000/", ServerUrl.normalize("Http://nas:8000"))
+    }
+
+    @Test
+    fun redirectedBase() {
+        val base = "http://cards.example.org/"
+        assertEquals("https://cards.example.org/", ServerUrl.redirectedBase(base, "https://cards.example.org/api/health"))
+        assertEquals(null, ServerUrl.redirectedBase(base, "http://cards.example.org/api/health"))
+        assertEquals(null, ServerUrl.redirectedBase(base, "https://cards.example.org/login"))
+        // Never downgrade to plain HTTP.
+        assertEquals(null, ServerUrl.redirectedBase("https://a.org/", "http://a.org/api/health"))
+    }
 }

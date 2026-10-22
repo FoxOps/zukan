@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Zukan identity palette; Compose colours are in ui/Theme.kt. -->
+<resources>
+    <color name="zukan_gold">#FFC21A</color>
+    <color name="zukan_cream">#FFF6E5</color>
+    <color name="zukan_night">#211A17</color>
+</resources>

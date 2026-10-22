@@ -9,7 +9,11 @@ import { ToastProvider } from './components/Toasts'
 import { showError } from './components/toast'
 import './i18n'
 import './index.css'
+import { applyTheme, savedDark } from './lib/theme'
 import Login from './pages/Login'
+
+// Before the first render, so the login page uses the saved theme too.
+applyTheme(savedDark())
 
 /** Route modules are loaded on first visit (charts and tables stay out of the login bundle). */
 function page(load: () => Promise<{ default: ComponentType }>) {

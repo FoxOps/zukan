@@ -82,7 +82,7 @@ fun ScanScreen(
         } else {
             Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(stringResource(R.string.camera_needed), color = Color.White)
-                Button(onClick = { permission.launch(Manifest.permission.CAMERA) }) { Text(stringResource(R.string.allow_camera)) }
+                Button(onClick = { permission.launch(Manifest.permission.CAMERA) }, colors = ctaColors()) { Text(stringResource(R.string.allow_camera)) }
             }
         }
 

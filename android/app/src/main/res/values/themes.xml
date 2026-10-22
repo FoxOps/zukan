@@ -1,4 +1,6 @@
 <resources>
     <!-- Compose draws the UI; this only themes the window before it starts. -->
-    <style name="Theme.Zukan" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Zukan" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/zukan_cream</item>
+    </style>
 </resources>

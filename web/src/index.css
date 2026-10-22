@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @plugin "daisyui" {
-  themes: light --default, dark --prefersdark;
+  themes: zukan --default, zukan-dark --prefersdark;
 }
 @plugin "@tailwindcss/typography";
 /* Class strategy: only `form-*` classes reset inputs, so daisyUI inputs stay untouched. */
@@ -9,3 +9,134 @@
   strategy: "class";
 }
 @plugin "tailwindcss-animate";
+
+/* Zukan identity v1.0: Nunito 800 for titles, Inter for text, data and actions (SIL OFL,
+   licences next to the fonts). Latin subsets; other scripts fall back to system fonts. */
+@font-face {
+  font-family: "Nunito";
+  src: url("./assets/fonts/Nunito-Variable.woff2") format("woff2");
+  font-weight: 200 1000;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("./assets/fonts/Inter-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Nunito", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Gold, chocolate, cream, leaf green, night. Gold is a fill colour (buttons, active items);
+   text that must read on cream uses chocolate or green. */
+@plugin "daisyui/theme" {
+  name: "zukan";
+  default: true;
+  color-scheme: light;
+  --color-base-100: #fffcf6;
+  --color-base-200: #fff6e5;
+  --color-base-300: #e8d8c0;
+  --color-base-content: #402719;
+  --color-primary: #ffc21a;
+  --color-primary-content: #402719;
+  --color-secondary: #3c7255;
+  --color-secondary-content: #fff6e5;
+  --color-accent: #3c7255;
+  --color-accent-content: #fff6e5;
+  --color-neutral: #402719;
+  --color-neutral-content: #fff6e5;
+  --color-info: #2f6690;
+  --color-info-content: #ffffff;
+  --color-success: #3c7255;
+  --color-success-content: #fff6e5;
+  --color-warning: #c98a00;
+  --color-warning-content: #211a17;
+  --color-error: #ad3b35;
+  --color-error-content: #ffffff;
+  --radius-selector: 0.75rem;
+  --radius-field: 0.75rem;
+  --radius-box: 1rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: "zukan-dark";
+  prefersdark: true;
+  color-scheme: dark;
+  --color-base-100: #2a201b;
+  --color-base-200: #211a17;
+  --color-base-300: #4a3324;
+  --color-base-content: #fff6e5;
+  --color-primary: #ffc21a;
+  --color-primary-content: #402719;
+  --color-secondary: #8fc4a5;
+  --color-secondary-content: #211a17;
+  --color-accent: #8fc4a5;
+  --color-accent-content: #211a17;
+  --color-neutral: #402719;
+  --color-neutral-content: #fff6e5;
+  --color-info: #7fb3dc;
+  --color-info-content: #211a17;
+  --color-success: #8fc4a5;
+  --color-success-content: #211a17;
+  --color-warning: #ffc21a;
+  --color-warning-content: #211a17;
+  --color-error: #f2a39e;
+  --color-error-content: #211a17;
+  --radius-selector: 0.75rem;
+  --radius-field: 0.75rem;
+  --radius-box: 1rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* Unlayered on purpose: headings keep Nunito 800 even where pages add `font-semibold`. */
+h1,
+h2,
+h3,
+.card-title,
+.stat-value {
+  font-family: var(--font-display);
+  font-weight: 800;
+}
+@layer base {
+  .table {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Chocolate sidebar: the active item is gold, as in the identity guide. */
+.zukan-nav .menu {
+  --menu-active-bg: var(--color-primary);
+  --menu-active-fg: var(--color-primary-content);
+}
+.zukan-nav .menu-title {
+  color: color-mix(in oklab, var(--color-neutral-content) 60%, transparent);
+}
+
+/* Logo variant for the current theme (both <img> are in the page, one is hidden). */
+[data-theme="zukan-dark"] .zukan-logo-light,
+.zukan-logo-dark {
+  display: none;
+}
+[data-theme="zukan-dark"] .zukan-logo-dark {
+  display: block;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .zukan-logo-light {
+    display: none;
+  }
+  :root:not([data-theme]) .zukan-logo-dark {
+    display: block;
+  }
+}

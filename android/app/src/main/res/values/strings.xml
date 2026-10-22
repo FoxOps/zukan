@@ -71,7 +71,10 @@
     <string name="error_unknown_host">Server not found</string>
     <string name="error_connect">Cannot reach the server</string>
     <string name="error_timeout">The server did not answer</string>
-    <string name="error_ssl">Secure connection failed (certificate?)</string>
+    <string name="error_ssl">Secure connection failed (%1$s)</string>
+    <string name="error_ssl_hostname">The server certificate is not for this address. Check the certificate the proxy serves for this name (%1$s)</string>
+    <string name="error_ssl_untrusted">The server certificate is not trusted by the phone. The proxy must send the full chain (fullchain.pem with the intermediate certificate), or install your own CA on the phone (%1$s)</string>
+    <string name="error_ssl_plain">This address answers without encryption: use http:// or the HTTPS port of your proxy (%1$s)</string>
     <string name="error_sso_no_client">%1$s has no mobile client configured</string>
     <string name="error_sso_discovery">Discovery failed</string>
     <string name="error_sso_cancelled">Login cancelled</string>

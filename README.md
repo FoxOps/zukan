@@ -41,6 +41,40 @@ UI over plain HTTP (no TLS)? Set `TCG_COOKIE_SECURE=false` or web sign-in will n
 Behind a reverse proxy, set `TCG_FORWARDED_ALLOW_IPS` to its address so the API sees real
 client addresses (sign-in limits count failures per address).
 
+### HTTPS with a reverse proxy
+
+The container speaks plain HTTP on port 8000; HTTPS is the proxy's job (nginx, Nginx Proxy
+Manager, Caddy, Traefik). Browsers forgive some certificate mistakes that the Android app
+does not: Chrome fetches a missing intermediate certificate by itself, the app refuses it.
+
+- Serve the **full chain**: nginx `ssl_certificate /path/fullchain.pem;` (not `cert.pem`).
+  Nginx Proxy Manager with a custom certificate: put the intermediate certificate in the
+  "Intermediate Certificate" field (Let's Encrypt certificates made by NPM are fine).
+- Forward the host and scheme, and redirect port 80 to 443 if you like (the app follows it):
+
+  ```nginx
+  server {
+      listen 443 ssl;
+      server_name cards.example.org;
+      ssl_certificate     /etc/letsencrypt/live/cards.example.org/fullchain.pem;
+      ssl_certificate_key /etc/letsencrypt/live/cards.example.org/privkey.pem;
+      client_max_body_size 8m;
+      location / {
+          proxy_pass http://zukan-host:8000;
+          proxy_set_header Host $host;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+      }
+  }
+  ```
+- `.env`: `TCG_FORWARDED_ALLOW_IPS=<proxy address>`, `TCG_PUBLIC_URL=https://cards.example.org`
+  (SSO redirects).
+- Check what the phone sees: `openssl s_client -connect cards.example.org:443
+  -servername cards.example.org -showcerts </dev/null` must list two certificates (yours
+  and the intermediate) and end with `Verify return code: 0 (ok)`.
+- In the app, type `cards.example.org` or `https://cards.example.org` (no `:8000`: that
+  port has no TLS).
+
 Sessions: changing a password (own or by an administrator) or disabling an account signs
 it out everywhere; the browser changing its own password stays signed in. Sign-in is
 limited (`TCG_LOGIN_*` in `.env.example`): past the limit the API answers 429 for the rest
@@ -243,6 +277,10 @@ recognition with bundled Latin, Japanese, Chinese and Korean models, AppAuth for
   quantity, then Add or Remove (with Undo). Search covers cards that cannot be scanned.
 - Settings: text recognition script, default condition and language.
 - Plain HTTP servers are accepted for home networks (the app warns); prefer HTTPS.
+- Connection errors say what is wrong: certificate for another name, certificate not
+  trusted (missing intermediate in the proxy, or a private CA not installed on the phone:
+  the message shows the issuer it could not verify), or an address that answers without
+  encryption (`https://` sent to port 8000). See [HTTPS with a reverse proxy](#https-with-a-reverse-proxy).
 
 Build (JDK 21 and the Android SDK, platform 37):
 
@@ -279,8 +317,8 @@ From the command line:
 
 ```sh
 gh workflow run docker-dev.yml --ref my-branch
-gh workflow run docker-prod.yml --ref main -f version=0.13.1
-gh workflow run android-prod.yml --ref main -f version=0.8.0
+gh workflow run docker-prod.yml --ref main -f version=0.15.0
+gh workflow run android-prod.yml --ref main -f version=0.9.0
 ```
 
 The dev app (`fr.zukan.app.dev`) installs next to the released one. Both are signed
@@ -305,6 +343,14 @@ TCG_SECRET_KEY=$(openssl rand -hex 32) TCG_COOKIE_SECURE=false .venv/bin/uvicorn
 React + TypeScript + Vite, Tailwind CSS v4 with daisyUI 5, `@tailwindcss/typography`,
 `@tailwindcss/forms` (class strategy) and `tailwindcss-animate`. 3D card flips use
 Tailwind v4's built-in 3D utilities (`tailwindcss-3d` only supports Tailwind 3).
+
+Visual identity (Zukan v1.0): daisyUI themes `zukan` (light, default) and `zukan-dark` in
+`web/src/index.css` (gold `#FFC21A`, chocolate `#402719`, cream `#FFF6E5`, leaf
+`#3C7255`, night `#211A17`); Nunito 800 for titles and Inter for text, bundled as Latin
+woff2 subsets with their SIL OFL licences in `web/src/assets/fonts/`; logos in
+`web/src/assets/brand/`, icons and `manifest.webmanifest` in `web/public/`. Gold is a
+fill colour: text on cream uses chocolate or green (`text-secondary`). The Android app
+uses the same palette and fonts (`ui/Theme.kt`, `res/font/`).
 
 ```sh
 cd web

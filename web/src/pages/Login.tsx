@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { api, call, markSignedIn } from '../api/client'
 import { meQuery, useProviders } from '../api/queries'
 import { LanguageMenu } from '../components/I18n'
+import { Logo } from '../components/Logo'
 
 /** Only same-site paths, never `//host` (open redirect). */
 function safeNext(next: string | null): string {
@@ -51,8 +52,9 @@ export default function Login() {
       <div className="card w-full max-w-sm bg-base-100 shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="card-body gap-4">
           <div className="flex items-start justify-between">
-            <h1 className="card-title text-2xl">
-              Zukan <span className="text-base font-normal text-base-content/50" lang="ja">図鑑</span>
+            <h1 className="flex flex-col gap-1">
+              <Logo className="w-56" />
+              <span className="text-sm font-normal text-base-content/60" lang="ja">図鑑</span>
             </h1>
             <LanguageMenu signedIn={false} />
           </div>
