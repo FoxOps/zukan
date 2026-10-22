@@ -77,7 +77,8 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
 
     /** Check the server and load its login options. */
     fun connect(input: String) = work {
-        val url = ServerUrl.normalize(input)
+        // A proxy may redirect http to https: use the final address so later POSTs stay POSTs.
+        val url = app.connect(ServerUrl.normalize(input)).redirectedBaseUrl()
         val client = app.connect(url)
         val health = client.api.health()
         val providers = client.api.providers()

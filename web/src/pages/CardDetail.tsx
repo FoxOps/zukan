@@ -474,7 +474,7 @@ export default function CardDetail() {
                       {p.links.filter((l) => /^https?:\/\//.test(l.url)).map((l) => (
                         <a
                           key={l.source}
-                          className="link link-primary text-xs"
+                          className="link link-secondary text-xs"
                           href={l.url}
                           target="_blank"
                           rel="noreferrer noopener"

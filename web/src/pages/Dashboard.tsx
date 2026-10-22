@@ -52,7 +52,7 @@ export default function Dashboard() {
       <div className="stats stats-vertical w-full bg-base-200 shadow sm:stats-horizontal">
         <div className="stat">
           <div className="stat-title">{t('Collection value')}</div>
-          <div className="stat-value text-primary">{formatMoney(value.data?.total ?? 0, value.data?.currency)}</div>
+          <div className="stat-value">{formatMoney(value.data?.total ?? 0, value.data?.currency)}</div>
           <div className="stat-desc">
             {t('{{count}} cards', { count: value.data?.quantity ?? 0 })}
             {/* Games priced in another currency: never added up. */}

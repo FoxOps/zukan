@@ -71,7 +71,10 @@
     <string name="error_unknown_host">Serveur introuvable</string>
     <string name="error_connect">Impossible de joindre le serveur</string>
     <string name="error_timeout">Le serveur n\'a pas répondu</string>
-    <string name="error_ssl">Échec de la connexion sécurisée (certificat ?)</string>
+    <string name="error_ssl">Échec de la connexion sécurisée (%1$s)</string>
+    <string name="error_ssl_hostname">Le certificat du serveur n’est pas celui de cette adresse. Vérifiez le certificat servi par le proxy pour ce nom (%1$s)</string>
+    <string name="error_ssl_untrusted">Le téléphone ne fait pas confiance au certificat du serveur. Le proxy doit envoyer la chaîne complète (fullchain.pem avec le certificat intermédiaire), ou installez votre propre CA sur le téléphone (%1$s)</string>
+    <string name="error_ssl_plain">Cette adresse répond sans chiffrement : utilisez http:// ou le port HTTPS de votre proxy (%1$s)</string>
     <string name="error_sso_no_client">%1$s n\'a pas de client mobile configuré</string>
     <string name="error_sso_discovery">Échec de la découverte</string>
     <string name="error_sso_cancelled">Connexion annulée</string>

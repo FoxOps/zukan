@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useGames, useHealth } from '../api/queries'
+import { Mascot } from '../components/Logo'
 
 /** What Zukan is, where its data comes from, and the notices publishers ask fan tools to show. */
 export default function About() {
@@ -9,9 +10,12 @@ export default function About() {
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold">{t('About Zukan')}</h1>
-        {health.data?.version && <div className="text-sm text-base-content/50">v{health.data.version}</div>}
+      <div className="flex items-center gap-4">
+        <Mascot className="h-20 w-20 object-contain" />
+        <div>
+          <h1 className="text-3xl font-bold">{t('About Zukan')}</h1>
+          {health.data?.version && <div className="text-sm text-base-content/50">v{health.data.version}</div>}
+        </div>
       </div>
 
       <div className="prose max-w-none">

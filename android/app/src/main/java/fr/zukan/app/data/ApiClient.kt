@@ -3,7 +3,9 @@ package fr.zukan.app.data
 import android.content.Context
 import fr.zukan.app.R
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
@@ -85,6 +87,18 @@ class ApiClient(
 
     val api: ZukanApi = retrofit(http)
 
+    /**
+     * The base URL the server really answers on: follows a proxy redirect such as
+     * http → https (a redirected POST would turn into a GET, so login must not rely on it).
+     * A redirect from https to http is ignored.
+     */
+    suspend fun redirectedBaseUrl(): String = withContext(Dispatchers.IO) {
+        val request = Request.Builder().url(baseUrl + "api/health").build()
+        plain.newCall(request).execute().use { response ->
+            ServerUrl.redirectedBase(baseUrl, response.request.url.toString()) ?: baseUrl
+        }
+    }
+
     fun imageUrl(path: String?): String? = path?.let { baseUrl + it.removePrefix("/") }
 
     private fun retrofit(client: OkHttpClient): ZukanApi = Retrofit.Builder()
@@ -104,7 +118,15 @@ fun Throwable.userMessage(context: Context): String {
         is java.net.UnknownHostException -> context.getString(R.string.error_unknown_host)
         is java.net.ConnectException -> context.getString(R.string.error_connect)
         is java.net.SocketTimeoutException -> context.getString(R.string.error_timeout)
-        is javax.net.ssl.SSLException -> context.getString(R.string.error_ssl)
+        is javax.net.ssl.SSLException -> context.getString(
+            when (sslKind()) {
+                SslKind.HOSTNAME -> R.string.error_ssl_hostname
+                SslKind.UNTRUSTED -> R.string.error_ssl_untrusted
+                SslKind.PLAIN -> R.string.error_ssl_plain
+                SslKind.OTHER -> R.string.error_ssl
+            },
+            sslDetail(),
+        )
         else -> message ?: toString()
     }
 }
