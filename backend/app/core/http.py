@@ -43,3 +43,23 @@ async def get_with_retry(
         delay = float(retry_after) if retry_after.isdigit() else 2**attempt
         await asyncio.sleep(min(delay, 60))
     raise AssertionError("unreachable")
+
+
+async def get_limited(
+    http: httpx.AsyncClient, url: str, max_bytes: int, **kwargs: Any
+) -> tuple[httpx.Response, bytes | None]:
+    """GET reading at most `max_bytes` of body: (response, body), body None when larger.
+    Raises httpx.HTTPStatusError on an error status, like `raise_for_status`."""
+    async with http.stream("GET", url, **kwargs) as response:
+        response.raise_for_status()
+        length = response.headers.get("content-length", "")
+        if length.isdigit() and int(length) > max_bytes:
+            return response, None
+        chunks: list[bytes] = []
+        size = 0
+        async for chunk in response.aiter_bytes():
+            size += len(chunk)
+            if size > max_bytes:
+                return response, None
+            chunks.append(chunk)
+    return response, b"".join(chunks)

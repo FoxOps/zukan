@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import AdminUser, SessionDep
 from app.api.schemas import UserCreateIn, UserOut, UserUpdateIn
-from app.core.security import hash_password
+from app.core.security import end_all_sessions, hash_password
 from app.models import User
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -47,11 +47,15 @@ async def update_user(
     if user.id == admin.id and (body.disabled or (body.role and body.role != admin.role)):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Cannot demote or disable yourself")
     fields = body.model_dump(exclude_unset=True)
+    # A new password or a disabled account ends the user's sessions.
+    ends_sessions = "password" in fields or (fields.get("disabled") and not user.disabled)
     if "password" in fields:
         password = fields.pop("password")
         user.password_hash = hash_password(password) if password else None
     for key, value in fields.items():
         setattr(user, key, value)
+    if ends_sessions:
+        await end_all_sessions(session, user)
     await session.commit()
     return UserOut.model_validate(user)
 

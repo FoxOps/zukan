@@ -26,6 +26,9 @@ class User(TimestampMixin, Base):
         Enum(Role, name="user_role", native_enum=False), default=Role.user
     )
     disabled: Mapped[bool] = mapped_column(default=False)
+    # Carried by access tokens; raised (with every refresh token revoked) when the password
+    # changes or the account is disabled, which ends all sessions.
+    auth_version: Mapped[int] = mapped_column(default=0, server_default=text("0"))
     # Interface language; card images are shown in it when they exist.
     language: Mapped[str] = mapped_column(String(8), default="en", server_default=text("'en'"))
     # Games shown in the catalog, None for all of them.

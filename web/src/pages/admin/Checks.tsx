@@ -13,7 +13,6 @@ const PAGE_SIZE = 50
 // Secondary catalog sources by id.
 const SOURCES: Record<string, string> = {
   mtgjson: 'MTGJSON',
-  pokemontcg: 'Pokémon TCG API',
   tcgcsv: 'tcgcsv (TCGplayer)',
   tcgapi_eu: 'TCG API (tcg-api.eu)',
   apitcg: 'API TCG (apitcg.com)',

@@ -8,47 +8,10 @@ import { CardImage } from '../../components/CardImage'
 import { ShownName } from '../../components/ShownName'
 import { formatDateTime, formatMoney } from '../../lib/format'
 
-type Value = Schemas['ValueOut']
 type Item = Schemas['ItemOut']
 type Mover = Schemas['MoverOut']
 
 const cardLink = (item: Item) => `/cards/${item.card_id}/${item.printing_id}`
-
-/** Collection value per game: one bar per game, its length the game's share of the largest. */
-export function ValueByGame({ value, gameName }: { value: Value | undefined; gameName: (id: string) => string }) {
-  const { t } = useTranslation()
-  const rows = [...(value?.games ?? [])].sort((a, b) => Number(b.total) - Number(a.total))
-  const largest = Math.max(0, ...rows.map((g) => Number(g.total)))
-  return (
-    <div className="card bg-base-200">
-      <div className="card-body gap-3">
-        <h2 className="card-title">{t('Value by game')}</h2>
-        {rows.length === 0 && <p className="text-base-content/60">{t('Nothing yet.')}</p>}
-        <ul className="flex flex-col gap-3">
-          {rows.map((g) => {
-            const share = largest > 0 ? (Number(g.total) / largest) * 100 : 0
-            const detail = [
-              t('{{count}} cards', { count: g.quantity }),
-              ...(g.unpriced > 0 ? [t('{{count}} without price', { count: g.unpriced })] : []),
-            ].join(' · ')
-            return (
-              <li key={g.game_id} title={`${gameName(g.game_id)}: ${formatMoney(g.total, g.currency)} · ${detail}`}>
-                <div className="flex items-baseline justify-between gap-2 text-sm">
-                  <span className="font-medium">{gameName(g.game_id)}</span>
-                  <span className="tabular-nums">{formatMoney(g.total, g.currency)}</span>
-                </div>
-                <div className="mt-1 h-2 w-full rounded-full bg-base-300">
-                  <div className="h-2 rounded-full bg-primary" style={{ width: `${Math.max(share, 1)}%` }} />
-                </div>
-                <div className="mt-0.5 text-xs text-base-content/60">{detail}</div>
-              </li>
-            )
-          })}
-        </ul>
-      </div>
-    </div>
-  )
-}
 
 /** The copies worth the most (unit price × quantity), as pictures. */
 export function TopCards() {
@@ -64,7 +27,8 @@ export function TopCards() {
         <h2 className="card-title">{t('Most valuable cards')}</h2>
         {top.isPending && <span className="loading loading-spinner" />}
         {top.isSuccess && items.length === 0 && <p className="text-base-content/60">{t('No priced cards yet.')}</p>}
-        <div className="grid grid-cols-3 gap-3">
+        {/* Six cards: one line from small screens up. */}
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
           {items.map((item) => (
             <Link key={item.id} to={cardLink(item)} className="group flex flex-col gap-1 text-xs">
               <CardImage

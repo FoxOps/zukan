@@ -2,7 +2,7 @@
 
 Stored as `{game}/symbols/{color}.{svg|png}` under `settings.image_dir`, where a file put
 by hand (svg, png or webp) is never replaced. Downloaded or own files win over the ones
-shipped with Zukan, which stay as fallback. The API fetches
+shipped with Zukan (copied to `default/{game}/symbols/`), which stay as fallback. The API fetches
 missing ones in the background on start, so a new game or color gets its symbol on the
 next restart, and a failed download is retried then.
 """
@@ -34,8 +34,14 @@ def symbol_file(game_id: str, code: str) -> Path | None:
         return None
     if (own := layout.own_picture(_folder(game_id), code)) is not None:
         return own
-    if color.icon_file is not None and color.icon_file.is_file():
-        return color.icon_file
+    if color.icon_file is not None:
+        # The copy in `default/` first, the package file if it is not there yet.
+        root = get_settings().image_dir
+        copy = layout.default_folder(root, game_id, layout.SYMBOLS) / color.icon_file.name
+        if copy.is_file():
+            return copy
+        if color.icon_file.is_file():
+            return color.icon_file
     return None
 
 

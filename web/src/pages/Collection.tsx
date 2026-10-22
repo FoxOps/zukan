@@ -107,12 +107,16 @@ export default function Collection() {
             options={[{ value: '', label: t('All languages') }, ...gameInfo.languages.map((l) => ({ value: l, label: languageName(l) }))]}
           />
         )}
-        <Select
-          className="w-44"
-          value={filters.sort}
-          onChange={(v) => url.set({ sort: v })}
-          options={Object.entries(SORTS).map(([k, v]) => ({ value: k, label: t(v) }))}
-        />
+        <label className="flex items-center gap-2">
+          <span className="whitespace-nowrap text-sm font-medium text-base-content/70">{t('Sort by')}</span>
+          <Select
+            className="w-44"
+            value={filters.sort}
+            onChange={(v) => url.set({ sort: v })}
+            aria-label={t('Sort by')}
+            options={Object.entries(SORTS).map(([k, v]) => ({ value: k, label: t(v) }))}
+          />
+        </label>
         <ColorFilter
           game={gameInfo}
           value={url.getAll('color')}
