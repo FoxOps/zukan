@@ -1458,8 +1458,11 @@ OCG), names only (no language codes, no flags: user request).
   from the server, new fields ignored).
 - [x] Versions: server 0.17.0, Android unchanged.
 - [x] Checks: backend 209 tests, ruff; web build, oxlint, i18n; migration on a copy of the
-  test database (3 min 24 s, 1 707 sets moved, 15 131 printings split, owned copies equal
-  before/after); browser on :8010 against that copy.
+  test database (2 min 38 s, 1 707 sets moved, 15 131 printings split, owned copies equal
+  before/after, no empty printing left), then real YGOPRODeck / YGOJSON syncs of both
+  Yu-Gi-Oh! games on it: every TCG printing seen again (ids predicted right), OCG unseen
+  only the Konami ones (Konami off for the test); browser on :8010 against that copy
+  (Catalog, Collection, Settings, 390 px, no overflow).
 - [ ] User: after upgrading, let the worker sync the new games (or run their catalog jobs);
   check Collection under each market.
 
