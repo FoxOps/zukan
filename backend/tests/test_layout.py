@@ -138,9 +138,18 @@ async def test_rarity_pictures_by_language(client, session, image_dir):
     assert rarity_icon_file("pokemon", "double_rare", "ja") == own
 
     games = {g["id"]: g for g in (await client.get("/api/games", headers=alice)).json()}
-    rr = next(r for r in games["pokemon"]["rarities"] if r["code"] == "double_rare")
-    assert set(rr["icons"]) >= {"ja", "zh-hans", "zh-hant"} and "fr" not in rr["icons"]
-    assert rr["icons"]["ja"].startswith("/api/games/pokemon/rarities/double_rare/icon?lang=ja&v=")
+
+    def double_rare(game):
+        return next(r for r in games[game]["rarities"] if r["code"] == "double_rare")
+
+    # Each game lists its languages' pictograms; the Pokémon games share the pictures.
+    assert double_rare("pokemon")["icons"] == {}
+    rr = double_rare("pokemon-asia")
+    assert set(rr["icons"]) >= {"ja", "zh-hant"}
+    assert set(double_rare("pokemon-china")["icons"]) == {"zh-hans"}
+    assert rr["icons"]["ja"].startswith(
+        "/api/games/pokemon-asia/rarities/double_rare/icon?lang=ja&v="
+    )
     icon = await client.get(rr["icons"]["ja"], headers=alice)
     assert icon.status_code == 200 and icon.content == b"RIFF own"
 

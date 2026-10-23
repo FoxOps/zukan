@@ -7,13 +7,28 @@ from sqlalchemy import func, select
 
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
-from app.games.base import catalog_version, registry
+from app.games.base import catalog_version, group_of, registry
 from app.models import JobKind, JobStatus, JobTrigger, SyncRun
 from app.services.prices import has_prices
 from app.services.refresh import can_refresh
 
 TICK_SECONDS = 300
 RETRY_AFTER = timedelta(hours=1)
+
+
+def worker_games() -> list[str]:
+    """Games the worker refreshes (`TCG_WORKER_GAMES`, empty: all). A group's own id listed
+    alone ("pokemon", one game before 0.17.0) stands for every game of the group, unless
+    other games of the group are listed too."""
+    listed = get_settings().worker_games
+    if not listed:
+        return list(registry())
+    games: list[str] = []
+    for game_id in listed:
+        members = [g for g in registry() if group_of(g) == group_of(game_id)]
+        alone = not any(m in listed for m in members if m != game_id)
+        games += members if game_id == group_of(game_id) and alone else [game_id]
+    return [g for g in dict.fromkeys(games) if g in registry()]
 
 
 async def _last_attempt(game_id: str, kind: JobKind) -> datetime | None:
@@ -89,8 +104,7 @@ def jobs_for(game_id: str) -> list[JobKind]:
 async def next_run(game_id: str, kind: JobKind, now: datetime) -> datetime | None:
     """When the worker will start this job (at its first check from then on, every
     TICK_SECONDS); None when the worker does not run it."""
-    worker_games = get_settings().worker_games or list(registry())
-    if game_id not in worker_games or kind not in jobs_for(game_id):
+    if game_id not in worker_games() or kind not in jobs_for(game_id):
         return None
     last_success = await _last_success(game_id, kind)
     if last_success is not None and not await _outdated(game_id, kind, last_success):

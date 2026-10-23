@@ -50,7 +50,7 @@ export default function ImportExport() {
           <p className="text-sm">{t('Download your collection as CSV (spreadsheet-friendly, re-importable).')}</p>
           <div className="flex flex-wrap gap-2">
             <Select
-              className="w-48"
+              className="w-56"
               value={exportGame}
               onChange={setExportGame}
               options={[{ value: '', label: t('All games') }, ...games.map((g) => ({ value: g.id, label: g.name }))]}
@@ -74,6 +74,15 @@ export default function ImportExport() {
               {t('One row per item.')} <code>collector_number</code>{' '}
               {t('is the printed number, or the printing id for games without numbers (Sorcery, e.g.')}{' '}
               <code>abundance-b</code>). {t('Commas, semicolons or tabs work. If any row is invalid, nothing is imported.')}
+            </p>
+            <p>
+              {t('Values of the game column:')}{' '}
+              {games.map((g, i) => (
+                <span key={g.id}>
+                  {i > 0 && ', '}
+                  <code>{g.id}</code> ({g.name})
+                </span>
+              ))}
             </p>
             <pre className="text-xs">{EXAMPLE}</pre>
           </div>

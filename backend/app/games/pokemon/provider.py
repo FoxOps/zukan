@@ -1,17 +1,23 @@
-"""Pokémon TCG, data from TCGdex (https://tcgdex.dev).
+"""Pokémon TCG, data from TCGdex (https://tcgdex.dev), as three games, one per publisher
+and market (`REGIONS`):
+- Pokémon TCG (The Pokémon Company International): English, French, German, Italian,
+  Spanish, Portuguese.
+- Pokémon TCG Asia (The Pokémon Company, Japan): Japanese, Korean, Traditional Chinese,
+  Thai, Indonesian.
+- Pokémon TCG China (The Pokémon Company China): Simplified Chinese.
 
 TCGdex has no bulk export, so card details are fetched one by one:
 - English sets: every card in full (types, rarity, variants, Cardmarket prices).
 - Other languages: a set id listed in several languages is one set (international
-  sets share English ids, Asian sets share ids between Japanese, Korean and Chinese).
-  A few Japanese sets reuse an international id for other cards (Japanese "neo2" is not
-  Neo Discovery): they are stored as `asia:<id>`.
+  sets share English ids, Asian sets share ids between Japanese, Korean and Traditional
+  Chinese). A few Japanese sets reuse an international id for other cards (Japanese "neo2"
+  is not Neo Discovery): they are stored as `asia:<id>` (`shared.py` lists those ids).
   Its base language (English, else Japanese, Traditional Chinese, Thai, Indonesian) is
   fetched in full; the other listings only add printed names and images (partial data).
 - Korean and Simplified Chinese come from open datasets (`asia.py`): TCGdex has almost
-  no Korean cards and lists the mainland Chinese sets without cards. Their sets join
+  no Korean cards and lists the mainland Chinese sets without cards. Korean sets join
   the Asian set of the same id (Korean "M2" is Japanese "M2") by collector number,
-  others are sets of their own.
+  others are sets of their own. Mainland Chinese sets make the China game.
 
 Pokémon has no card id shared across printings; printings are grouped by name. Names
 made of species names (`species.py`) are known in every language, so Asian printings
@@ -22,6 +28,7 @@ import asyncio
 import logging
 import re
 from collections.abc import AsyncIterator, Iterable
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -49,7 +56,7 @@ from app.games.base import (
     SetData,
 )
 from app.games.ocr import bottom_part, by_position, clean, letter_ratio, script_language
-from app.games.pokemon import asia, official_jp
+from app.games.pokemon import asia, official_jp, shared
 from app.games.pokemon.species import derive_names, species_names
 from app.games.pokemon.types import NO_TYPE, card_colors
 from app.models import Printing
@@ -92,7 +99,10 @@ BASE_ORDER = ["en", "fr", "de", "it", "es", "pt", "ja", "ko", "zh-tw", "th", "id
 ASIAN = {"ja", "ko", "zh-tw", "zh-cn", "th", "id"}
 # Read from TCGdex by default. Korean and Simplified Chinese come from `asia.py`
 # (TCGdex has 239 Korean cards and empty mainland Chinese sets).
-DEFAULT_LANGUAGES = ["en", "fr", "de", "it", "es", "pt", "ja", "zh-tw", "th", "id"]
+DEFAULT_LANGUAGES = ["en", "fr", "de", "it", "es", "pt"]
+DEFAULT_ASIA_LANGUAGES = ["ja", "zh-tw", "th", "id"]
+# Our spelling of a TCGdex language, accepted in settings ("zh-hant" for "zh-tw").
+_SETTING_ALIASES = {ours: theirs for theirs, ours in LANGUAGES.items()}
 # Prefix of Asian sets whose TCGdex id is also an international set's.
 ASIAN_PREFIX = "asia:"
 VARIANTS = {
@@ -106,16 +116,94 @@ VARIANTS = {
 class PokemonSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="TCG_POKEMON_", env_file=".env", extra="ignore")
 
-    # TCGdex languages to import. Asian languages add ~40k cards fetched one by one.
+    # TCGdex languages of the international game. Asian languages listed here (one game
+    # had them all before 0.17.0) are the Asia game's when `asia_languages` is not set.
     languages: list[str] = DEFAULT_LANGUAGES
-    # Korean cards from type-null/PTCG-database, Simplified Chinese ones from
-    # duanxr/PTCG-CHS-Datasets (see asia.py).
+    # TCGdex languages of the Asia game (~40k cards fetched one by one).
+    asia_languages: list[str] | None = None
+    # Korean cards (Asia game) from type-null/PTCG-database, Simplified Chinese ones
+    # (China game) from duanxr/PTCG-CHS-Datasets (see asia.py).
     korean: bool = True
     chinese: bool = True
     # Pictures of Japanese printings TCGdex lacks, from the official Japanese card search
     # (official_jp.py), at most this many requests a day.
     official_jp: bool = True
     official_jp_daily_requests: int = 300
+
+    def tcgdex_languages(self) -> set[str]:
+        """TCGdex languages to read, all games'."""
+        named = {_SETTING_ALIASES.get(lang, lang) for lang in self.languages}
+        if self.asia_languages is None:
+            asian = (named & ASIAN) or set(DEFAULT_ASIA_LANGUAGES)
+        else:
+            asian = {_SETTING_ALIASES.get(lang, lang) for lang in self.asia_languages}
+        return (named - ASIAN) | (asian & ASIAN) | (named & {"zh-cn"})
+
+
+INTERNATIONAL, ASIA, CHINA = "international", "asia", "china"
+
+
+@dataclass(frozen=True)
+class Region:
+    """One of the Pokémon games: a publisher's market and its languages."""
+
+    id: str
+    name: str
+    region: str
+    region_label: str
+    # TCGdex languages it reads (those `PokemonSettings` asks for) and open datasets.
+    tcgdex: tuple[str, ...]
+    datasets: tuple[str, ...]
+    languages: tuple[str, ...]
+    short_names: tuple[str, ...]
+
+
+REGIONS = {
+    INTERNATIONAL: Region(
+        "pokemon",
+        "Pokémon TCG",
+        INTERNATIONAL,
+        "International",
+        ("en", "fr", "de", "it", "es", "pt"),
+        (),
+        ("en", "fr", "de", "it", "es", "pt"),
+        ("pkm", "pokemon", "poke", "ptcg"),
+    ),
+    ASIA: Region(
+        "pokemon-asia",
+        "Pokémon TCG Asia",
+        ASIA,
+        "Asia",
+        ("ja", "ko", "zh-tw", "th", "id"),
+        ("ko",),
+        ("ja", "ko", "zh-hant", "th", "id"),
+        ("pkmasia", "pkmjp", "pokejp", "ptcgjp"),
+    ),
+    CHINA: Region(
+        "pokemon-china",
+        "Pokémon TCG China",
+        CHINA,
+        "China",
+        ("zh-cn",),
+        ("zh-hans",),
+        ("zh-hans",),
+        ("pkmcn", "pokecn", "ptcgcn"),
+    ),
+}
+# Mainland Chinese set codes: "CSV9C", "CS5aC", "CS4.5C", "151C".
+_CHINA_CODE = re.compile(r"^(?:CS[\w.+]*C|\d{2,3}C)$")
+
+
+def region_of(hints: OcrHints) -> str:
+    """The Pokémon game a scanned card belongs to, from its set code and writing."""
+    if hints.set_code and _CHINA_CODE.match(hints.set_code):
+        return CHINA
+    if hints.lang in ("zh-hans", "zh-hant"):
+        # Taiwan and Hong Kong cards print Japanese set codes, mainland ones "…C" codes.
+        return ASIA if hints.set_code or hints.lang == "zh-hant" else CHINA
+    if hints.lang in ("ja", "ko", "th"):
+        return ASIA
+    return INTERNATIONAL
 
 
 def _decimal(value: Any) -> Decimal | None:
@@ -507,8 +595,8 @@ def parse_ocr(lines: list[OcrLine]) -> OcrHints:
 
 
 class PokemonProvider:
-    id = "pokemon"
-    name = "Pokémon TCG"
+    group = "pokemon"
+    group_name = "Pokémon"
     colors = [
         ColorDef("grass", "Grass", "#78C850", ENERGY_SPRITE, (25, 50, 25, 25)),
         ColorDef("fire", "Fire", "#F08030", ENERGY_SPRITE, (0, 0, 25, 25)),
@@ -530,9 +618,6 @@ class PokemonProvider:
         FinishDef("reverse", "Reverse holo"),
         FinishDef("first_edition", "1st edition"),
     ]
-    languages = list(LANGUAGES.values())
-    price_sources = ["cardmarket", "tcgplayer"]
-    secondary_sources = [official_jp.source]
     cardmarket_path = "Pokemon"
     rarities = [
         RarityDef("common", "Common", ("C", "●")),
@@ -578,14 +663,26 @@ class PokemonProvider:
         FilterDef("stage", "Stage", "stage"),
         FilterDef("rarity", "Rarity"),
     ]
-    short_names = ["pkm", "pokemon", "poke", "ptcg"]
     legal_notice = LEGAL_NOTICE
     # 2: one set per set id across Asian languages, names from species names.
     # 3: Asian sets reusing an international id stored apart, Asian names fixed.
     # 4: Thai and Indonesian, Korean and Simplified Chinese from open datasets.
     # 5: "No type" for Trainers and special Energies.
     # 6: Pokémon TCG API dropped, English pictures it gave refilled from the other sources.
-    catalog_version = 6
+    # 7: one game per market (international, Asia, China).
+    catalog_version = 7
+
+    def __init__(self, region: str = INTERNATIONAL):
+        self.market = REGIONS[region]
+        self.id = self.market.id
+        self.name = self.market.name
+        self.region = self.market.region
+        self.region_label = self.market.region_label
+        self.languages = list(self.market.languages)
+        self.short_names = list(self.market.short_names)
+        # Mainland Chinese data has no prices.
+        self.price_sources = [] if region == CHINA else ["cardmarket", "tcgplayer"]
+        self.secondary_sources = [official_jp.source] if region == ASIA else []
 
     async def _get(self, http: httpx.AsyncClient, path: str) -> Any:
         return (await get_with_retry(http, f"{API_URL}{path}")).json()
@@ -628,13 +725,18 @@ class PokemonProvider:
 
     async def fetch_catalog(self, http: httpx.AsyncClient) -> AsyncIterator[CatalogBatch]:
         settings = PokemonSettings()
-        wanted = set(settings.languages)
+        wanted = settings.tcgdex_languages() & set(self.market.tcgdex)
         languages = [lang for lang in BASE_ORDER if lang in wanted]
         # Card key of each printing of the sets fetched in full, to attach translations.
         keys: dict[tuple[str, str], str] = {}
         # Our set id of each TCGdex set id, per language family (international, Asian).
         fetched_sets: dict[tuple[bool, str], str] = {}
         english_cards: set[str] = set()
+        if self.region != INTERNATIONAL:
+            # Ids the international game uses and its card names (`shared.py`).
+            known = await shared.international(http, API_URL, DIGITAL_SERIES)
+            fetched_sets = {(False, set_id): set_id for set_id in known.set_ids}
+            english_cards = set(known.english_cards)
         for lang in languages:
             asian = lang in ASIAN
             for brief in await self._get(http, f"/{lang}/sets"):
@@ -661,9 +763,9 @@ class PokemonProvider:
                         keys[(printing.set_external_id, printing.external_id)] = card.external_id
                 yield batch
         extra = []
-        if settings.korean:
+        if settings.korean and "ko" in self.market.datasets:
             extra.append(("ko", asia.korean_sets))
-        if settings.chinese:
+        if settings.chinese and "zh-hans" in self.market.datasets:
             extra.append(("zh-hans", asia.chinese_sets))
         for lang, read in extra:
             try:
@@ -751,15 +853,21 @@ class PokemonProvider:
 
     async def lookup(self, http: httpx.AsyncClient, hints: OcrHints) -> CatalogBatch | None:
         """A scanned card missing from the catalog, by set id and number (English listing
-        first: international sets are stored from it)."""
+        first: international sets are stored from it; Japanese first in Asia)."""
         if not (hints.set_code and hints.collector_number):
             return None
         reverse = {ours: theirs for theirs, ours in LANGUAGES.items()}
         number = hints.collector_number.lstrip("0") or "0"
         # TCGdex ids differ from printed codes since Scarlet & Violet ("MEG" is me01).
         set_id = tcgdex_set_id(hints.set_external_id) if hints.set_external_id else hints.set_code
+        base = "en" if self.region == INTERNATIONAL else "ja"
+        tried = [base, reverse.get(hints.lang or "", base)]
+        languages = [lang for lang in dict.fromkeys(tried) if lang in self.market.tcgdex]
         international = False  # the id is an international set's
-        for lang in dict.fromkeys(["en", reverse.get(hints.lang or "", "en")]):
+        if self.region != INTERNATIONAL and languages:
+            known = await shared.international(http, API_URL, DIGITAL_SERIES)
+            international = set_id in known.set_ids
+        for lang in languages:
             try:
                 raw_set = await self._get(http, f"/{lang}/sets/{quote(set_id, safe='')}")
             except httpx.HTTPStatusError as exc:
@@ -820,4 +928,7 @@ class PokemonProvider:
         return []
 
     def parse_ocr(self, lines: list[OcrLine]) -> OcrHints:
-        return parse_ocr(lines)
+        hints = parse_ocr(lines)
+        # A Pokémon card of another market is that game's.
+        hints.recognized = hints.recognized and region_of(hints) == self.region
+        return hints

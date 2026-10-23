@@ -1290,6 +1290,14 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            /** Group */
+            group: string;
+            /** Group Name */
+            group_name: string;
+            /** Region */
+            region?: string | null;
+            /** Region Label */
+            region_label?: string | null;
             /** Colors */
             colors: components["schemas"]["ColorOut"][];
             /** Finishes */

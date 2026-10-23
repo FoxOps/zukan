@@ -73,13 +73,27 @@ def rarity_of(game_id: str, raw: str | None) -> RarityDef | None:
     return _rarity_table(game_id).get(rarity_key(raw))
 
 
+def group_of(game_id: str) -> str:
+    """The game's group (`GameProvider.group`): "pokemon" for every Pokémon game."""
+    return getattr(registry().get(game_id), "group", None) or game_id
+
+
+def picture_game(game_id: str) -> str:
+    """The game whose picture folders (`<game>/symbols/`, `<game>/rarity/`) this game uses:
+    the games of a group share one, named after the group (one of them is its id)."""
+    group = group_of(game_id)
+    return group if group in registry() else game_id
+
+
 def shipped_folders() -> dict[str, dict[str, Path]]:
     """Pictures shipped with each provider: `{game: {"rarity" | "symbols": folder}}`
-    (`games/<game>/rarities/` and `games/<game>/symbols/`)."""
+    (`games/<game>/rarities/` and `games/<game>/symbols/`), once per picture game."""
     from app.services import layout
 
     folders: dict[str, dict[str, Path]] = {}
     for game_id, provider in registry().items():
+        if picture_game(game_id) != game_id:
+            continue
         package = Path(inspect.getfile(type(provider))).parent
         kinds = {
             kind: package / name
@@ -109,7 +123,7 @@ def shipped_rarity_icon(game_id: str, code: str, lang: str | None = None) -> Pat
     provider = registry().get(game_id)
     if provider is None:
         return None
-    copy = layout.default_folder(get_settings().image_dir, game_id, layout.RARITY)
+    copy = layout.default_folder(get_settings().image_dir, picture_game(game_id), layout.RARITY)
     package = Path(inspect.getfile(type(provider))).parent / "rarities"
     for name in icon_variants(code, lang):
         if found := layout.own_picture(copy, name) or layout.own_picture(package, name):
@@ -126,7 +140,7 @@ def rarity_icon_file(game_id: str, code: str, lang: str | None = None) -> Path |
 
     if game_id not in registry():
         return None
-    folder = layout.game_folder(get_settings().image_dir, game_id, layout.RARITY)
+    folder = layout.game_folder(get_settings().image_dir, picture_game(game_id), layout.RARITY)
     for name in icon_variants(code, lang):
         if found := layout.own_picture(folder, name):
             return found

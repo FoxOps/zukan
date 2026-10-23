@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from sqlalchemy import and_, delete, exists, func, literal_column, select, tuple_, update
+from sqlalchemy import and_, delete, exists, func, literal_column, or_, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +21,7 @@ from app.games.base import (
     PrintingMove,
     SetData,
     catalog_version,
+    rarity_key,
 )
 from app.models import Card, CardName, CardSet, CollectionItem, Game, Printing, StockTransaction
 from app.services import layout, prices, translations
@@ -440,10 +441,13 @@ async def sync_catalog(
 ) -> SyncReport:
     """Fetch and store the provider catalog, committing after each batch."""
     writer = CatalogWriter(session, provider.id)
+    started = await session.scalar(select(func.now()))
+    await session.commit()
     async for batch in provider.fetch_catalog(http):
         await writer.write(batch)
         await session.commit()
         await progress()
+    writer.report.moved += await adopt_orphans(session, provider, started)
     if writer.report.prices:
         writer.report.pruned_prices = await prices.prune_history(session, provider.id)
     pruned = await session.execute(
@@ -466,6 +470,53 @@ async def sync_catalog(
     )
     await session.commit()
     return writer.report
+
+
+async def adopt_orphans(session: AsyncSession, provider: GameProvider, started: datetime) -> int:
+    """Owned printings this sync did not see, whose set code and collector number (and
+    rarity, for games with a printing per rarity) one seen printing has: stored under
+    other ids before (a split of games guessed them, a source renamed them). Their copies
+    move to it and the old printing goes. Returns how many moved."""
+    owned = exists().where(CollectionItem.printing_id == Printing.id)
+    orphans = (
+        await session.execute(
+            select(Printing.id, CardSet.code, Printing.collector_number, Printing.rarity)
+            .join(CardSet)
+            .where(
+                CardSet.game_id == provider.id,
+                owned,
+                Printing.collector_number.is_not(None),
+                or_(Printing.last_seen_at.is_(None), Printing.last_seen_at < started),
+            )
+        )
+    ).all()
+    by_rarity = getattr(provider, "rarity_in_printing", False)
+    writer = CatalogWriter(session, provider.id)
+    moved = 0
+    for printing_id, code, number, rarity in orphans:
+        candidates = (
+            await session.execute(
+                select(Printing.id, Printing.rarity)
+                .join(CardSet)
+                .where(
+                    CardSet.game_id == provider.id,
+                    func.lower(CardSet.code) == code.casefold(),
+                    func.upper(Printing.collector_number) == number.upper(),
+                    Printing.last_seen_at >= started,
+                )
+            )
+        ).all()
+        if by_rarity:
+            candidates = [
+                c for c in candidates if rarity_key(c.rarity or "") == rarity_key(rarity or "")
+            ]
+        if len(candidates) != 1:
+            continue
+        await writer._move_items(printing_id, candidates[0].id)
+        await session.execute(delete(Printing).where(Printing.id == printing_id))
+        moved += 1
+    await session.commit()
+    return moved
 
 
 @dataclass

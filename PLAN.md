@@ -1412,6 +1412,60 @@ Pokémon pictures and pictograms:
   0.10.0 APK, scan MEG 22 / 94 / 100, CRI 48, add one: "Added …" shows on the tray.
 
 
+## Regional sub-games (server 0.17.0, Android unchanged 0.10.0)
+Branch `2026-10-23-002-regional-sub-games`. User report (server 0.15.0 / app 0.9.0): one
+Pokémon and one Yu-Gi-Oh! game mixing Western and Asian products confused users. Split by
+publisher and market, separate in catalog and collection:
+- `pokemon` Pokémon TCG (TPCi): en, fr, de, it, es, pt
+- `pokemon-asia` Pokémon TCG Asia (TPC Japan): ja, ko, zh-hant, th, id
+- `pokemon-china` Pokémon TCG China (TPC China): zh-hans
+- `yugioh` Yu-Gi-Oh! TCG: en, fr, de, it, es, pt
+- `yugioh-ocg` Yu-Gi-Oh! OCG: ja, ko, zh-hans, zh-hant, en (Asian English, "-AE" codes)
+
+GUI (five mockups shown, user chose option 2, 2026-10-23): game tabs unchanged per family,
+a market control under the Pokémon / Yu-Gi-Oh! tab (International | Asia | China, TCG |
+OCG), names only (no language codes, no flags: user request).
+
+- [x] Providers: one game id each (entry points), shared code. `PokemonProvider(region)`
+  (`REGIONS`), `games/pokemon/shared.py` memoizes the international set ids (Asian sets
+  reusing one keep `asia:<id>`) and English card keys; China = mainland dataset only,
+  never merged into Japanese sets; `official_jp` on the Asia game. `YugiohProvider(region)`:
+  `build_tcg` (European languages only, `_Placer` gone) and `build_ocg` (every Asian and
+  "-AE" printing in the set of its prefix, id `<code>~<rarity>`); `games/yugioh/shared.py`
+  downloads YGOPRODeck cards and YGOJSON once for both (1 h); Konami feeds the OCG game,
+  one daily budget. "(TCG)"/"(OCG)" set name suffixes dropped. `catalog_version` pokemon 7,
+  yugioh 3.
+- [x] Prices: Asia keeps Cardmarket + TCGplayer from TCGdex (Japanese cards have Cardmarket
+  prices there) and CardNexus "pokemon-japan"; China and OCG have none.
+- [x] Scan: `parse_ocr.recognized` per market (Pokémon: "…C" China set codes, writing;
+  Yu-Gi-Oh!: printed region), so `other_game` points to the right sibling. Thai script
+  detected. Search shortcuts: pkmasia/pkmjp, pkmcn, ocg/ygocg.
+- [x] Migration `b3d5e7f9a124` (`services/split.py`, no download): Asian / Chinese sets move
+  to their game with their printings (ids kept: copies, prices, history, manual prices
+  stay); cards follow (copied when printed in both); languages of another market on a
+  printing (zh-hans on Japanese printings, ko/zh on YGO TCG printings) become a printing
+  of the other game with their copies; pictures move; discrepancies, gap checks, field
+  rules, `catalog_games` follow. Not reversible. Safety net `catalog.adopt_orphans`:
+  after a sync, owned printings not seen move to the seen printing of the same set code,
+  number (and rarity for Yu-Gi-Oh!).
+- [x] API: `GameOut.group`, `group_name`, `region`, `region_label`. Symbols and rarity
+  pictures per group folder (`picture_game`). Worker: `TCG_WORKER_GAMES` "pokemon" alone
+  means the family. CSV import: an old `pokemon` / `yugioh` row found in a sibling game.
+- [x] Settings: `TCG_POKEMON_ASIA_LANGUAGES`, `TCG_YUGIOH_OCG_LANGUAGES` (fallback: Asian
+  languages of the old single lists).
+- [x] Web: `GameTabs` groups + market `join` (last market remembered per family), Settings
+  games grouped, Import/Export lists game column values. Android: no change (games list
+  from the server, new fields ignored).
+- [x] Versions: server 0.17.0, Android unchanged.
+- [x] Checks: backend 209 tests, ruff; web build, oxlint, i18n; migration on a copy of the
+  test database (2 min 38 s, 1 707 sets moved, 15 131 printings split, owned copies equal
+  before/after, no empty printing left), then real YGOPRODeck / YGOJSON syncs of both
+  Yu-Gi-Oh! games on it: every TCG printing seen again (ids predicted right), OCG unseen
+  only the Konami ones (Konami off for the test); browser on :8010 against that copy
+  (Catalog, Collection, Settings, 390 px, no overflow).
+- [ ] User: after upgrading, let the worker sync the new games (or run their catalog jobs);
+  check Collection under each market.
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.

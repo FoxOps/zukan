@@ -14,20 +14,17 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 
-from app.core.config import get_settings
-from app.games.base import registry
 from app.main import register_games
 from app.models import JobTrigger
 from app.services.jobs import JobAlreadyRunning, JobStopped, reap_runs, run_job, set_process_role
-from app.services.schedule import TICK_SECONDS, is_due, jobs_for
+from app.services.schedule import TICK_SECONDS, is_due, jobs_for, worker_games
 
 log = logging.getLogger("zukan.worker")
 
 
 async def tick() -> None:
     await reap_runs()
-    games = get_settings().worker_games or list(registry())
-    for game_id in games:
+    for game_id in worker_games():
         for kind in jobs_for(game_id):
             if not await is_due(game_id, kind, datetime.now(UTC)):
                 continue

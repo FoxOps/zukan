@@ -11,6 +11,7 @@ from app.games.base import OcrLine
 _KANA = re.compile(r"[぀-ヿ]")
 _HANGUL = re.compile(r"[가-힯ᄀ-ᇿ]")
 _CJK = re.compile(r"[一-鿿]")
+_THAI = re.compile(r"[\u0e00-\u0e7f]")
 _LETTERS = re.compile(r"[^\W\d_]", re.UNICODE)
 
 
@@ -25,12 +26,14 @@ def has_cjk(text: str) -> bool:
 
 
 def script_language(lines: list[OcrLine]) -> str | None:
-    """Language implied by the writing system (Japanese, Korean, Chinese), if any."""
+    """Language implied by the writing system (Japanese, Korean, Chinese, Thai), if any."""
     text = " ".join(line.text for line in lines)
     if _KANA.search(text):
         return "ja"
     if _HANGUL.search(text):
         return "ko"
+    if _THAI.search(text):
+        return "th"
     if _CJK.search(text):
         # Traditional when converting it to Simplified changes something.
         return "zh-hant" if _converter("t2s").convert(text) != text else "zh-hans"

@@ -1,10 +1,13 @@
-"""Yu-Gi-Oh! Trading Card Game (Konami).
+"""Yu-Gi-Oh! (Konami), as two games: the Trading Card Game (Europe, the Americas, Oceania:
+English, French, German, Italian, Spanish, Portuguese) and the Official Card Game (Japan
+and Asia: Japanese, Korean, Chinese, Asian English).
 
-Catalog: YGOPRODeck (`ygoprodeck.py`) for every TCG card, set and printing, with French,
-German, Italian and Portuguese names; YGOJSON (`ygojson.py`) for Spanish, Japanese, Korean
-and Chinese names and the OCG printings (Japanese, Korean, Chinese sets, stored as sets
-of their own like Pokémon's Asian sets); Konami's database (`konami.py`) for the names and
-OCG printings of cards newer than YGOJSON.
+TCG catalog: YGOPRODeck (`ygoprodeck.py`) for every card, set and printing, with French,
+German, Italian and Portuguese names; YGOJSON (`ygojson.py`) for Spanish names and the
+European languages and editions of each printing.
+OCG catalog: YGOJSON's Japanese, Korean, Chinese and Asian English printings, one set per
+code prefix ("BETB-KR"); Konami's database (`konami.py`) for the names and printings of
+cards newer than YGOJSON. Both games share one download of each source (`shared.py`).
 
 Cards are keyed on their password (YGOPRODeck id, "46986414"); OCG cards without one on
 YGOJSON's id. A printing is a set code with one rarity ("LOB-EN001" Ultra Rare and Secret
@@ -40,21 +43,11 @@ from app.games.base import (
     PriceQuote,
     PriceTarget,
     PrintingData,
-    PrintingMove,
     SetData,
 )
 from app.games.ocr import by_position, clean, has_cjk, letter_ratio, script_language
-from app.games.yugioh import konami, ygojson, ygoprodeck
-from app.games.yugioh.codes import (
-    ASIAN_REGIONS,
-    CODE,
-    REGIONS,
-    base_code,
-    number_key,
-    prefix_of,
-    rarity_key,
-    tag,
-)
+from app.games.yugioh import konami, shared, ygoprodeck
+from app.games.yugioh.codes import CODE, OCG_REGIONS, REGIONS, prefix_of, tag
 from app.games.yugioh.konami import Page
 from app.games.yugioh.rarities import KONAMI_CODES, RARITIES, clean_rarity
 from app.games.yugioh.ygojson import YgoJson
@@ -69,11 +62,16 @@ LEGAL_NOTICE = (
     "endorsed, supported or affiliated with Konami. Card data from YGOPRODeck, YGOJSON and "
     "the official Yu-Gi-Oh! card database."
 )
-DEFAULT_LANGUAGES = ["en", "fr", "de", "it", "pt", "es", "ja", "ko", "zh-hans", "zh-hant"]
+# Languages of each game ("en" of the OCG: Asian English printings, "-AE" codes).
+TCG_LANGUAGES = ["en", "fr", "de", "it", "pt", "es"]
+OCG_LANGUAGES = ["ja", "ko", "zh-hans", "zh-hant", "en"]
+ASIAN_LANGUAGES = {"ja", "ko", "zh-hans", "zh-hant"}
 # TCG printings whose editions no source gives.
 GUESSED_FINISHES = ["first", "unlimited"]
 CATALOG_TTL = 3600
+# The TCG catalog of the last sync, for price runs.
 _cached: tuple[float, CatalogBatch] | None = None
+TCG, OCG = "tcg", "ocg"
 
 # Spell and Trap: YGOPRODeck has no symbol; Konami's card database has (Fandom shows the
 # same ones, but refuses scripts). Drawn for Zukan as fallback (scripts/draw_color_symbols.py).
@@ -88,10 +86,26 @@ _PASSWORD = re.compile(r"^\s*([0-9]{8})\s*$")
 class YugiohSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="TCG_YUGIOH_", env_file=".env", extra="ignore")
 
-    # Name languages and OCG sets to import (ja, ko, zh-hans, zh-hant add ~85k printings).
-    languages: list[str] = DEFAULT_LANGUAGES
+    # Languages of the TCG game. Asian languages listed here (one game had them all
+    # before 0.17.0) are the OCG game's when `ocg_languages` is not set.
+    languages: list[str] = TCG_LANGUAGES
+    # Languages of the OCG game (~85k printings).
+    ocg_languages: list[str] | None = None
     # Konami database pages read a day for cards newer than YGOJSON (0: never).
     konami_daily_requests: int = 300
+
+    def tcg(self) -> list[str]:
+        return [lang for lang in TCG_LANGUAGES if lang in self.languages]
+
+    def ocg(self) -> list[str]:
+        if self.ocg_languages is not None:
+            return [lang for lang in OCG_LANGUAGES if lang in self.ocg_languages]
+        asian = ASIAN_LANGUAGES & set(self.languages)
+        return (
+            [lang for lang in OCG_LANGUAGES if lang in asian or lang == "en"]
+            if asian
+            else (list(OCG_LANGUAGES))
+        )
 
 
 def _decimal(value: Any) -> Decimal | None:
@@ -148,104 +162,40 @@ def _ocg_colors(attributes: dict[str, Any]) -> list[str]:
 
 def tcg_name(name: str) -> str:
     # YGOPRODeck writes some names with HTML entities ("Legendary 5D&apos;s Decks").
-    return f"{html.unescape(name)} (TCG)"
+    return html.unescape(name)
 
 
-def ocg_name(name: str) -> str:
-    return f"{name} (OCG)"
+def _yj_names(yj: YgoJson | None, by_password: dict[int, CardData], wanted: set[str]) -> None:
+    """Names YGOJSON knows (Spanish, Asian languages), for the cards of these passwords."""
+    for yc in yj.cards.values() if yj else []:
+        card = next((by_password[p] for p in yc.passwords if p in by_password), None)
+        if card is not None:
+            for lang, name in yc.names.items():
+                if lang in wanted:
+                    card.names.setdefault(lang, name)
 
 
-class _Placer:
-    """Puts Korean and Chinese printings (YGOJSON, Konami) in the TCG set of their code:
-    "BETB-KR024" is a language of "BETB-EN024" when it is the same card and rarity, else a
-    printing of its own in that set. Codes no TCG set has keep a set of their own.
-    Japanese printings make the OCG sets."""
-
-    def __init__(
-        self, cards: dict[str, CardData], sets: dict[str, SetData], taken: set[tuple[str, str]]
-    ):
-        self.sets = sets
-        self.taken = taken
-        self.moved: list[PrintingMove] = []
-        # TCG printings by code without region, with their card.
-        self.by_number: dict[str, list[tuple[CardData, PrintingData]]] = {}
-        # TCG sets by code ("BETB").
-        self.by_code: dict[str, list[str]] = {}
-        self.added: dict[tuple[str, str], PrintingData] = {}
-        for s in sets.values():
-            self.by_code.setdefault(s.code.upper(), []).append(s.external_id)
-        for card in cards.values():
-            for printing in card.printings:
-                if printing.collector_number:
-                    key = number_key(printing.collector_number)
-                    self.by_number.setdefault(key, []).append((card, printing))
-
-    def place(
-        self,
-        card: CardData,
-        old_set: str,
-        number: str,
-        rarity: str | None,
-        lang: str,
-        finishes: list[str],
-        image: str | None,
-    ) -> bool:
-        """Add an Asian printing (stored in `old_set` before) to its TCG set. False when
-        no TCG set has its code."""
-        old_id = f"{number}~{tag(rarity)}"
-        same_card = [(c, p) for c, p in self.by_number.get(number_key(number), []) if c is card]
-        match = next((p for _, p in same_card if rarity_key(p.rarity) == rarity_key(rarity)), None)
-        if match is None:
-            if same_card:
-                target = same_card[0][1].set_external_id
-            elif len(found := self.by_code.get(base_code(number), [])) == 1:
-                target = found[0]
-            else:
-                return False
-            match = self.added.get((target, old_id))
-            if match is None:
-                match = self.added[(target, old_id)] = PrintingData(
-                    external_id=old_id,
-                    set_external_id=target,
-                    collector_number=number,
-                    rarity=rarity,
-                    finishes=[],
-                    languages=[],
-                    attributes={},
-                )
-                self.taken.add((target, old_id))
-                card.printings.append(match)
-        if lang not in match.languages:
-            match.languages.append(lang)
-        match.finishes.extend(f for f in finishes if f not in match.finishes)
-        if image:
-            match.images.setdefault(lang, image)
-        match.attributes.setdefault("numbers", {})[lang] = number
-        if (match.set_external_id, match.external_id) != (old_set, old_id):
-            self.moved.append(
-                PrintingMove(old_set, old_id, match.set_external_id, match.external_id)
-            )
-        return True
+def _card(raw: dict[str, Any], names: dict[str, str]) -> CardData:
+    return CardData(
+        external_id=str(raw["id"]),
+        name=raw["name"],
+        colors=_colors(raw),
+        attributes=_attributes(raw),
+        names=dict(names),
+    )
 
 
-def build_catalog(
+def build_tcg(
     raw_cards: list[dict[str, Any]],
     raw_sets: list[dict[str, Any]],
     translations: dict[str, dict[int, str]] | None = None,
     yj: YgoJson | None = None,
-    pages: dict[int, dict[str, Page]] | None = None,
-    languages: list[str] = DEFAULT_LANGUAGES,
+    languages: list[str] = TCG_LANGUAGES,
 ) -> CatalogBatch:
-    """Catalog from YGOPRODeck cards and sets, names by language, YGOJSON and Konami
-    pages (by Konami id and locale).
-
-    TCG sets ("Burst of Destiny (TCG)") hold every language printed with their code:
-    European (YGOPRODeck, YGOJSON), Korean and Chinese (YGOJSON, Konami). Japanese sets
-    are the OCG ones ("バースト・オブ・デスティニー (OCG)"). Sets stay keyed on their
-    YGOPRODeck name / Asian code prefix."""
+    """The TCG catalog: YGOPRODeck cards and sets, names by language, European languages
+    and editions of the printings from YGOJSON. Sets stay keyed on their YGOPRODeck name."""
     translations = translations or {}
-    pages = pages or {}
-    wanted = set(languages)
+    wanted = set(languages) | {"en"}
     sets: dict[str, SetData] = {}
     for raw in raw_sets:
         name = raw["set_name"]
@@ -265,13 +215,7 @@ def build_catalog(
     taken: set[tuple[str, str]] = set()
     for raw in raw_cards:
         password = raw["id"]
-        card = CardData(
-            external_id=str(password),
-            name=raw["name"],
-            colors=_colors(raw),
-            attributes=_attributes(raw),
-            names={"en": raw["name"]},
-        )
+        card = _card(raw, {"en": raw["name"]})
         for lang, names in translations.items():
             if lang in wanted and password in names:
                 card.names[lang] = names[password]
@@ -329,91 +273,90 @@ def build_catalog(
                     )
         cards[card.external_id] = card
         by_password[password] = card
-
-    placer = _Placer(cards, sets, taken)
-    if yj is not None:
-        _add_ygojson(yj, cards, by_password, sets, wanted, taken, placer)
-    _add_konami(pages, cards, sets, wanted, taken, placer)
-    return CatalogBatch(
-        sets=list(sets.values()),
-        cards=list(cards.values()),
-        prices=quotes,
-        moved=placer.moved,
-    )
+    _yj_names(yj, by_password, wanted)
+    return CatalogBatch(sets=list(sets.values()), cards=list(cards.values()), prices=quotes)
 
 
-def _add_ygojson(
-    yj: YgoJson,
-    cards: dict[str, CardData],
-    by_password: dict[int, CardData],
-    sets: dict[str, SetData],
-    wanted: set[str],
-    taken: set[tuple[str, str]],
-    placer: _Placer,
-) -> None:
-    by_uuid: dict[str, CardData] = {}
-    for yc in yj.cards.values():
-        card = next((by_password[p] for p in yc.passwords if p in by_password), None)
-        if card is not None:
-            for lang, name in yc.names.items():
-                if lang in wanted:
-                    card.names.setdefault(lang, name)
-            by_uuid[yc.uuid] = card
-    for ys in yj.sets:
-        if ys.lang not in wanted:
-            continue
-        name = ocg_name(ys.name) if ys.lang == "ja" else tcg_name(ys.name)
-        own_set = SetData(ys.external_id, ys.external_id, name, ys.lang, ys.release_date)
-        for yp in ys.printings:
-            # Codes not known yet when YGOJSON read them ("DDS2-JP0??").
-            if "?" in yp.number:
-                continue
-            card = by_uuid.get(yp.card)
-            if card is None:
-                yc = yj.cards.get(yp.card)
-                if yc is None:
-                    continue
-                # OCG card YGOPRODeck does not have (no password yet).
-                names = {lang: n for lang, n in yc.names.items() if lang in wanted}
-                card = by_uuid[yc.uuid] = cards[f"ygojson:{yc.uuid}"] = CardData(
-                    external_id=f"ygojson:{yc.uuid}",
-                    name=names.get("en")
-                    or yc.names.get("ja")
-                    or next(iter(yc.names.values()), "?"),
-                    colors=_ocg_colors(yc.attributes),
-                    attributes=yc.attributes,
-                    names=names,
-                )
-            if ys.lang != "ja" and placer.place(
-                card, ys.external_id, yp.number, yp.rarity, ys.lang, yp.finishes, yp.image
-            ):
-                continue
-            external_id = f"{yp.number}~{tag(yp.rarity)}"
-            if (ys.external_id, external_id) in taken:
-                continue
-            taken.add((ys.external_id, external_id))
-            sets.setdefault(ys.external_id, own_set)
-            card.printings.append(
-                PrintingData(
-                    external_id=external_id,
-                    set_external_id=ys.external_id,
-                    collector_number=yp.number,
-                    rarity=yp.rarity,
-                    finishes=yp.finishes,
-                    languages=[ys.lang],
-                    images={ys.lang: yp.image} if yp.image else {},
-                )
+def build_ocg(
+    raw_cards: list[dict[str, Any]],
+    yj: YgoJson | None = None,
+    pages: dict[int, dict[str, Page]] | None = None,
+    languages: list[str] = OCG_LANGUAGES,
+) -> CatalogBatch:
+    """The OCG catalog: Japanese, Korean, Chinese and Asian English printings (YGOJSON,
+    Konami pages by Konami id and locale), each code in the set of its prefix
+    ("BETB-KR024" in "BETB-KR"). Cards keep their password (YGOPRODeck's data); OCG cards
+    without one yet are keyed on YGOJSON's id."""
+    pages = pages or {}
+    wanted = set(languages)
+    # YGOPRODeck's English names are the Asian English cards' too.
+    english = "en" in wanted
+    by_password = {
+        raw["id"]: _card(raw, {"en": raw["name"]} if english else {}) for raw in raw_cards
+    }
+    cards = {c.external_id: c for c in by_password.values()}
+    sets: dict[str, SetData] = {}
+    taken: set[tuple[str, str]] = set()
+
+    def add(
+        card: CardData,
+        set_data: SetData,
+        number: str,
+        rarity: str | None,
+        lang: str,
+        finishes: list[str],
+        image: str | None,
+    ) -> None:
+        external_id = f"{number}~{tag(rarity)}"
+        if (set_data.external_id, external_id) in taken:
+            return
+        taken.add((set_data.external_id, external_id))
+        sets.setdefault(set_data.external_id, set_data)
+        card.printings.append(
+            PrintingData(
+                external_id=external_id,
+                set_external_id=set_data.external_id,
+                collector_number=number,
+                rarity=rarity,
+                finishes=finishes,
+                languages=[lang],
+                images={lang: image} if image else {},
             )
+        )
 
+    if yj is not None:
+        _yj_names(yj, by_password, wanted)
+        by_uuid: dict[str, CardData] = {}
+        for yc in yj.cards.values():
+            card = next((by_password[p] for p in yc.passwords if p in by_password), None)
+            if card is not None:
+                by_uuid[yc.uuid] = card
+        for ys in yj.sets:
+            if ys.lang not in wanted:
+                continue
+            own_set = SetData(ys.external_id, ys.external_id, ys.name, ys.lang, ys.release_date)
+            for yp in ys.printings:
+                # Codes not known yet when YGOJSON read them ("DDS2-JP0??").
+                if "?" in yp.number:
+                    continue
+                card = by_uuid.get(yp.card)
+                if card is None:
+                    yc = yj.cards.get(yp.card)
+                    if yc is None:
+                        continue
+                    # OCG card YGOPRODeck does not have (no password yet).
+                    names = {lang: n for lang, n in yc.names.items() if lang in wanted}
+                    card = by_uuid[yc.uuid] = cards[f"ygojson:{yc.uuid}"] = CardData(
+                        external_id=f"ygojson:{yc.uuid}",
+                        name=yc.names.get("en")
+                        or yc.names.get("ja")
+                        or next(iter(yc.names.values()), "?"),
+                        colors=_ocg_colors(yc.attributes),
+                        attributes=yc.attributes,
+                        names=names,
+                    )
+                add(card, own_set, yp.number, yp.rarity, ys.lang, yp.finishes, yp.image)
 
-def _add_konami(
-    pages: dict[int, dict[str, Page]],
-    cards: dict[str, CardData],
-    sets: dict[str, SetData],
-    wanted: set[str],
-    taken: set[tuple[str, str]],
-    placer: _Placer,
-) -> None:
     by_konami = {
         c.attributes["konami_id"]: c for c in cards.values() if "konami_id" in c.attributes
     }
@@ -428,39 +371,16 @@ def _add_konami(
                 card.names.setdefault(lang, page.name)
             for pack in page.packs:
                 match = CODE.search(pack.number)
-                if not match or (match.group(2) or "") not in ASIAN_REGIONS:
+                if not match or (match.group(2) or "") not in OCG_REGIONS:
                     continue
                 if REGIONS[match.group(2)] != lang:
                     continue
                 prefix = prefix_of(pack.number)
                 rarity = KONAMI_CODES.get(pack.rarity or "", pack.rarity)
-                if lang != "ja" and placer.place(
-                    card, prefix, pack.number, rarity, lang, ["unlimited"], None
-                ):
-                    continue
-                external_id = f"{pack.number}~{tag(rarity)}"
-                if (prefix, external_id) in taken:
-                    continue
-                taken.add((prefix, external_id))
-                if prefix not in sets:
-                    name = pack.name or prefix
-                    sets[prefix] = SetData(
-                        prefix,
-                        prefix,
-                        ocg_name(name) if lang == "ja" else tcg_name(name),
-                        lang,
-                        _date(pack.released),
-                    )
-                card.printings.append(
-                    PrintingData(
-                        external_id=external_id,
-                        set_external_id=prefix,
-                        collector_number=pack.number,
-                        rarity=rarity,
-                        finishes=["unlimited"],
-                        languages=[lang],
-                    )
-                )
+                own_set = SetData(prefix, prefix, pack.name or prefix, lang, _date(pack.released))
+                add(card, own_set, pack.number, rarity, lang, ["unlimited"], None)
+
+    return CatalogBatch(sets=list(sets.values()), cards=[c for c in cards.values() if c.printings])
 
 
 def konami_wanted(
@@ -494,8 +414,8 @@ def _price_order(printing: PrintingData) -> tuple[str, int]:
 
 
 class YugiohProvider:
-    id = "yugioh"
-    name = "Yu-Gi-Oh!"
+    group = "yugioh"
+    group_name = "Yu-Gi-Oh!"
     colors = [
         ColorDef("dark", "Dark", "#5B3A8E", f"{ICON_URL}/DARK.jpg"),
         ColorDef("light", "Light", "#D9B53B", f"{ICON_URL}/LIGHT.jpg"),
@@ -527,7 +447,6 @@ class YugiohProvider:
     ]
     rarities = RARITIES
     rarity_in_printing = True
-    price_sources = ["cardmarket", "tcgplayer"]
     filters = [
         FilterDef("type", "Type", "type"),
         FilterDef("race", "Monster type", "race"),
@@ -537,62 +456,66 @@ class YugiohProvider:
     cardmarket_path = "YuGiOh"
     # 2: TCG / OCG sets, Korean and Chinese printings in the TCG sets, European
     # languages of sets YGOJSON lacks.
-    catalog_version = 2
-    short_names = ["yugioh", "ygo", "yu-gi-oh"]
+    # 3: one game each (TCG, OCG), Asian printings in OCG sets of their code.
+    catalog_version = 3
     legal_notice = LEGAL_NOTICE
     # No `text_attribute`: printings carry the text of their time (errata, "Graveyard"
     # became "GY"), so other sources' texts are not compared.
-    source_keys = {"tcgcsv": 2, "apitcg": "yugioh"}
+
+    def __init__(self, region: str = TCG):
+        self.region = region
+        if region == TCG:
+            self.id, self.name, self.region_label = "yugioh", "Yu-Gi-Oh! TCG", "TCG"
+            self.short_names = ["yugioh", "ygo", "yu-gi-oh"]
+            self.price_sources = ["cardmarket", "tcgplayer"]
+            self.source_keys = {"tcgcsv": 2, "apitcg": "yugioh"}
+        else:
+            self.id, self.name, self.region_label = "yugioh-ocg", "Yu-Gi-Oh! OCG", "OCG"
+            self.short_names = ["ocg", "ygocg", "yugiohocg"]
+            # Cardmarket and TCGplayer sell the TCG printings.
+            self.price_sources = []
+            self.source_keys = {}
 
     @property
     def languages(self) -> list[str]:
-        return YugiohSettings().languages
-
-    async def _tcg(
-        self, http: httpx.AsyncClient
-    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        return await ygoprodeck.cards(http), await ygoprodeck.sets(http)
+        settings = YugiohSettings()
+        return settings.tcg() if self.region == TCG else settings.ocg()
 
     async def _catalog(self, http: httpx.AsyncClient) -> CatalogBatch:
         settings = YugiohSettings()
-        raw_cards, raw_sets = await self._tcg(http)
+        raw_cards = await shared.cards(http)
+        yj = await shared.ygojson_data(http)
+        if self.region == OCG:
+            languages = settings.ocg()
+            cache = konami.Cache()
+            if settings.konami_daily_requests > 0:
+                wanted = konami_wanted(raw_cards, yj, languages)
+                read = await konami.fill(http, cache, wanted, settings.konami_daily_requests)
+                log.info("Konami database: %s pages read, %s cards to go", read, len(wanted) - read)
+            pages = {int(cid): by_lang for cid, by_lang in cache.pages.items()}
+            return build_ocg(raw_cards, yj, pages, languages)
+        languages = settings.tcg()
         translations: dict[str, dict[int, str]] = {}
         for lang in ygoprodeck.LANGUAGES:
-            if lang in settings.languages:
+            if lang in languages:
                 try:
                     translations[lang] = await ygoprodeck.names(http, lang)
                 except httpx.HTTPError as exc:
                     log.warning("YGOPRODeck %s names unavailable: %s", lang, exc)
-        yj: YgoJson | None = None
-        try:
-            yj = await ygojson.fetch(http)
-        except (httpx.HTTPError, OSError, ValueError) as exc:
-            log.warning("YGOJSON unavailable: %s", exc)
-        cache = konami.Cache()
-        if settings.konami_daily_requests > 0:
-            wanted = konami_wanted(raw_cards, yj, settings.languages)
-            read = await konami.fill(http, cache, wanted, settings.konami_daily_requests)
-            log.info("Konami database: %s pages read, %s cards to go", read, len(wanted) - read)
-        pages = {int(cid): by_lang for cid, by_lang in cache.pages.items()}
-        return build_catalog(raw_cards, raw_sets, translations, yj, pages, settings.languages)
+        raw_sets = await ygoprodeck.sets(http)
+        return build_tcg(raw_cards, raw_sets, translations, yj, languages)
 
     async def _cardmarket_quotes(
         self, http: httpx.AsyncClient, catalog: CatalogBatch
     ) -> list[PriceQuote]:
         products = await cardmarket.products(http, CARDMARKET_GAME)
         guides = await cardmarket.price_guide(http, CARDMARKET_GAME)
-        # Cardmarket sells the TCG printings: OCG sets would only blur name matching.
-        tcg_sets = {s.external_id for s in catalog.sets if s.lang == "en"}
         tcg = CatalogBatch(
             cards=[
                 CardData(
                     c.external_id,
                     c.name,
-                    printings=[
-                        p
-                        for p in c.printings
-                        if p.set_external_id in tcg_sets and not TCG_LANGS.isdisjoint(p.languages)
-                    ],
+                    printings=[p for p in c.printings if not TCG_LANGS.isdisjoint(p.languages)],
                 )
                 for c in catalog.cards
             ]
@@ -602,21 +525,24 @@ class YugiohProvider:
     async def fetch_catalog(self, http: httpx.AsyncClient) -> AsyncIterator[CatalogBatch]:
         global _cached
         batch = await self._catalog(http)
-        try:
-            batch.prices += await self._cardmarket_quotes(http, batch)
-        except httpx.HTTPError as exc:
-            log.warning("Cardmarket price guide unavailable: %s", exc)
-        _cached = (time.monotonic(), batch)
+        if self.region == TCG:
+            try:
+                batch.prices += await self._cardmarket_quotes(http, batch)
+            except httpx.HTTPError as exc:
+                log.warning("Cardmarket price guide unavailable: %s", exc)
+            _cached = (time.monotonic(), batch)
         yield batch
 
     async def fetch_prices(
         self, http: httpx.AsyncClient, owned: list[PriceTarget]
     ) -> AsyncIterator[list[PriceQuote]]:
         global _cached
+        if self.region != TCG:
+            return
         if _cached is None or time.monotonic() - _cached[0] > CATALOG_TTL:
-            # Prices concern TCG printings only: no translations or OCG data needed.
-            raw_cards, raw_sets = await self._tcg(http)
-            _cached = (time.monotonic(), build_catalog(raw_cards, raw_sets))
+            # Prices concern the printings only: no translations or YGOJSON data needed.
+            raw_cards, raw_sets = await shared.cards(http), await ygoprodeck.sets(http)
+            _cached = (time.monotonic(), build_tcg(raw_cards, raw_sets))
         batch = _cached[1]
         quotes = list(batch.prices)
         try:
@@ -629,44 +555,48 @@ class YugiohProvider:
         return []
 
     def code_lookup(self, text: str) -> tuple[list[str], list[str]] | None:
-        """Set codes and stored collector numbers of a printed code: European, Korean and
-        Chinese printings are languages of the TCG printing ("BETB-FR024", "BETB-KR024" ->
-        "BETB-EN024"), or their own printing in that set or in a set of their own."""
+        """Set codes and stored collector numbers of a printed code. TCG: European
+        printings are languages of the English one ("BETB-FR024" -> "BETB-EN024"). OCG:
+        each code is in the set of its prefix ("BETB-KR024" in "BETB-KR")."""
         printed = text.strip().upper()
         match = CODE.fullmatch(printed)
         if not match:
             return None
         code, region, digits = match.group(1), match.group(2) or "", match.group(3)
-        if region == "JP":
-            return [f"{code}-JP"], [printed]
+        if (region in OCG_REGIONS) != (self.region == OCG):
+            return None
+        if self.region == OCG:
+            return [f"{code}-{region}"], [printed]
         numbers = [f"{code}-EN{digits}", f"{code}-E{digits}", f"{code}-{digits}", printed]
-        return [code, f"{code}-{region}"], list(dict.fromkeys(numbers))
+        return [code], list(dict.fromkeys(numbers))
 
     def parse_ocr(self, lines: list[OcrLine]) -> OcrHints:
         ordered = by_position([OcrLine(clean(line.text), line.left, line.top) for line in lines])
         text = " ".join(line.text for line in ordered)
         recognized = "konami" in text.casefold()
         set_code = number = lang = None
+        ocg = False
         for line in ordered:
             match = CODE.search(line.text.upper())
             if match:
                 code, region, digits = match.group(1), match.group(2) or "", match.group(3)
                 lang = REGIONS.get(region)
-                if region in ASIAN_REGIONS:
-                    # Japanese: OCG sets; Korean and Chinese: found by `code_lookup`.
-                    base = f"{code}-{region}" if region == "JP" else code
-                    set_code, number = base, f"{code}-{region}{digits}"
+                ocg = region in OCG_REGIONS
+                if ocg:
+                    set_code, number = f"{code}-{region}", f"{code}-{region}{digits}"
                 else:
                     # European printings are stored under their English code ("FR" ->
                     # "EN", old one-letter codes "F" -> "E").
-                    english = {2: "EN", 1: "E"}.get(len(region), "") if region != "AE" else region
+                    english = {2: "EN", 1: "E"}.get(len(region), "")
                     set_code, number = code, f"{code}-{english}{digits}"
                 recognized = True
                 break
             if _PASSWORD.match(line.text):
                 recognized = True
         if lang is None:
-            lang = script_language(ordered) or "en"
+            lang = script_language(ordered)
+            ocg = lang is not None
+            lang = lang or "en"
         names = [
             line.text
             for line in ordered
@@ -681,5 +611,6 @@ class YugiohProvider:
             set_code=set_code,
             collector_number=number,
             lang=lang,
-            recognized=recognized,
+            # A card of the other game (OCG printed codes or Asian writing) is that one's.
+            recognized=recognized and ocg == (self.region == OCG),
         )

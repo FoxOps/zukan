@@ -26,6 +26,8 @@ const DYNAMIC = [
   'sets', 'cards', 'printings', 'names', 'owned printings', 'prices received', 'stored',
   'already cached', 'skipped', 'without source', 'refused by source', 'old prices removed',
   'empty cards removed', 'translations copied', 'printings moved', 'set icons', 'card backs', 'pictures not downloaded', 'refresh', 'outdated cards', 'updated', 'not found at the source',
+  // Markets of the games split by region (`GameOut.region_label`).
+  'International', 'Asia', 'China', 'TCG', 'OCG',
   // Names from the game plugins.
   'White', 'Blue', 'Black', 'Red', 'Green', 'Colorless', 'Grass', 'Fire', 'Water', 'Lightning',
   'Psychic', 'Fighting', 'Darkness', 'Metal', 'Fairy', 'Dragon', 'Air', 'Earth',

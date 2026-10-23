@@ -66,10 +66,11 @@ log = logging.getLogger(__name__)
 SOURCE = "cardnexus"
 BASE_URL = "https://public-api.cardnexus.com/v1"
 SITE_URL = "https://cardnexus.com"
-# Their games for each of ours (Japanese Pokémon cards are a game of their own there).
+# Their games for each of ours (Japanese Pokémon cards are a game of their own there too).
 GAMES: dict[str, list[str]] = {
     "mtg": ["mtg"],
-    "pokemon": ["pokemon", "pokemon-japan"],
+    "pokemon": ["pokemon"],
+    "pokemon-asia": ["pokemon-japan"],
     "yugioh": ["ygo"],
     "sorcery": ["sorcery"],
     "lorcana": ["lorcana"],

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import case, func, select
 
 from app.api.deps import CurrentUser, SessionDep
-from app.games.base import rarity_icon_file, rarity_of, registry
+from app.games.base import group_of, rarity_icon_file, rarity_of, registry
 from app.models import Card, Printing
 from app.prices.base import game_sources
 from app.services.symbols import symbol_file
@@ -55,6 +55,13 @@ class FilterOut(BaseModel):
 class GameOut(BaseModel):
     id: str
     name: str
+    # Games of one family split by market (Pokémon TCG / Asia / China) share a group;
+    # other games are a group of their own (group = id).
+    group: str
+    group_name: str
+    # The game's market within its group ("International", "Asia", "TCG"...).
+    region: str | None = None
+    region_label: str | None = None
     colors: list[ColorOut]
     finishes: list[FinishOut]
     rarities: list[RarityOut] = []
@@ -76,6 +83,10 @@ async def list_games(_: CurrentUser) -> list[GameOut]:
         GameOut(
             id=p.id,
             name=p.name,
+            group=group_of(p.id),
+            group_name=getattr(p, "group_name", None) or p.name,
+            region=getattr(p, "region", None),
+            region_label=getattr(p, "region_label", None),
             colors=[
                 ColorOut(
                     code=c.code,

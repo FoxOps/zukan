@@ -39,7 +39,8 @@ NAME_LANGS = {
 EU_LOCALES = {"en": "en", "fr": "fr", "de": "de", "it": "it", "pt": "pt", "sp": "es"}
 # English printings of one region (North America, Europe, Oceania).
 REGION_LOCALES = {"na", "eu", "oc"}
-ASIAN_LOCALES = {"jp": "ja", "kr": "ko", "sc": "zh-hans", "tc": "zh-hant"}
+# OCG locales; "ae": English printings for Asia ("-AE" codes).
+ASIAN_LOCALES = {"jp": "ja", "kr": "ko", "sc": "zh-hans", "tc": "zh-hant", "ae": "en"}
 EDITIONS = {"1st": "first", "unlimited": "unlimited", "limited": "limited"}
 
 
@@ -176,7 +177,9 @@ def _read_set(raw: dict[str, Any], data: YgoJson) -> None:
             lang = ASIAN_LOCALES[loc]
             ys = asian.get(prefix)
             if ys is None:
-                local = {"ja": "ja", "ko": "ko", "zh-hans": "zh-CN", "zh-hant": "zh-TW"}[lang]
+                local = {"ja": "ja", "ko": "ko", "zh-hans": "zh-CN", "zh-hant": "zh-TW"}.get(
+                    lang, "en"
+                )
                 ys = asian[prefix] = YSet(
                     external_id=prefix,
                     name=names.get(local) or names.get("en") or prefix,

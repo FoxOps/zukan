@@ -14,9 +14,17 @@ from sqlalchemy import func, select, text
 from app.core import progress
 from app.core.config import get_settings
 from app.core.http import http_client
-from app.games.base import CatalogBatch, OcrLine, PrintingData, SetData, get_provider, rarity_of
+from app.games.base import (
+    CatalogBatch,
+    OcrLine,
+    PrintingData,
+    PrintingMove,
+    SetData,
+    get_provider,
+    rarity_of,
+)
 from app.games.cardmarket import DOWNLOAD_URL as CARDMARKET_URL
-from app.games.yugioh import codes, konami, ygojson, ygoprodeck
+from app.games.yugioh import codes, konami, shared, ygojson, ygoprodeck
 from app.main import register_games
 from app.models import (
     Card,
@@ -35,6 +43,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 DATA = json.loads((FIXTURES / "yugioh.json").read_text())
 KONAMI_JA = (FIXTURES / "yugioh_konami_ja.html").read_text()
 DARK_MAGICIAN = 46986414
+MIRROR_FORCE = 44095762
 
 
 def ygojson_zip(data=DATA) -> bytes:
@@ -83,11 +92,14 @@ def with_korean(data=DATA):
     return data
 
 
-def catalog(tmp_path, pages=None):
+def catalog(tmp_path, data=DATA):
+    """The TCG catalog of the fixture."""
     names = {"fr": {int(k): v for k, v in DATA["names_fr"].items()}}
-    return yugioh.build_catalog(
-        DATA["cards"], DATA["sets"], names, parsed_ygojson(tmp_path), pages or {}
-    )
+    return yugioh.build_tcg(DATA["cards"], DATA["sets"], names, parsed_ygojson(tmp_path, data))
+
+
+def ocg_catalog(tmp_path, pages=None, data=DATA):
+    return yugioh.build_ocg(DATA["cards"], parsed_ygojson(tmp_path, data), pages or {})
 
 
 def by_card(batch):
@@ -98,6 +110,9 @@ def by_card(batch):
 def isolated(monkeypatch, tmp_path):
     monkeypatch.setattr(yugioh, "_cached", None)
     monkeypatch.setattr(get_settings(), "image_dir", tmp_path / "images")
+    shared.clear()
+    yield
+    shared.clear()
 
 
 def test_catalog_names_printings_and_prices(tmp_path):
@@ -105,9 +120,15 @@ def test_catalog_names_printings_and_prices(tmp_path):
     cards = by_card(batch)
     dm = cards["Dark Magician"]
     assert dm.external_id == str(DARK_MAGICIAN) and dm.colors == ["dark"]
-    # French from YGOPRODeck, Asian languages from YGOJSON.
-    assert dm.names["fr"] == "Magicien Sombre" and dm.names["ja"] == "ブラック・マジシャン"
-    assert dm.names["zh-hans"] == "黑魔导" and dm.attributes["konami_id"] == 4041
+    # French from YGOPRODeck; Asian languages are the OCG game's.
+    assert dm.names["fr"] == "Magicien Sombre" and "ja" not in dm.names
+    assert dm.attributes["konami_id"] == 4041
+    # The OCG game: cards with Asian printings, keyed on the same password.
+    ocg_cards = by_card(ocg_catalog(tmp_path))
+    assert "Dark Magician" not in ocg_cards  # no Asian printing in the fixture
+    ocg = ocg_cards["Mirror Force"]
+    assert ocg.external_id == str(MIRROR_FORCE) and ocg.colors == ["trap"]
+    assert {"en", "ja", "ko", "zh-hans", "zh-hant"} == set(ocg.names)
     assert cards["Pot of Greed"].colors == ["spell"] and cards["Mirror Force"].colors == ["trap"]
     tcg = {p.external_id: p for p in dm.printings if p.set_external_id != p.collector_number}
     mega = tcg["CT14-EN001~secretrare"]
@@ -128,19 +149,28 @@ def test_catalog_names_printings_and_prices(tmp_path):
     }
     assert {"fr", "de", "it"} <= set(special["MP25-EN050"].languages)
     assert {"fr", "de"} <= set(special["BP02-EN129"].languages)
-    # Japanese printings in a set of their own.
     sets = {s.external_id: s for s in batch.sets}
-    jp = [p for c in batch.cards for p in c.printings if sets[p.set_external_id].lang == "ja"]
-    assert jp and all(p.languages == ["ja"] and "-JP" in p.collector_number for p in jp)
+    assert {s.lang for s in batch.sets} == {"en"}
     assert sets["2017 Mega-Tins"].code == "CT14" and sets["2017 Mega-Tins"].lang == "en"
+    assert sets["2017 Mega-Tins"].name == "2017 Mega-Tins"
     # One code and rarity under two cards: both kept, apart.
     ids = [(p.set_external_id, p.external_id) for c in batch.cards for p in c.printings]
     assert len(ids) == len(set(ids))
     assert sum(1 for _, ext in ids if ext.startswith("BLCR-EN015~secretrare")) == 2
+    # Japanese printings: the OCG game's, in sets of their code prefix.
+    ocg_batch = ocg_catalog(tmp_path)
+    ocg_sets = {s.external_id: s for s in ocg_batch.sets}
+    printings = [p for c in ocg_batch.cards for p in c.printings]
+    jp = [p for p in printings if ocg_sets[p.set_external_id].lang == "ja"]
+    assert jp and all(p.languages == ["ja"] and "-JP" in p.collector_number for p in jp)
+    assert all(p.set_external_id == codes.prefix_of(p.collector_number) for p in printings)
+    assert all(c.printings for c in ocg_batch.cards)
     # OCG card without a password yet: its own card, English name from YGOJSON.
-    ocg = next(c for c in batch.cards if c.external_id.startswith("ygojson:"))
+    ocg = next(c for c in ocg_batch.cards if c.external_id.startswith("ygojson:"))
     assert ocg.name == "The Twin Kings, Founders of the Empire" and "ja" in ocg.names
     assert ocg.printings[0].rarity == "Extra Secret Rare"
+    assert not any(c.external_id.startswith("ygojson:") for c in batch.cards)
+    assert ocg_batch.prices == []
     # TCGplayer prices (USD) from YGOPRODeck.
     usd = [q for q in batch.prices if q.printing_external_id == "CT14-EN001~secretrare"]
     assert usd and {q.source for q in usd} == {"tcgplayer"} and usd[0].currency == "USD"
@@ -150,13 +180,13 @@ def test_konami_page_adds_names_and_newer_printings(tmp_path):
     page = konami.parse(KONAMI_JA)
     assert page.name == "ブラック・マジシャン"
     assert [p.number for p in page.packs][:2] == ["YAC1-JP071", "YAC1-JP071"]
-    batch = catalog(tmp_path, {4041: {"ja": page}})
+    batch = ocg_catalog(tmp_path, {4041: {"ja": page}})
     dm = by_card(batch)["Dark Magician"]
     new = {p.external_id: p for p in dm.printings if p.set_external_id == "YAC1-JP"}
     assert set(new) == {"YAC1-JP071~ultrarare", "YAC1-JP071~secretrare"}
     sets = {s.external_id: s for s in batch.sets}
     assert sets["YAC1-JP"].lang == "ja"
-    assert sets["YAC1-JP"].name == "ORIGINAL ARTWORK COLLECTION (OCG)"
+    assert sets["YAC1-JP"].name == "ORIGINAL ARTWORK COLLECTION"
 
 
 async def test_konami_requests_only_missing_pages(session, tmp_path):
@@ -203,7 +233,7 @@ async def test_konami_unreachable_stops_and_reports_progress(session, tmp_path, 
 
 def test_sets_ygojson_lacks_get_every_european_language(tmp_path):
     yj = parsed_ygojson(tmp_path)
-    batch = yugioh.build_catalog(DATA["cards"], DATA["sets"], {}, yj, {})
+    batch = yugioh.build_tcg(DATA["cards"], DATA["sets"], {}, yj)
     sets = {s.external_id: s for s in batch.sets}
     tcg = [p for c in batch.cards for p in c.printings if sets[p.set_external_id].lang == "en"]
     unknown = [p for p in tcg if not yj.knows_set(p.collector_number)]
@@ -215,32 +245,22 @@ def test_sets_ygojson_lacks_get_every_european_language(tmp_path):
     assert ys15.languages == ["en"] and "languages_guessed" not in ys15.attributes
 
 
-def test_korean_printings_join_the_tcg_set(tmp_path):
-    names = {"fr": {int(k): v for k, v in DATA["names_fr"].items()}}
-    batch = yugioh.build_catalog(
-        DATA["cards"], DATA["sets"], names, parsed_ygojson(tmp_path, with_korean()), {}
-    )
-    sets = {s.external_id: s for s in batch.sets}
-    assert "MP25-KR" not in sets
-    assert sets["2025 Mega-Pack Tin"].name == "2025 Mega-Pack Tin (TCG)"
-    pot = next(c for c in batch.cards if c.name == "Pot of Greed")
-    mp25 = {p.external_id: p for p in pot.printings if p.set_external_id == "2025 Mega-Pack Tin"}
-    # Same card, code and rarity: a language of the TCG printing.
-    starlight = mp25["MP25-EN050~starlightrare"]
-    assert {"en", "fr", "ko"} <= set(starlight.languages)
-    assert starlight.images["ko"] == "https://img/MP25-KR050.png"
-    assert starlight.attributes["numbers"] == {"ko": "MP25-KR050"}
-    # Another rarity: a printing of its own in the TCG set.
-    secret = mp25["MP25-KR050~secretrare"]
-    assert secret.languages == ["ko"] and secret.collector_number == "MP25-KR050"
-    # Stored in a Korean set before: owned copies follow.
-    moved = {(m.set_external_id, m.printing_external_id): m for m in batch.moved}
-    assert moved[("MP25-KR", "MP25-KR050~starlightrare")].to_printing_external_id == (
-        "MP25-EN050~starlightrare"
-    )
-    # A Korean code no TCG set has keeps a set of its own; Japanese sets are OCG sets.
-    assert sets["BP2-KR"].lang == "ko" and sets["BP2-KR"].name.endswith("(TCG)")
-    assert all(s.name.endswith("(OCG)") for s in batch.sets if s.lang == "ja")
+def test_korean_printings_make_ocg_sets(tmp_path):
+    tcg = catalog(tmp_path, with_korean())
+    pot = next(c for c in tcg.cards if c.name == "Pot of Greed")
+    assert not any("ko" in p.languages for p in pot.printings)
+    assert {s.external_id for s in tcg.sets if s.lang != "en"} == set()
+
+    ocg = ocg_catalog(tmp_path, data=with_korean())
+    sets = {s.external_id: s for s in ocg.sets}
+    pot = next(c for c in ocg.cards if c.name == "Pot of Greed")
+    mp25 = {p.external_id: p for p in pot.printings if p.set_external_id == "MP25-KR"}
+    # Each rarity of the code is a printing of the Korean set (the ids of before 0.12.0).
+    assert set(mp25) == {"MP25-KR050~starlightrare", "MP25-KR050~secretrare"}
+    starlight = mp25["MP25-KR050~starlightrare"]
+    assert starlight.languages == ["ko"] and starlight.images["ko"] == "https://img/MP25-KR050.png"
+    assert sets["MP25-KR"].lang == "ko" and sets["BP2-KR"].lang == "ko"
+    assert not any(s.name.endswith(("(OCG)", "(TCG)")) for s in ocg.sets)
 
 
 async def test_moved_printing_keeps_owned_copies(session):
@@ -248,7 +268,7 @@ async def test_moved_printing_keeps_owned_copies(session):
     user = await make_user(session)
     writer = CatalogWriter(session, "yugioh")
     old_set = SetData("MP25-KR", "MP25-KR", "Korean", "ko")
-    new_set = SetData("2025 Mega-Pack Tin", "MP25", "2025 Mega-Pack Tin (TCG)", "en")
+    new_set = SetData("2025 Mega-Pack Tin", "MP25", "2025 Mega-Pack Tin", "en")
     old = PrintingData("MP25-KR050~starlightrare", "MP25-KR", "MP25-KR050", languages=["ko"])
     new = PrintingData("MP25-EN050~starlightrare", new_set.external_id, "MP25-EN050")
     await writer.write(
@@ -280,11 +300,7 @@ async def test_moved_printing_keeps_owned_copies(session):
     await writer.write(
         CatalogBatch(
             cards=[yugioh.CardData("1", "Pot of Greed", printings=[new_ko])],
-            moved=[
-                yugioh.PrintingMove(
-                    "MP25-KR", old.external_id, new.set_external_id, new.external_id
-                )
-            ],
+            moved=[PrintingMove("MP25-KR", old.external_id, new.set_external_id, new.external_id)],
         )
     )
     await session.commit()
@@ -304,22 +320,34 @@ async def test_printed_codes_find_the_tcg_printing(session, router, client):
     router.get(ygojson.URL).respond(content=ygojson_zip(with_korean()))
     async with http_client() as http:
         await sync_catalog(session, get_provider("yugioh"), http)
+        await sync_catalog(session, get_provider("yugioh-ocg"), http)
     await make_user(session)
     headers = await bearer(client, "alice")
-    for code in ("MP25-EN050", "MP25-FR050", "MP25-KR050", "mp25-de050"):
-        found = (
-            await client.get("/api/cards", params={"q": code, "game": "yugioh"}, headers=headers)
-        ).json()
-        assert [c["name"] for c in found["items"]][:1] == ["Pot of Greed"], code
+    for code, game in (
+        ("MP25-EN050", "yugioh"),
+        ("MP25-FR050", "yugioh"),
+        ("mp25-de050", "yugioh"),
+        ("MP25-KR050", "yugioh-ocg"),
+    ):
+        params = {"q": code, "game": game}
+        found = (await client.get("/api/cards", params=params, headers=headers)).json()
+        # Named as printed (Korean), translated in the interface language.
+        shown = [c["translation"] or c["name"] for c in found["items"]]
+        assert shown[:1] == ["Pot of Greed"], code
 
-    provider = get_provider("yugioh")
-    kr = provider.parse_ocr([OcrLine("강欲な壺", 0.1, 0.05), OcrLine("MP25-KR050", 0.7, 0.7)])
-    assert (kr.set_code, kr.collector_number, kr.lang) == ("MP25", "MP25-KR050", "ko")
-    assert provider.code_lookup("MP25-KR050") == (
-        ["MP25", "MP25-KR"],
-        ["MP25-EN050", "MP25-E050", "MP25-050", "MP25-KR050"],
+    tcg, ocg = get_provider("yugioh"), get_provider("yugioh-ocg")
+    lines = [OcrLine("강欲な壺", 0.1, 0.05), OcrLine("MP25-KR050", 0.7, 0.7)]
+    kr = ocg.parse_ocr(lines)
+    assert (kr.set_code, kr.collector_number, kr.lang) == ("MP25-KR", "MP25-KR050", "ko")
+    # A Korean card is the OCG game's.
+    assert kr.recognized and not tcg.parse_ocr(lines).recognized
+    assert ocg.code_lookup("MP25-KR050") == (["MP25-KR"], ["MP25-KR050"])
+    assert tcg.code_lookup("MP25-KR050") is None and ocg.code_lookup("MP25-FR050") is None
+    assert tcg.code_lookup("MP25-FR050") == (
+        ["MP25"],
+        ["MP25-EN050", "MP25-E050", "MP25-050", "MP25-FR050"],
     )
-    assert provider.code_lookup("BE1-JP102") == (["BE1-JP"], ["BE1-JP102"])
+    assert ocg.code_lookup("BE1-JP102") == (["BE1-JP"], ["BE1-JP102"])
 
 
 def test_codes_without_region():
@@ -372,18 +400,40 @@ def catalog_batch():
 async def test_sync_catalog_and_prices(session, router):
     async with http_client() as http:
         report = await sync_catalog(session, get_provider("yugioh"), http)
+        ocg_report = await sync_catalog(session, get_provider("yugioh-ocg"), http)
     assert report.printings == sum(len(c.printings) for c in catalog_batch().cards)
-    langs = set(
-        await session.scalars(select(CardSet.lang).where(CardSet.game_id == "yugioh").distinct())
+    assert ocg_report.printings > 0 and ocg_report.prices == 0
+    # Both games read each source once.
+    assert router.routes[0].call_count == 1
+    assert (
+        sum(r.call_count for r in router.routes if r.pattern and "individual.zip" in str(r.pattern))
+        == 1
     )
-    assert {"en", "ja"} <= langs
+
+    async def langs(game):
+        query = select(CardSet.lang).where(CardSet.game_id == game).distinct()
+        return set(await session.scalars(query))
+
+    assert await langs("yugioh") == {"en"}
+    assert "ja" in await langs("yugioh-ocg") and "en" not in await langs("yugioh-ocg")
     long_name = await session.scalar(
         select(func.max(func.length(CardSet.external_id))).where(CardSet.game_id == "yugioh")
     )
     assert long_name > 32
-    card = await session.scalar(select(Card).where(Card.external_id == str(DARK_MAGICIAN)))
-    names = set(await session.scalars(select(CardName.lang).where(CardName.card_id == card.id)))
-    assert {"en", "fr", "ja", "ko"} <= names
+
+    async def names(game, password):
+        card = await session.scalar(
+            select(Card).where(Card.game_id == game, Card.external_id == str(password))
+        )
+        return set(await session.scalars(select(CardName.lang).where(CardName.card_id == card.id)))
+
+    tcg_names = await names("yugioh", DARK_MAGICIAN)
+    assert {"en", "fr"} <= tcg_names and "ja" not in tcg_names
+    ocg_names = await names("yugioh-ocg", MIRROR_FORCE)
+    assert {"en", "ja", "ko"} <= ocg_names and "fr" not in ocg_names
+    card = await session.scalar(
+        select(Card).where(Card.game_id == "yugioh", Card.external_id == str(DARK_MAGICIAN))
+    )
     sources = set(
         await session.scalars(
             select(PriceSnapshot.source)
@@ -417,7 +467,15 @@ def test_parse_ocr():
         [OcrLine("Magicien Sombre", 0.1, 0.05), OcrLine("CT13-FR003", 0.7, 0.7)]
     )
     assert (fr.set_code, fr.collector_number, fr.lang) == ("CT13", "CT13-EN003", "fr")
-    jp = provider.parse_ocr(
-        [OcrLine("ブラック・マジシャン", 0.1, 0.05), OcrLine("BE1-JP102", 0.7, 0.7)]
-    )
+    lines = [OcrLine("ブラック・マジシャン", 0.1, 0.05), OcrLine("BE1-JP102", 0.7, 0.7)]
+    jp = get_provider("yugioh-ocg").parse_ocr(lines)
     assert (jp.set_code, jp.collector_number, jp.lang) == ("BE1-JP", "BE1-JP102", "ja")
+    assert jp.recognized and not provider.parse_ocr(lines).recognized
+    # Asian English printings ("-AE") are OCG cards.
+    ae = get_provider("yugioh-ocg").parse_ocr([OcrLine("Dark Magician"), OcrLine("RC04-AE001")])
+    assert (ae.set_code, ae.collector_number, ae.lang, ae.recognized) == (
+        "RC04-AE",
+        "RC04-AE001",
+        "en",
+        True,
+    )

@@ -111,7 +111,8 @@ def _quotas() -> list[tuple[str, Literal["day", "month"], int]]:
         ("apitcg", "month", settings.apitcg_monthly_requests),
         ("tcgapi_eu", "day", settings.tcgapi_eu_daily_requests),
     ]
-    if "yugioh" in registry():
+    # Konami's database feeds the OCG game.
+    if "yugioh-ocg" in registry():
         from app.games.yugioh.provider import YugiohSettings
 
         quotas.append(("konami", "day", YugiohSettings().konami_daily_requests))
