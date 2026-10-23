@@ -20,7 +20,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.games.base import registry
+from app.games.base import group_of, registry
 from app.models import Card, CardSet, CollectionItem, Condition, Printing
 from app.services import collection
 from app.services.collection import StockError, Variant
@@ -217,6 +217,15 @@ async def _parse(
             report.errors.append(RowError(line, f"Notes longer than {MAX_NOTES} characters"))
             continue
         matches = await lookup.find(game_id, value["set_code"], value["collector_number"])
+        if not matches and game_id == group_of(game_id):
+            # Files from before 0.17.0 name one game for every market ("pokemon" for a
+            # Japanese set): the printing may be another game's of the group.
+            for other in games:
+                if other != game_id and group_of(other) == game_id:
+                    found = await lookup.find(other, value["set_code"], value["collector_number"])
+                    if found:
+                        game_id, matches = other, found
+                        break
         if len(matches) != 1:
             problem = "No printing" if not matches else "Several printings"
             report.errors.append(
