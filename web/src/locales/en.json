@@ -16,5 +16,9 @@
   "{{count}} without price_one": "{{count}} without price",
   "{{count}} without price_other": "{{count}} without price",
   "{{count}} differences_one": "{{count}} difference",
-  "{{count}} differences_other": "{{count}} differences"
+  "{{count}} differences_other": "{{count}} differences",
+  "The {{count}} most valuable hold {{share}} of the value._one": "The most valuable card holds {{share}} of the value.",
+  "The {{count}} most valuable hold {{share}} of the value._other": "The {{count}} most valuable hold {{share}} of the value.",
+  "{{count}} versions_one": "{{count}} version",
+  "{{count}} versions_other": "{{count}} versions"
 }

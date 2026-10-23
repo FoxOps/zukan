@@ -130,7 +130,7 @@ fun ResultPanel(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     ColorSymbols(game, candidate.card.colors, imageUrl, imageLoader)
-                    RarityBadge(game, printing.rarity, printing.rarityCode, imageUrl, imageLoader)
+                    RarityBadge(game, printing.rarity, printing.rarityCode, imageUrl, imageLoader, lang = printing.set.lang)
                 }
                 val sourceName = { id: String -> game?.priceSources?.firstOrNull { it.id == id }?.name ?: id }
                 val shownPrices = printing.prices

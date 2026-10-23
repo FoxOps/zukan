@@ -49,7 +49,7 @@ from app.games.base import (
     SetData,
 )
 from app.games.ocr import bottom_part, by_position, clean, letter_ratio, script_language
-from app.games.pokemon import asia
+from app.games.pokemon import asia, official_jp
 from app.games.pokemon.species import derive_names, species_names
 from app.games.pokemon.types import NO_TYPE, card_colors
 from app.models import Printing
@@ -112,6 +112,10 @@ class PokemonSettings(BaseSettings):
     # duanxr/PTCG-CHS-Datasets (see asia.py).
     korean: bool = True
     chinese: bool = True
+    # Pictures of Japanese printings TCGdex lacks, from the official Japanese card search
+    # (official_jp.py), at most this many requests a day.
+    official_jp: bool = True
+    official_jp_daily_requests: int = 300
 
 
 def _decimal(value: Any) -> Decimal | None:
@@ -398,6 +402,31 @@ _NUMBER = re.compile(r"\b([A-Z]{0,4}\d{1,3}[a-z]?)\s*/\s*[A-Z]{0,4}\d{1,3}\b")
 _PROMO = re.compile(r"\b(SWSH|SVP|SM|XY|BW)\s?(\d{2,3})\b")
 # Since Scarlet & Violet: "G PAL EN 123/193"
 _SET_LANG = re.compile(r"\b([A-Z][A-Z0-9]{1,4})\s+(" + "|".join(PRINTED_LANGUAGES) + r")\b")
+# The regulation mark (one letter, D to M so far) read glued to the set code: "IMEG EN",
+# or to the code and language both: "ICRIEN 048/122".
+_GLUED_MARK = re.compile(r"^[D-M]([A-Z]{3})$")
+_GLUED_SET_LANG = re.compile(
+    r"\b[D-M]?([A-Z]{3})(" + "|".join(PRINTED_LANGUAGES) + r")\s*[0-9OIl]{1,3}\s*/"
+)
+# Digits misread as letters in the number ("O22/132", "1O0/132"); letter prefixes
+# ("TG05/TG30") are left alone.
+_MISREAD_NUMBER = re.compile(r"(?<![A-Za-z])([0-9OIl]{1,3})(\s*/\s*)([0-9OIl]{2,3})(?![A-Za-z])")
+_DIGITS = str.maketrans("OIl", "011")
+# Mega Evolution cards print "Mega" in its own style above the name: OCR may read it as a
+# line of its own.
+_MEGA = re.compile(r"^(mega|méga|m)$", re.IGNORECASE)
+
+
+def _fix_number(text: str) -> str:
+    def fix(match: re.Match) -> str:
+        if not any(c.isdigit() for c in match.group(1) + match.group(3)):
+            return match.group(0)
+        number, slash, total = match.groups()
+        return number.translate(_DIGITS) + slash + total.translate(_DIGITS)
+
+    return _MISREAD_NUMBER.sub(fix, text)
+
+
 # Asian cards print the set code right before the number: "SV1a 001/073".
 # Mainland Chinese codes: "CSV9C", "CS5aC", "151C" (digits first), "CS4.5C".
 _SET_CODE = r"(?=[\w.+]*[A-Za-z])(?:[A-Za-z]{1,4}\d{1,2}(?:\.\d)?[a-zA-Z+]{0,2}|\d{2,3}[A-Z])"
@@ -440,11 +469,17 @@ def parse_ocr(lines: list[OcrLine]) -> OcrHints:
     hints = OcrHints()
     bottom = bottom_part(ordered)
     for line in bottom:
-        if hints.collector_number is None and (match := _NUMBER.search(line.text)):
+        number_text = _fix_number(line.text)
+        if hints.collector_number is None and (match := _NUMBER.search(number_text)):
             hints.collector_number = match.group(1)
         elif hints.collector_number is None and (match := _PROMO.search(line.text)):
             hints.collector_number = match.group(1) + match.group(2)
         if hints.set_code is None and (match := _SET_LANG.search(line.text)):
+            code = match.group(1)
+            if glued := _GLUED_MARK.match(code):
+                code = glued.group(1)
+            hints.set_code, hints.lang = code, PRINTED_LANGUAGES[match.group(2)]
+        elif hints.set_code is None and (match := _GLUED_SET_LANG.search(line.text)):
             hints.set_code, hints.lang = match.group(1), PRINTED_LANGUAGES[match.group(2)]
         elif hints.set_code is None and (match := _SET_BEFORE_NUMBER.search(line.text)):
             hints.set_code = match.group(1)
@@ -457,6 +492,8 @@ def parse_ocr(lines: list[OcrLine]) -> OcrHints:
         text = _HP.sub(" ", _STAGE.sub("", line.text)).strip(" -:")
         if len(text) >= 2 and letter_ratio(text) > 0.5 and not _SKIP.match(text):
             names.append(text)
+    if len(names) > 1 and _MEGA.match(names[0]):
+        names = [f"{names[0]} {names[1]}", *names[2:]]
     if names:
         hints.name, hints.other_names = names[0], names[1:3]
     text = " ".join(line.text for line in ordered)
@@ -495,6 +532,7 @@ class PokemonProvider:
     ]
     languages = list(LANGUAGES.values())
     price_sources = ["cardmarket", "tcgplayer"]
+    secondary_sources = [official_jp.source]
     cardmarket_path = "Pokemon"
     rarities = [
         RarityDef("common", "Common", ("C", "●")),
@@ -718,10 +756,12 @@ class PokemonProvider:
             return None
         reverse = {ours: theirs for theirs, ours in LANGUAGES.items()}
         number = hints.collector_number.lstrip("0") or "0"
+        # TCGdex ids differ from printed codes since Scarlet & Violet ("MEG" is me01).
+        set_id = tcgdex_set_id(hints.set_external_id) if hints.set_external_id else hints.set_code
         international = False  # the id is an international set's
         for lang in dict.fromkeys(["en", reverse.get(hints.lang or "", "en")]):
             try:
-                raw_set = await self._get(http, f"/{lang}/sets/{quote(hints.set_code, safe='')}")
+                raw_set = await self._get(http, f"/{lang}/sets/{quote(set_id, safe='')}")
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code != 404:
                     raise

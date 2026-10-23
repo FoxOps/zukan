@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -29,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
@@ -66,12 +69,29 @@ fun ColorSymbols(game: GameOut?, codes: List<String>, imageUrl: (String?) -> Str
 
 /** Rarity pictogram (when the game has one) next to the rarity's name: both shown. */
 @Composable
-fun RarityBadge(game: GameOut?, rarity: String?, code: String?, imageUrl: (String?) -> String?, imageLoader: ImageLoader) {
+fun RarityBadge(
+    game: GameOut?,
+    rarity: String?,
+    code: String?,
+    imageUrl: (String?) -> String?,
+    imageLoader: ImageLoader,
+    // Language the card is printed in: Japanese and Chinese cards show other pictograms.
+    lang: String? = null,
+) {
     if (rarity.isNullOrEmpty()) return
-    val icon = code?.let { c -> game?.rarities?.firstOrNull { it.code == c }?.icon }
+    val def = code?.let { c -> game?.rarities?.firstOrNull { it.code == c } }
+    val variant = lang?.let { def?.icons?.get(it) ?: def?.icons?.get(it.substringBefore('-')) }
+    val icon = variant ?: def?.icon
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
         if (icon != null) {
-            AsyncImage(model = imageUrl(icon), contentDescription = null, imageLoader = imageLoader, modifier = Modifier.size(14.dp))
+            AsyncImage(
+                model = imageUrl(icon),
+                contentDescription = null,
+                imageLoader = imageLoader,
+                // Those are black letters ("RR"): drawn in the text color, readable on dark themes.
+                colorFilter = if (variant != null) ColorFilter.tint(MaterialTheme.colorScheme.onSurface) else null,
+                modifier = if (variant != null) Modifier.height(14.dp).widthIn(max = 28.dp) else Modifier.size(14.dp),
+            )
         }
         Text(rarity.replaceFirstChar(Char::uppercase), style = MaterialTheme.typography.bodySmall)
     }

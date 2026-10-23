@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { api, call } from '../api/client'
 import { useGames, useSets, type Game } from '../api/queries'
 import { languageName } from '../lib/format'
+import { TYPE_TO_SEARCH } from '../lib/typeToSearch'
 import { ColorSymbol } from './ColorBadges'
 import { Select } from './Select'
 
@@ -59,6 +60,7 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
     <label className="input w-full sm:w-72">
       <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2 opacity-60"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
       <input
+        {...TYPE_TO_SEARCH}
         type="text"
         enterKeyHint="search"
         placeholder={placeholder}

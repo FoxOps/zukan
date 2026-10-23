@@ -70,9 +70,15 @@ data class ColorOut(val code: String, val name: String, val hex: String, val ico
 @Serializable
 data class FinishOut(val code: String, val name: String)
 
-/** A rarity of the game (lowest first) and its pictogram, servers 0.10+. */
+/** A rarity of the game (lowest first) and its pictogram, servers 0.10+. `icons`: other
+ * pictograms of cards printed in some languages (Japanese "RR" letters), servers 0.16+. */
 @Serializable
-data class RarityOut(val code: String, val name: String, val icon: String? = null)
+data class RarityOut(
+    val code: String,
+    val name: String,
+    val icon: String? = null,
+    val icons: Map<String, String> = emptyMap(),
+)
 
 @Serializable
 data class GameOut(

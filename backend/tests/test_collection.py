@@ -457,3 +457,45 @@ async def test_movers(client, session, alice):
     assert [(m["item"]["name"], m["change"]) for m in movers["fallers"]] == [("Aqueduct", "-2.00")]
     week = (await client.get("/api/collection/movers", headers=alice)).json()
     assert week["period"] == "d7" and week["risers"] == []
+
+
+async def test_finance(client, session, alice):
+    abundance = await printing_id(session, "001", "abundance-b")
+    aqueduct = (
+        await session.execute(select(Printing.id, Printing.finishes).join(CardSet).limit(1))
+    ).first()
+    today = date.today()
+    await add_price(session, abundance, "standard", today - timedelta(days=7), Decimal("2.00"))
+    await add_price(session, abundance, "standard", today, Decimal("2.50"))
+    await add_price(session, abundance, "foil", today, Decimal("30.00"))
+    await adjust(client, alice, abundance, 4)
+    await adjust(client, alice, abundance, 1, finish="foil")
+    await adjust(client, alice, aqueduct.id, 2, finish=aqueduct.finishes[0])  # no price
+
+    report = (await client.get("/api/collection/finance", headers=alice)).json()
+    assert (report["currency"], report["value"], report["quantity"]) == ("EUR", "40.00", 7)
+    assert (report["priced"], report["unpriced"], report["printings"]) == (5, 2, 2)
+    # 40 / 5 copies; median copy: 2.50 (four at 2.50, one at 30).
+    assert (report["average"], report["median"]) == ("8.00", "2.50")
+    changes = {c["days"]: c["past"] for c in report["changes"]}
+    # A week ago: 4 x 2.00 (the foil had no price yet); no history before that.
+    assert changes[7] == "8.00" and changes[1] == "8.00" and changes[30] is None
+    assert len(report["history"]) == 366
+    assert [(s["key"], s["value"], s["quantity"]) for s in report["by_game"]] == [
+        ("sorcery", "40.00", 7)
+    ]
+    assert [(s["key"], s["value"]) for s in report["by_finish"]][0] == ("foil", "30.00")
+    assert [(s["label"], s["quantity"]) for s in report["by_band"]] == [
+        ("1 – 5", 4),
+        ("20 – 100", 1),
+    ]
+    assert report["top"][0]["value"] == "30.00" and report["top_share"] == 1.0
+    assert report["by_condition"][0]["key"] == "NM"
+
+    # One game; another game without cards is just empty.
+    sorcery = await client.get("/api/collection/finance", params={"game": "sorcery"}, headers=alice)
+    assert sorcery.json()["value"] == "40.00"
+    empty = (
+        await client.get("/api/collection/finance", params={"game": "mtg"}, headers=alice)
+    ).json()
+    assert (empty["value"], empty["quantity"], empty["top"]) == ("0", 0, [])

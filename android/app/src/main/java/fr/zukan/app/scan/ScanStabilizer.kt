@@ -24,10 +24,13 @@ class ScanStabilizer(
             previous = emptySet()
             return false
         }
-        streak = if (jaccard(words, previous) >= similar) streak + 1 else 1
+        // Glare on holo cards (Mega ex...) changes much of the text from frame to frame:
+        // the same collector number ("022/132") read again still means the same card.
+        val sameCard = jaccard(words, previous) >= similar || sameNumber(words, previous)
+        streak = if (sameCard) streak + 1 else 1
         previous = words
         if (streak < framesNeeded) return false
-        if (lastSent.isNotEmpty() && jaccard(words, lastSent) >= similar) return false
+        if (lastSent.isNotEmpty() && (jaccard(words, lastSent) >= similar || sameNumber(words, lastSent))) return false
         lastSent = words
         return true
     }
@@ -49,6 +52,11 @@ class ScanStabilizer(
             .flatMap { if (it.length > 2 && cjk.containsMatchIn(it)) it.windowed(2) else listOf(it) }
             .filter { it.length >= 2 }
             .toSet()
+
+        private val number = Regex("""\d{1,3}/\d{2,3}""")
+
+        fun sameNumber(a: Set<String>, b: Set<String>): Boolean =
+            a.any { number.matches(it) && it in b }
 
         fun jaccard(a: Set<String>, b: Set<String>): Double {
             if (a.isEmpty() || b.isEmpty()) return 0.0

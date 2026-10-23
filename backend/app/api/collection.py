@@ -550,6 +550,104 @@ async def movers(
     )
 
 
+class ShareOut(BaseModel):
+    key: str
+    label: str
+    value: Decimal
+    quantity: int
+
+
+class ChangeOut(BaseModel):
+    days: int
+    # Value then (None: no price history that far back) and now.
+    past: Decimal | None
+    now: Decimal
+
+
+class TopItemOut(BaseModel):
+    item: ItemOut
+    unit: Decimal
+    value: Decimal
+
+
+class FinanceOut(BaseModel):
+    currency: str
+    value: Decimal
+    quantity: int
+    printings: int
+    priced: int
+    unpriced: int
+    average: Decimal | None
+    median: Decimal | None
+    other_currencies: list[str]
+    changes: list[ChangeOut]
+    history: list[ValuePointOut]
+    by_game: list[ShareOut]
+    by_set: list[ShareOut]
+    by_rarity: list[ShareOut]
+    by_condition: list[ShareOut]
+    by_language: list[ShareOut]
+    by_finish: list[ShareOut]
+    by_band: list[ShareOut]
+    top: list[TopItemOut]
+    # Share of the 10 dearest items in the value (0.4 = 40 %).
+    top_share: float | None
+
+
+@router.get("/finance")
+async def finance(user: CurrentUser, session: SessionDep, game: str | None = None) -> FinanceOut:
+    """Market value figures of the collection, or of one game's cards: totals, change
+    over 1 to 365 days, value over the last year and how it splits (game, set, rarity,
+    condition, language, finish, price band). Without a game, games priced in another
+    currency than the user's price source are left out (listed in `other_currencies`)."""
+    items = (
+        await session.scalars(
+            _item_query()
+            .join(Printing, CollectionItem.printing_id == Printing.id)
+            .where(CollectionItem.user_id == user.id, CollectionItem.quantity > 0)
+        )
+    ).all()
+    report = await collection.finance(session, user.id, list(items), user.price_source, game)
+    described = {
+        out.id: out
+        for out in await _items_out(
+            session, [item for item, _, _ in report.top], user.language, user.price_source
+        )
+    }
+
+    def shares(found: list[collection.Share]) -> list[ShareOut]:
+        return [ShareOut.model_validate(s, from_attributes=True) for s in found]
+
+    return FinanceOut(
+        currency=report.currency,
+        value=report.value,
+        quantity=report.quantity,
+        printings=report.printings,
+        priced=report.priced,
+        unpriced=report.unpriced,
+        average=report.average,
+        median=report.median,
+        other_currencies=report.other_currencies,
+        changes=[
+            ChangeOut(days=days, past=change[0] if change else None, now=report.value)
+            for days, change in report.changes.items()
+        ],
+        history=[ValuePointOut(date=d, value=v) for d, v in report.history],
+        by_game=shares(report.by_game),
+        by_set=shares(report.by_set),
+        by_rarity=shares(report.by_rarity),
+        by_condition=shares(report.by_condition),
+        by_language=shares(report.by_language),
+        by_finish=shares(report.by_finish),
+        by_band=shares(report.by_band),
+        top=[
+            TopItemOut(item=described[item.id], unit=unit, value=value)
+            for item, unit, value in report.top
+        ],
+        top_share=report.top_share,
+    )
+
+
 @router.get("/value/history")
 async def value_history(
     user: CurrentUser,

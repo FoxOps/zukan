@@ -113,7 +113,7 @@ fun PrintingPicker(
                                 )
                                 printing.languages.take(4).forEach { LangFlag(it, size = 12) }
                             }
-                            RarityBadge(game, printing.rarity, printing.rarityCode, imageUrl, imageLoader)
+                            RarityBadge(game, printing.rarity, printing.rarityCode, imageUrl, imageLoader, lang = printing.set.lang)
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             mainPrices(printing, mainSource).minByOrNull { it.trend.toDoubleOrNull() ?: Double.MAX_VALUE }?.let {

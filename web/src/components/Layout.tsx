@@ -9,11 +9,13 @@ import { LanguageMenu } from './I18n'
 import { ErrorScreen } from './ErrorPage'
 import { Logo, Mascot } from './Logo'
 import { applyTheme, savedDark } from '../lib/theme'
+import { useTypeToSearch } from '../lib/typeToSearch'
 
 const NAV = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/collection', label: 'Collection' },
   { to: '/catalog', label: 'Catalog' },
+  { to: '/finance', label: 'Finance' },
   { to: '/import', label: 'Import / export' },
   { to: '/settings', label: 'Settings' },
 ]
@@ -38,6 +40,7 @@ export function Layout() {
   const [dark, setDark] = useTheme()
   const health = useHealth()
   useServerLanguage(me.data?.language)
+  useTypeToSearch()
 
   useEffect(
     () =>

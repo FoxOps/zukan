@@ -391,3 +391,177 @@ async def value_history(
         history.append((day, total))
         day += timedelta(days=1)
     return currency, history
+
+
+# Price bands of the finance page (upper bounds, in the shown currency).
+PRICE_BANDS = (Decimal(1), Decimal(5), Decimal(20), Decimal(100))
+# Periods the finance page compares the value with, in days.
+FINANCE_PERIODS = (1, 7, 30, 90, 365)
+
+
+@dataclass
+class Share:
+    key: str
+    label: str
+    value: Decimal = Decimal(0)
+    quantity: int = 0
+
+
+@dataclass
+class Finance:
+    currency: str
+    value: Decimal
+    quantity: int
+    printings: int
+    priced: int
+    unpriced: int
+    average: Decimal | None
+    median: Decimal | None
+    # Games left out: priced in another currency than the shown one.
+    other_currencies: list[str]
+    # Value then and now, by period in days (None where the history is too short).
+    changes: dict[int, tuple[Decimal, Decimal] | None]
+    history: list[tuple[date, Decimal]]
+    by_game: list[Share]
+    by_set: list[Share]
+    by_rarity: list[Share]
+    by_condition: list[Share]
+    by_language: list[Share]
+    by_finish: list[Share]
+    by_band: list[Share]
+    # Value of the dearest items (line value), dearest first, with the share of the
+    # 10 dearest in the total.
+    top: list[tuple[CollectionItem, Decimal, Decimal]]
+    top_share: float | None
+
+
+def _band(price: Decimal) -> int:
+    return next((i for i, bound in enumerate(PRICE_BANDS) if price < bound), len(PRICE_BANDS))
+
+
+def _band_label(index: int) -> str:
+    if index == 0:
+        return f"< {PRICE_BANDS[0]}"
+    if index == len(PRICE_BANDS):
+        return f"≥ {PRICE_BANDS[-1]}"
+    return f"{PRICE_BANDS[index - 1]} – {PRICE_BANDS[index]}"
+
+
+async def finance(
+    session: AsyncSession,
+    user_id: int,
+    items: list[CollectionItem],
+    wanted: str,
+    game_id: str | None,
+    today: date | None = None,
+) -> Finance:
+    """Market value figures of owned items (loaded with their printing and set): totals,
+    change over periods, and how the value splits by game, set, rarity, condition,
+    language, finish and price band. Without a game, only games priced in the user's
+    source currency count (amounts in different currencies are never added up)."""
+    today = today or date.today()
+    currency = price_sources()[wanted].currency if wanted in price_sources() else "EUR"
+    if game_id is not None and (chosen := pricing(game_id, wanted)) is not None:
+        currency = chosen.currency
+    others: set[str] = set()
+    kept = []
+    for item in items:
+        game = item.printing.set.game_id
+        if game_id is not None and game != game_id:
+            continue
+        chosen = pricing(game, wanted)
+        if (chosen.currency if chosen else "EUR") != currency:
+            others.add(game)
+            continue
+        kept.append(item)
+    games = {i.printing_id: i.printing.set.game_id for i in kept}
+    prices = await user_prices(session, wanted, games)
+
+    shares: dict[str, dict[str, Share]] = {
+        k: {} for k in ("game", "set", "rarity", "condition", "language", "finish", "band")
+    }
+
+    def count(kind: str, key: str, label: str, value: Decimal | None, quantity: int) -> None:
+        share = shares[kind].setdefault(key, Share(key, label))
+        share.quantity += quantity
+        if value is not None:
+            share.value += value
+
+    total, priced, unpriced = Decimal(0), 0, 0
+    units: list[tuple[Decimal, int]] = []
+    lines: list[tuple[CollectionItem, Decimal, Decimal]] = []
+    for item in kept:
+        printing, card_set = item.printing, item.printing.set
+        unit = unit_price(item, prices)
+        line = unit * item.quantity if unit is not None else None
+        if unit is None:
+            unpriced += item.quantity
+        else:
+            priced += item.quantity
+            total += line
+            units.append((unit, item.quantity))
+            lines.append((item, unit, line))
+            band = _band(unit)
+            count("band", str(band), _band_label(band), line, item.quantity)
+        count("game", card_set.game_id, card_set.game_id, line, item.quantity)
+        count("set", str(card_set.id), f"{card_set.code} · {card_set.name}", line, item.quantity)
+        if printing.rarity:
+            # Rarity names only compare within a game.
+            key = f"{card_set.game_id}:{printing.rarity}"
+            label = printing.rarity if game_id else f"{card_set.game_id} · {printing.rarity}"
+            count("rarity", key, label, line, item.quantity)
+        count("condition", item.condition, item.condition, line, item.quantity)
+        count("language", item.language, item.language, line, item.quantity)
+        count("finish", item.finish, item.finish, line, item.quantity)
+
+    median = None
+    if units:
+        units.sort(key=lambda u: u[0])
+        middle, seen = (priced + 1) / 2, 0
+        for unit, quantity in units:
+            seen += quantity
+            if seen >= middle:
+                median = unit
+                break
+
+    start = today - timedelta(days=max(FINANCE_PERIODS))
+    _, history = await value_history(session, user_id, wanted, game_id, start, today)
+    by_day = dict(history)
+    # Days before the first known price count as no history (a value of 0 there means
+    # nothing was priced yet).
+    first = next((day for day, value in history if value), None)
+    changes: dict[int, tuple[Decimal, Decimal] | None] = {}
+    for days in FINANCE_PERIODS:
+        day = today - timedelta(days=days)
+        past = by_day.get(day)
+        changes[days] = (past, total) if past is not None and first and day >= first else None
+
+    lines.sort(key=lambda line: -line[2])
+    top_share = float(sum(line[2] for line in lines[:10]) / total) if total else None
+
+    def ordered(kind: str, limit: int | None = None) -> list[Share]:
+        found = sorted(shares[kind].values(), key=lambda s: (-s.value, -s.quantity, s.label))
+        return found[:limit] if limit else found
+
+    return Finance(
+        currency=currency,
+        value=total,
+        quantity=priced + unpriced,
+        printings=len({i.printing_id for i in kept}),
+        priced=priced,
+        unpriced=unpriced,
+        average=round(total / priced, 2) if priced else None,
+        median=median,
+        other_currencies=sorted(others),
+        changes=changes,
+        history=history,
+        by_game=ordered("game"),
+        by_set=ordered("set", 15),
+        by_rarity=ordered("rarity", 15),
+        by_condition=ordered("condition"),
+        by_language=ordered("language"),
+        by_finish=ordered("finish"),
+        by_band=sorted(shares["band"].values(), key=lambda s: int(s.key)),
+        top=lines[:10],
+        top_share=top_share,
+    )

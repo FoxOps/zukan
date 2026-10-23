@@ -18,6 +18,8 @@ const DYNAMIC = [
   'cancelled', 'auto', 'manual',
   // Collection views and trend periods.
   'List', 'Images', '24h', '7d', '30d',
+  // Finance periods.
+  'Finance', '1 day', '7 days', '30 days', '90 days', '1 year',
   // Stale card reasons, job report.
   'Missed by the last catalog sync', 'No image', 'No card details', 'arbitrated values written',
   // Job report counters.

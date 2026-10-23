@@ -107,6 +107,13 @@ Prices come from Cardmarket (EUR) and TCGplayer (USD), never scraped from their 
 - Lorcana: Cardmarket's price guide file, by the product id LorcanaJSON gives.
 - TCGplayer: from Scryfall, TCGdex and YGOPRODeck, and for the printings they do not price
   (Sorcery, Riftbound, Lorcana) from [tcgcsv](https://tcgcsv.com)'s daily TCGplayer files.
+- CardNexus (EUR, lowest listing on its marketplace), with an API key
+  (`TCG_APITOKEN_PRICES_CARDNEXUS`): its daily price files, matched by Cardmarket and
+  TCGplayer product ids, also give the Cardmarket and TCGplayer prices no other source has.
+
+The Finance page splits the market value of the collection (or of one game): change over
+1 day to 1 year, value over time, and shares by game, set, rarity, condition, language,
+finish and card price, with the most valuable cards.
 
 ### Card data sources
 
@@ -116,7 +123,14 @@ what those leave empty (English pictures, rarities, artists, TCGplayer ids, fini
 the sets with such gaps, and report where they disagree (admin "Data checks"):
 [tcgcsv](https://tcgcsv.com) (no key), [tcg-api.eu](https://tcg-api.eu) and
 [apitcg.com](https://apitcg.com) (free keys, see "API keys" in `.env.example`; their
-monthly or daily quotas are counted).
+monthly or daily quotas are counted), and [CardNexus](https://docs.cardnexus.com) (key),
+which also stores market ids and adds the printings a set lacks.
+
+Pokémon: pictures of Japanese printings TCGdex has none for come from the official
+Japanese card search ([pokemon-card.com](https://www.pokemon-card.com/card-search/)), read
+slowly (one request a second, 300 a day). Rarity pictograms are
+[Pokécardex](https://www.pokecardex.com)'s, with the letters of Japanese and Chinese cards
+("RR", "SAR") shown for printings in those languages.
 
 Riftbound: Riot's official content API with a key Riot approved for a Riftbound product
 (`TCG_APITOKEN_GAMES_RFB_RIOT`), else [Riftcodex](https://riftcodex.com). Riot's official
@@ -317,8 +331,8 @@ From the command line:
 
 ```sh
 gh workflow run docker-dev.yml --ref my-branch
-gh workflow run docker-prod.yml --ref main -f version=0.15.0
-gh workflow run android-prod.yml --ref main -f version=0.9.0
+gh workflow run docker-prod.yml --ref main -f version=0.16.0
+gh workflow run android-prod.yml --ref main -f version=0.10.0
 ```
 
 The dev app (`fr.zukan.app.dev`) installs next to the released one. Both are signed

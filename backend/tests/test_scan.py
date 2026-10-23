@@ -408,3 +408,29 @@ def test_pokemon_parser_reads_mainland_chinese_set_codes():
     ):
         hints = provider.parse_ocr(ocr("皮卡丘", text))
         assert (hints.set_code, hints.collector_number) == (code, text.split()[1].split("/")[0])
+
+
+def test_pokemon_parser_reads_mega_evolution_cards():
+    pokemon = get_provider("pokemon")
+    clean = pokemon.parse_ocr(ocr("Stage 1", "Mega Camerupt ex", "HP 330", "I MEG EN 022/132"))
+    assert (clean.name, clean.set_code, clean.lang, clean.collector_number) == (
+        "Mega Camerupt ex",
+        "MEG",
+        "en",
+        "022",
+    )
+    # "Mega" read as a line of its own.
+    split = pokemon.parse_ocr(ocr("Mega", "Latias ex", "HP 300", "I MEG EN 100/132"))
+    assert split.name == "Mega Latias ex"
+    # Regulation mark glued to the set code, or to the code and language.
+    glued = pokemon.parse_ocr(ocr("Mega Latias ex", "IMEG EN 100/132"))
+    assert (glued.set_code, glued.lang, glued.collector_number) == ("MEG", "en", "100")
+    packed = pokemon.parse_ocr(ocr("Mega Gallade ex", "ICRIEN 048/122"))
+    assert (packed.set_code, packed.lang, packed.collector_number) == ("CRI", "en", "048")
+    # O and I read for 0 and 1 in the number; letter prefixes stay.
+    misread = pokemon.parse_ocr(ocr("Mega Mawile ex", "I MEG EN O94/132"))
+    assert misread.collector_number == "094"
+    assert pokemon.parse_ocr(ocr("Mega Latias ex", "MEG EN 1O0/l32")).collector_number == "100"
+    assert pokemon.parse_ocr(ocr("Pikachu", "TG05/TG30")).collector_number == "TG05"
+    # A four-letter code without a regulation mark letter in front stays whole.
+    assert pokemon.parse_ocr(ocr("Pikachu", "G SVPX EN 001/010")).set_code == "SVPX"

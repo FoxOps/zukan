@@ -30,7 +30,7 @@ export function ImageView({ items, games, showGame, busy, step, edit }: ViewProp
                 {item.set.code} {item.collector_number}
                 {showGame && ` · ${g?.name ?? item.game_id}`}
               </span>
-              <RarityBadge game={g} rarity={item.rarity} code={item.rarity_code} className="text-xs text-base-content/70" />
+              <RarityBadge game={g} rarity={item.rarity} code={item.rarity_code} lang={item.language} className="text-xs text-base-content/70" />
               <div className="flex flex-wrap items-center gap-1 text-xs">
                 <FinishBadge game={g} finish={item.finish} />
                 <ConditionBadge condition={item.condition} />

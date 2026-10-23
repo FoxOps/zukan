@@ -189,7 +189,7 @@ private fun ItemRow(
                 ConditionBadge(item.condition)
                 LangFlag(item.language)
                 ColorSymbols(game, item.colors, imageUrl, imageLoader, size = 14)
-                RarityBadge(game, item.rarity, item.rarityCode, imageUrl, imageLoader)
+                RarityBadge(game, item.rarity, item.rarityCode, imageUrl, imageLoader, lang = item.language)
             }
             TrendIcons(item.trends)
         }
