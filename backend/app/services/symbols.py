@@ -1,7 +1,8 @@
 """Official game color symbols (mana, energy types, elements), downloaded once.
 
-Stored as `{game}/symbols/{color}.{svg|png}` under `settings.image_dir`, where a file put
-by hand (svg, png or webp) is never replaced. Downloaded or own files win over the ones
+Stored as `{game}/symbols/{color}.{svg|png}` under `settings.image_dir` (the games of a
+group share the group's folder, `picture_game`), where a file put by hand (svg, png or
+webp) is never replaced. Downloaded or own files win over the ones
 shipped with Zukan (copied to `default/{game}/symbols/`), which stay as fallback. The API fetches
 missing ones in the background on start, so a new game or color gets its symbol on the
 next restart, and a failed download is retried then.
@@ -17,14 +18,14 @@ from PIL import Image
 
 from app.core.config import get_settings
 from app.core.http import http_client
-from app.games.base import ColorDef, registry
+from app.games.base import ColorDef, picture_game, registry
 from app.services import layout
 
 log = logging.getLogger(__name__)
 
 
 def _folder(game_id: str) -> Path:
-    return layout.game_folder(get_settings().image_dir, game_id, layout.SYMBOLS)
+    return layout.game_folder(get_settings().image_dir, picture_game(game_id), layout.SYMBOLS)
 
 
 def symbol_file(game_id: str, code: str) -> Path | None:
@@ -37,7 +38,8 @@ def symbol_file(game_id: str, code: str) -> Path | None:
     if color.icon_file is not None:
         # The copy in `default/` first, the package file if it is not there yet.
         root = get_settings().image_dir
-        copy = layout.default_folder(root, game_id, layout.SYMBOLS) / color.icon_file.name
+        folder = layout.default_folder(root, picture_game(game_id), layout.SYMBOLS)
+        copy = folder / color.icon_file.name
         if copy.is_file():
             return copy
         if color.icon_file.is_file():
@@ -86,6 +88,8 @@ async def ensure_symbols() -> int:
     missing = [
         (provider.id, color)
         for provider in registry().values()
+        # The games of a group share their symbols.
+        if picture_game(provider.id) == provider.id
         for color in provider.colors
         # A shipped symbol is only the fallback of a source's (`symbol_file`).
         if color.icon_url and layout.own_picture(_folder(provider.id), color.code) is None

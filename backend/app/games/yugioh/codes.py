@@ -25,6 +25,8 @@ REGIONS = {
     "AE": "en",
 }
 ASIAN_REGIONS = {"JP", "KR", "K", "SC", "TC"}
+# Printed regions of the OCG game: Asian languages and Asian English ("AE").
+OCG_REGIONS = ASIAN_REGIONS | {"AE"}
 
 
 def tag(rarity: str | None) -> str:

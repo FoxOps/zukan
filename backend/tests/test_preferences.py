@@ -11,7 +11,7 @@ from PIL import Image
 from sqlalchemy import select
 
 from app.core.config import get_settings
-from app.games.base import registry
+from app.games.base import picture_game, registry
 from app.games.pokemon.provider import ENERGY_SPRITE
 from app.games.sorcery.provider import (
     CARDMARKET_EXPANSIONS,
@@ -312,7 +312,14 @@ async def test_symbols_downloaded_once(client, alice):
         stored = await symbols.ensure_symbols()
         # Symbols to download (Riftbound's and Sorcery's colorless and Lorcana inks are
         # only drawn for Zukan, shipped).
-        downloaded = [c for p in registry().values() for c in p.colors if c.icon_url]
+        # The games of a group (Pokémon, Yu-Gi-Oh!) share theirs.
+        downloaded = [
+            c
+            for p in registry().values()
+            if picture_game(p.id) == p.id
+            for c in p.colors
+            if c.icon_url
+        ]
         assert stored == len(downloaded) - 2
         assert attributes.call_count == 7
         assert (sprite.call_count, svg.call_count, elements.call_count) == (1, 6, 4)
@@ -328,6 +335,7 @@ async def test_symbols_downloaded_once(client, alice):
     grass = next(c for c in games["pokemon"]["colors"] if c["code"] == "grass")
     icon = await client.get(grass["icon"], headers=alice)
     assert icon.status_code == 200
+    assert symbols.symbol_file("pokemon-asia", "grass") == symbols.symbol_file("pokemon", "grass")
     image = Image.open(io.BytesIO(icon.content))
     assert image.size == (25, 25) and image.getpixel((5, 5)) == (0, 255, 0, 255)
     fire = next(c for c in games["sorcery"]["colors"] if c["code"] == "fire")

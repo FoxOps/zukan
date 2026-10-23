@@ -8,6 +8,7 @@ from app.core.http import http_client
 from app.games.base import OcrLine, get_provider
 from app.games.cardmarket import DOWNLOAD_URL as CARDMARKET_URL
 from app.games.mtg.provider import API_URL as SCRYFALL
+from app.games.pokemon import shared as pokemon_shared
 from app.games.pokemon.provider import API_URL as TCGDEX
 from app.games.sorcery.provider import API_URL as SORCERY
 from app.main import register_games
@@ -15,6 +16,7 @@ from app.services.catalog import sync_catalog
 from tests.conftest import SORCERY_CARDS, bearer, make_user
 from tests.test_mtg import ALL_URL, LINES, SETS, gz
 from tests.test_pokemon import API as TCGDEX_API
+from tests.test_pokemon import _listings as tcgdex_listings
 
 
 def ocr(*texts: str) -> list[OcrLine]:
@@ -143,11 +145,14 @@ async def catalogs(session, monkeypatch):
     monkeypatch.setenv("TCG_POKEMON_CHINESE", "false")
     await register_games()
 
+    tcgdex_data = TCGDEX_API | tcgdex_listings()
+    pokemon_shared.clear()
+
     def tcgdex(request: httpx.Request) -> httpx.Response:
         path = request.url.path.removeprefix("/v2")
         return (
-            httpx.Response(200, json=TCGDEX_API[path])
-            if path in TCGDEX_API
+            httpx.Response(200, json=tcgdex_data[path])
+            if path in tcgdex_data
             else httpx.Response(404)
         )
 
@@ -160,6 +165,7 @@ async def catalogs(session, monkeypatch):
             ),
         ),
         ("pokemon", lambda r: r.get(url__startswith=TCGDEX).mock(side_effect=tcgdex)),
+        ("pokemon-asia", lambda r: r.get(url__startswith=TCGDEX).mock(side_effect=tcgdex)),
         (
             "mtg",
             lambda r: (
@@ -366,7 +372,8 @@ def test_pokemon_parser_skips_asian_labels():
 
 async def test_identify_short_asian_name_in_noisy_text(client, alice):
     # No set or number, extra glyphs around the name: found by containment.
-    result = await scan(client, alice, ocr("ーートロピウスのぎ", "リーフドレイン 20"), "pokemon")
+    lines = ocr("ーートロピウスのぎ", "リーフドレイン 20")
+    result = await scan(client, alice, lines, "pokemon-asia")
     assert result["candidates"][0]["card"]["name"] in {"Tropius", "トロピウス"}
 
 
@@ -374,6 +381,9 @@ async def test_card_of_another_game_is_told_apart(client, alice):
     # An MTG card scanned with Pokémon chosen: not "not a card".
     result = await scan(client, alice, ELVES_FR, "pokemon")
     assert (result["status"], result["detected_game"]) == ("other_game", "mtg")
+    # A Japanese Pokémon card scanned with the international game chosen: the Asia game's.
+    result = await scan(client, alice, TROPIUS_JA, "pokemon")
+    assert (result["status"], result["detected_game"]) == ("other_game", "pokemon-asia")
     # Sorcery chosen, a Sorcery card that is not in the catalog (no set code to tell).
     unknown = ocr(
         "Unknown Wanderer",

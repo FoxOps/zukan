@@ -1,6 +1,6 @@
 [project]
 name = "zukan"
-version = "0.16.0"
+version = "0.17.0"
 description = "Zukan (図鑑, illustrated encyclopedia): self-hosted TCG collection manager"
 requires-python = ">=3.13"
 dependencies = [
@@ -34,10 +34,13 @@ dev = [
 [project.entry-points."zukan.games"]
 mtg = "app.games.mtg:provider"
 pokemon = "app.games.pokemon:provider"
+pokemon-asia = "app.games.pokemon:asia_provider"
+pokemon-china = "app.games.pokemon:china_provider"
 sorcery = "app.games.sorcery:provider"
 lorcana = "app.games.lorcana:provider"
 riftbound = "app.games.riftbound:provider"
 yugioh = "app.games.yugioh:provider"
+yugioh-ocg = "app.games.yugioh:ocg_provider"
 
 [project.entry-points."zukan.prices"]
 cardmarket = "app.prices.cardmarket:source"

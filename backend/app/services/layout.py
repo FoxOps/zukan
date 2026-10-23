@@ -8,8 +8,10 @@
     default/<game>/symbols/<color code>.<ext>           pictures shipped with Zukan
     default/<game>/rarity/<rarity code>.<ext>
 
-`<game>` is the game id (mtg, pokemon, sorcery, riftbound, yugioh, lorcana). Files put in
-`<game>/symbols/` and `<game>/rarity/` by hand win over the ones shipped with Zukan.
+`<game>` is the game id (mtg, pokemon, pokemon-asia, sorcery, riftbound, yugioh...). The
+games of a group (the Pokémon games, the Yu-Gi-Oh! ones) share the symbols and rarity
+folders of the group's id (`pokemon/symbols/`). Files put in `<game>/symbols/` and
+`<game>/rarity/` by hand win over the ones shipped with Zukan.
 `default/` is a copy of the shipped pictures, rewritten on every start (`install_defaults`):
 copy one into `<game>/...` to replace it. `cache/` holds source caches (Konami pages).
 

@@ -31,6 +31,8 @@ from app.games.base import CardData, CatalogIndex, PrintingData, SecondaryBatch
 log = logging.getLogger(__name__)
 
 SOURCE = "pokemon-card.com"
+# The game of the Japanese cards.
+GAME = "pokemon-asia"
 SITE = "https://www.pokemon-card.com"
 LIST_URL = f"{SITE}/card-search/resultAPI.php"
 CARD_URL = f"{SITE}/card-search/details.php/card/{{id}}/regu/all"
@@ -168,7 +170,7 @@ async def wanted_printings() -> list[Wanted]:
             .join(Printing, Printing.set_id == CardSet.id)
             .join(Card, Printing.card_id == Card.id)
             .where(
-                CardSet.game_id == "pokemon",
+                CardSet.game_id == GAME,
                 CardSet.lang == "ja",
                 ~Printing.image_urls.has_key("ja"),
             )
