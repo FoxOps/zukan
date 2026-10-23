@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, call } from '../api/client'
-import { useGames, useSets, type Game } from '../api/queries'
+import { gameGroups, useGames, useSets, type Game, type GameGroup } from '../api/queries'
 import { languageName } from '../lib/format'
 import { TYPE_TO_SEARCH } from '../lib/typeToSearch'
 import { ColorSymbol } from './ColorBadges'
@@ -16,22 +16,74 @@ type GameTabsProps = {
   only?: string[] | null
 }
 
+// Last market picked in each group of games, so its tab opens on it again.
+const REGION_KEY = 'zukan.region.'
+
+function rememberedGame(group: GameGroup): string {
+  let id: string | null = null
+  try {
+    id = localStorage.getItem(REGION_KEY + group.id)
+  } catch {
+    // Storage unavailable (private window): the group's first game.
+  }
+  return group.games.find((g) => g.id === id)?.id ?? group.games[0].id
+}
+
+function remember(game: Game) {
+  try {
+    localStorage.setItem(REGION_KEY + game.group, game.id)
+  } catch {
+    // Not kept: fine.
+  }
+}
+
+/** One tab per game, the games of one family (Pokémon, Yu-Gi-Oh!) under one tab with
+ * their markets below it (International | Asia | China). */
 export function GameTabs({ value, onChange, allowAll = true, only }: GameTabsProps) {
   const { t } = useTranslation()
   const { data: games = [] } = useGames()
   const shown = only ? games.filter((g) => only.includes(g.id)) : games
+  const groups = gameGroups(shown)
+  const current = groups.find((group) => group.games.some((g) => g.id === value))
+  const pick = (game: Game) => {
+    remember(game)
+    onChange(game.id)
+  }
   return (
-    <div role="tablist" className="tabs tabs-box w-fit">
-      {allowAll && shown.length > 1 && (
-        <button role="tab" className={`tab ${value === '' ? 'tab-active' : ''}`} onClick={() => onChange('')}>
-          {t('All games')}
-        </button>
+    <div className="flex flex-col gap-2">
+      <div role="tablist" className="tabs tabs-box w-fit">
+        {allowAll && shown.length > 1 && (
+          <button role="tab" className={`tab ${value === '' ? 'tab-active' : ''}`} onClick={() => onChange('')}>
+            {t('All games')}
+          </button>
+        )}
+        {groups.map((group) => (
+          <button
+            key={group.id}
+            role="tab"
+            className={`tab ${current?.id === group.id ? 'tab-active' : ''}`}
+            onClick={() => current?.id !== group.id && onChange(rememberedGame(group))}
+          >
+            {group.name}
+          </button>
+        ))}
+      </div>
+      {current && current.games.length > 1 && (
+        <div className="join w-fit" role="group" aria-label={t('Market')}>
+          {current.games.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              className={`btn btn-sm join-item ${g.id === value ? 'btn-primary' : 'btn-soft'}`}
+              aria-pressed={g.id === value}
+              title={g.name}
+              onClick={() => pick(g)}
+            >
+              {t(g.region_label ?? g.name)}
+            </button>
+          ))}
+        </div>
       )}
-      {shown.map((g) => (
-        <button key={g.id} role="tab" className={`tab ${value === g.id ? 'tab-active' : ''}`} onClick={() => onChange(g.id)}>
-          {g.name}
-        </button>
-      ))}
     </div>
   )
 }

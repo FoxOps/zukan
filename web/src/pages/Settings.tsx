@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, call, type Schemas } from '../api/client'
-import { useGames, useMe, useProviders } from '../api/queries'
+import { gameGroups, useGames, useMe, useProviders } from '../api/queries'
 import { useToast } from '../components/toast'
 import { Select } from '../components/Select'
 import { LANGUAGES, useChangeLanguage } from '../i18n'
@@ -89,17 +89,22 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
         )}
         <fieldset className="fieldset">
           <legend className="fieldset-legend">{t('Games shown in the catalog')}</legend>
-          {games.map((g) => (
-            <label key={g.id} className="label cursor-pointer gap-2 text-base-content">
-              <input
-                type="checkbox"
-                className="checkbox checkbox-sm"
-                checked={shown.includes(g.id)}
-                disabled={save.isPending}
-                onChange={(e) => toggleGame(g.id, e.target.checked)}
-              />
-              {g.name}
-            </label>
+          {gameGroups(games).map((group) => (
+            <div key={group.id} className="flex flex-col gap-1">
+              {group.games.length > 1 && <span className="label font-medium text-base-content">{group.name}</span>}
+              {group.games.map((g) => (
+                <label key={g.id} className={`label cursor-pointer gap-2 text-base-content ${group.games.length > 1 ? 'pl-6' : ''}`}>
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-sm"
+                    checked={shown.includes(g.id)}
+                    disabled={save.isPending}
+                    onChange={(e) => toggleGame(g.id, e.target.checked)}
+                  />
+                  {group.games.length > 1 ? t(g.region_label ?? g.name) : g.name}
+                </label>
+              ))}
+            </div>
           ))}
         </fieldset>
       </div>

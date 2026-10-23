@@ -27,6 +27,22 @@ export function useGames() {
   })
 }
 
+export type GameGroup = { id: string; name: string; games: Game[] }
+
+/** Games of one family split by market (Pokémon TCG / Asia / China) as one group, in the
+ * order the server lists them; other games are a group of their own. */
+export function gameGroups(games: Game[]): GameGroup[] {
+  const groups = new Map<string, GameGroup>()
+  for (const g of games) {
+    const group = groups.get(g.group) ?? { id: g.group, name: g.group_name, games: [] }
+    group.games.push(g)
+    groups.set(g.group, group)
+  }
+  return [...groups.values()].map((group) =>
+    group.games.length > 1 ? group : { ...group, name: group.games[0].name },
+  )
+}
+
 export function useGame(gameId: string | null | undefined): Game | undefined {
   const { data } = useGames()
   return data?.find((g) => g.id === gameId)

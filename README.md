@@ -4,7 +4,10 @@
 
 Self-hosted trading card game collection manager: Magic: The Gathering, Pokémon TCG,
 Sorcery, Riftbound, Yu-Gi-Oh! and Disney Lorcana, with a plugin system for more games, and
-an Android scanner app.
+an Android scanner app. Pokémon and Yu-Gi-Oh! are split by market, each a game of its own
+with its catalog and collection: Pokémon TCG (international), Pokémon TCG Asia, Pokémon
+TCG China; Yu-Gi-Oh! TCG and Yu-Gi-Oh! OCG. The web UI shows them under one tab per
+family with the market below it.
 See [PLAN.md](PLAN.md) for the full design and progress.
 
 ## Run with Docker
@@ -193,8 +196,10 @@ for Zukan (`scripts/draw_rarity_icons.py`).
 
 #### Image folders
 
-Everything is kept per game, `<game>` being the game id (`mtg`, `pokemon`, `sorcery`,
-`riftbound`, `yugioh`, `lorcana`):
+Everything is kept per game, `<game>` being the game id (`mtg`, `pokemon`, `pokemon-asia`,
+`pokemon-china`, `sorcery`, `riftbound`, `yugioh`, `yugioh-ocg`, `lorcana`). The Pokémon
+games share the `pokemon/symbols/` and `pokemon/rarity/` folders, the Yu-Gi-Oh! ones the
+`yugioh/` ones:
 
 ```
 data/images/<game>/cards/     card pictures, <set id>/<printing id>-<language>.<ext>
@@ -331,7 +336,7 @@ From the command line:
 
 ```sh
 gh workflow run docker-dev.yml --ref my-branch
-gh workflow run docker-prod.yml --ref main -f version=0.16.0
+gh workflow run docker-prod.yml --ref main -f version=0.17.0
 gh workflow run android-prod.yml --ref main -f version=0.10.0
 ```
 
