@@ -284,7 +284,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Rarity Icon */
+        /**
+         * Rarity Icon
+         * @description The rarity's pictogram; `lang`: the one of cards printed in that language.
+         */
         get: operations["rarity_icon_api_games__game_id__rarities__code__icon_get"];
         put?: never;
         post?: never;
@@ -590,6 +593,29 @@ export interface paths {
          *     held (price change × quantity): biggest rises and falls.
          */
         get: operations["movers_api_collection_movers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/collection/finance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Finance
+         * @description Market value figures of the collection, or of one game's cards: totals, change
+         *     over 1 to 365 days, value over the last year and how it splits (game, set, rarity,
+         *     condition, language, finish, price band). Without a game, games priced in another
+         *     currency than the user's price source are left out (listed in `other_currencies`).
+         */
+        get: operations["finance_api_collection_finance_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1094,6 +1120,15 @@ export interface components {
             /** Currency */
             currency?: string | null;
         };
+        /** ChangeOut */
+        ChangeOut: {
+            /** Days */
+            days: number;
+            /** Past */
+            past: string | null;
+            /** Now */
+            now: string;
+        };
         /** ColorOut */
         ColorOut: {
             /** Code */
@@ -1198,6 +1233,49 @@ export interface components {
             key: string;
             /** Label */
             label: string;
+        };
+        /** FinanceOut */
+        FinanceOut: {
+            /** Currency */
+            currency: string;
+            /** Value */
+            value: string;
+            /** Quantity */
+            quantity: number;
+            /** Printings */
+            printings: number;
+            /** Priced */
+            priced: number;
+            /** Unpriced */
+            unpriced: number;
+            /** Average */
+            average: string | null;
+            /** Median */
+            median: string | null;
+            /** Other Currencies */
+            other_currencies: string[];
+            /** Changes */
+            changes: components["schemas"]["ChangeOut"][];
+            /** History */
+            history: components["schemas"]["ValuePointOut"][];
+            /** By Game */
+            by_game: components["schemas"]["ShareOut"][];
+            /** By Set */
+            by_set: components["schemas"]["ShareOut"][];
+            /** By Rarity */
+            by_rarity: components["schemas"]["ShareOut"][];
+            /** By Condition */
+            by_condition: components["schemas"]["ShareOut"][];
+            /** By Language */
+            by_language: components["schemas"]["ShareOut"][];
+            /** By Finish */
+            by_finish: components["schemas"]["ShareOut"][];
+            /** By Band */
+            by_band: components["schemas"]["ShareOut"][];
+            /** Top */
+            top: components["schemas"]["TopItemOut"][];
+            /** Top Share */
+            top_share: number | null;
         };
         /** FinishOut */
         FinishOut: {
@@ -1739,6 +1817,13 @@ export interface components {
             name: string;
             /** Icon */
             icon: string | null;
+            /**
+             * Icons
+             * @default {}
+             */
+            icons: {
+                [key: string]: string;
+            };
         };
         /** RefreshIn */
         RefreshIn: {
@@ -1828,6 +1913,17 @@ export interface components {
             /** Price Sources */
             price_sources?: string[] | null;
         };
+        /** ShareOut */
+        ShareOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+            /** Quantity */
+            quantity: number;
+        };
         /** StaleCardOut */
         StaleCardOut: {
             /** Id */
@@ -1871,6 +1967,14 @@ export interface components {
             token_type: "bearer";
             /** Expires In */
             expires_in: number;
+        };
+        /** TopItemOut */
+        TopItemOut: {
+            item: components["schemas"]["ItemOut"];
+            /** Unit */
+            unit: string;
+            /** Value */
+            value: string;
         };
         /** TransactionOut */
         TransactionOut: {
@@ -2551,7 +2655,9 @@ export interface operations {
     };
     rarity_icon_api_games__game_id__rarities__code__icon_get: {
         parameters: {
-            query?: never;
+            query?: {
+                lang?: string | null;
+            };
             header?: never;
             path: {
                 game_id: string;
@@ -3121,6 +3227,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MoversOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    finance_api_collection_finance_get: {
+        parameters: {
+            query?: {
+                game?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinanceOut"];
                 };
             };
             /** @description Validation Error */

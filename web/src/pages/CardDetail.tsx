@@ -7,6 +7,7 @@ import { useGame, useMe } from '../api/queries'
 import { Attributes } from '../components/Attributes'
 import { ConditionBadge, FinishBadge, LangFlag } from '../components/Badges'
 import { CardImage } from '../components/CardImage'
+import { CatalogSearch } from '../components/CatalogSearch'
 import { RarityBadge } from '../components/RarityBadge'
 import { ColorBadges } from '../components/ColorBadges'
 import { PriceChart } from '../components/PriceChart'
@@ -209,17 +210,20 @@ export default function CardDetail() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="breadcrumbs text-sm">
-        <ul>
-          <li><Link to={`/catalog?game=${c.game_id}`}>{game?.name ?? c.game_id}</Link></li>
-          <li>{name}</li>
-          {selected && (
-            <li>
-              {selected.set.code}
-              {selected.collector_number && ` · ${selected.collector_number}`}
-            </li>
-          )}
-        </ul>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="breadcrumbs text-sm">
+          <ul>
+            <li><Link to={`/catalog?game=${c.game_id}`}>{game?.name ?? c.game_id}</Link></li>
+            <li>{name}</li>
+            {selected && (
+              <li>
+                {selected.set.code}
+                {selected.collector_number && ` · ${selected.collector_number}`}
+              </li>
+            )}
+          </ul>
+        </div>
+        <CatalogSearch game={c.game_id} />
       </div>
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
@@ -260,7 +264,7 @@ export default function CardDetail() {
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <ColorBadges game={game} colors={c.colors} />
               {selected?.rarity && (
-                <RarityBadge game={game} rarity={selected.rarity} code={selected.rarity_code} className="badge badge-ghost" />
+                <RarityBadge game={game} rarity={selected.rarity} code={selected.rarity_code} lang={selected.set.lang} className="badge badge-ghost" />
               )}
               {owned > 0 && <span className="badge badge-success">{t('{{count}} owned', { count: owned })}</span>}
             </div>
@@ -445,7 +449,7 @@ export default function CardDetail() {
                       </div>
                     ))}
                   </td>
-                  <td><RarityBadge game={game} rarity={p.rarity} code={p.rarity_code} /></td>
+                  <td><RarityBadge game={game} rarity={p.rarity} code={p.rarity_code} lang={p.set.lang} /></td>
                   <td>
                     <div className="flex flex-wrap gap-1">
                       {p.finishes.map((f) => <FinishBadge key={f} game={game} finish={f} />)}

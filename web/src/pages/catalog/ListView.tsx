@@ -53,7 +53,7 @@ export function ListView({ cards, games, showGame }: CatalogViewProps) {
                   )}
                 </td>
                 <td className="text-xs">
-                  <RarityBadge game={game} rarity={card.rarity} code={card.rarity_code} />
+                  <RarityBadge game={game} rarity={card.rarity} code={card.rarity_code} lang={card.set?.lang} />
                 </td>
                 <td>
                   <ColorBadges game={game} colors={card.colors} />

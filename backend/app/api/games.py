@@ -1,7 +1,8 @@
 import time
 from pathlib import Path
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import case, func, select
@@ -29,6 +30,9 @@ class RarityOut(BaseModel):
     name: str
     # Pictogram of the rarity, when the game has one.
     icon: str | None
+    # Other pictograms for cards printed in some languages (Japanese, Chinese), by
+    # language: clients show `icons[lang]` when there, else `icon`.
+    icons: dict[str, str] = {}
 
 
 class FinishOut(BaseModel):
@@ -91,6 +95,7 @@ async def list_games(_: CurrentUser) -> list[GameOut]:
                     icon=_icon_link(
                         f"/api/games/{p.id}/rarities/{r.code}/icon", rarity_icon_file(p.id, r.code)
                     ),
+                    icons=_language_icons(p, r.code),
                 )
                 for r in getattr(p, "rarities", [])
             ],
@@ -120,11 +125,27 @@ async def color_icon(game_id: str, code: str, _: CurrentUser) -> FileResponse:
 
 
 @router.get("/{game_id}/rarities/{code}/icon")
-async def rarity_icon(game_id: str, code: str, _: CurrentUser) -> FileResponse:
-    path = rarity_icon_file(game_id, code) if game_id in registry() else None
+async def rarity_icon(
+    game_id: str, code: str, _: CurrentUser, lang: Annotated[str | None, Query(max_length=8)] = None
+) -> FileResponse:
+    """The rarity's pictogram; `lang`: the one of cards printed in that language."""
+    path = rarity_icon_file(game_id, code, lang) if game_id in registry() else None
     if path is None or code not in {r.code for r in getattr(registry()[game_id], "rarities", [])}:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown rarity")
     return FileResponse(path, headers=_SYMBOL_HEADERS)
+
+
+def _language_icons(provider: Any, code: str) -> dict[str, str]:
+    """Links to the pictograms of the languages whose cards show another one."""
+    plain = rarity_icon_file(provider.id, code)
+    out = {}
+    for lang in provider.languages:
+        path = rarity_icon_file(provider.id, code, lang)
+        if path is not None and path != plain:
+            url = f"/api/games/{provider.id}/rarities/{code}/icon?lang={lang}"
+            if link := _icon_link(url, path):
+                out[lang] = link.replace("?v=", "&v=")
+    return out
 
 
 def _icon_link(url: str, path: Path | None) -> str | None:

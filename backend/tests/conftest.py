@@ -7,6 +7,8 @@ os.environ["TCG_PUBLIC_URL"] = "http://testserver"
 os.environ["TCG_SECRET_KEY"] = "test-secret-key-with-enough-length-for-hs256"
 # Tests needing the web UI build their own.
 os.environ["TCG_WEB_DIR"] = "/nonexistent"
+# The official Japanese card search fills missing pictures: off unless a test turns it on.
+os.environ["TCG_POKEMON_OFFICIAL_JP"] = "false"
 
 import json  # noqa: E402
 from collections.abc import AsyncIterator  # noqa: E402

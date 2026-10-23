@@ -1,6 +1,6 @@
 [project]
 name = "zukan"
-version = "0.15.0"
+version = "0.16.0"
 description = "Zukan (図鑑, illustrated encyclopedia): self-hosted TCG collection manager"
 requires-python = ">=3.13"
 dependencies = [
@@ -42,12 +42,14 @@ yugioh = "app.games.yugioh:provider"
 [project.entry-points."zukan.prices"]
 cardmarket = "app.prices.cardmarket:source"
 tcgplayer = "app.prices.tcgplayer:source"
+cardnexus = "app.prices.cardnexus:source"
 
 # Card databases covering several games, filling what each game's own sources lack.
 [project.entry-points."zukan.sources"]
 tcgcsv = "app.sources.tcgcsv:source"
 tcgapi_eu = "app.sources.tcgapi_eu:source"
 apitcg = "app.sources.apitcg:source"
+cardnexus = "app.sources.cardnexus:source"
 
 [project.scripts]
 zukan = "app.cli:main"

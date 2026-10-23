@@ -64,6 +64,8 @@ class Settings(BaseSettings):
     # limits: apitcg 1000 a month, tcg-api.eu 10 000 a day).
     apitcg_monthly_requests: int = 900
     tcgapi_eu_daily_requests: int = 9000
+    # CardNexus API requests a day (one per game and run; their limit is 60 a minute).
+    cardnexus_daily_requests: int = 1000
 
 
 @lru_cache

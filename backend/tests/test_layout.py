@@ -120,6 +120,31 @@ async def test_own_rarity_and_symbol_pictures_win(client, session, image_dir):
     assert missing.status_code == 404
 
 
+async def test_rarity_pictures_by_language(client, session, image_dir):
+    await register_games()
+    await make_user(session)
+    alice = await bearer(client, "alice")
+    # Japanese and Chinese cards print letters ("RR") where others print stars.
+    plain = shipped_rarity_icon("pokemon", "double_rare")
+    japanese = shipped_rarity_icon("pokemon", "double_rare", "ja")
+    assert plain is not None and plain.name == "double_rare.png"
+    assert japanese is not None and japanese.name == "double_rare.ja.png"
+    assert rarity_icon_file("pokemon", "double_rare", "zh-hant").name == "double_rare.zh.png"
+    assert rarity_icon_file("pokemon", "double_rare", "fr") == plain
+    # An own picture of one language wins over the shipped ones.
+    own = image_dir / "pokemon" / "rarity" / "double_rare.ja.webp"
+    own.parent.mkdir(parents=True)
+    own.write_bytes(b"RIFF own")
+    assert rarity_icon_file("pokemon", "double_rare", "ja") == own
+
+    games = {g["id"]: g for g in (await client.get("/api/games", headers=alice)).json()}
+    rr = next(r for r in games["pokemon"]["rarities"] if r["code"] == "double_rare")
+    assert set(rr["icons"]) >= {"ja", "zh-hans", "zh-hant"} and "fr" not in rr["icons"]
+    assert rr["icons"]["ja"].startswith("/api/games/pokemon/rarities/double_rare/icon?lang=ja&v=")
+    icon = await client.get(rr["icons"]["ja"], headers=alice)
+    assert icon.status_code == 200 and icon.content == b"RIFF own"
+
+
 async def test_shipped_pictures_copied_to_default_folder(image_dir):
     shipped = shipped_folders()
     assert layout.install_defaults(image_dir, shipped) > 0

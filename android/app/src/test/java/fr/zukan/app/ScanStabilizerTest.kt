@@ -48,4 +48,12 @@ class ScanStabilizerTest {
         val stabilizer = ScanStabilizer(framesNeeded = 3)
         assertEquals(listOf(false, false, true), stabilizer.run(read, misread, read))
     }
+
+    @Test
+    fun glareKeepsTheSameCardWhenTheNumberStays() {
+        val clear = listOf("Mega Camerupt ex", "HP 330", "Volcanic Burst 230", "I MEG EN 022/132")
+        val glare = listOf("Mega Cam", "Volc", "022/132")
+        val stabilizer = ScanStabilizer(framesNeeded = 3)
+        assertEquals(listOf(false, false, true, false), stabilizer.run(clear, glare, clear, glare))
+    }
 }

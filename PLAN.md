@@ -11,7 +11,7 @@ User want one tool to manage TCG collections (MTG, Pokémon, Sorcery), with new 
 
 Decisions from Q&A:
 - Self-hosted web app (Docker), multi-user, separate collection per user.
-- Prices: from APIs only (Scryfall → Cardmarket EUR for MTG, TCGdex → Cardmarket for Pokémon), Cardmarket's public price guide files for Sorcery (since 2026-10-13), manual override everywhere. No scraping.
+- Prices: from APIs only (Scryfall → Cardmarket EUR for MTG, TCGdex → Cardmarket for Pokémon), Cardmarket's public price guide files for Sorcery (since 2026-10-13), manual override everywhere. No scraping (agreed exceptions: Konami card database for Yu-Gi-Oh!, pokemon-card.com for Japanese Pokémon pictures).
 - Stock detail: printing + finish + condition + language.
 - Android: online only, continuous scan + confirm.
 - Languages: EU (EN/FR/DE/IT/ES/PT), JA, ZH, KO.
@@ -1308,6 +1308,108 @@ Visual identity:
 - [x] Checks: web build, oxlint, i18n; Android `testDebugUnitTest lint assembleDebug`
   (39 unit tests); browser (Vite against the 0.14.0 test API): login, dashboard, catalog,
   card page, light / dark, 390 px width, no console errors, manifest / icons served.
+
+## Backlog 2026-10-23 (server 0.16.0, Android 0.10.0)
+Branch `2026-10-23-001-search-finance-cardnexus-pokecardex` (from main after 0.15.0).
+User report on 0.15.0 / 0.9.0: card pages need a catalog search to add cards; typing on a
+page with a search bar should go to it; a Finance page (whole collection and per game);
+CardNexus API as a source (key given for tests only, never committed); Pokémon pictures
+and rarity pictograms from Pokécardex (EN FR DE ES JP ZH) and pokemon-card.com, polite
+scraping allowed; Android: Mega Pokémon ex not scanned (MEG 22 / 94 / 100, CRI 48); no
+confirmation after adding a scanned card (or hidden under the card tray).
+Decisions (Q&A): Finance = market value only (no purchase price); card search = typeahead
+list; CardNexus = prices + gap source (pictures, missing printings); rarity pictograms per
+language.
+
+Scanner:
+- Server found these cards on clean text; noisy OCR broke it. `games/pokemon/provider.py`:
+  - [x] O / I / l read for 0 / 1 in the number ("O22/132", "1O0/l32"); letter prefixes
+    ("TG05") kept.
+  - [x] Regulation mark glued to the set code ("IMEG EN" → MEG) or to code and language
+    ("ICRIEN 048/122" → CRI, en).
+  - [x] "Mega" read as a line of its own joined to the next one.
+- [x] `services/identify.py`: number + name similarity ≥ 0.5 scores 0.9 + 0.09 × sim, above
+  any name-only match ("M Camerupt ex" + 022 is Mega Camerupt ex, not old M Camerupt-EX).
+- [x] Lookup of a card missing from the catalog: `OcrHints.set_external_id` from the stored
+  set with the printed code, so TCGdex is asked `/sets/me01`, not `/sets/MEG` (404).
+- [x] Android `ScanStabilizer`: the same collector number in two frames counts as the same
+  card (holo glare changes the other words), also against the card just sent.
+- Checked against the live test catalog: 8 noisy variants of MEG 022 / 094 / 100 and CRI
+  048 (EN, FR, split "Mega", glued marks, O for 0) all give the right card first.
+
+Android, add confirmation:
+- Cause: the card tray is a `ModalBottomSheet`, a window of its own above the screen's
+  snackbar ("Added …", Undo, errors).
+- [x] `ScanScreen` gets the app's `SnackbarHostState` and shows a `SnackbarHost` inside the
+  tray too (bottom of the sheet).
+
+Web:
+- [x] `CatalogSearch` (card page, next to the breadcrumbs): typeahead of 10 cards of the
+  card's game (toggle "All games"), picture, set + number, price; ↑ / ↓ / Enter opens,
+  Shift+Enter or "+" opens the stock dialog for that card (its versions listed).
+- [x] Type to search (`lib/typeToSearch.ts`, in `Layout`): a printable key with no field
+  focused and no dialog open goes to the page's search field (`data-type-to-search`:
+  Collection, Catalog, card page); "/" only focuses.
+- [x] Finance page `/finance` (menu after Catalog): game tabs; value, cards / versions,
+  average and median card, priced share; change over 1 / 7 / 30 / 90 / 365 days (amount,
+  %, arrow, "no history that far back"); value over time (30 / 90 / 365 d); shares by game,
+  card price band, set (top 15), rarity, condition, language, finish (bars + amounts, one
+  hue); 10 most valuable cards and their share; movers. Games priced in another currency
+  are left out of "All games" and named.
+- [x] API `GET /api/collection/finance?game=` (`services/collection.finance`, reuses
+  `user_prices`, `value_history`, `unit_price`); test `test_finance`.
+
+CardNexus (`sources/cardnexus.py`, `prices/cardnexus.py`):
+- API checked with the key: `GET /v1/feeds/{game}` (bearer, 60 / min) gives presigned
+  gzip NDJSON files: catalog (Cardmarket / TCGplayer ids per finish), expansions, prices
+  (Cardmarket EUR, TCGplayer USD, CardNexus listings). Checksum = SHA-256 of the
+  uncompressed file. Games: mtg, pokemon + pokemon-japan, ygo, sorcery, lorcana, riftbound.
+- [x] `Feeds`: one API request per game and run (`RequestBudget`, 50 / min,
+  `TCG_CARDNEXUS_DAILY_REQUESTS` 1000), files kept in `<image dir>/cache/cardnexus/`,
+  downloaded again only when their checksum changes (400 MB cap).
+- [x] Price source `cardnexus` (EUR, lowest listing; link `cardnexus.com/<lang>/explore/…`):
+  matched by CardNexus id, else Cardmarket / TCGplayer id; also yields `cardmarket` /
+  `tcgplayer` quotes for printings no source priced today; prices over 30 days old skipped.
+  Live dry run: Pokémon 35k Cardmarket + 35k TCGplayer + 25k CardNexus quotes, Sorcery,
+  Riftbound, Lorcana all priced.
+- [x] Gap source (order 15): fills pictures, rarities, artists, TCGplayer / Cardmarket /
+  CardNexus ids; adds printings a set lacks (card of that name already stored, set keyed
+  on collector numbers, number written like the set's, ≥ 80 % of the set paired — "SV"
+  promos vs Supreme Victors otherwise matched wrongly).
+- [x] Key `TCG_APITOKEN_PRICES_CARDNEXUS` (skipped without); tests `test_cardnexus.py`
+  (respx, no key).
+
+Pokémon pictures and pictograms:
+- Pokécardex: page data is encrypted (`__INITIAL_DATA_ENCRYPTED__`) and card scans answer
+  403 to scripts (hotlink protection): not used for pictures (no circumvention). Its
+  rarity pictograms are plain files of its pages.
+- [x] `scripts/install_pokecardex_rarity_icons.py` (ids read from its set pages per zone):
+  international pictograms replace Zukan's drawn SVGs (`<code>.png`), Japanese and Chinese
+  letter pictograms ("RR", "SAR", "CHR") as `<code>.ja.png` / `<code>.zh.png`; 37 files.
+- [x] `rarity_icon_file(game, code, lang)`: `<code>.<lang>`, `<code>.<base lang>`, then
+  `<code>` (own folder, then shipped); `RarityOut.icons` {lang: url}, `…/icon?lang=`. Web
+  `RarityBadge lang=` (set language, or the copy's), black pictograms inverted on the dark
+  theme; Android `RarityBadge(lang =)` tinted with the text colour.
+- [x] `games/pokemon/official_jp.py`: pokemon-card.com (official, JSON `resultAPI.php`,
+  robots allows) for Japanese printings without a Japanese picture (9 124 of 13 006 on the
+  test catalog: every M-era set). Card list kept in `cache/pokemon-card-jp.json` (603
+  pages, read once, then only new pages a day), matched by set code (= picture folder) +
+  name; same-name cards by the number on their card page (read once). One request a
+  second, `TCG_POKEMON_OFFICIAL_JP_DAILY_REQUESTS` 300; `TCG_POKEMON_OFFICIAL_JP`.
+  Live run: 388 pictures from the first 20 pages.
+- [ ] User: after the next catalog sync, check M-era Japanese printings get pictures over
+  a few days (first fill of the list takes ~3 days at 300 requests).
+
+- [x] Versions: server 0.16.0 (`pyproject.toml`, README, `.env.example` comment), Android
+  0.10.0. New variables: `TCG_APITOKEN_PRICES_CARDNEXUS`, `TCG_CARDNEXUS_DAILY_REQUESTS`,
+  `TCG_POKEMON_OFFICIAL_JP`, `TCG_POKEMON_OFFICIAL_JP_DAILY_REQUESTS`.
+- [x] Checks: backend 202 tests (10 new), ruff; web build, oxlint, i18n (428 texts);
+  Android `testDebugUnitTest compileDebugKotlin lintDebug`; browser (this branch on :8100
+  against the test database): type-to-search on a card page, typeahead, Shift+Enter →
+  stock dialog → added, Finance page (light, dark, 390 px, no overflow), Japanese "UR"
+  pictogram on a M1L printing in dark mode, no console errors. Key not in the tree.
+- [ ] User: put the CardNexus key in `.env` (`TCG_APITOKEN_PRICES_CARDNEXUS`), install the
+  0.10.0 APK, scan MEG 22 / 94 / 100, CRI 48, add one: "Added …" shows on the tray.
 
 
 ## Build phases

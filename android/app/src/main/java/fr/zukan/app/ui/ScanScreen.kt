@@ -23,6 +23,8 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -56,6 +58,7 @@ fun ScanScreen(
     priceSources: List<String>,
     imageUrl: (String?) -> String?,
     imageLoader: ImageLoader,
+    snackbar: SnackbarHostState,
     onGame: (String?) -> Unit,
 ) {
     val context = LocalContext.current
@@ -159,19 +162,24 @@ fun ScanScreen(
         if (state.phase == Phase.RESULT) {
             // Swiped down or tapped outside: just looking, back to the camera.
             ModalBottomSheet(onDismissRequest = { scan.resume() }, sheetState = rememberModalBottomSheetState()) {
-                ResultPanel(
-                    state = state,
-                    games = games,
-                    settings = settings,
-                    priceSources = priceSources,
-                    imageUrl = imageUrl,
-                    imageLoader = imageLoader,
-                    onCandidate = scan::selectCandidate,
-                    onPrinting = scan::selectPrinting,
-                    searchPrintings = scan::searchPrintings,
-                    onAdjust = scan::adjust,
-                    onClose = { scan.resume() },
-                )
+                Box {
+                    ResultPanel(
+                        state = state,
+                        games = games,
+                        settings = settings,
+                        priceSources = priceSources,
+                        imageUrl = imageUrl,
+                        imageLoader = imageLoader,
+                        onCandidate = scan::selectCandidate,
+                        onPrinting = scan::selectPrinting,
+                        searchPrintings = scan::searchPrintings,
+                        onAdjust = scan::adjust,
+                        onClose = { scan.resume() },
+                    )
+                    // The tray opens in a window of its own above the screen's snackbar:
+                    // show "Added …", Undo and errors in it too.
+                    SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+                }
             }
         }
     }

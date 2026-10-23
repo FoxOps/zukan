@@ -76,7 +76,7 @@ function ItemForm({ item, close }: { item: Item; close: () => void }) {
         </h3>
         <p className="flex flex-wrap items-center gap-1 text-sm text-base-content/60">
           {item.set.name} {item.collector_number}
-          <RarityBadge game={game} rarity={item.rarity} code={item.rarity_code} />
+          <RarityBadge game={game} rarity={item.rarity} code={item.rarity_code} lang={item.language} />
           <FinishBadge game={game} finish={item.finish} />
           <ConditionBadge condition={item.condition} />
           <LangFlag lang={item.language} />

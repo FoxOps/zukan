@@ -32,3 +32,8 @@ show every source. Prices in different currencies are never added up.
 
 `backend/tests/test_catalog.py::test_price_source_plugin_with_its_own_api` shows a
 complete source with its own API.
+
+`app/prices/cardnexus.py` is a real one: CardNexus' daily price files
+(`app/sources/cardnexus.py`), matched through the CardNexus, Cardmarket and TCGplayer ids
+its catalog file gives. Besides its own quotes it yields `cardmarket` and `tcgplayer` ones
+for printings no other source priced today (`MarketTarget.quoted`).

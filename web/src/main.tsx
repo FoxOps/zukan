@@ -48,6 +48,7 @@ const router = createBrowserRouter([
       { path: '/', lazy: page(() => import('./pages/Dashboard')) },
       { path: '/collection', lazy: page(() => import('./pages/Collection')) },
       { path: '/catalog', lazy: page(() => import('./pages/Catalog')) },
+      { path: '/finance', lazy: page(() => import('./pages/Finance')) },
       { path: '/cards/:cardId', lazy: page(() => import('./pages/CardDetail')) },
       { path: '/cards/:cardId/:printingId', lazy: page(() => import('./pages/CardDetail')) },
       { path: '/import', lazy: page(() => import('./pages/ImportExport')) },

@@ -91,9 +91,18 @@ def shipped_folders() -> dict[str, dict[str, Path]]:
     return folders
 
 
-def shipped_rarity_icon(game_id: str, code: str) -> Path | None:
+def icon_variants(code: str, lang: str | None) -> list[str]:
+    """File names to look for, most specific first: a pictogram of the language's cards
+    ("double_rare.ja", "secret_rare.zh" for both Chinese scripts), then the plain one."""
+    if not lang:
+        return [code]
+    langs = dict.fromkeys([lang, lang.split("-")[0]])
+    return [f"{code}.{lang}" for lang in langs] + [code]
+
+
+def shipped_rarity_icon(game_id: str, code: str, lang: str | None = None) -> Path | None:
     """The pictogram shipped with Zukan: its copy in `<image dir>/default/<game>/rarity/`,
-    else the package's (`games/<game>/rarities/<code>.<svg|png|webp>`)."""
+    else the package's (`games/<game>/rarities/<code>[.<lang>].<svg|png|webp>`)."""
     from app.core.config import get_settings
     from app.services import layout
 
@@ -101,21 +110,27 @@ def shipped_rarity_icon(game_id: str, code: str) -> Path | None:
     if provider is None:
         return None
     copy = layout.default_folder(get_settings().image_dir, game_id, layout.RARITY)
-    return layout.own_picture(copy, code) or layout.own_picture(
-        Path(inspect.getfile(type(provider))).parent / "rarities", code
-    )
+    package = Path(inspect.getfile(type(provider))).parent / "rarities"
+    for name in icon_variants(code, lang):
+        if found := layout.own_picture(copy, name) or layout.own_picture(package, name):
+            return found
+    return None
 
 
-def rarity_icon_file(game_id: str, code: str) -> Path | None:
-    """A pictogram put in `<image dir>/<game>/rarity/<code>.<svg|png|webp>`, else the
-    shipped one."""
+def rarity_icon_file(game_id: str, code: str, lang: str | None = None) -> Path | None:
+    """A pictogram put in `<image dir>/<game>/rarity/<code>[.<lang>].<svg|png|webp>`, else
+    the shipped one. Pictograms differ by region on some games (Japanese "RR" boxes,
+    international stars): `lang` picks the one of cards printed in that language."""
     from app.core.config import get_settings
     from app.services import layout
 
     if game_id not in registry():
         return None
     folder = layout.game_folder(get_settings().image_dir, game_id, layout.RARITY)
-    return layout.own_picture(folder, code) or shipped_rarity_icon(game_id, code)
+    for name in icon_variants(code, lang):
+        if found := layout.own_picture(folder, name):
+            return found
+    return shipped_rarity_icon(game_id, code, lang)
 
 
 @dataclass(frozen=True)
@@ -371,6 +386,9 @@ class OcrHints:
     lang: str | None = None
     # The text looks like this game's cards (copyright line, layout markers...).
     recognized: bool = False
+    # Our stored set's external id for `set_code`, when the catalog has that set (set
+    # by the lookup service: a source's ids may differ from printed codes, "MEG" = me01).
+    set_external_id: str | None = None
 
 
 @runtime_checkable

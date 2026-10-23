@@ -140,3 +140,13 @@ h3,
     display: block;
   }
 }
+
+/* Black pictograms (Japanese and Chinese rarity letters) turned light on the dark theme. */
+[data-theme="zukan-dark"] .zukan-ink {
+  filter: invert(1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .zukan-ink {
+    filter: invert(1);
+  }
+}

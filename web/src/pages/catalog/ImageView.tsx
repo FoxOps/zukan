@@ -33,7 +33,7 @@ export function ImageView({ cards, games, showGame }: CatalogViewProps) {
                 {showGame && `${game?.name ?? card.game_id} · `}
                 {t('{{count}} printings', { count: card.printing_count })}
               </span>
-              <RarityBadge game={game} rarity={card.rarity} code={card.rarity_code} className="text-xs text-base-content/70" />
+              <RarityBadge game={game} rarity={card.rarity} code={card.rarity_code} lang={card.set?.lang} className="text-xs text-base-content/70" />
               {card.price_min !== null && (
                 <span className="text-xs font-medium">
                   <PriceRange card={card} />

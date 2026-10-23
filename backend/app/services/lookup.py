@@ -10,9 +10,11 @@ import logging
 import time
 
 import httpx
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.games.base import GameProvider, OcrHints, OcrLine
+from app.models import CardSet
 from app.services.catalog import CatalogWriter
 
 log = logging.getLogger(__name__)
@@ -48,6 +50,15 @@ async def look_up(
         key = _key(provider.id, hints)
         if time.monotonic() - _misses.get(key, -MISS_TTL) < MISS_TTL:
             continue
+        if hints.set_code:
+            hints.set_external_id = await session.scalar(
+                select(CardSet.external_id)
+                .where(
+                    CardSet.game_id == provider.id,
+                    func.lower(CardSet.code) == hints.set_code.lower(),
+                )
+                .limit(1)
+            )
         try:
             batch = await provider.lookup(http, hints)
         except httpx.HTTPError as exc:

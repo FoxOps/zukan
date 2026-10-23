@@ -38,7 +38,7 @@ export function ListView({ items, games, showGame, busy, step, edit }: ViewProps
                     {item.set.code} {item.collector_number} · {item.set.name}
                     {showGame && ` · ${g?.name ?? item.game_id}`}
                   </div>
-                  <RarityBadge game={g} rarity={item.rarity} code={item.rarity_code} className="text-xs text-base-content/70" />
+                  <RarityBadge game={g} rarity={item.rarity} code={item.rarity_code} lang={item.language} className="text-xs text-base-content/70" />
                   {item.notes && <div className="text-xs italic text-base-content/60">{item.notes}</div>}
                 </td>
                 <td className="whitespace-nowrap text-xs">

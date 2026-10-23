@@ -24,6 +24,8 @@ MAX_PRINTINGS = 30
 # Below this similarity a name match is noise.
 MIN_SIMILARITY = 0.3
 GOOD_SIMILARITY = 0.6
+# With the collector number read, from this similarity the name is taken as confirmed.
+NUMBER_NAME_SIMILARITY = 0.5
 
 
 @dataclass
@@ -179,7 +181,11 @@ async def _identify_game(
         similarity = await _name_similarity(session, provider.id, names, cards) if cards else {}
         for printing in numbered:
             score = similarity.get(printing.card_id, 0)
-            if score >= MIN_SIMILARITY:
+            if score >= NUMBER_NAME_SIMILARITY:
+                # The number read and a fair name: above any name-only match ("M Camerupt
+                # ex" + 022 is Mega Camerupt ex 022, not the old M Camerupt-EX).
+                add(printing.card_id, 0.9 + 0.09 * score, "number_name", [printing.id])
+            elif score >= MIN_SIMILARITY:
                 add(printing.card_id, 0.6 + 0.4 * score, "number_name", [printing.id])
 
     if hints.name:
