@@ -342,7 +342,25 @@ def _split_pokemon(conn: Connection, report: SplitReport) -> None:
             report,
         )
     for old in ("yugioh", "pokemon-asia"):
+        # Printings that only held another market's languages ("MP25-KR050" of a rarity
+        # the TCG set lacks) are left with none: gone, unless copies stay on them.
+        conn.execute(
+            sa.text(
+                "DELETE FROM printing p USING card_set s WHERE s.id = p.set_id "
+                "AND s.game_id = :game AND p.languages = '{}' "
+                "AND NOT EXISTS (SELECT 1 FROM collection_item i WHERE i.printing_id = p.id)"
+            ),
+            {"game": old},
+        )
         _drop_empty_cards(conn, old)
+        # Sets left without printings, as a catalog sync prunes them.
+        conn.execute(
+            sa.text(
+                "DELETE FROM card_set s WHERE s.game_id = :game "
+                "AND NOT EXISTS (SELECT 1 FROM printing p WHERE p.set_id = s.id)"
+            ),
+            {"game": old},
+        )
 
 
 def _yugioh_names(conn: Connection) -> None:

@@ -141,6 +141,17 @@ async def test_split_keeps_every_owned_copy(session, image_root):
         attributes={"numbers": {"ko": "MP25-KR050"}},
         image_urls={"en": "https://img/en.jpg", "ko": "https://img/MP25-KR050.png"},
     )
+    # A Korean rarity the TCG set lacks: a printing of its own there, Korean only.
+    korean_only = await _printing(
+        session,
+        pot,
+        mp25,
+        "MP25-KR050~secretrare",
+        ["ko"],
+        collector_number="MP25-KR050",
+        rarity="Secret Rare",
+        attributes={"numbers": {"ko": "MP25-KR050"}},
+    )
     pot_jp = await _printing(
         session, pot, be1, "BE1-JP001~ultrarare", ["ja"], collector_number="BE1-JP001"
     )
@@ -260,6 +271,15 @@ async def test_split_keeps_every_owned_copy(session, image_root):
     assert tcg.languages == ["en", "fr"] and not tcg.attributes.get("numbers")
     assert set(tcg.image_urls) == {"en"}
     assert items[owned[4].id].printing_id == pot_tcg.id
+    # The Korean-only printing left the TCG set for the OCG one: no empty printing stays.
+    assert await session.get(Printing, korean_only.id) is None
+    ocg_ids = set(
+        await session.scalars(
+            select(Printing.external_id).join(CardSet).where(CardSet.external_id == "MP25-KR")
+        )
+    )
+    assert ocg_ids == {"MP25-KR050~starlightrare", "MP25-KR050~secretrare"}
+    assert not await session.scalar(select(func.count()).where(Printing.languages == []))
     # Yu-Gi-Oh! cards are named in their game's languages.
     tcg_names = set(await session.scalars(select(CardName.lang).where(CardName.card_id == pot.id)))
     assert tcg_names == {"en", "fr"}
