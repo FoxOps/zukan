@@ -67,7 +67,7 @@ async def test_settings_language_and_catalog_games(client, alice):
         ["mtg", "sorcery"],
     )
     assert (
-        await client.patch("/api/auth/me", json={"language": "de"}, headers=alice)
+        await client.patch("/api/auth/me", json={"language": "it"}, headers=alice)
     ).status_code == 422
     unknown = await client.patch("/api/auth/me", json={"catalog_games": ["chess"]}, headers=alice)
     assert unknown.status_code == 422

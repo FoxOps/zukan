@@ -47,7 +47,8 @@ export function CardPlaceholder({ name, game, setCode, number, className = '' }:
       <div className="flex min-h-0 flex-1 items-center justify-center rounded-[6%] bg-base-200/95 p-[10%] ring-2 ring-white/40">
         <Logo className="max-h-full w-full object-contain opacity-80" />
       </div>
-      <div className="hidden min-w-0 text-white @[7rem]:block">
+      {/* Right-aligned: collection tiles put the quantity badge bottom left. */}
+      <div className="hidden min-w-0 text-right text-white @[7rem]:block">
         {name && <div className="line-clamp-2 text-xs font-semibold leading-tight @[12rem]:text-sm">{name}</div>}
         {where && <div className="truncate text-[0.65rem] opacity-85 @[12rem]:text-xs">{where}</div>}
         <div className="text-[0.6rem] uppercase tracking-wide opacity-70">{t('No picture')}</div>

@@ -1466,6 +1466,62 @@ OCG), names only (no language codes, no flags: user request).
 - [ ] User: after upgrading, let the worker sync the new games (or run their catalog jobs);
   check Collection under each market.
 
+## Pokémon Asia official sources (server 0.18.0, Android unchanged 0.10.0)
+Branch `2026-10-24-000-pokemon-asia-sources-flags-i18n` (from main after 0.17.0). User report
+(server 0.17.0 / app 0.9.0): CardNexus and Cardmarket prices for Pokémon China and the
+other Asian languages; long Finance lists; Korean cards filling the first "All games"
+catalog page; Thai flag missing; official Asian card searches as sources; translated
+names "()" for every Asian language; disambiguation flags only on language-exclusive
+sets; collection pictures in the copy's language; German and Spanish interface; a better
+card placeholder (user chose the "card back frame" mockup, 2026-10-24).
+
+- [x] Prices: CardNexus has no Pokémon China, Korean, Thai or Indonesian game (checked
+  with the user's key, test only: `/v1/games`, `feeds/pokemon-china` empty,
+  `pokemon-japan` = 33.6k cards all `ja`). Cardmarket's price guide is per product, not
+  per language: Asian-language printings share their product's price. New: Cardmarket
+  price source `fetch` for providers with `cardmarket_guide` (Pokémon, Pokémon Asia:
+  game 6) prices printings with a Cardmarket id TCGdex left unpriced
+  (`cardmarket_suffixes`, shared with TCGdex prices). China: no source.
+- [x] Sources (`games/pokemon/official_asia.py`): asia.pokemon-card.com (th, id, tw →
+  zh-hant: product list, 20-card list pages, card pages with name, number, Pokédex number,
+  HP, type, illustrator) and pokemoncard.co.kr (`/v2/ajax2_dev2` list, 30 a page, needs
+  `X-Requested-With`; picture path holds the Japanese code and number, so listed cards
+  join before their page is read; card pages give the name). One request a second,
+  `TCG_POKEMON_OFFICIAL_ASIA_DAILY_REQUESTS` (500) a day per language, cache
+  `<image dir>/cache/pokemon-official-<lang>.json` (product lists again after 14 days;
+  each product's cards read right after its list). Read in the Asia game's catalog sync
+  after TCGdex and the datasets, through `join_asian_set`: zh-hant and ko join the
+  Japanese printing of the same code and number (language, name, picture, so the card
+  keeps its English translation); th and id never join a set of another language with
+  their code (own numbering) but share one set (`sea:<code>` when a Japanese set has the
+  code). English names: Pokédex number + species names (Thai: species, known form words
+  and suffixes only; Indonesian prints English species names). `catalog_version` 8.
+- [x] Flags: `SetOut.exclusive_lang` = the one language of a regional set's printings
+  (none for international sets or sets printed in several languages); card page printing
+  rows and the set filter use it. Thai and Indonesian flags added (web).
+- [x] Finance: By set / By rarity no longer cut at 15; every breakdown shows 10 rows a page
+  with the shared `Pagination` (bars keep the whole list's scale).
+- [x] Collection pictures: in the copy's language, else the game's `image_fallback`
+  (international games English, Pokémon Asia and Yu-Gi-Oh! OCG Japanese), else the
+  card's usual picture; Pokémon China: placeholder.
+- [x] Placeholder: `CardPlaceholder`, card back in the game family's color, Zukan mark,
+  name, set · number, "No picture" (text hidden on small thumbnails, right-aligned
+  clear of the quantity badge).
+- [x] Interface: German and Spanish (`locales/de.json`, `es.json`, 447 texts each), API
+  `UiLanguage` en/fr/de/es.
+- [ ] Later (user): "All games" catalog order (raw `Card.name` sort above 5 000 rows,
+  Hangul before Latin in `en_US.utf8`).
+- [ ] Found, not done: CardNexus has a `ygo-ocg` game (37k cards, Cardmarket ids) that
+  could price Yu-Gi-Oh! OCG (needs set code `LOCR-JP` ↔ `LOCR`, number `LOCR-JP023` ↔
+  `LOCR-023` mapping); Android flags lack Thai and Indonesian too (`ui/Badges.kt`).
+- [x] Versions: server 0.18.0, Android unchanged.
+- [x] Checks: backend 221 tests, ruff; web tsc, oxlint, i18n, build, gen:api; live crawl
+  (40 requests per language: zh-hant M6a, th/id MA6, ko 1 200 cards listed); browser on
+  :8018 against a copy of the test database (Finance pages, Korean / China copies with
+  the placeholder, German interface, 390 px no overflow).
+- [ ] User: after upgrading, the worker re-syncs Pokémon Asia (catalog version 8); the
+  official searches take a few days to fill (about 500 requests a day per language).
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.
