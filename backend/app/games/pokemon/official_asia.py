@@ -214,6 +214,7 @@ class Cache:
     """What was read from one site language."""
 
     def __init__(self, lang: str, path: Path | None = None):
+        self.lang = lang
         self.path = path or get_settings().image_dir / "cache" / f"pokemon-official-{lang}.json"
         data: dict[str, Any] = {}
         if self.path.exists():
@@ -274,32 +275,51 @@ async def crawl_asia(
             cache.products[code] = [_text(name), known[1] if known else None]
         cache.read_at = now.isoformat()
         cache.save()
-    # The site lists the newest products first.
+    # The site lists the newest products first. Each product's cards are read right
+    # after its list, so the first days already bring whole products.
     for code, (_, read_at) in cache.products.items():
-        if not _stale(read_at, now):
-            continue
-        page_no, pages = 1, 1
-        while page_no <= pages:
-            page = (
-                await budget.get(
-                    http, f"{site}/list/", params={"expansionCodes": code, "pageNo": page_no}
-                )
-            ).text
-            pages = max([pages, *(int(n) for n in _ASIA_PAGES.findall(page))])
-            for card_id in _ASIA_CARD.findall(page):
-                if card_id not in cache.listed:
-                    cache.listed[card_id] = [code, None, None]
-            page_no += 1
-        cache.products[code][1] = now.isoformat()
-        cache.save()
-    for card_id, (code, _, _) in list(cache.listed.items()):
-        if card_id in cache.cards:
-            continue
-        page = await _page(http, budget, f"{site}/detail/{card_id}/")
+        if _stale(read_at, now):
+            page_no, pages = 1, 1
+            while page_no <= pages:
+                page = (
+                    await budget.get(
+                        http, f"{site}/list/", params={"expansionCodes": code, "pageNo": page_no}
+                    )
+                ).text
+                pages = max([pages, *(int(n) for n in _ASIA_PAGES.findall(page))])
+                for card_id in _ASIA_CARD.findall(page):
+                    if card_id not in cache.listed:
+                        cache.listed[card_id] = [code, None, None]
+                page_no += 1
+            cache.products[code][1] = now.isoformat()
+            cache.save()
+        await read_cards(http, budget, cache, f"{site}/detail/{{}}/", code)
+    # Cards of products the site no longer lists.
+    await read_cards(http, budget, cache, f"{site}/detail/{{}}/")
+
+
+async def read_cards(
+    http: httpx.AsyncClient,
+    budget: RequestBudget,
+    cache: Cache,
+    url: str,
+    code: str | None = None,
+) -> None:
+    """Card pages not read yet (of one product), `url` holding `{}` for the card id."""
+    unread = [
+        card_id
+        for card_id, (listed_code, _, _) in cache.listed.items()
+        if card_id not in cache.cards and code in (None, listed_code)
+    ]
+    for card_id in unread:
+        page = await _page(http, budget, url.format(card_id))
         if page is None:
             del cache.listed[card_id]
             continue
-        card = parse_asia_detail(page, code)
+        if cache.lang == "ko":
+            card = parse_korea_detail(page)
+        else:
+            card = parse_asia_detail(page, cache.listed[card_id][0])
         if card is not None:
             cache.cards[card_id] = card.__dict__
             cache.listed[card_id] = [card.code, card.number, card.image]
@@ -319,10 +339,18 @@ async def crawl_korea(http: httpx.AsyncClient, budget: RequestBudget, cache: Cac
                 response = await http.post(
                     f"{KOREA_SITE}/v2/ajax2_dev2",
                     files={k: (None, v) for k, v in _korea_form(tab, page).items()},
-                    headers={"Referer": f"{KOREA_SITE}/cards"},
+                    # Without it the site answers "접근불가" (no access).
+                    headers={
+                        "Referer": f"{KOREA_SITE}/cards",
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
                 )
                 response.raise_for_status()
                 rows = _korea_rows(response.text)
+                if not rows and page == 0:
+                    # Refused or changed: tried again next run.
+                    log.warning("Pokémon Korea card list (tab %s) answered no card", tab)
+                    break
                 new = 0
                 for row in rows:
                     card_id = str(row.get("CardNum") or "")
@@ -338,22 +366,11 @@ async def crawl_korea(http: httpx.AsyncClient, budget: RequestBudget, cache: Cac
                 cache.save()
                 if len(rows) < KOREA_PAGE or (done and new == 0):
                     break
-            if not done:
+            if not done and cache.next_page.get(tab):
                 cache.complete.append(tab)
         cache.read_at = now.isoformat()
         cache.save()
-    for card_id in list(cache.listed):
-        if card_id in cache.cards:
-            continue
-        page = await _page(http, budget, f"{KOREA_SITE}/cards/detail/{card_id}")
-        if page is None:
-            del cache.listed[card_id]
-            continue
-        card = parse_korea_detail(page)
-        if card is not None:
-            cache.cards[card_id] = card.__dict__
-            cache.listed[card_id] = [card.code, card.number, card.image]
-            cache.save()
+    await read_cards(http, budget, cache, f"{KOREA_SITE}/cards/detail/{{}}")
 
 
 async def _page(http: httpx.AsyncClient, budget: RequestBudget, url: str) -> str | None:
@@ -404,7 +421,8 @@ def thai_english(name: str, dex: int | None) -> str | None:
     english = (species_names().get(dex) or {}).get("en") if dex else None
     if not english:
         return None
-    rest, form = name.strip(), "{}"
+    # Regional forms are also written "<อโลลา> นัชชี".
+    rest, form = re.sub(r"[<>]", "", name).strip(), "{}"
     for word, english_form in _TH_FORMS.items():
         if rest.startswith(word):
             rest, form = rest[len(word) :].strip(), english_form
@@ -447,8 +465,9 @@ def to_card(card: OfficialCard, lang: str, set_id: str) -> CardData:
             if english:
                 names["en"] = english
         elif lang == "id":
-            # Indonesian cards print the English species names.
-            if derive_names(name, "en", dex):
+            # Indonesian cards print the English species names ("Alolan Exeggutor").
+            species = (species_names().get(card.dex) or {}).get("en") if card.dex else None
+            if derive_names(name, "en", dex) or (species and species in name):
                 names["en"] = name
         else:
             names = derive_names(name, lang, dex) | names

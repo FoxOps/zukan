@@ -119,6 +119,7 @@ def test_thai_english_names():
     assert official_asia.thai_english("ทามะทามะ", 102) == "Exeggcute"
     assert official_asia.thai_english("ลิซาร์ดอนex", 6) == "Charizard ex"
     assert official_asia.thai_english("อโลลา นัชชีex", 103) == "Alolan Exeggutor ex"
+    assert official_asia.thai_english("<อโลลา> นัชชี", 103) == "Alolan Exeggutor"
     # "X" left: Mega Charizard X, not only the species.
     assert official_asia.thai_english("เมก้าลิซาร์ดอนXex", 6) is None
     assert official_asia.thai_english("ทามะทามะ", None) is None
@@ -140,14 +141,14 @@ async def test_crawl_thai_site_within_budget(cache_dir):
         }
         async with http_client() as http:
             cache = Cache("th")
-            # Search page and three list pages, then one card page.
+            # Search page, the first product's two list pages and its two cards.
             budget = RequestBudget("pokemon-official-th-test", "day", 5)
             with pytest.raises(official_asia.BudgetSpent):
                 await official_asia.crawl_asia(http, budget, cache, "th")
-            assert search.call_count == 1 and lists.call_count == 3
-            assert sorted(cache.listed) == ["14720", "14721", "900"]
-            assert list(cache.cards) == ["14720"]
-            # Next run: product lists are fresh, only the card pages left are read.
+            assert search.call_count == 1 and lists.call_count == 2
+            assert sorted(cache.listed) == ["14720", "14721"]
+            assert sorted(cache.cards) == ["14720", "14721"]
+            # Next run: the first product's list is fresh, the second one is read.
             cache = Cache("th")
             budget = RequestBudget("pokemon-official-th-test2", "day", 10)
             await official_asia.crawl_asia(http, budget, cache, "th")
@@ -183,25 +184,49 @@ async def test_crawl_korean_list_then_pages(cache_dir):
         tab = body.split('name="CardTypeNum"')[1].split("\r\n\r\n")[1].split("\r\n")[0]
         page = int(body.split('name="limit"')[1].split("\r\n\r\n")[1].split("\r\n")[0])
         rows = []
-        if tab == "1" and page == 0:
-            rows = [
-                {"CardNum": "BS2026006001", "feature_image": "wmimages/MEGA/M6a/M6a_001.png?w=400"},
-                {"CardNum": "BS2026006002", "feature_image": "wmimages/MEGA/M6a/M6a_002.png?w=400"},
-            ]
+        if request.headers.get("X-Requested-With") != "XMLHttpRequest":
+            return respx.MockResponse(200, text="접근불가")
+        if page == 0:
+            rows = {
+                "1": [
+                    {
+                        "CardNum": "BS2026006001",
+                        "feature_image": "wmimages/MEGA/M6a/M6a_001.png?w=400",
+                    },
+                    {
+                        "CardNum": "BS2026006002",
+                        "feature_image": "wmimages/MEGA/M6a/M6a_002.png?w=400",
+                    },
+                ],
+                # Energies: picture names without number.
+                "3": [
+                    {
+                        "CardNum": "BS2026009019",
+                        "feature_image": "wmimages/MEGA/MEM/MEM_GRA.png?w=400",
+                    }
+                ],
+            }.get(tab, [])
         return respx.MockResponse(200, text=json.dumps({"status": True, "result": rows}))
 
     with respx.mock() as router:
         ajax = router.post(f"{official_asia.KOREA_SITE}/v2/ajax2_dev2").mock(side_effect=listing)
         router.get(f"{official_asia.KOREA_SITE}/cards/detail/BS2026006001").respond(text=KO_DETAIL)
         gone = router.get(f"{official_asia.KOREA_SITE}/cards/detail/BS2026006002").respond(404)
+        router.get(f"{official_asia.KOREA_SITE}/cards/detail/BS2026009019").respond(text="<p>?</p>")
         async with http_client() as http:
             cache = Cache("ko")
             budget = RequestBudget("pokemon-official-ko-test", "day", 10)
             await official_asia.crawl_korea(http, budget, cache)
-    # One page per tab (fewer than 30 cards: the end), two card pages.
+    # One page per tab (fewer than 30 cards: the end), three card pages. The tab that
+    # answered nothing is read again next time.
     assert ajax.call_count == 3 and gone.call_count == 1
-    assert cache.complete == ["1", "2", "3"]
-    assert list(cache.listed) == ["BS2026006001"]
+    assert cache.complete == ["1", "3"]
+    assert list(cache.listed) == ["BS2026006001", "BS2026009019"]
+    assert cache.listed["BS2026009019"] == [
+        "MEM",
+        "GRA",
+        f"{official_asia.KOREA_IMAGES}wmimages/MEGA/MEM/MEM_GRA.png",
+    ]
     assert cache.cards["BS2026006001"]["name"] == "아라리"
 
 
@@ -270,3 +295,11 @@ def test_indonesian_species_names_are_english():
         OfficialCard("MA6", "001", None, name="Exeggcute", hp=60, dex=102), "id", "MA6"
     )
     assert card.names == {"id": "Exeggcute", "en": "Exeggcute"}
+    regional = official_asia.to_card(
+        OfficialCard("MA6", "002", None, name="Alolan Exeggutor", hp=150, dex=103), "id", "MA6"
+    )
+    assert regional.names["en"] == "Alolan Exeggutor"
+    trainer = official_asia.to_card(
+        OfficialCard("MA6", "090", None, name="Riset Profesor"), "id", "MA6"
+    )
+    assert trainer.names == {"id": "Riset Profesor"}
