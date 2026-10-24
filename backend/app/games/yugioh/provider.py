@@ -475,6 +475,7 @@ class YugiohProvider:
             # Cardmarket and TCGplayer sell the TCG printings.
             self.price_sources = []
             self.source_keys = {}
+        self.image_fallback = "en" if region == TCG else "ja"
 
     @property
     def languages(self) -> list[str]:

@@ -5,7 +5,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 const SRC = new URL('../src/', import.meta.url).pathname
-const LOCALES = { en: 'locales/en.json', fr: 'locales/fr.json' }
+const LOCALES = { en: 'locales/en.json', fr: 'locales/fr.json', de: 'locales/de.json', es: 'locales/es.json' }
 const DYNAMIC = [
   // Navigation labels, sort options, conditions, job kinds and states, roles, sources.
   'Dashboard', 'Collection', 'Catalog', 'Import / export', 'Settings', 'Users', 'Data sync',

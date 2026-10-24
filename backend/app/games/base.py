@@ -428,6 +428,8 @@ class GameProvider(Protocol):
       other sources' printings pair with ours by number and rarity.
     - `secondary_sources: list[CatalogSource]`: other sources of this game's catalog,
       cross-checked against it after each catalog sync.
+    - `image_fallback` (default "en"): language of the picture shown for a collection copy
+      whose own language has none; None shows no picture (placeholder).
     - `fetch_cards(http, cards: list[CardRef]) -> AsyncIterator[CatalogBatch]`: fetch
       these cards again (stale or incomplete data). Yielded cards keep the external ids
       of the refs; cards the source no longer has are left out."""
@@ -467,6 +469,10 @@ ENTRY_POINT_GROUP = "zukan.games"
 
 def catalog_version(provider: GameProvider) -> int:
     return getattr(provider, "catalog_version", 1)
+
+
+def image_fallback(provider: GameProvider | None) -> str | None:
+    return getattr(provider, "image_fallback", "en") if provider else "en"
 
 
 @lru_cache

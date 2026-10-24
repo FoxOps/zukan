@@ -23,6 +23,9 @@ export function ImageView({ cards, games, showGame }: CatalogViewProps) {
               back={card.back_image}
               alt={card.name}
               landscape={card.orientation === 'landscape'}
+              game={card.game_id}
+              setCode={card.set?.code}
+              number={card.collector_number}
               faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]"
             />
             <div className="flex flex-col gap-1">

@@ -5,11 +5,13 @@ import de from 'flag-icons/flags/4x3/de.svg'
 import es from 'flag-icons/flags/4x3/es.svg'
 import fr from 'flag-icons/flags/4x3/fr.svg'
 import gb from 'flag-icons/flags/4x3/gb.svg'
+import id from 'flag-icons/flags/4x3/id.svg'
 import it from 'flag-icons/flags/4x3/it.svg'
 import jp from 'flag-icons/flags/4x3/jp.svg'
 import kr from 'flag-icons/flags/4x3/kr.svg'
 import pt from 'flag-icons/flags/4x3/pt.svg'
 import ru from 'flag-icons/flags/4x3/ru.svg'
+import th from 'flag-icons/flags/4x3/th.svg'
 import tw from 'flag-icons/flags/4x3/tw.svg'
 
 // Special finishes stand out from the game's base finish (non-foil, normal, standard).
@@ -41,7 +43,7 @@ export function ConditionBadge({ condition, size = 'badge-sm' }: { condition: st
   )
 }
 
-const FLAGS: Record<string, string> = { cn, de, es, fr, gb, it, jp, kr, pt, ru, tw }
+const FLAGS: Record<string, string> = { cn, de, es, fr, gb, id, it, jp, kr, pt, ru, th, tw }
 
 /** Flag of a card language, its name as tooltip; the code when no flag is known. */
 export function LangFlag({ lang, className = 'h-3.5' }: { lang: string; className?: string }) {
