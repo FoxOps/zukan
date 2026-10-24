@@ -1611,7 +1611,7 @@ export interface components {
              * Language
              * @enum {string}
              */
-            language: "en" | "fr";
+            language: "en" | "fr" | "de" | "es";
             /** Catalog Games */
             catalog_games: string[] | null;
             /** Price Source */
@@ -1915,7 +1915,7 @@ export interface components {
          */
         SettingsIn: {
             /** Language */
-            language?: ("en" | "fr") | null;
+            language?: ("en" | "fr" | "de" | "es") | null;
             /** Catalog Games */
             catalog_games?: string[] | null;
             /** Price Source */

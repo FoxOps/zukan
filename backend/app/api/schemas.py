@@ -9,7 +9,7 @@ Username = Annotated[
 ]
 Password = Annotated[str, StringConstraints(min_length=8, max_length=256)]
 # Languages of the web interface.
-UiLanguage = Literal["en", "fr"]
+UiLanguage = Literal["en", "fr", "de", "es"]
 
 
 class IdentityOut(BaseModel):

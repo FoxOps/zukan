@@ -4,7 +4,9 @@ import LanguageDetector from 'i18next-browser-languagedetector'
 import { useCallback, useEffect } from 'react'
 import { initReactI18next } from 'react-i18next'
 import { api } from '../api/client'
+import de from '../locales/de.json'
 import en from '../locales/en.json'
+import es from '../locales/es.json'
 import fr from '../locales/fr.json'
 
 /**
@@ -18,6 +20,8 @@ import fr from '../locales/fr.json'
 export const LANGUAGES = [
   { code: 'en', label: 'English', short: 'EN' },
   { code: 'fr', label: 'Français', short: 'FR' },
+  { code: 'de', label: 'Deutsch', short: 'DE' },
+  { code: 'es', label: 'Español', short: 'ES' },
 ] as const
 export type Lang = (typeof LANGUAGES)[number]['code']
 
@@ -28,7 +32,7 @@ void i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources: { en: { translation: en }, fr: { translation: fr } },
+    resources: { en: { translation: en }, fr: { translation: fr }, de: { translation: de }, es: { translation: es } },
     fallbackLng: 'en',
     supportedLngs: LANGUAGES.map((l) => l.code),
     nonExplicitSupportedLngs: true,
