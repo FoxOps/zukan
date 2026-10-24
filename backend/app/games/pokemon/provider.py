@@ -56,7 +56,7 @@ from app.games.base import (
     SetData,
 )
 from app.games.ocr import bottom_part, by_position, clean, letter_ratio, script_language
-from app.games.pokemon import asia, official_jp, shared
+from app.games.pokemon import asia, official_asia, official_jp, shared
 from app.games.pokemon.species import derive_names, species_names
 from app.games.pokemon.types import NO_TYPE, card_colors
 from app.models import Printing
@@ -129,6 +129,10 @@ class PokemonSettings(BaseSettings):
     # (official_jp.py), at most this many requests a day.
     official_jp: bool = True
     official_jp_daily_requests: int = 300
+    # Thai, Indonesian, Traditional Chinese and Korean cards from the official Asian card
+    # searches (official_asia.py), at most this many requests a day per language.
+    official_asia: bool = True
+    official_asia_daily_requests: int = 500
 
     def tcgdex_languages(self) -> set[str]:
         """TCGdex languages to read, all games'."""
@@ -190,6 +194,10 @@ REGIONS = {
         ("pkmcn", "pokecn", "ptcgcn"),
     ),
 }
+# Languages whose products are numbered their own way (Thai, Indonesian), and the prefix
+# of their set ids when a Japanese set has their code.
+SOUTHEAST_ASIAN = {"th", "id"}
+SOUTHEAST_PREFIX = "sea:"
 # Mainland Chinese set codes: "CSV9C", "CS5aC", "CS4.5C", "151C".
 _CHINA_CODE = re.compile(r"^(?:CS[\w.+]*C|\d{2,3}C)$")
 
@@ -353,18 +361,35 @@ def join_asian_set(
     fetched_sets: dict[tuple[bool, str], str],
     keys: dict[tuple[str, str], str],
     english_cards: set[str],
+    set_langs: dict[str, str | None] | None = None,
 ) -> CatalogBatch:
-    """Cards of a Korean or Chinese dataset set. A set of an Asian id already stored
-    (from TCGdex) gets this language's names and images on its printings of the same
-    number; other cards are added in full (joined to the English card when named after
-    species)."""
+    """Cards of a Korean or Chinese dataset set, or of an official Asian card search. A
+    set of an Asian id already stored (from TCGdex) gets this language's names and images
+    on its printings of the same number; other cards are added in full (joined to the
+    English card when named after species). Cards without a name (listed, page not read)
+    only join printings.
+
+    `set_langs` (our set id -> its language): Thai and Indonesian products number their
+    cards their own way, so they never join a set of another language that has their code
+    (Japanese "SV-P" promos): they get a set of their own, shared by both."""
     asian_ids = {tcgdex.casefold(): ours for (asian, tcgdex), ours in fetched_sets.items() if asian}
     taken = {tcgdex.casefold() for asian, tcgdex in fetched_sets if not asian}
-    set_id = asian_ids.get(extra.code.casefold())
+    code = extra.code
+    set_id = asian_ids.get(code.casefold())
+    if (
+        set_langs is not None
+        and lang in SOUTHEAST_ASIAN
+        and set_id is not None
+        and set_langs.get(set_id) not in SOUTHEAST_ASIAN
+    ):
+        code = f"{SOUTHEAST_PREFIX}{code}"
+        set_id = asian_ids.get(code.casefold())
     batch = CatalogBatch()
     if set_id is None:
-        set_id = f"{ASIAN_PREFIX}{extra.code}" if extra.code.casefold() in taken else extra.code
-        fetched_sets[(True, extra.code)] = set_id
+        set_id = f"{ASIAN_PREFIX}{code}" if code.casefold() in taken else code
+        fetched_sets[(True, code)] = set_id
+        if set_langs is not None:
+            set_langs[set_id] = lang
         extra.data.external_id = set_id
         batch.sets.append(extra.data)
     numbers = {
@@ -389,12 +414,14 @@ def join_asian_set(
                             collector_number=local,
                             languages=[lang],
                             images=printing.images,
-                            names={lang: card.name},
+                            names={lang: card.name} if card.name else {},
                         )
                     ],
                     partial=True,
                 )
             )
+            continue
+        if not card.name:
             continue
         joined = join_english(card, english_cards)
         keys[(set_id, printing.external_id)] = joined.external_id
@@ -678,7 +705,8 @@ class PokemonProvider:
     # 5: "No type" for Trainers and special Energies.
     # 6: Pokémon TCG API dropped, English pictures it gave refilled from the other sources.
     # 7: one game per market (international, Asia, China).
-    catalog_version = 7
+    # 8: Thai, Indonesian, Traditional Chinese and Korean cards of the official searches.
+    catalog_version = 8
 
     def __init__(self, region: str = INTERNATIONAL):
         self.market = REGIONS[region]
@@ -744,6 +772,8 @@ class PokemonProvider:
         keys: dict[tuple[str, str], str] = {}
         # Our set id of each TCGdex set id, per language family (international, Asian).
         fetched_sets: dict[tuple[bool, str], str] = {}
+        # Language of each Asian set fetched in full (official searches join by it).
+        set_langs: dict[str, str | None] = {}
         english_cards: set[str] = set()
         if self.region != INTERNATIONAL:
             # Ids the international game uses and its card names (`shared.py`).
@@ -767,6 +797,7 @@ class PokemonProvider:
                 batch = await self._full_set(
                     http, lang, raw_set, None if lang == "en" else LANGUAGES[lang], set_id
                 )
+                set_langs[set_id] = None if lang == "en" else LANGUAGES[lang]
                 if lang == "en":
                     english_cards |= {card.external_id for card in batch.cards}
                 else:
@@ -789,6 +820,20 @@ class PokemonProvider:
                 continue
             for extra_set in sets:
                 yield join_asian_set(extra_set, lang, fetched_sets, keys, english_cards)
+                if ours := fetched_sets.get((True, extra_set.code)):
+                    set_langs.setdefault(ours, lang)
+        official = [lang for lang in official_asia.LANGUAGES if lang in self.languages]
+        if settings.official_asia and self.region == ASIA and official:
+            found = await official_asia.read_sites(
+                http, official, settings.official_asia_daily_requests
+            )
+            # Japanese codes first (Traditional Chinese, Korean). Indonesian before Thai:
+            # its English names join the English cards, Thai names then join its printings.
+            for lang in ("zh-hant", "ko", "id", "th"):
+                for extra_set in found.get(lang, []):
+                    yield join_asian_set(
+                        extra_set, lang, fetched_sets, keys, english_cards, set_langs
+                    )
 
     async def _translations(
         self,
