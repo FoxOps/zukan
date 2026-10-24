@@ -7,6 +7,7 @@ import { useGames, type Game } from '../api/queries'
 import { ConditionBadge, FinishBadge, LangFlag } from '../components/Badges'
 import { CardImage } from '../components/CardImage'
 import { GameTabs } from '../components/Filters'
+import { Pagination } from '../components/Pagination'
 import { PriceChart } from '../components/PriceChart'
 import { ShownName } from '../components/ShownName'
 import { conditionName, finishName, formatMoney, languageName } from '../lib/format'
@@ -17,6 +18,8 @@ type Share = Schemas['ShareOut']
 type Report = Schemas['FinanceOut']
 
 const RANGES = [30, 90, 365]
+// Breakdown entries shown at once; longer lists get pages.
+const BREAKDOWN_PAGE = 10
 const PERIOD_LABELS: Record<number, string> = { 1: '1 day', 7: '7 days', 30: '30 days', 90: '90 days', 365: '1 year' }
 
 function percent(value: number) {
@@ -69,14 +72,19 @@ function Breakdown({
   label?: (share: Share) => string
 }) {
   const { t } = useTranslation()
+  const [page, setPage] = useState(1)
   if (shares.length === 0) return null
+  // Bars keep the scale of the whole list, so pages compare with each other.
   const max = Math.max(...shares.map((s) => Number(s.value)), 0)
+  const pages = Math.ceil(shares.length / BREAKDOWN_PAGE)
+  const current = Math.min(page, pages)
+  const shown = shares.slice((current - 1) * BREAKDOWN_PAGE, current * BREAKDOWN_PAGE)
   return (
     <div className="card bg-base-200">
       <div className="card-body gap-3">
         <h2 className="card-title text-base">{title}</h2>
         <ul className="flex flex-col gap-2">
-          {shares.map((s) => {
+          {shown.map((s) => {
             const value = Number(s.value)
             const name = label(s)
             return (
@@ -96,6 +104,7 @@ function Breakdown({
             )
           })}
         </ul>
+        <Pagination page={current} pageSize={BREAKDOWN_PAGE} total={shares.length} onChange={setPage} />
       </div>
     </div>
   )

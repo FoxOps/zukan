@@ -9,6 +9,7 @@ from sqlalchemy.orm import contains_eager, selectinload
 
 from app.api.catalog import (
     back_image_link,
+    image_link,
     load_names,
     name_matches,
     number_sort_key,
@@ -17,7 +18,7 @@ from app.api.catalog import (
     show_printing,
 )
 from app.api.deps import CurrentUser, SessionDep
-from app.games.base import registry
+from app.games.base import image_fallback, registry
 from app.models import (
     Card,
     CardName,
@@ -29,7 +30,7 @@ from app.models import (
     StockTransaction,
 )
 from app.prices.base import price_sources
-from app.services import collection, csv_io
+from app.services import collection, csv_io, images
 from app.services.collection import StockError, Variant
 from app.services.names import display_name
 
@@ -195,6 +196,20 @@ def _item_query():
     )
 
 
+def copy_image(printing: Printing, language: str, picked: str | None) -> str | None:
+    """Picture of a copy: in its own language, else the game's fallback language (English,
+    Japanese for Asian games), else `picked` (the card's usual picture) unless the game
+    has no fallback (Pokémon China: placeholder)."""
+    available = {
+        lang for lang in images.image_languages(printing) if printing.image_paths.get(lang) != ""
+    }
+    fallback = image_fallback(registry().get(printing.set.game_id))
+    lang = next((lang for lang in (language, fallback) if lang in available), None)
+    if lang:
+        return image_link(printing, lang)
+    return picked if fallback else None
+
+
 async def _items_out(
     session: SessionDep, items: list[CollectionItem], lang: str, wanted: str
 ) -> list[ItemOut]:
@@ -221,7 +236,7 @@ async def _items_out(
                 collector_number=printing.collector_number,
                 rarity=printing.rarity,
                 rarity_code=rarity_code(printing),
-                image=image,
+                image=copy_image(printing, item.language, image),
                 back_image=back_image_link(printing),
                 orientation=orientation(printing),
                 finish=item.finish,

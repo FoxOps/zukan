@@ -81,6 +81,8 @@ export const LANGUAGE_FLAGS: Record<string, string> = {
   ko: 'kr',
   'zh-hans': 'cn',
   'zh-hant': 'tw',
+  th: 'th',
+  id: 'id',
   ru: 'ru',
 }
 

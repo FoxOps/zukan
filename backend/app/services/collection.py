@@ -539,9 +539,8 @@ async def finance(
     lines.sort(key=lambda line: -line[2])
     top_share = float(sum(line[2] for line in lines[:10]) / total) if total else None
 
-    def ordered(kind: str, limit: int | None = None) -> list[Share]:
-        found = sorted(shares[kind].values(), key=lambda s: (-s.value, -s.quantity, s.label))
-        return found[:limit] if limit else found
+    def ordered(kind: str) -> list[Share]:
+        return sorted(shares[kind].values(), key=lambda s: (-s.value, -s.quantity, s.label))
 
     return Finance(
         currency=currency,
@@ -556,8 +555,8 @@ async def finance(
         changes=changes,
         history=history,
         by_game=ordered("game"),
-        by_set=ordered("set", 15),
-        by_rarity=ordered("rarity", 15),
+        by_set=ordered("set"),
+        by_rarity=ordered("rarity"),
         by_condition=ordered("condition"),
         by_language=ordered("language"),
         by_finish=ordered("finish"),

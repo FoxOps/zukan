@@ -448,6 +448,21 @@ def _tcgplayer_prices(raw: dict[str, Any], set_id: str) -> list[PriceQuote]:
     return list(quotes.values())
 
 
+def cardmarket_suffixes(finishes: Iterable[str]) -> dict[str, str]:
+    """Finish -> Cardmarket price field suffix. Cardmarket lists one product per card; its
+    `-holo` prices are the reverse holo version, or the holo one when the card also
+    exists without holo."""
+    finishes = list(finishes)
+    base = "normal" if "normal" in finishes else "holo" if "holo" in finishes else None
+    if "reverse" in finishes:
+        foil = "reverse"
+    elif base == "normal" and "holo" in finishes:
+        foil = "holo"
+    else:
+        foil = None
+    return {finish: suffix for finish, suffix in ((base, ""), (foil, "-holo")) if finish}
+
+
 def parse_prices(raw: dict[str, Any], set_id: str) -> list[PriceQuote]:
     """Cardmarket lists one product per card; its `-holo` prices are the reverse holo
     (or holo, when the card also exists without holo) version. TCGplayer lists a price
@@ -456,18 +471,8 @@ def parse_prices(raw: dict[str, Any], set_id: str) -> list[PriceQuote]:
     cardmarket = (raw.get("pricing") or {}).get("cardmarket") or {}
     if not cardmarket:
         return tcgplayer
-    finishes = _finishes(raw)
-    base = "normal" if "normal" in finishes else "holo" if "holo" in finishes else None
-    if "reverse" in finishes:
-        foil = "reverse"
-    elif base == "normal" and "holo" in finishes:
-        foil = "holo"
-    else:
-        foil = None
     quotes = []
-    for finish, suffix in ((base, ""), (foil, "-holo")):
-        if finish is None:
-            continue
+    for finish, suffix in cardmarket_suffixes(_finishes(raw)).items():
         quote = PriceQuote(
             set_id,
             raw["localId"],
@@ -619,6 +624,9 @@ class PokemonProvider:
         FinishDef("first_edition", "1st edition"),
     ]
     cardmarket_path = "Pokemon"
+    # Cardmarket's price guide file (game 6) prices the printings TCGdex has a Cardmarket
+    # product for but no prices (many Japanese cards): `app.prices.cardmarket`.
+    cardmarket_guide = 6
     rarities = [
         RarityDef("common", "Common", ("C", "●")),
         RarityDef("uncommon", "Uncommon", ("U", "◆")),
@@ -683,6 +691,11 @@ class PokemonProvider:
         # Mainland Chinese data has no prices.
         self.price_sources = [] if region == CHINA else ["cardmarket", "tcgplayer"]
         self.secondary_sources = [official_jp.source] if region == ASIA else []
+        # Collection copies without a picture in their language: Japanese for Asia, none
+        # for China (its cards are printed nowhere else).
+        self.image_fallback = {ASIA: "ja", CHINA: None}.get(region, "en")
+        if region == CHINA:
+            self.cardmarket_guide = None
 
     async def _get(self, http: httpx.AsyncClient, path: str) -> Any:
         return (await get_with_retry(http, f"{API_URL}{path}")).json()
@@ -923,6 +936,9 @@ class PokemonProvider:
                 for raw in await self._cards(http, lang, sets):
                     quotes += parse_prices(raw, sets.get(raw["id"], raw["set"]["id"]))
                 yield quotes
+
+    def cardmarket_suffixes(self, finishes: Iterable[str]) -> dict[str, str]:
+        return cardmarket_suffixes(finishes)
 
     def image_file_stems(self, printing: Printing) -> list[str]:
         return []

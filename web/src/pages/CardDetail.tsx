@@ -236,6 +236,9 @@ export default function CardDetail() {
               alt={name}
               flipOnClick
               landscape={selected.orientation === 'landscape'}
+              game={c.game_id}
+              setCode={selected.set.code}
+              number={selected.collector_number}
               className="w-full max-w-xs shadow-xl rounded-[4.5%]"
             />
           )}
@@ -432,10 +435,10 @@ export default function CardDetail() {
                     </div>
                     <div className="text-xs text-base-content/60">
                       {p.set.code} · {formatDate(p.set.release_date)}
-                      {p.set.lang && (
+                      {p.set.exclusive_lang && (
                         <>
                           {' · '}
-                          <LangFlag lang={p.set.lang} className="h-3" />
+                          <LangFlag lang={p.set.exclusive_lang} className="h-3" />
                         </>
                       )}
                     </div>

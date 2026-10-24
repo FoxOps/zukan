@@ -42,6 +42,9 @@ class SetOut(BaseModel):
     code: str
     name: str
     lang: str | None
+    # The one language of a regional set's printings (Korean-only set): shown as a flag.
+    # None when printed in several languages (one Japanese set also printed in Korean...).
+    exclusive_lang: str | None = None
     release_date: date | None
     total: int | None
     # Set symbol, served from the local cache.
@@ -350,12 +353,41 @@ def _int_or_none(value: Any) -> int | None:
         return None
 
 
-def _set_out(card_set: CardSet) -> SetOut:
+SetLanguages = dict[int, set[str]]
+
+
+async def set_languages(session: SessionDep, set_ids: Iterable[int]) -> SetLanguages:
+    """Languages of the printings of each set."""
+    wanted = set(set_ids)
+    if not wanted:
+        return {}
+    lang = func.unnest(Printing.languages).label("lang")
+    rows = await session.execute(
+        select(Printing.set_id, lang).where(Printing.set_id.in_(wanted)).distinct()
+    )
+    found: SetLanguages = {}
+    for set_id, code in rows:
+        found.setdefault(set_id, set()).add(code)
+    return found
+
+
+def exclusive_lang(card_set: CardSet, languages: SetLanguages) -> str | None:
+    """Language a regional set is printed in alone (international sets: never)."""
+    if card_set.lang is None:
+        return None
+    langs = languages.get(card_set.id, set())
+    if not langs:
+        return card_set.lang
+    return next(iter(langs)) if len(langs) == 1 else None
+
+
+def _set_out(card_set: CardSet, languages: SetLanguages | None = None) -> SetOut:
     return SetOut(
         id=card_set.id,
         code=card_set.code,
         name=card_set.name,
         lang=card_set.lang,
+        exclusive_lang=exclusive_lang(card_set, languages or {}),
         release_date=card_set.release_date,
         total=card_set.total,
         icon=f"/api/sets/{card_set.id}/icon" if card_set.icon_url else None,
@@ -389,7 +421,9 @@ async def list_sets(game_id: str, _: CurrentUser, session: SessionDep) -> list[S
         .where(CardSet.game_id == game_id)
         .order_by(CardSet.release_date.desc().nulls_last(), CardSet.name)
     )
-    return [_set_out(s) for s in sets]
+    sets = list(sets)
+    languages = await set_languages(session, (s.id for s in sets))
+    return [_set_out(s, languages) for s in sets]
 
 
 @router.get("/cards")
@@ -520,11 +554,18 @@ async def search_cards(
     # Cards are shown as printed in the chosen set (set filter or code search).
     shown_sets = {set_id} if set_id is not None else set(code.set_ids if code else ())
     card_names, printing_names = await load_names(session, (c.id for c in cards))
-    items = []
-    for card in cards:
-        shown = show_card(
-            card, card_names, printing_names, user.language, shown_sets, names[card.id]
+    shown_cards = [
+        (
+            card,
+            show_card(card, card_names, printing_names, user.language, shown_sets, names[card.id]),
         )
+        for card in cards
+    ]
+    languages = await set_languages(
+        session, (shown.printing.set_id for _, shown in shown_cards if shown.printing)
+    )
+    items = []
+    for card, shown in shown_cards:
         items.append(
             CardSummaryOut(
                 id=card.id,
@@ -536,7 +577,7 @@ async def search_cards(
                 image=shown.image,
                 printing_id=shown.printing.id if shown.printing else None,
                 back_image=back_image_link(shown.printing) if shown.printing else None,
-                set=_set_out(shown.printing.set) if shown.printing else None,
+                set=_set_out(shown.printing.set, languages) if shown.printing else None,
                 collector_number=shown.printing.collector_number if shown.printing else None,
                 rarity=shown.printing.rarity if shown.printing else None,
                 rarity_code=rarity_code(shown.printing) if shown.printing else None,
@@ -702,6 +743,7 @@ async def describe_printings(
                 quantity=item.quantity,
             )
         )
+    languages = await set_languages(session, (p.set_id for p in printings))
     described = []
     for p in printings:
         names = {**card_names.get(p.card_id, {}), **printing_names.get(p.id, {})}
@@ -709,7 +751,7 @@ async def describe_printings(
         described.append(
             PrintingOut(
                 id=p.id,
-                set=_set_out(p.set),
+                set=_set_out(p.set, languages),
                 collector_number=p.collector_number,
                 rarity=p.rarity,
                 rarity_code=rarity_code(p),

@@ -145,7 +145,7 @@ export function SetSelect({ game, value, onChange }: { game: string; value: stri
         { value: '', label: t('All sets') },
         ...sets.map((s) => ({
           value: String(s.id),
-          label: `${s.code} - ${s.name}${s.lang ? ` (${languageName(s.lang)})` : ''}`,
+          label: `${s.code} - ${s.name}${s.exclusive_lang ? ` (${languageName(s.exclusive_lang)})` : ''}`,
         })),
       ]}
     />

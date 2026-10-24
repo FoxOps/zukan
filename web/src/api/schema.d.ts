@@ -1900,6 +1900,8 @@ export interface components {
             name: string;
             /** Lang */
             lang: string | null;
+            /** Exclusive Lang */
+            exclusive_lang?: string | null;
             /** Release Date */
             release_date: string | null;
             /** Total */
