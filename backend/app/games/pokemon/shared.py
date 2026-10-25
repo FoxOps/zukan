@@ -3,7 +3,10 @@ TCGdex's listings (cheap: one request per language) and kept a few hours:
 
 - international set ids: an Asian set reusing one is stored as `asia:<id>`;
 - English card keys: Asian cards named after species join the English card's key
-  ("ルギアV" is "en:lugia v"), so their printings group like the international ones.
+  ("ルギアV" is "en:lugia v"), so their printings group like the international ones;
+- the international names of each English card (same TCGdex card id in every language):
+  an Asian card known by its English name is shown in the reader's language
+  ("보스의 지령" is "Boss's Orders", "Ordres du Boss").
 
 Digital sets (Pokémon TCG Pocket) and their cards are left out, as the international
 catalog skips them.
@@ -11,7 +14,9 @@ catalog skips them.
 
 import asyncio
 import time
-from dataclasses import dataclass
+from collections import Counter, defaultdict
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 
 import httpx
 
@@ -26,6 +31,8 @@ INTERNATIONAL = ["en", "fr", "de", "it", "es", "pt"]
 class International:
     set_ids: frozenset[str]
     english_cards: frozenset[str]
+    # Normalised English card key -> {language: name} in the other international languages.
+    latin_names: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
 
 
 _cached: tuple[float, International] | None = None
@@ -44,6 +51,7 @@ async def _get(http: httpx.AsyncClient, url: str, missing=None):
 
 async def _read(http: httpx.AsyncClient, api_url: str, digital_series: set[str]) -> International:
     from app.games.pokemon.provider import card_key
+    from app.games.pokemon.species import normalize_name
 
     digital: set[str] = set()
     for serie in digital_series:
@@ -52,12 +60,25 @@ async def _read(http: httpx.AsyncClient, api_url: str, digital_series: set[str])
     set_ids: set[str] = set()
     for lang in INTERNATIONAL:
         set_ids |= {s["id"] for s in await _get(http, f"{api_url}/{lang}/sets", [])}
-    english = {
-        card_key("en", c["name"])
+    cards = [
+        c
         for c in await _get(http, f"{api_url}/en/cards", [])
         if c["id"].rsplit("-", 1)[0] not in digital
+    ]
+    english = {card_key("en", c["name"]) for c in cards}
+    # The same card id names the card in every language; a name printed several ways
+    # keeps its most frequent translation.
+    by_id = {c["id"]: card_key("en", normalize_name(c["name"])) for c in cards}
+    counts: dict[str, dict[str, Counter]] = defaultdict(lambda: defaultdict(Counter))
+    for lang in INTERNATIONAL[1:]:
+        for c in await _get(http, f"{api_url}/{lang}/cards", []):
+            if (key := by_id.get(c["id"])) and c.get("name"):
+                counts[key][lang][c["name"]] += 1
+    latin = {
+        key: {lang: names.most_common(1)[0][0] for lang, names in by_lang.items()}
+        for key, by_lang in counts.items()
     }
-    return International(frozenset(set_ids - digital), frozenset(english))
+    return International(frozenset(set_ids - digital), frozenset(english), latin)
 
 
 async def international(

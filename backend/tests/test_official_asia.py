@@ -259,6 +259,9 @@ def test_korean_cards_join_japanese_printings():
     printing = joined.printings[0]
     assert (printing.external_id, printing.languages) == ("001", ["ko"])
     assert printing.names == {"ko": "아라리"} and printing.images == {"ko": "https://k/1.png"}
+    # Its Latin names help the Japanese card (Asian names stay the Japanese card's own).
+    assert joined.names["en"] == "Exeggcute" and joined.names["fr"] == "Noeunoeuf"
+    assert not {"ja", "ko"} & set(joined.names)
 
 
 def test_listed_korean_card_joins_without_name():

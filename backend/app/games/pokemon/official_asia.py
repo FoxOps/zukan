@@ -39,7 +39,7 @@ from app.core.budget import BudgetSpent, RequestBudget
 from app.core.config import get_settings
 from app.games.base import CardData, PrintingData, SetData
 from app.games.pokemon import asia
-from app.games.pokemon.species import derive_names, species_names
+from app.games.pokemon.species import card_translations, derive_names, species_names
 from app.games.pokemon.types import card_colors
 
 log = logging.getLogger(__name__)
@@ -458,8 +458,11 @@ def to_card(card: OfficialCard, lang: str, set_id: str) -> CardData:
         attributes["hp"] = card.hp
     if card.dex:
         attributes["dexId"] = [card.dex]
-    if name and category == "Pokemon":
-        dex = [card.dex] if card.dex else []
+    dex = [card.dex] if card.dex else []
+    if name and lang not in ("th", "id"):
+        # Korean / Traditional Chinese: species names, else the card names table (Trainers).
+        names = card_translations(name, lang, dex, pokemon=category == "Pokemon") | names
+    elif name and category == "Pokemon":
         if lang == "th":
             english = thai_english(name, card.dex)
             if english:
@@ -469,8 +472,6 @@ def to_card(card: OfficialCard, lang: str, set_id: str) -> CardData:
             species = (species_names().get(card.dex) or {}).get("en") if card.dex else None
             if derive_names(name, "en", dex) or (species and species in name):
                 names["en"] = name
-        else:
-            names = derive_names(name, lang, dex) | names
     return CardData(
         external_id=f"{lang}:{name.casefold()}",
         name=name,
