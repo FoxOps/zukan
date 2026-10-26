@@ -32,6 +32,7 @@ from app.models import (
     Printing,
 )
 from app.services.catalog import CatalogWriter
+from app.services.names import update_sort_names
 from app.sources.base import gap_sources
 
 log = logging.getLogger(__name__)
@@ -219,6 +220,7 @@ async def write_value(session: AsyncSession, d: CatalogDiscrepancy, value: str) 
             .values(card_id=card.id, printing_id=None, lang="en", name=value)
             .on_conflict_do_nothing()
         )
+        await update_sort_names(session, card_ids=[card.id])
 
 
 async def apply_resolutions(
