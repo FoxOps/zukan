@@ -6,8 +6,9 @@ from decimal import Decimal
 import httpx
 import pytest
 import respx
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 
+from app.api import catalog as catalog_api
 from app.core.config import get_settings
 from app.core.http import http_client
 from app.core.progress import progress
@@ -26,6 +27,7 @@ from app.models import (
     User,
 )
 from app.services import images, jobs, refresh
+from app.services.names import update_sort_names
 from app.worker import is_due
 from tests.conftest import SORCERY_CARDS as FIXTURE
 from tests.conftest import bearer, make_user, sync_sorcery
@@ -751,3 +753,40 @@ async def test_stale_cards_listed_and_refreshed(client, session, synced, sorcery
     assert done.json() == {"updated": True, "stale": False}
     page = (await client.get("/api/admin/stale", params={"game": "sorcery"}, headers=admin)).json()
     assert page["total"] == 0
+
+
+async def test_whole_catalog_sorts_by_latin_name(client, session, synced, monkeypatch):
+    """Above SORT_BY_SHOWN_NAME_MAX cards sort by their Latin name, cards known only by
+    non-Latin names last in either direction."""
+    names = dict((await session.execute(select(Card.name, Card.sort_name))).all())
+    assert names and all(sort == name for name, sort in names.items())
+
+    abundance = await session.scalar(select(Card).where(Card.name == "Abundance"))
+    aqueduct = await session.scalar(select(Card).where(Card.name == "Aqueduct"))
+    await session.execute(delete(CardName).where(CardName.card_id.in_([abundance.id, aqueduct.id])))
+    session.add_all(
+        [
+            CardName(card_id=abundance.id, lang="ko", name="가나"),
+            CardName(card_id=aqueduct.id, lang="ja", name="アクア"),
+            CardName(card_id=aqueduct.id, lang="fr", name="Zénith"),
+        ]
+    )
+    await session.flush()
+    assert await update_sort_names(session, "sorcery") == 2
+    await session.commit()
+    sort_names = dict((await session.execute(select(Card.id, Card.sort_name))).all())
+    assert (sort_names[abundance.id], sort_names[aqueduct.id]) == (None, "Zénith")
+
+    monkeypatch.setattr(catalog_api, "SORT_BY_SHOWN_NAME_MAX", 0)
+    await make_user(session)
+    headers = await bearer(client, "alice")
+
+    async def order(**params) -> list[str]:
+        page = await client.get(
+            "/api/cards", params={"game": "sorcery", "sort": "name", **params}, headers=headers
+        )
+        return [c["name"] for c in page.json()["items"]]
+
+    latin = sorted(n for n in names if n not in ("Abundance", "Aqueduct"))
+    assert await order() == [*latin, "Zénith", "가나"]
+    assert await order(order="desc") == ["Zénith", *latin[::-1], "가나"]

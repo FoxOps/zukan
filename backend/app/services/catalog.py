@@ -25,6 +25,7 @@ from app.games.base import (
 )
 from app.models import Card, CardName, CardSet, CollectionItem, Game, Printing, StockTransaction
 from app.services import layout, prices, translations
+from app.services.names import update_sort_names
 
 
 @dataclass
@@ -372,6 +373,7 @@ class CatalogWriter:
                 replacing += printing_names
         await self._drop_replaced_names(replacing)
         await self._insert_names(names)
+        await update_sort_names(self.session, card_ids=card_ids.values())
         return stored
 
     async def _upsert_printings(
@@ -464,6 +466,7 @@ async def sync_catalog(
     )
     writer.report.pruned_sets = empty.rowcount
     writer.report.translations = await translations.fill_translations(session, provider.id)
+    await update_sort_names(session, provider.id)
     writer.report.catalog_version = catalog_version(provider)
     await session.execute(
         update(Game).where(Game.id == provider.id).values(last_catalog_sync=datetime.now(UTC))

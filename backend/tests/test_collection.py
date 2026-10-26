@@ -439,6 +439,33 @@ async def test_price_trends(client, session, alice):
     assert trends["foil"] == {"d1": None, "d7": None, "d30": None}
 
 
+async def test_trends_before_todays_prices(client, session, alice):
+    """Before today's price sync the latest prices are yesterday's: the day's change is
+    yesterday's against the day before, not yesterday's against itself."""
+    abundance = await printing_id(session, "001", "abundance-b")
+    today = date.today()
+    for days, trend in ((8, "1.00"), (2, "2.00"), (1, "2.50")):
+        await add_price(
+            session, abundance, "standard", today - timedelta(days=days), Decimal(trend)
+        )
+    await adjust(client, alice, abundance, 2)
+    items = (await client.get("/api/collection", headers=alice)).json()["items"]
+    assert items[0]["trends"] == {
+        "d1": {"direction": "up", "change": 0.25},
+        "d7": {"direction": "up", "change": 1.5},
+        "d30": None,
+    }
+    report = (await client.get("/api/collection/finance", headers=alice)).json()
+    changes = {c["days"]: (c["past"], c["now"]) for c in report["changes"]}
+    assert changes[1] == ("4.00", "5.00") and changes[7] == ("2.00", "5.00")
+    assert changes[30] == (None, "5.00")
+    assert len(report["history"]) == 366 and report["history"][-1]["date"] == str(today)
+    movers = (
+        await client.get("/api/collection/movers", params={"period": "d1"}, headers=alice)
+    ).json()
+    assert [(m["item"]["name"], m["change"]) for m in movers["risers"]] == [("Abundance", "1.00")]
+
+
 async def test_movers(client, session, alice):
     abundance = await printing_id(session, "001", "abundance-b")
     aqueduct = await printing_id(session, "001", "aqueduct-b")

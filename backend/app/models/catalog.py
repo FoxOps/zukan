@@ -53,6 +53,8 @@ class Card(Base):
     __table_args__ = (
         UniqueConstraint("game_id", "external_id"),
         Index("ix_card_game_last_seen", "game_id", "last_seen_at"),
+        # Whole-catalog name sort (`api.catalog.search_cards`).
+        Index("ix_card_sort_name", "sort_name", "name", "id"),
         # Advanced search (`attributes @> {...}`).
         Index(
             "ix_card_attributes",
@@ -66,6 +68,9 @@ class Card(Base):
     game_id: Mapped[str] = mapped_column(ForeignKey("game.id"), index=True)
     external_id: Mapped[str] = mapped_column(String(128))
     name: Mapped[str] = mapped_column(String(255), index=True)
+    # Name in the Latin alphabet (English first) to sort whole catalogs by; None for cards
+    # known only by non-Latin names (`services.names.update_sort_names`).
+    sort_name: Mapped[str | None] = mapped_column(String(255))
     # Normalized color codes from the provider's color vocabulary.
     colors: Mapped[list[str]] = mapped_column(ARRAY(String(16)), default=list)
     attributes: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
@@ -77,6 +82,15 @@ class Card(Base):
     refresh_attempted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     printings: Mapped[list["Printing"]] = relationship(back_populates="card")
+
+
+# Descending whole-catalog name sort, still with non-Latin-only cards last.
+Index(
+    "ix_card_sort_name_desc",
+    Card.sort_name.desc().nulls_last(),
+    Card.name.desc(),
+    Card.id.desc(),
+)
 
 
 class Printing(Base):

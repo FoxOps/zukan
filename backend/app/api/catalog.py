@@ -518,21 +518,25 @@ async def search_cards(
         )
 
     total = await session.scalar(select(func.count()).select_from(query.subquery()))
-    # Sorting by the shown name costs a name lookup per card: whole catalogs (tens of
-    # thousands of cards) are sorted by canonical name instead.
-    by_name = name if (total or 0) <= SORT_BY_SHOWN_NAME_MAX else Card.name
     direction = (lambda c: c.desc()) if order == "desc" else (lambda c: c.asc())
+    # Sorting by the shown name costs a name lookup per card: whole catalogs (tens of
+    # thousands of cards) are sorted by their Latin name instead (indexed), cards known
+    # only by non-Latin names last in either direction.
+    if (total or 0) <= SORT_BY_SHOWN_NAME_MAX:
+        by_name = [direction(name)]
+    else:
+        by_name = [direction(Card.sort_name).nulls_last(), direction(Card.name)]
     if sort == "number" and set_id is not None:
         number = (
             select(func.min(number_sort_key(Printing.collector_number)))
             .where(Printing.card_id == Card.id, Printing.set_id == set_id)
             .scalar_subquery()
         )
-        ordering = [direction(number), direction(by_name), direction(Card.id)]
+        ordering = [direction(number), *by_name, direction(Card.id)]
     elif sort == "name":
-        ordering = [direction(by_name), direction(Card.id)]
+        ordering = [*by_name, direction(Card.id)]
     else:
-        ordering += [by_name, Card.id]
+        ordering += [*by_name, Card.id]
     rows = (
         await session.execute(
             query.add_columns(name)

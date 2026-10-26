@@ -1575,6 +1575,39 @@ Bulbapedia-built table for Trainers and real interface-language names from TCGde
 - [ ] User: after upgrading, the worker re-syncs Pokémon Asia and China (catalog version 9).
 - [ ] Later: rerun `scripts/pokemon_card_names.py` after new Japanese / Korean sets.
 
+## Price trends and All games sort (server 0.18.2, Android unchanged 0.10.0)
+Branch `2026-10-26-000-trends-catalog-sort` (from main after 0.18.1). User report (server
+0.18.0 / app 0.9.0): collection trend arrows and the finance "1 day" change always "=";
+catalog "All games" sorted by raw `Card.name` above `SORT_BY_SHOWN_NAME_MAX` (5 000), so
+untranslated Korean cards (Hangul sorts before Latin in en_US.utf8) filled the first pages.
+
+- [x] Trends: `price_trends` and `finance` compared with calendar `today` (UTC). Prices
+  sync once every 24 h at a drifting hour (local test server: Pokémon ~13:55 UTC,
+  Yu-Gi-Oh ~19:30 UTC); until a game's sync of the day, its latest price is yesterday's
+  and "1 day ago" was that same snapshot: 24 h arrow missing, finance 1 day "=",
+  movers d1 empty. Reproduced on the local 0.18.1 server (1 day: 1.84 → 1.84).
+  - `collection.past_prices`: each (printing, finish) compared with its price `days`
+    before its own latest price date (`user_prices(on=…)` per distinct latest date).
+    Used by `price_trends`, so collection arrows and movers.
+  - `finance`: changes counted from the latest price day of the holdings (capped at
+    today); history fetched from that day minus 365 days, chart still the last 366 days.
+- [x] All games sort: `Card.sort_name` (migration `c4e6f8a0b235`, backfilled): the card's
+  name in a Latin-script language (`scripts.NON_LATIN` excluded), `LANG_ORDER` first
+  (English), card-wide before per-printing names; NULL for cards known only by non-Latin
+  names. `names.update_sort_names` keeps it current: `CatalogWriter` (sync, refresh,
+  lookup, cross-check) for the cards of each batch, game-wide after `fill_translations`,
+  and the cross-check name override. `search_cards` above 5 000 results orders by
+  `sort_name NULLS LAST` (both directions), `name`, `id`; indexes `ix_card_sort_name`
+  and `ix_card_sort_name_desc`. Local catalog copy (82 194 cards, 3 004 without a Latin
+  name): backfill 5.5 s, first page 0.5 ms ascending, 0.9 ms descending.
+- [x] Versions: server 0.18.2, Android unchanged (no Android report). `.env.example`:
+  user agent example 0.18.2, no new variable.
+- [x] Checks: backend 231 tests (2 new: trends before today's prices, Latin sort), ruff,
+  Alembic upgrade / `alembic check` / downgrade on an empty database.
+- [ ] User: check the 24 h arrows and finance 1 day after upgrading; if they still stay
+  "=" late in the UTC day (after every game's price sync), report it: the cause found only
+  explains the hours before each game's daily sync.
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.

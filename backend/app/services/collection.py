@@ -255,19 +255,40 @@ def trend_between(past: PricePoint | None, now: PricePoint | None) -> Trend | No
     return Trend(direction, float(round(change, 4)))
 
 
+async def past_prices(
+    session: AsyncSession,
+    wanted: str | None,
+    game_by_printing: dict[int, str],
+    now: dict[tuple[int, str], PricePoint],
+    days: int,
+) -> dict[tuple[int, str], PricePoint]:
+    """Price of each (printing, finish) of `now` `days` before its latest price.
+
+    Counted from the latest price, not from today: prices sync once a day at any hour,
+    and until today's prices are in, today's price is yesterday's."""
+    by_day: dict[date, set[int]] = {}
+    for (printing_id, _), point in now.items():
+        by_day.setdefault(point.date, set()).add(printing_id)
+    found: dict[tuple[int, str], PricePoint] = {}
+    for day, ids in by_day.items():
+        games = {pid: game_by_printing[pid] for pid in ids if pid in game_by_printing}
+        past = await user_prices(session, wanted, games, day - timedelta(days=days))
+        found |= {key: point for key, point in past.items() if key in now and now[key].date == day}
+    return found
+
+
 async def price_trends(
     session: AsyncSession,
     wanted: str | None,
     game_by_printing: dict[int, str],
     now: dict[tuple[int, str], PricePoint],
-    today: date | None = None,
 ) -> dict[tuple[int, str], dict[str, Trend | None]]:
-    """Trend of each (printing, finish) of `now` over the last day, week and month, from
-    the price history of the user's source (None where the history is too short)."""
-    today = today or date.today()
+    """Trend of each (printing, finish) of `now` over the last day, week and month before
+    its latest price, from the price history of the user's source (None where the history
+    is too short)."""
     found: dict[tuple[int, str], dict[str, Trend | None]] = {key: {} for key in now}
     for period, days in TREND_PERIODS.items():
-        past = await user_prices(session, wanted, game_by_printing, today - timedelta(days=days))
+        past = await past_prices(session, wanted, game_by_printing, now, days)
         for key, point in now.items():
             found[key][period] = trend_between(past.get(key), point)
     return found
@@ -524,7 +545,11 @@ async def finance(
                 median = unit
                 break
 
-    start = today - timedelta(days=max(FINANCE_PERIODS))
+    # Changes count from the latest price day: prices sync once a day at any hour, and
+    # until today's prices are in, today's value is yesterday's.
+    anchor = min(max((p.date for p in prices.values()), default=today), today)
+    longest = max(FINANCE_PERIODS)
+    start = anchor - timedelta(days=longest)
     _, history = await value_history(session, user_id, wanted, game_id, start, today)
     by_day = dict(history)
     # Days before the first known price count as no history (a value of 0 there means
@@ -532,9 +557,10 @@ async def finance(
     first = next((day for day, value in history if value), None)
     changes: dict[int, tuple[Decimal, Decimal] | None] = {}
     for days in FINANCE_PERIODS:
-        day = today - timedelta(days=days)
+        day = anchor - timedelta(days=days)
         past = by_day.get(day)
         changes[days] = (past, total) if past is not None and first and day >= first else None
+    history = [(day, value) for day, value in history if day >= today - timedelta(days=longest)]
 
     lines.sort(key=lambda line: -line[2])
     top_share = float(sum(line[2] for line in lines[:10]) / total) if total else None
