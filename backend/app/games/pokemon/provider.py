@@ -27,7 +27,7 @@ of "ルギアV" join the English "Lugia V" card. Other cards stay grouped per la
 import asyncio
 import logging
 import re
-from collections.abc import AsyncIterator, Iterable
+from collections.abc import AsyncIterator, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -57,7 +57,12 @@ from app.games.base import (
 )
 from app.games.ocr import bottom_part, by_position, clean, letter_ratio, script_language
 from app.games.pokemon import asia, official_asia, official_jp, shared
-from app.games.pokemon.species import derive_names, species_names
+from app.games.pokemon.species import (
+    LATIN_LANGUAGES,
+    card_translations,
+    normalize_name,
+    species_names,
+)
 from app.games.pokemon.types import NO_TYPE, card_colors
 from app.models import Printing
 
@@ -308,9 +313,10 @@ def parse_card(raw: dict[str, Any], set_id: str, lang: str) -> CardData:
         images=_images(raw, ours),
         attributes=printing_attributes,
     )
-    names = {ours: raw["name"]}
-    if raw.get("category") == "Pokemon":
-        names = derive_names(raw["name"], ours, raw.get("dexId") or []) | names
+    pokemon = raw.get("category") == "Pokemon"
+    names = card_translations(raw["name"], ours, raw.get("dexId") or [], pokemon) | {
+        ours: raw["name"]
+    }
     return CardData(
         external_id=card_key(lang, raw["name"]),
         name=raw["name"],
@@ -352,6 +358,17 @@ def join_english(card: CardData, english_cards: set[str]) -> CardData:
         printing.partial = False
         printing.names = {**printing.names, **{lang: card.name for lang in printing.languages}}
     card.external_id, card.partial = key, True
+    return card
+
+
+def translate_latin(card: CardData, latin: Mapping[str, Mapping[str, str]]) -> CardData:
+    """Add the international names of the English card an Asian card is named after
+    (`shared.International.latin_names`): a Korean Trainer then reads "보스의 지령 (Ordres
+    du Boss)" to a French reader, not "(Boss's Orders)". Names already there stay."""
+    english = card.names.get("en")
+    found = latin.get(card_key("en", normalize_name(english))) if english else None
+    if found:
+        card.names = {**found, **card.names}
     return card
 
 
@@ -417,6 +434,9 @@ def join_asian_set(
                             names={lang: card.name} if card.name else {},
                         )
                     ],
+                    # Its Latin names (English from the card names table) help the
+                    # Japanese card when that one has none.
+                    names={k: v for k, v in card.names.items() if k in LATIN_LANGUAGES},
                     partial=True,
                 )
             )
@@ -706,7 +726,9 @@ class PokemonProvider:
     # 6: Pokémon TCG API dropped, English pictures it gave refilled from the other sources.
     # 7: one game per market (international, Asia, China).
     # 8: Thai, Indonesian, Traditional Chinese and Korean cards of the official searches.
-    catalog_version = 8
+    # 9: Asian Trainers, Energies and Pokémon named with other words translated (card
+    #    names table), international names of the English card.
+    catalog_version = 9
 
     def __init__(self, region: str = INTERNATIONAL):
         self.market = REGIONS[region]
@@ -775,11 +797,19 @@ class PokemonProvider:
         # Language of each Asian set fetched in full (official searches join by it).
         set_langs: dict[str, str | None] = {}
         english_cards: set[str] = set()
+        latin: Mapping[str, Mapping[str, str]] = {}
         if self.region != INTERNATIONAL:
             # Ids the international game uses and its card names (`shared.py`).
             known = await shared.international(http, API_URL, DIGITAL_SERIES)
             fetched_sets = {(False, set_id): set_id for set_id in known.set_ids}
             english_cards = set(known.english_cards)
+            latin = known.latin_names
+
+        def translated(batch: CatalogBatch) -> CatalogBatch:
+            for card in batch.cards:
+                translate_latin(card, latin)
+            return batch
+
         for lang in languages:
             asian = lang in ASIAN
             for brief in await self._get(http, f"/{lang}/sets"):
@@ -788,7 +818,9 @@ class PokemonProvider:
                     continue
                 if (asian, brief["id"]) in fetched_sets:
                     set_id = fetched_sets[(asian, brief["id"])]
-                    yield await self._translations(http, lang, raw_set, set_id, keys, english_cards)
+                    yield translated(
+                        await self._translations(http, lang, raw_set, set_id, keys, english_cards)
+                    )
                     continue
                 taken = asian and (False, brief["id"]) in fetched_sets
                 set_id = f"{ASIAN_PREFIX}{brief['id']}" if taken else brief["id"]
@@ -805,7 +837,7 @@ class PokemonProvider:
                 for card in batch.cards:
                     for printing in card.printings:
                         keys[(printing.set_external_id, printing.external_id)] = card.external_id
-                yield batch
+                yield translated(batch)
         extra = []
         if settings.korean and "ko" in self.market.datasets:
             extra.append(("ko", asia.korean_sets))
@@ -819,7 +851,7 @@ class PokemonProvider:
                 log.exception("Pokémon %s dataset could not be read", lang)
                 continue
             for extra_set in sets:
-                yield join_asian_set(extra_set, lang, fetched_sets, keys, english_cards)
+                yield translated(join_asian_set(extra_set, lang, fetched_sets, keys, english_cards))
                 if ours := fetched_sets.get((True, extra_set.code)):
                     set_langs.setdefault(ours, lang)
         official = [lang for lang in official_asia.LANGUAGES if lang in self.languages]
@@ -831,8 +863,10 @@ class PokemonProvider:
             # its English names join the English cards, Thai names then join its printings.
             for lang in ("zh-hant", "ko", "id", "th"):
                 for extra_set in found.get(lang, []):
-                    yield join_asian_set(
-                        extra_set, lang, fetched_sets, keys, english_cards, set_langs
+                    yield translated(
+                        join_asian_set(
+                            extra_set, lang, fetched_sets, keys, english_cards, set_langs
+                        )
                     )
 
     async def _translations(
