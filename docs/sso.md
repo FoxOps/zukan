@@ -32,8 +32,8 @@ Rules worth knowing:
   separate: an SSO login never joins a local account, and SSO accounts have no Zukan
   password.
 - The IdP manages SSO users' password and email: the email is copied to the account on
-  every SSO login (from the ID token, else userinfo), and Zukan's settings link to the
-  provider's account page instead of offering password and email forms. That page is
+  every SSO login (from the ID token, else userinfo), and Zukan's settings show an "Edit my
+  profile" button to the provider's account page instead of offering password and email forms. That page is
   guessed for Keycloak and Authentik; set `TCG_OIDC_<NAME>_ACCOUNT_URL` for others
   (Authelia: `https://auth.example.com/settings`, Zitadel: `https://<host>/ui/console/users/me`).
 - When `TCG_OIDC_<NAME>_ADMIN_GROUPS` is set, the role is synced from the IdP groups on every SSO login,

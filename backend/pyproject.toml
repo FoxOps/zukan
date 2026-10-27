@@ -1,6 +1,6 @@
 [project]
 name = "zukan"
-version = "0.20.0"
+version = "0.20.1"
 description = "Zukan (図鑑, illustrated encyclopedia): self-hosted TCG collection manager"
 requires-python = ">=3.13"
 dependencies = [

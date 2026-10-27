@@ -231,10 +231,18 @@ export default function Settings() {
               <h2 className="card-title">{user.username}</h2>
               <EmailForm me={user} />
             </div>
-            <div className="divider my-0" />
+            {/* SSO accounts: email and password are edited at the identity provider. */}
             {user.sso ? (
-              <SsoAccount account={user.sso_account ?? null} />
+              user.sso_account?.account_url && (
+                <div className="card-actions">
+                  <a href={user.sso_account.account_url} target="_blank" rel="noreferrer" className="btn btn-primary">
+                    {t('Edit my profile')}
+                  </a>
+                </div>
+              )
             ) : (
+              <>
+              <div className="divider my-0" />
               <form className="flex flex-col gap-2" onSubmit={submit}>
                 <h3 className="font-semibold">{user.has_password ? t('Change password') : t('Set a password')}</h3>
                 {user.has_password && (
@@ -269,6 +277,7 @@ export default function Settings() {
                   </button>
                 </div>
               </form>
+              </>
             )}
           </div>
         </div>
@@ -279,23 +288,3 @@ export default function Settings() {
   )
 }
 
-/** SSO accounts: password and email are changed at the identity provider. */
-function SsoAccount({ account }: { account: Schemas['SsoAccountOut'] | null }) {
-  const { t } = useTranslation()
-  const provider = account?.display_name ?? t('your identity provider')
-  return (
-    <div className="flex flex-col gap-3">
-      <h3 className="font-semibold">{t('Password and email')}</h3>
-      <p className="text-sm text-base-content/70">
-        {t('You sign in with {{provider}}: change your password and email there.', { provider })}
-      </p>
-      {account?.account_url && (
-        <div className="card-actions">
-          <a href={account.account_url} target="_blank" rel="noreferrer" className="btn btn-primary">
-            {t('Manage my account at {{provider}}', { provider })}
-          </a>
-        </div>
-      )}
-    </div>
-  )
-}
