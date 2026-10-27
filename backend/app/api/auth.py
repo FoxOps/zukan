@@ -5,7 +5,7 @@ from urllib.parse import quote
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import (
@@ -14,7 +14,6 @@ from app.api.deps import (
     CurrentUser,
     SessionDep,
     check_csrf,
-    current_user,
 )
 from app.api.schemas import (
     EmailChangeIn,
@@ -26,6 +25,7 @@ from app.api.schemas import (
     ProvidersOut,
     RefreshIn,
     SettingsIn,
+    SsoAccountOut,
     TokenOut,
     UserOut,
 )
@@ -111,6 +111,7 @@ async def providers() -> ProvidersOut:
                 issuer=p.issuer,
                 mobile_client_id=p.mobile_client_id,
                 scopes=p.scopes,
+                account_url=p.account_url,
             )
             for p in oidc.get_auth_config().providers
         ],
@@ -191,11 +192,35 @@ async def logout(body: RefreshIn, request: Request, response: Response, session:
     return {"end_session_url": end_session_url}
 
 
+def sso_account(identities: list[UserIdentity]) -> SsoAccountOut | None:
+    """Provider of the most recently linked identity still configured."""
+    for identity in sorted(identities, key=lambda i: i.id, reverse=True):
+        try:
+            provider = oidc.get_provider(identity.provider)
+        except oidc.OidcError:
+            continue
+        return SsoAccountOut(
+            provider=provider.name,
+            display_name=provider.display_name,
+            account_url=provider.account_url,
+        )
+    return None
+
+
 async def _load_me(session: SessionDep, user_id: int) -> MeOut:
     user = await session.scalar(
         select(User).where(User.id == user_id).options(selectinload(User.identities))
     )
-    return MeOut.model_validate(user)
+    out = MeOut.model_validate(user)
+    out.sso = bool(user.identities)
+    out.sso_account = sso_account(user.identities)
+    return out
+
+
+async def _has_sso(session: SessionDep, user: User) -> bool:
+    return bool(
+        await session.scalar(select(UserIdentity.id).where(UserIdentity.user_id == user.id))
+    )
 
 
 @router.get("/me")
@@ -241,8 +266,12 @@ async def update_settings(body: SettingsIn, user: CurrentUser, session: SessionD
 
 @router.post("/email")
 async def change_email(body: EmailChangeIn, user: CurrentUser, session: SessionDep) -> MeOut:
-    """Change the account's email address. Signing in with SSO later does not overwrite
-    it (the identity keeps the provider's address)."""
+    """Change the account's email address. Refused for SSO users: their identity provider
+    manages it (copied on every SSO login)."""
+    if await _has_sso(session, user):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Your email is managed by your single sign-on provider"
+        )
     if user.password_hash and not verify_password(body.current_password or "", user.password_hash):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is wrong")
     user.email = body.email
@@ -259,7 +288,12 @@ async def change_password(
     session: SessionDep,
 ):
     """Change the password and end every session. A browser gets a new session at once;
-    token clients (the app) sign in again."""
+    token clients (the app) sign in again. Refused for SSO users: their identity
+    provider manages it (SSO and local accounts are separate)."""
+    if await _has_sso(session, user):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Your password is managed by your single sign-on provider"
+        )
     if user.password_hash and not verify_password(body.current_password or "", user.password_hash):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is wrong")
     user.password_hash = hash_password(body.new_password)
@@ -270,22 +304,6 @@ async def change_password(
     await session.commit()
     if cookie_mode:
         _set_session_cookies(response, access, refresh)
-
-
-@router.delete("/identities/{identity_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def unlink_identity(identity_id: int, user: CurrentUser, session: SessionDep):
-    identity = await session.get(UserIdentity, identity_id)
-    if identity is None or identity.user_id != user.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Identity not found")
-    count = await session.scalar(
-        select(func.count()).select_from(UserIdentity).where(UserIdentity.user_id == user.id)
-    )
-    if not user.password_hash and count <= 1:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST, "Set a password before removing your last SSO login"
-        )
-    await session.delete(identity)
-    await session.commit()
 
 
 # --- OpenID Connect -------------------------------------------------------------------
@@ -305,14 +323,10 @@ def _login_error_redirect(message: str) -> RedirectResponse:
 
 
 @router.get("/oidc/{provider}/login", dependencies=[_LIMITED])
-async def oidc_login(
-    provider: str, request: Request, session: SessionDep, link: bool = False, next: str = "/"
-):
-    """Start browser SSO. With `link=true`, attach the SSO account to the signed-in user."""
+async def oidc_login(provider: str, next: str = "/"):
+    """Start browser SSO. SSO and local accounts are separate: an SSO login never joins
+    a local account."""
     client = _client_or_404(provider)
-    link_user_id = None
-    if link:
-        link_user_id = (await current_user(request, session)).id
     state, nonce = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
     verifier, challenge = oidc.new_pkce_pair()
     try:
@@ -325,7 +339,6 @@ async def oidc_login(
             "nonce": nonce,
             "verifier": verifier,
             "provider": provider,
-            "link": link_user_id,
             "next": _safe_next(next),
         },
         _STATE_TTL,
@@ -376,9 +389,8 @@ async def oidc_callback(
             tokens["id_token"], [client.config.client_id], nonce=saved["nonce"]
         )
         claims = await oidc.claims_with_userinfo(client, claims, tokens.get("access_token"))
-        link_to = await session.get(User, saved["link"]) if saved.get("link") else None
         issuer = (await client.metadata())["issuer"]
-        user = await resolve_sso_user(session, client.config, issuer, claims, link_to)
+        user = await resolve_sso_user(session, client.config, issuer, claims)
     except oidc.OidcError as exc:
         await session.rollback()
         return _login_error_redirect(str(exc))

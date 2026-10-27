@@ -66,6 +66,20 @@ export function useHealth() {
   })
 }
 
+/** Latest Android app on GitHub; undefined data while loading or when there is none. */
+export function useAndroidRelease() {
+  return useQuery({
+    queryKey: ['android-release'],
+    queryFn: async () => {
+      const { data, response } = await api.GET('/api/app/android')
+      // No release (or GitHub unreachable): nothing to offer, not an error.
+      return response.ok && data ? data : null
+    },
+    staleTime: 60 * 60_000,
+    retry: false,
+  })
+}
+
 export function useProviders() {
   return useQuery({
     queryKey: ['providers'],

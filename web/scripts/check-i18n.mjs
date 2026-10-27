@@ -26,6 +26,10 @@ const DYNAMIC = [
   'sets', 'cards', 'printings', 'names', 'owned printings', 'prices received', 'stored',
   'already cached', 'skipped', 'without source', 'refused by source', 'old prices removed',
   'empty cards removed', 'translations copied', 'printings moved', 'set icons', 'card backs', 'pictures not downloaded', 'refresh', 'outdated cards', 'updated', 'not found at the source',
+  // Sync schedule editor: frequencies and job descriptions.
+  'Every few hours', 'Every day', 'Some days of the week', 'Once a month',
+  'New sets and cards (large downloads)', 'Card prices', 'Card pictures of new printings',
+  'Cards missing details, fetched again one by one',
   // Markets of the games split by region (`GameOut.region_label`).
   'International', 'Asia', 'China', 'TCG', 'OCG',
   // Names from the game plugins.

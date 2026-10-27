@@ -26,28 +26,26 @@ async def resolve_sso_user(
     provider: OidcProviderConfig,
     issuer: str,
     claims: dict[str, Any],
-    link_to: User | None = None,
 ) -> User:
-    """Find, create or link the local user for an SSO login.
+    """Find or create the user of an SSO login. SSO accounts are separate from local
+    ones (no password, never joined to a local account).
 
     Accounts are matched on (issuer, sub) only, never on email: an IdP letting users
-    set an arbitrary email must not grant access to someone else's account.
+    set an arbitrary email must not grant access to someone else's account. The email is
+    only shown and kept as a contact, so an unverified one is taken too. The IdP manages
+    the email of SSO users: every login copies it to the account.
     """
     groups = extract_groups(claims, provider.groups_claim)
     if provider.allowed_groups and not groups & set(provider.allowed_groups):
         raise OidcError("Your account is not allowed to use this application")
 
     subject = str(claims["sub"])
-    email = claims.get("email") if claims.get("email_verified", True) else None
+    email = str(claims.get("email") or "").strip()[:320] or None
     identity = await session.scalar(
         select(UserIdentity).where(UserIdentity.issuer == issuer, UserIdentity.subject == subject)
     )
 
-    if link_to is not None:
-        if identity is not None and identity.user_id != link_to.id:
-            raise OidcError("This SSO account is already linked to another user")
-        user = link_to
-    elif identity is not None:
+    if identity is not None:
         user = await session.get(User, identity.user_id)
     else:
         if not provider.auto_create_users:
@@ -66,6 +64,8 @@ async def resolve_sso_user(
         )
         session.add(identity)
     identity.email = email
+    if email:
+        user.email = email
 
     if provider.admin_groups:
         user.role = Role.admin if groups & set(provider.admin_groups) else Role.user

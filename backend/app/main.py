@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import insert
 from starlette.types import Scope
 
 from app import __version__
-from app.api import admin, auth, catalog, collection, games, scan, users
+from app.api import admin, auth, catalog, collection, games, releases, scan, users
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
 from app.core.middleware import BodyLimit, SecurityHeaders
@@ -94,6 +94,7 @@ def create_app() -> FastAPI:
     api.include_router(collection.router)
     api.include_router(scan.router)
     api.include_router(admin.router)
+    api.include_router(releases.router)
 
     @api.get("/health", tags=["meta"])
     async def health() -> dict[str, str]:

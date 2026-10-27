@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { api, ApiError, onSessionExpired } from '../api/client'
-import { useHealth, useMe } from '../api/queries'
+import { useAndroidRelease, useHealth, useMe } from '../api/queries'
 import { useServerLanguage } from '../i18n'
 import { LanguageMenu } from './I18n'
 import { ErrorScreen } from './ErrorPage'
@@ -39,6 +39,7 @@ export function Layout() {
   const client = useQueryClient()
   const [dark, setDark] = useTheme()
   const health = useHealth()
+  const android = useAndroidRelease()
   useServerLanguage(me.data?.language)
   useTypeToSearch()
 
@@ -67,7 +68,9 @@ export function Layout() {
     client.clear()
     const endSession = (data as { end_session_url?: string | null } | undefined)?.end_session_url
     if (endSession) window.location.href = endSession
-    else navigate('/login')
+    // No provider logout: stay on the login page (single sign-on only would sign in
+    // again at once with the provider's session).
+    else navigate('/login?logged_out=1')
   }
 
   const link = ({ isActive }: { isActive: boolean }) => (isActive ? 'menu-active' : '')
@@ -133,9 +136,17 @@ export function Layout() {
               </>
             )}
           </ul>
-          <div className="mt-auto flex gap-2 px-6 py-4 text-xs text-neutral-content/50">
-            {health.data?.version && <span>v{health.data.version}</span>}
-            <Link to="/about" className="link link-hover" onClick={closeDrawer}>{t('About')}</Link>
+          <div className="mt-auto flex flex-col gap-2 px-6 py-4 text-xs text-neutral-content/50">
+            {android.data && (
+              <a href={android.data.url} className="link link-hover flex items-center gap-1.5 text-neutral-content/70" title={t('Download the Android app')}>
+                <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" /></svg>
+                {t('Android app {{version}}', { version: android.data.version })}
+              </a>
+            )}
+            <div className="flex gap-2">
+              {health.data?.version && <span>v{health.data.version}</span>}
+              <Link to="/about" className="link link-hover" onClick={closeDrawer}>{t('About')}</Link>
+            </div>
           </div>
         </aside>
       </div>

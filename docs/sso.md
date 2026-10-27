@@ -28,8 +28,14 @@ Each provider needs two clients at the IdP:
 
 Rules worth knowing:
 
-- Accounts are matched on issuer + subject, never on email. To attach SSO to an
-  existing local account, sign in locally and use **Link SSO account** in settings.
+- Accounts are matched on issuer + subject, never on email. Local and SSO accounts are
+  separate: an SSO login never joins a local account, and SSO accounts have no Zukan
+  password.
+- The IdP manages SSO users' password and email: the email is copied to the account on
+  every SSO login (from the ID token, else userinfo), and Zukan's settings link to the
+  provider's account page instead of offering password and email forms. That page is
+  guessed for Keycloak and Authentik; set `TCG_OIDC_<NAME>_ACCOUNT_URL` for others
+  (Authelia: `https://auth.example.com/settings`, Zitadel: `https://<host>/ui/console/users/me`).
 - When `TCG_OIDC_<NAME>_ADMIN_GROUPS` is set, the role is synced from the IdP groups on every SSO login.
   Leave it empty to manage roles in Zukan instead.
 - ID tokens must be signed with an asymmetric key (RS*/PS*/ES*/EdDSA). HS256 tokens
@@ -37,7 +43,9 @@ Rules worth knowing:
 - Both clients must share the same issuer, so web and mobile logins map to the same
   account.
 - Keep one administrator able to sign in locally until SSO is confirmed working, then
-  optionally set `TCG_LOCAL_LOGIN_ENABLED=false`. Recovery: set it back to `true`, then
+  optionally set `TCG_LOCAL_LOGIN_ENABLED=false`. With a single provider, the login page
+  then goes straight to it (except after an SSO error, or after logging out when the
+  provider has no logout endpoint). Recovery: set it back to `true`, then
   `zukan create-admin NAME` inside the api container.
 
 ## Keycloak

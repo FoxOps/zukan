@@ -107,12 +107,21 @@ fun LoginScreen(session: SessionViewModel, state: SessionState) {
             }
             val sso = state.providers.providers.filter { it.mobileClientId != null }
             if (sso.isNotEmpty() && state.providers.localLoginEnabled) HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            val local = state.providers.localLoginEnabled
             sso.forEach { provider ->
-                OutlinedButton(
-                    onClick = { scope.launch { session.ssoIntent(provider)?.let(ssoLauncher::launch) } },
-                    enabled = !state.busy,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(stringResource(R.string.sign_in_with, provider.displayName)) }
+                // One provider: a plain "Log in" (its name means nothing on a phone); with the
+                // local form too, "with SSO" tells both apart. Several: their names.
+                val label = when {
+                    sso.size > 1 -> stringResource(R.string.sign_in_with, provider.displayName)
+                    local -> stringResource(R.string.log_in_sso)
+                    else -> stringResource(R.string.log_in)
+                }
+                val start = { scope.launch { session.ssoIntent(provider)?.let(ssoLauncher::launch) }; Unit }
+                if (!local && sso.size == 1) {
+                    Button(colors = ctaColors(), onClick = start, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text(label) }
+                } else {
+                    OutlinedButton(onClick = start, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text(label) }
+                }
             }
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }

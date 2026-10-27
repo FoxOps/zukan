@@ -132,4 +132,23 @@
     <string name="error_identify">The card could not be identified</string>
     <string name="show_back">Show back</string>
     <string name="show_front">Show front</string>
+    <string name="log_in_sso">Log in with SSO</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_up_to_date">Zukan is up to date</string>
+    <string name="update_dev_build">Development build: install new builds from their GitHub pre-releases.</string>
+    <string name="update_available_title">Update available</string>
+    <string name="update_available_text">Zukan %1$s is available (you have %2$s). Download it now (%3$s)?</string>
+    <string name="update_download">Download</string>
+    <string name="update_later">Later</string>
+    <string name="update_skip">Skip this version</string>
+    <string name="update_downloading">Downloading Zukan %1$s…</string>
+    <string name="update_cancel">Cancel</string>
+    <string name="update_ready_title">Ready to install</string>
+    <string name="update_ready_text">Android will ask you to confirm the installation of Zukan %1$s.</string>
+    <string name="update_install">Install</string>
+    <string name="update_permission">Allow Zukan to install apps in the screen that opened, then come back and tap Install again.</string>
+    <string name="update_failed">Download failed: %1$s</string>
+    <string name="update_checksum">the file is damaged, try again</string>
+    <string name="update_retry">Retry</string>
 </resources>

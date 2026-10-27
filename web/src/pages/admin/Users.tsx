@@ -112,7 +112,9 @@ export default function Users() {
                       ]}
                     />
                   </td>
-                  <td className="text-sm">{u.has_password ? t('Password') : t('SSO only')}</td>
+                  <td className="text-sm">
+                    {u.sso ? <span className="badge badge-sm badge-info badge-soft">{t('SSO')}</span> : t('Password')}
+                  </td>
                   <td>
                     <input
                       type="checkbox"
@@ -124,12 +126,17 @@ export default function Users() {
                     />
                   </td>
                   <td className="flex justify-end gap-1">
-                    <button className="btn btn-ghost btn-xs" onClick={() => changeEmail(u)}>
-                      {t('Set email')}
-                    </button>
-                    <button className="btn btn-ghost btn-xs" onClick={() => resetPassword(u)}>
-                      {t('Set password')}
-                    </button>
+                    {/* SSO accounts: email and password are managed by the identity provider. */}
+                    {!u.sso && (
+                      <>
+                        <button className="btn btn-ghost btn-xs" onClick={() => changeEmail(u)}>
+                          {t('Set email')}
+                        </button>
+                        <button className="btn btn-ghost btn-xs" onClick={() => resetPassword(u)}>
+                          {t('Set password')}
+                        </button>
+                      </>
+                    )}
                     {!self &&
                       (deleting === u.id ? (
                         <button className="btn btn-error btn-xs" onClick={() => remove.mutate(u.id)}>

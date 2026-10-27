@@ -101,8 +101,8 @@ export interface paths {
         put?: never;
         /**
          * Change Email
-         * @description Change the account's email address. Signing in with SSO later does not overwrite
-         *     it (the identity keeps the provider's address).
+         * @description Change the account's email address. Refused for SSO users: their identity provider
+         *     manages it (copied on every SSO login).
          */
         post: operations["change_email_api_auth_email_post"];
         delete?: never;
@@ -123,27 +123,11 @@ export interface paths {
         /**
          * Change Password
          * @description Change the password and end every session. A browser gets a new session at once;
-         *     token clients (the app) sign in again.
+         *     token clients (the app) sign in again. Refused for SSO users: their identity
+         *     provider manages it (SSO and local accounts are separate).
          */
         post: operations["change_password_api_auth_password_post"];
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/identities/{identity_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Unlink Identity */
-        delete: operations["unlink_identity_api_auth_identities__identity_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -158,7 +142,8 @@ export interface paths {
         };
         /**
          * Oidc Login
-         * @description Start browser SSO. With `link=true`, attach the SSO account to the signed-in user.
+         * @description Start browser SSO. SSO and local accounts are separate: an SSO login never joins
+         *     a local account.
          */
         get: operations["oidc_login_api_auth_oidc__provider__login_get"];
         put?: never;
@@ -760,6 +745,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/sync-schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Sync Schedule
+         * @description When the worker runs each job kind (every game).
+         */
+        get: operations["get_sync_schedule_api_admin_sync_schedule_get"];
+        /**
+         * Set Sync Schedule
+         * @description Save the schedule. Set times already passed are not caught up: a job set to
+         *     run daily at 04:00 saved at 10:00 runs first tomorrow at 04:00.
+         */
+        put: operations["set_sync_schedule_api_admin_sync_schedule_put"];
+        post?: never;
+        /**
+         * Reset Sync Schedule
+         * @description Back to the TCG_*_INTERVAL_HOURS defaults.
+         */
+        delete: operations["reset_sync_schedule_api_admin_sync_schedule_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/sync-schedule/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Sync Schedule
+         * @description Next set times of a schedule being edited, without saving it.
+         */
+        post: operations["preview_sync_schedule_api_admin_sync_schedule_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/jobs/{game_id}/{kind}": {
         parameters: {
             query?: never;
@@ -954,6 +988,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/app/android": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Android Release
+         * @description Latest Android app (GitHub release): web download link and the app's update check.
+         */
+        get: operations["android_release_api_app_android_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -999,6 +1053,24 @@ export interface components {
             item: components["schemas"]["ItemOut"];
             /** Transaction Id */
             transaction_id: number;
+        };
+        /** AndroidRelease */
+        AndroidRelease: {
+            /** Version */
+            version: string;
+            /** Url */
+            url: string;
+            /** Size */
+            size: number;
+            /**
+             * Published At
+             * Format: date-time
+             */
+            published_at: string;
+            /** Sha256 */
+            sha256: string | null;
+            /** Notes Url */
+            notes_url: string;
         };
         /** Body_import_csv_api_collection_import_post */
         Body_import_csv_api_collection_import_post: {
@@ -1605,8 +1677,14 @@ export interface components {
             disabled: boolean;
             /** Has Password */
             has_password: boolean;
+            /**
+             * Sso
+             * @default false
+             */
+            sso: boolean;
             /** Identities */
             identities: components["schemas"]["IdentityOut"][];
+            sso_account?: components["schemas"]["SsoAccountOut"] | null;
             /**
              * Language
              * @enum {string}
@@ -1795,6 +1873,8 @@ export interface components {
             mobile_client_id: string | null;
             /** Scopes */
             scopes: string[];
+            /** Account Url */
+            account_url?: string | null;
         };
         /** ProvidersOut */
         ProvidersOut: {
@@ -1890,6 +1970,34 @@ export interface components {
             /** Check Seconds */
             check_seconds: number;
         };
+        /**
+         * ScheduleRule
+         * @description When one job kind runs. `interval`: `every_hours` after the last run started.
+         *     Other modes: at each of `times` (local "HH:MM") every day (`daily`), on `weekdays`
+         *     (0 Monday .. 6 Sunday, `weekly`) or on `month_day` (`monthly`).
+         */
+        ScheduleRule: {
+            /**
+             * Mode
+             * @default interval
+             * @enum {string}
+             */
+            mode: "interval" | "daily" | "weekly" | "monthly";
+            /**
+             * Every Hours
+             * @default 24
+             */
+            every_hours: number;
+            /** Times */
+            times?: string[];
+            /** Weekdays */
+            weekdays?: number[];
+            /**
+             * Month Day
+             * @default 1
+             */
+            month_day: number;
+        };
         /** SetOut */
         SetOut: {
             /** Id */
@@ -1934,6 +2042,18 @@ export interface components {
             /** Quantity */
             quantity: number;
         };
+        /**
+         * SsoAccountOut
+         * @description Identity provider managing an SSO user's password and email.
+         */
+        SsoAccountOut: {
+            /** Provider */
+            provider: string;
+            /** Display Name */
+            display_name: string;
+            /** Account Url */
+            account_url: string | null;
+        };
         /** StaleCardOut */
         StaleCardOut: {
             /** Id */
@@ -1959,6 +2079,36 @@ export interface components {
             total: number;
             /** Refreshable */
             refreshable: string[];
+        };
+        /**
+         * SyncScheduleIn
+         * @description Time zone (IANA name) and one rule per job kind; kinds left out keep their
+         *     default rule.
+         */
+        SyncScheduleIn: {
+            /** Timezone */
+            timezone: string;
+            /** Jobs */
+            jobs: {
+                [key: string]: components["schemas"]["ScheduleRule"];
+            };
+        };
+        /** SyncScheduleOut */
+        SyncScheduleOut: {
+            /** Timezone */
+            timezone: string;
+            /** Jobs */
+            jobs: {
+                [key: string]: components["schemas"]["ScheduleRule"];
+            };
+            /** Is Default */
+            is_default: boolean;
+            /** Default Timezone */
+            default_timezone: string;
+            /** Upcoming */
+            upcoming: {
+                [key: string]: string[];
+            };
         };
         /**
          * TokenOut
@@ -2061,6 +2211,11 @@ export interface components {
             disabled: boolean;
             /** Has Password */
             has_password: boolean;
+            /**
+             * Sso
+             * @default false
+             */
+            sso: boolean;
         };
         /** UserUpdateIn */
         UserUpdateIn: {
@@ -2360,39 +2515,9 @@ export interface operations {
             };
         };
     };
-    unlink_identity_api_auth_identities__identity_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                identity_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     oidc_login_api_auth_oidc__provider__login_get: {
         parameters: {
             query?: {
-                link?: boolean;
                 next?: string;
             };
             header?: never;
@@ -3485,6 +3610,112 @@ export interface operations {
             };
         };
     };
+    get_sync_schedule_api_admin_sync_schedule_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncScheduleOut"];
+                };
+            };
+        };
+    };
+    set_sync_schedule_api_admin_sync_schedule_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncScheduleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_sync_schedule_api_admin_sync_schedule_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncScheduleOut"];
+                };
+            };
+        };
+    };
+    preview_sync_schedule_api_admin_sync_schedule_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncScheduleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     start_job_api_admin_jobs__game_id___kind__post: {
         parameters: {
             query?: never;
@@ -3802,6 +4033,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    android_release_api_app_android_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AndroidRelease"];
                 };
             };
         };

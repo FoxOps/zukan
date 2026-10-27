@@ -7,6 +7,7 @@ import { useGames, useMe } from '../../api/queries'
 import { useToast } from '../../components/toast'
 import { Select } from '../../components/Select'
 import { formatDateTime } from '../../lib/format'
+import { ScheduleEditor } from './ScheduleEditor'
 
 const KINDS = ['catalog', 'prices', 'images', 'refresh'] as const
 const STATUS: Record<string, string> = {
@@ -79,7 +80,7 @@ function NextRun({ at, running, now }: { at: string | undefined; running: boolea
   const { t, i18n } = useTranslation()
   if (!at || running) return null
   const seconds = (new Date(at).getTime() - now) / 1000
-  if (seconds <= 0) return <div className="text-xs text-base-content/60">{t('Next run: within 5 minutes')}</div>
+  if (seconds <= 0) return <div className="text-xs text-base-content/60">{t('Next run: within a minute')}</div>
   const relative = new Intl.RelativeTimeFormat(i18n.language, { numeric: 'auto' })
   const [value, unit]: [number, Intl.RelativeTimeFormatUnit] =
     seconds < 3600 ? [Math.ceil(seconds / 60), 'minute'] : seconds < 48 * 3600 ? [Math.round(seconds / 3600), 'hour'] : [Math.round(seconds / 86400), 'day']
@@ -160,8 +161,9 @@ export default function Jobs() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">{t('Data sync')}</h1>
+      <ScheduleEditor />
       <p className="text-sm text-base-content/70">
-        {t('The worker refreshes catalogs weekly, prices and images daily, and outdated cards every two days. A job started here runs at once, stopping an automatic run of the same job.')}
+        {t('A job started here runs at once, stopping an automatic run of the same job.')}
       </p>
 
       <div className="grid gap-4 md:grid-cols-3">
