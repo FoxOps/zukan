@@ -20,5 +20,11 @@
   "The {{count}} most valuable hold {{share}} of the value._one": "The most valuable card holds {{share}} of the value.",
   "The {{count}} most valuable hold {{share}} of the value._other": "The {{count}} most valuable hold {{share}} of the value.",
   "{{count}} versions_one": "{{count}} version",
-  "{{count}} versions_other": "{{count}} versions"
+  "{{count}} versions_other": "{{count}} versions",
+  "{{count}} weeks_one": "{{count}} week",
+  "{{count}} weeks_other": "{{count}} weeks",
+  "{{count}} days_one": "{{count}} day",
+  "{{count}} days_other": "{{count}} days",
+  "{{count}} hours_one": "{{count}} hour",
+  "{{count}} hours_other": "{{count}} hours"
 }

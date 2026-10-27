@@ -133,4 +133,23 @@
     <string name="error_identify">La carte n’a pas pu être identifiée</string>
     <string name="show_back">Voir le dos</string>
     <string name="show_front">Voir le recto</string>
+    <string name="log_in_sso">Connexion avec le SSO</string>
+    <string name="update_check">Rechercher une mise à jour</string>
+    <string name="update_checking">Recherche de mise à jour…</string>
+    <string name="update_up_to_date">Zukan est à jour</string>
+    <string name="update_dev_build">Version de développement : installez les nouvelles versions depuis leurs pré-versions GitHub.</string>
+    <string name="update_available_title">Mise à jour disponible</string>
+    <string name="update_available_text">Zukan %1$s est disponible (vous avez la %2$s). La télécharger maintenant (%3$s) ?</string>
+    <string name="update_download">Télécharger</string>
+    <string name="update_later">Plus tard</string>
+    <string name="update_skip">Ignorer cette version</string>
+    <string name="update_downloading">Téléchargement de Zukan %1$s…</string>
+    <string name="update_cancel">Annuler</string>
+    <string name="update_ready_title">Prête à installer</string>
+    <string name="update_ready_text">Android va vous demander de confirmer l\'installation de Zukan %1$s.</string>
+    <string name="update_install">Installer</string>
+    <string name="update_permission">Autorisez Zukan à installer des applications dans l\'écran qui s\'est ouvert, puis revenez et touchez à nouveau Installer.</string>
+    <string name="update_failed">Échec du téléchargement : %1$s</string>
+    <string name="update_checksum">le fichier est endommagé, réessayez</string>
+    <string name="update_retry">Réessayer</string>
 </resources>

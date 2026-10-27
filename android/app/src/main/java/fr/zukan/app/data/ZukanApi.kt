@@ -11,6 +11,9 @@ interface ZukanApi {
     @GET("api/health")
     suspend fun health(): Map<String, String>
 
+    @GET("api/app/android")
+    suspend fun androidRelease(): AndroidReleaseOut
+
     @GET("api/auth/providers")
     suspend fun providers(): ProvidersOut
 

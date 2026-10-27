@@ -157,10 +157,11 @@ class ScheduleOut(BaseModel):
 async def job_schedule(_: AdminUser) -> list[ScheduleOut]:
     """Next automatic run of every job the worker runs."""
     now = datetime.now(UTC)
+    rules = await schedule.load_schedule()
     out = []
     for game_id in registry():
         for kind in schedule.jobs_for(game_id):
-            at = await schedule.next_run(game_id, kind, now)
+            at = await schedule.next_run(game_id, kind, now, rules)
             if at is not None:
                 out.append(
                     ScheduleOut(
@@ -171,6 +172,72 @@ async def job_schedule(_: AdminUser) -> list[ScheduleOut]:
                     )
                 )
     return out
+
+
+class SyncScheduleIn(BaseModel):
+    """Time zone (IANA name) and one rule per job kind; kinds left out keep their
+    default rule."""
+
+    timezone: str
+    jobs: dict[JobKind, schedule.ScheduleRule]
+
+
+class SyncScheduleOut(SyncScheduleIn):
+    # Never saved: the TCG_*_INTERVAL_HOURS defaults apply.
+    is_default: bool
+    default_timezone: str
+    # Next set times of the fixed-time rules (empty for "every N hours" rules, which
+    # depend on each game's last run).
+    upcoming: dict[JobKind, list[datetime]]
+
+
+def _schedule_out(rules: schedule.SyncSchedule) -> SyncScheduleOut:
+    now = datetime.now(UTC)
+    return SyncScheduleOut(
+        timezone=rules.timezone,
+        jobs=rules.jobs,
+        is_default=rules.updated_at is None,
+        default_timezone=schedule.default_timezone(),
+        upcoming={
+            kind: [] if rule.mode == "interval" else schedule.upcoming(rule, rules.zone, now)
+            for kind, rule in rules.jobs.items()
+        },
+    )
+
+
+def _validated(body: SyncScheduleIn) -> schedule.SyncSchedule:
+    try:
+        rules = schedule.SyncSchedule(timezone=body.timezone, jobs=body.jobs)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+    default = schedule.default_schedule()
+    return rules.model_copy(update={"jobs": {**default.jobs, **rules.jobs}})
+
+
+@router.get("/sync-schedule")
+async def get_sync_schedule(_: AdminUser) -> SyncScheduleOut:
+    """When the worker runs each job kind (every game)."""
+    return _schedule_out(await schedule.load_schedule())
+
+
+@router.put("/sync-schedule")
+async def set_sync_schedule(body: SyncScheduleIn, _: AdminUser) -> SyncScheduleOut:
+    """Save the schedule. Set times already passed are not caught up: a job set to
+    run daily at 04:00 saved at 10:00 runs first tomorrow at 04:00."""
+    return _schedule_out(await schedule.save_schedule(_validated(body)))
+
+
+@router.delete("/sync-schedule")
+async def reset_sync_schedule(_: AdminUser) -> SyncScheduleOut:
+    """Back to the TCG_*_INTERVAL_HOURS defaults."""
+    return _schedule_out(await schedule.save_schedule(None))
+
+
+@router.post("/sync-schedule/preview")
+async def preview_sync_schedule(body: SyncScheduleIn, _: AdminUser) -> SyncScheduleOut:
+    """Next set times of a schedule being edited, without saving it."""
+    out = _schedule_out(_validated(body))
+    return out.model_copy(update={"is_default": False})
 
 
 async def _complete_quietly(run_id: int, game_id: str, kind: JobKind) -> None:

@@ -23,7 +23,13 @@ import fr.zukan.app.data.OcrScript
 import fr.zukan.app.data.Settings
 
 @Composable
-fun SettingsScreen(session: SessionViewModel, state: SessionState, settings: Settings) {
+fun SettingsScreen(
+    session: SessionViewModel,
+    state: SessionState,
+    settings: Settings,
+    updates: UpdateViewModel,
+    updateState: UpdateState,
+) {
     val languages = state.games.flatMap { it.languages }.distinct()
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -108,6 +114,24 @@ fun SettingsScreen(session: SessionViewModel, state: SessionState, settings: Set
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (updates.supported) {
+            OutlinedButton(onClick = updates::checkNow, enabled = updateState !is UpdateState.Checking) {
+                Text(stringResource(R.string.update_check))
+            }
+            val status = when (updateState) {
+                UpdateState.Checking -> stringResource(R.string.update_checking)
+                UpdateState.UpToDate -> stringResource(R.string.update_up_to_date)
+                is UpdateState.Failed -> if (updateState.release == null) updateState.message else null
+                else -> null
+            }
+            status?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+        } else {
+            Text(
+                stringResource(R.string.update_dev_build),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

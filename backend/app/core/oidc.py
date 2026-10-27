@@ -6,11 +6,12 @@ IdP works: Keycloak, Authentik, Authelia, Zitadel, Google...
 
 import base64
 import hashlib
+import re
 import secrets
 import time
 from functools import lru_cache
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import httpx
 import jwt
@@ -57,6 +58,8 @@ class OidcProviderConfig(BaseModel):
     # When set, users outside these groups are refused.
     allowed_groups: list[str] = []
     auto_create_users: bool = True
+    # Page where users change their password and email at the IdP (None: unknown).
+    account_url: str | None = None
 
 
 class _ProviderSettings(BaseSettings):
@@ -75,6 +78,7 @@ class _ProviderSettings(BaseSettings):
     admin_groups: list[str] = []
     allowed_groups: list[str] = []
     auto_create_users: bool = True
+    account_url: str | None = None
 
 
 def env_prefix(name: str) -> str:
@@ -97,8 +101,22 @@ def get_auth_config() -> AuthConfig:
             raise ValueError(f"SSO provider {name!r}: invalid or missing {missing}") from exc
         data = values.model_dump()
         data["display_name"] = data["display_name"] or name
+        data["account_url"] = data["account_url"] or guess_account_url(data["issuer"])
         providers.append(OidcProviderConfig(name=name, **data))
     return AuthConfig(providers=providers)
+
+
+def guess_account_url(issuer: str) -> str | None:
+    """Account page of IdPs whose issuer tells them apart: Keycloak
+    (`https://host/realms/<realm>`) and Authentik (`https://host/application/o/<slug>/`).
+    Others need TCG_OIDC_<NAME>_ACCOUNT_URL."""
+    parts = urlsplit(issuer)
+    path = parts.path.rstrip("/")
+    if re.search(r"/realms/[^/]+$", path):
+        return f"{issuer.rstrip('/')}/account"
+    if "/application/o/" in f"{path}/":
+        return f"{parts.scheme}://{parts.netloc}/if/user/#/settings"
+    return None
 
 
 def local_login_enabled() -> bool:
@@ -142,11 +160,18 @@ class OidcClient:
     def _http(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(timeout=10, headers={"User-Agent": get_settings().user_agent})
 
+    async def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+        """IdP request; network errors become a login error, not a server error."""
+        try:
+            async with self._http() as http:
+                return await http.request(method, url, **kwargs)
+        except httpx.HTTPError as exc:
+            raise OidcError("SSO provider unreachable, try again later") from exc
+
     async def metadata(self) -> dict[str, Any]:
         if self._metadata is None or time.monotonic() - self._metadata_at > _CACHE_TTL:
             url = self.config.issuer.rstrip("/") + "/.well-known/openid-configuration"
-            async with self._http() as http:
-                response = await http.get(url)
+            response = await self._request("GET", url)
             if response.status_code != 200:
                 raise OidcError("SSO provider discovery failed")
             metadata = response.json()
@@ -160,8 +185,7 @@ class OidcClient:
             # Refetch once on unknown kid: the IdP may have rotated its keys.
             stale = time.monotonic() - self._jwks_at > _CACHE_TTL
             if self._jwks is None or stale or attempt == 1:
-                async with self._http() as http:
-                    response = await http.get((await self.metadata())["jwks_uri"])
+                response = await self._request("GET", (await self.metadata())["jwks_uri"])
                 if response.status_code != 200:
                     raise OidcError("SSO provider key fetch failed")
                 self._jwks, self._jwks_at = (
@@ -200,10 +224,9 @@ class OidcClient:
         auth = None
         if self.config.client_secret:
             auth = httpx.BasicAuth(self.config.client_id, self.config.client_secret)
-        async with self._http() as http:
-            response = await http.post(
-                (await self.metadata())["token_endpoint"], data=data, auth=auth
-            )
+        response = await self._request(
+            "POST", (await self.metadata())["token_endpoint"], data=data, auth=auth
+        )
         if response.status_code != 200:
             raise OidcError("SSO code exchange failed")
         tokens = response.json()
@@ -247,8 +270,9 @@ class OidcClient:
         endpoint = (await self.metadata()).get("userinfo_endpoint")
         if not endpoint:
             return {}
-        async with self._http() as http:
-            response = await http.get(endpoint, headers={"Authorization": f"Bearer {access_token}"})
+        response = await self._request(
+            "GET", endpoint, headers={"Authorization": f"Bearer {access_token}"}
+        )
         return response.json() if response.status_code == 200 else {}
 
     async def end_session_url(self, post_logout_redirect: str) -> str | None:
@@ -275,9 +299,10 @@ def get_client(name: str) -> OidcClient:
 async def claims_with_userinfo(
     client: OidcClient, claims: dict[str, Any], access_token: str | None
 ) -> dict[str, Any]:
-    """Some IdPs (Authelia by default) only expose groups/profile in userinfo."""
+    """Some IdPs (Authelia by default, Keycloak without the ID token email mapper) only
+    expose groups, profile or email in userinfo."""
     config = client.config
-    missing = config.groups_claim not in claims or config.username_claim not in claims
+    missing = any(c not in claims for c in (config.groups_claim, config.username_claim, "email"))
     if not access_token or not missing:
         return claims
     info = await client.userinfo(access_token)

@@ -52,13 +52,21 @@ class Settings(BaseSettings):
 
     # Worker: hours between catalog refreshes (large downloads, new sets are rare),
     # hours between price/image refreshes, and games to refresh (empty = all installed).
+    # Defaults of the schedule administrators edit on the Data sync page, which can also
+    # run jobs at set times instead.
     catalog_interval_hours: int = 7 * 24
     sync_interval_hours: int = 24
     # Hours between refreshes of stale cards (missed by the last catalog sync, or with
     # missing data), fetched again one by one.
     refresh_interval_hours: int = 48
     worker_games: list[str] = []
+    # Default time zone of the schedule's set times (IANA name, e.g. Europe/Paris).
+    schedule_timezone: str = "UTC"
     user_agent: str = f"Zukan/{__version__}"
+
+    # GitHub repository whose `android-vX.Y.Z` releases hold the Android app, offered for
+    # download in the web interface and to the app's update check. Empty: no download.
+    android_release_repo: str = "FoxOps/zukan"
 
     # Request quotas kept by the gap-filling sources with limited free tiers (their own
     # limits: apitcg 1000 a month, tcg-api.eu 10 000 a day).

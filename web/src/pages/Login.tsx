@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router'
 import { api, call, markSignedIn } from '../api/client'
@@ -46,6 +46,24 @@ export default function Login() {
 
   const sso = providers.data?.providers ?? []
   const local = providers.data?.local_login_enabled ?? true
+  const ssoHref = (name: string) =>
+    `/api/auth/oidc/${encodeURIComponent(name)}/login?next=${encodeURIComponent(next)}`
+  // Single sign-on only: straight to the identity provider. Not after an SSO error, nor
+  // after logging out (the provider's session would sign the user in again at once).
+  const only = !local && sso.length === 1 && !params.has('error') && !params.has('logged_out') ? sso[0] : null
+  const redirectTo = only ? ssoHref(only.name) : null
+  useEffect(() => {
+    if (redirectTo) window.location.replace(redirectTo)
+  }, [redirectTo])
+
+  if (only) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-base-200 p-4">
+        <span className="loading loading-spinner loading-lg" />
+        <p className="text-base-content/70">{t('Redirecting to {{provider}}…', { provider: only.display_name })}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-base-200 p-4">
@@ -77,12 +95,8 @@ export default function Login() {
           )}
           {local && sso.length > 0 && <div className="divider my-0">{t('or')}</div>}
           {sso.map((p) => (
-            <a
-              key={p.name}
-              className="btn btn-outline"
-              href={`/api/auth/oidc/${encodeURIComponent(p.name)}/login?next=${encodeURIComponent(next)}`}
-            >
-              {t('Sign in with {{provider}}', { provider: p.display_name })}
+            <a key={p.name} className={local ? 'btn btn-outline' : 'btn btn-primary'} href={ssoHref(p.name)}>
+              {!local && sso.length === 1 ? t('Log in') : t('Sign in with {{provider}}', { provider: p.display_name })}
             </a>
           ))}
         </div>

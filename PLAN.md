@@ -89,7 +89,7 @@ Standard OpenID Connect only, so Keycloak, Authentik, Authelia, Zitadel, Google 
 - **Config** (`.env` only): `TCG_LOCAL_LOGIN_ENABLED`, `TCG_OIDC_PROVIDERS` (JSON list of names), each provider set by `TCG_OIDC_<NAME>_*`: `name`, `display_name`, `issuer` (discovery via `/.well-known/openid-configuration`), `client_id`, `client_secret`, `scopes` (`openid profile email groups`), `groups_claim`, `admin_groups`, `allowed_groups`, `auto_create_users`.
 - **Web flow**: backend is confidential client. `GET /auth/oidc/{provider}/login` → IdP (authorization code + PKCE + state + nonce) → `GET /auth/oidc/{provider}/callback` → validate ID token (JWKS, iss, aud, nonce, exp) → find/create user by (issuer, sub) → issue app session (httpOnly secure cookie with short-lived access JWT + rotating refresh token).
 - **Android flow**: AppAuth-Android, public client, authorization code + PKCE, redirect via app custom scheme / app link. App sends IdP ID token to `POST /auth/oidc/{provider}/exchange`; backend validates same way and returns app access + refresh token. App never holds client secret. `GET /auth/providers` tells app/web which login buttons to show.
-- **Provisioning**: first SSO login auto-creates user if allowed (username from `preferred_username`, email). Role from group claim on each login (admin group → admin). Not in `allowed_groups` → refused. Existing local user can link SSO identity from settings (no auto-link by email — avoids account takeover).
+- **Provisioning**: first SSO login auto-creates user if allowed (username from `preferred_username`, email). Role from group claim on each login (admin group → admin). Not in `allowed_groups` → refused. Local and SSO accounts are separate (since 0.19.0; linking from settings removed), never matched by email (avoids account takeover); the IdP manages SSO users' email and password.
 - **Logout**: revoke app refresh token; optional RP-initiated logout via IdP `end_session_endpoint`.
 - Local accounts stay available (bootstrap admin, fallback if IdP down); admin can disable local login once SSO works.
 - Docs: setup notes for Keycloak, Authentik, Authelia client config (redirect URIs, group claim mapping).
@@ -1607,6 +1607,76 @@ untranslated Korean cards (Hangul sorts before Latin in en_US.utf8) filled the f
 - [ ] User: check the 24 h arrows and finance 1 day after upgrading; if they still stay
   "=" late in the UTC day (after every game's price sync), report it: the cause found only
   explains the hours before each game's daily sync.
+
+## Report 2026-10-27 (server 0.19.0, Android 0.11.0)
+Branch `2026-10-27-000-sso-schedule-app-update` (from main after 0.18.2). User report on
+server 0.18.2 / app 0.10.0: sync at set times (cron-like), download the latest APK from
+the web UI, SSO-only login straight to the provider, OIDC email missing in user and admin
+settings, no "Single sign-on" card for users, password and email changed at the IdP;
+Android: auto-update, "Log in" instead of "Sign in with <provider>".
+Decisions (Q&A): schedule edited on the admin Data sync page and stored in the database,
+with a visual editor (no cron syntax: too technical); the app asks before downloading an
+update (Android always asks before installing an app installed outside a store); local
+and SSO accounts are separate, never mixed.
+
+- [x] Sync schedule: `app_setting` table (migration `d7a9c1e3f546`), key `sync_schedule`
+  = time zone + one `ScheduleRule` per job kind: every N hours since the last run
+  (default, from `TCG_*_INTERVAL_HOURS`), or at set times every day / on chosen weekdays
+  / on one day of the month (zoneinfo, DST-safe, several times a day allowed). Set times
+  passed before the schedule was saved are not caught up. Worker loads it once per tick,
+  tick 300 s → 60 s. Admin API `GET/PUT/DELETE /api/admin/sync-schedule`,
+  `POST /api/admin/sync-schedule/preview` (next 3 times). New env
+  `TCG_SCHEDULE_TIMEZONE` (default UTC).
+- [x] Web "Automatic updates" card on Data sync (`admin/ScheduleEditor.tsx`): frequency
+  select, hour presets, time pickers (+ add a time), weekday toggles, day of month,
+  searchable time zone with "use mine", live "Next: …" preview, Save / Cancel / Back to
+  defaults. Hard-coded schedule sentence removed.
+- [x] Android APK download: `services/app_release.py` lists GitHub releases of
+  `TCG_ANDROID_RELEASE_REPO` (default `FoxOps/zukan`, empty: off), newest
+  `android-vX.Y.Z` non-prerelease with a `zukan-*.apk` asset (server releases share the
+  repo), cached 1 h (failures 5 min); `GET /api/app/android` (signed-in users). Web:
+  sidebar "Android app X.Y.Z" link, About page card (size, date, release notes).
+- [x] SSO-only auto-redirect: login page goes to the single provider when local login is
+  off, not after `?error=` nor after logout without an IdP logout endpoint
+  (`/login?logged_out=1`, avoids signing straight back in). Button reads "Log in".
+  Found while testing: an unreachable IdP gave a 500 (httpx errors not mapped) → now a
+  login error ("SSO provider unreachable").
+- [x] OIDC email bug: `User.email` was only set on auto-create; an email with
+  `email_verified=false` (Keycloak admin-created users) was dropped; userinfo was not
+  read when only the email was missing. Now every SSO login copies the IdP email to the
+  account (display/contact only, never used for matching), userinfo fetched when email
+  is missing, migration backfills empty emails from the latest identity. `UserOut.sso`
+  → admin list shows an SSO badge.
+- [x] Local and SSO accounts separate: link (`?link=true`) and unlink
+  (`DELETE /api/auth/identities/{id}`) removed; SSO accounts never get a Zukan password
+  (self-service and admin "Set password" refused, 409); "Single sign-on" card removed.
+- [x] Password and email at the IdP: `TCG_OIDC_<NAME>_ACCOUNT_URL` (guessed for Keycloak
+  `<issuer>/account` and Authentik `/if/user/#/settings`), in `/api/auth/providers` and
+  `MeOut.sso_account`. Settings for SSO users: read-only email, "Password and email" card
+  with "Manage my account at <provider>"; `POST /api/auth/email` and admin "Set email"
+  refused for SSO users.
+- [x] Android auto-update: `UpdateViewModel` checks `GET /api/app/android` once a day
+  after sign-in and from Settings ("Check for updates"); dialog "Zukan X available (you
+  have Y). Download it now (size)?" Download / Later / Skip this version; download only
+  after the user accepts (own OkHttp client: no token sent to GitHub), progress + cancel,
+  SHA-256 checked against GitHub's asset digest; then FileProvider + system installer
+  (`REQUEST_INSTALL_PACKAGES`, opens "Install unknown apps" when not allowed yet). Dev
+  builds (`fr.zukan.app.dev`) don't check (a release APK cannot update them).
+- [x] Android login label: one SSO provider without local form → "Log in"; with the local
+  form → "Log in with SSO"; several providers keep their names.
+- [x] Versions: server 0.19.0, Android 0.11.0. `.env.example`: `TCG_OIDC_HOME_ACCOUNT_URL`,
+  `TCG_SCHEDULE_TIMEZONE`, `TCG_ANDROID_RELEASE_REPO`, user agent 0.19.0, local/SSO
+  separation and schedule notes. `docs/sso.md`, README updated.
+- [x] Checks: backend tests (new `test_schedule.py`, `test_app_release.py`, SSO email /
+  separation / unreachable IdP in `test_oidc.py`), ruff, Alembic upgrade / check /
+  downgrade on an empty database + backfill on sample rows; web tsc, check:i18n, oxlint,
+  vite build, gen:api; browser: schedule editor (weekly Mon + Sat 03:00 / 12:00 →
+  correct next times in Europe/Paris, saved, reloaded), SSO-only redirect and error path;
+  Android 45 unit tests (new `UpdatesTest`), lint debug + release, debug build.
+- [ ] User: local accounts linked to SSO before 0.19.0 now count as SSO accounts (email
+  from the IdP, settings link to it); they keep their old local password for local login.
+- [ ] User: Authelia / Zitadel / others: set `TCG_OIDC_<NAME>_ACCOUNT_URL` to show the
+  account button.
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.

@@ -10,7 +10,8 @@ import respx
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from app.core.config import Settings, get_settings
-from app.core.oidc import get_auth_config
+from app.core.oidc import get_auth_config, guess_account_url
+from app.models import Role
 from tests.conftest import CSRF, bearer, make_user
 
 ISSUER = "https://idp.test/realms/home"
@@ -120,6 +121,8 @@ async def test_providers_listing(client, idp):
             "issuer": ISSUER,
             "mobile_client_id": MOBILE_CLIENT,
             "scopes": ["openid", "profile", "email", "groups"],
+            # Guessed from the Keycloak issuer.
+            "account_url": f"{ISSUER}/account",
         }
     ]
 
@@ -259,8 +262,10 @@ async def test_groups_from_userinfo(client, idp):
     assert (await client.get("/api/auth/me")).json()["role"] == "admin"
 
 
-async def test_link_sso_to_local_account(client, session, idp):
-    await make_user(session)
+async def test_sso_never_joins_local_account(client, session, idp):
+    """SSO and local accounts are separate: a signed-in local user going through SSO gets
+    the SSO account, not an identity on the local one."""
+    await make_user(session, "alice")
     login = await client.post(
         "/api/auth/login",
         json={"username": "alice", "password": "password123", "mode": "cookie"},
@@ -270,28 +275,70 @@ async def test_link_sso_to_local_account(client, session, idp):
     query = await start_login(client, link="true")
     await finish_login(client, idp, query)
     me = (await client.get("/api/auth/me")).json()
-    assert me["username"] == "alice"
-    assert len(me["identities"]) == 1
-
-    # Unlinking works because the account still has a password.
-    identity_id = me["identities"][0]["id"]
-    response = await client.delete(f"/api/auth/identities/{identity_id}", headers=CSRF)
-    assert response.status_code == 204
-
-
-async def test_link_requires_login(client, idp):
-    response = await client.get("/api/auth/oidc/home/login", params={"link": "true"})
-    assert response.status_code == 401
-
-
-async def test_cannot_unlink_last_login_method(client, idp):
-    query = await start_login(client)
-    await finish_login(client, idp, query)
-    me = (await client.get("/api/auth/me")).json()
-    response = await client.delete(
-        f"/api/auth/identities/{me['identities'][0]['id']}", headers=CSRF
+    assert me["username"] == "sso.alice" and me["sso"] is True
+    local = await client.post(
+        "/api/auth/login",
+        json={"username": "alice", "password": "password123", "mode": "token"},
     )
-    assert response.status_code == 400
+    assert local.status_code == 200
+    alice = (await client.get("/api/auth/me", headers=await bearer(client, "alice"))).json()
+    assert alice["identities"] == [] and alice["sso"] is False
+    # No unlink: identities stay with their SSO account.
+    response = await client.delete(f"/api/auth/identities/{me['identities'][0]['id']}")
+    assert response.status_code in (404, 405)
+
+
+async def test_sso_email_shown_on_account(client, session, idp):
+    """The IdP's email reaches the account on creation and later logins, verified or
+    not, from the ID token or userinfo; the admin list shows it too."""
+    query = await start_login(client)
+    await finish_login(client, idp, query, email_verified=False)
+    me = (await client.get("/api/auth/me")).json()
+    assert me["email"] == "alice@example.com" and me["sso"] is True
+    assert me["sso_account"] == {
+        "provider": "home",
+        "display_name": "Home SSO",
+        "account_url": f"{ISSUER}/account",
+    }
+
+    # Changed at the IdP: copied on the next login. Only in userinfo: fetched there.
+    idp.userinfo = {"sub": "subject-1", "email": "alice@new.example"}
+    client.cookies.clear()
+    query = await start_login(client)
+    await finish_login(client, idp, query, email=None)
+    assert (await client.get("/api/auth/me")).json()["email"] == "alice@new.example"
+
+    await make_user(session, "root", role=Role.admin)
+    users = (await client.get("/api/users", headers=await bearer(client, "root"))).json()
+    by_name = {u["username"]: u for u in users}
+    assert by_name["sso.alice"]["email"] == "alice@new.example" and by_name["sso.alice"]["sso"]
+    assert by_name["root"]["sso"] is False
+
+
+async def test_sso_users_change_password_and_email_at_idp(client, session, idp):
+    # Administrators too: SSO accounts never get a local password.
+    query = await start_login(client)
+    await finish_login(client, idp, query, groups=["tcg-admins"])
+    email = await client.post("/api/auth/email", json={"email": "x@example.com"}, headers=CSRF)
+    assert email.status_code == 409
+    password = await client.post(
+        "/api/auth/password", json={"new_password": "password123"}, headers=CSRF
+    )
+    assert password.status_code == 409
+    me = (await client.get("/api/auth/me")).json()
+    for body in ({"email": "x@example.com"}, {"password": "password123"}):
+        response = await client.patch(f"/api/users/{me['id']}", json=body, headers=CSRF)
+        assert response.status_code == 409
+
+
+def test_account_url_guessed_from_issuer():
+    assert guess_account_url("https://kc.example/realms/home") == (
+        "https://kc.example/realms/home/account"
+    )
+    assert guess_account_url("https://ak.example/application/o/zukan/") == (
+        "https://ak.example/if/user/#/settings"
+    )
+    assert guess_account_url("https://auth.example") is None
 
 
 @pytest.mark.smoke
@@ -379,3 +426,16 @@ def test_env_example_sso_section_is_valid(monkeypatch):
     (provider,) = get_auth_config().providers
     assert provider.name == "home"
     assert provider.mobile_client_id == "tcg-android"
+
+
+async def test_unreachable_idp_is_a_login_error(client, monkeypatch):
+    """The login page sends SSO-only users straight to the IdP: an IdP that cannot be
+    reached must bring them back with a message, not a server error."""
+    configure(monkeypatch)
+    with respx.mock() as router:
+        router.get(f"{ISSUER}/.well-known/openid-configuration").mock(
+            side_effect=httpx.ConnectError("down")
+        )
+        response = await client.get("/api/auth/oidc/home/login")
+    assert response.status_code == 303
+    assert response.headers["location"].startswith("/login?error=")

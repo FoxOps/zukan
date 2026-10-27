@@ -29,10 +29,22 @@ class UserOut(BaseModel):
     role: Role
     disabled: bool
     has_password: bool
+    # Signs in with SSO: its identity provider manages the email (and the password).
+    sso: bool = False
+
+
+class SsoAccountOut(BaseModel):
+    """Identity provider managing an SSO user's password and email."""
+
+    provider: str
+    display_name: str
+    # Account page at the IdP, None when unknown.
+    account_url: str | None
 
 
 class MeOut(UserOut):
     identities: list[IdentityOut]
+    sso_account: SsoAccountOut | None = None
     language: UiLanguage
     # Games shown in the catalog, None for all.
     catalog_games: list[str] | None
@@ -85,6 +97,8 @@ class ProviderOut(BaseModel):
     issuer: str
     mobile_client_id: str | None
     scopes: list[str]
+    # Account page at the IdP (password, email), None when unknown.
+    account_url: str | None = None
 
 
 class ProvidersOut(BaseModel):

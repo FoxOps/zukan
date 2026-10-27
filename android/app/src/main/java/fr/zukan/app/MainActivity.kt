@@ -47,15 +47,18 @@ import fr.zukan.app.ui.ScanViewModel
 import fr.zukan.app.ui.SearchScreen
 import fr.zukan.app.ui.SessionViewModel
 import fr.zukan.app.ui.SettingsScreen
+import fr.zukan.app.ui.UpdateDialog
+import fr.zukan.app.ui.UpdateViewModel
 
 class MainActivity : ComponentActivity() {
     private val session: SessionViewModel by viewModels()
     private val scan: ScanViewModel by viewModels()
+    private val updates: UpdateViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { ZukanTheme { App(session, scan, application as ZukanApp) } }
+        setContent { ZukanTheme { App(session, scan, updates, application as ZukanApp) } }
     }
 }
 
@@ -67,11 +70,12 @@ private enum class Tab(@StringRes val label: Int) {
 }
 
 @Composable
-private fun App(session: SessionViewModel, scan: ScanViewModel, app: ZukanApp) {
+private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateViewModel, app: ZukanApp) {
     val state by session.state.collectAsStateWithLifecycle()
     val settings by session.settings.collectAsStateWithLifecycle()
     val scanState by scan.state.collectAsStateWithLifecycle()
     val client by app.client.collectAsStateWithLifecycle()
+    val updateState by updates.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val undoLabel = stringResource(R.string.undo)
     // Card images go through the authenticated HTTP client.
@@ -92,6 +96,9 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, app: ZukanApp) {
         else -> {
             var tab by rememberSaveable { mutableStateOf(Tab.SCAN) }
             val snackbar = remember { SnackbarHostState() }
+            // Offers a newer app (asks before downloading anything).
+            LaunchedEffect(Unit) { updates.checkAutomatically() }
+            UpdateDialog(updates, updateState)
             LaunchedEffect(scanState.undo) {
                 val undo = scanState.undo ?: return@LaunchedEffect
                 val result = snackbar.showSnackbar(undo.text, actionLabel = undoLabel, duration = SnackbarDuration.Long)
@@ -149,7 +156,7 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, app: ZukanApp) {
                             scan.showCard(card)
                             tab = Tab.SCAN
                         }
-                        Tab.SETTINGS -> SettingsScreen(session, state, settings)
+                        Tab.SETTINGS -> SettingsScreen(session, state, settings, updates, updateState)
                     }
                 }
             }

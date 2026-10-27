@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, call, type Schemas } from '../api/client'
-import { gameGroups, useGames, useMe, useProviders } from '../api/queries'
+import { gameGroups, useGames, useMe } from '../api/queries'
 import { useToast } from '../components/toast'
 import { Select } from '../components/Select'
 import { LANGUAGES, useChangeLanguage } from '../i18n'
@@ -112,7 +112,8 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
   )
 }
 
-/** Own email address, behind a "Change" button; the password confirms the change. */
+/** Own email address, behind a "Change" button; the password confirms the change. SSO
+ * accounts show the identity provider's address, changed there. */
 function EmailForm({ me }: { me: Schemas['MeOut'] }) {
   const { t } = useTranslation()
   const toast = useToast()
@@ -131,6 +132,14 @@ function EmailForm({ me }: { me: Schemas['MeOut'] }) {
     },
     onError: (e) => toast(e.message, 'error'),
   })
+  if (me.sso) {
+    return (
+      <p className="flex flex-wrap items-center gap-2 text-sm text-base-content/70">
+        {me.email ?? t('No email')}
+        · <span className="badge badge-sm">{t(me.role)}</span>
+      </p>
+    )
+  }
   if (!editing) {
     return (
       <p className="flex flex-wrap items-center gap-2 text-sm text-base-content/70">
@@ -178,7 +187,6 @@ function EmailForm({ me }: { me: Schemas['MeOut'] }) {
 export default function Settings() {
   const { t } = useTranslation()
   const me = useMe()
-  const providers = useProviders()
   const toast = useToast()
   const client = useQueryClient()
   const [current, setCurrent] = useState('')
@@ -195,20 +203,9 @@ export default function Settings() {
     },
     onError: (e) => toast(e.message, 'error'),
   })
-  const unlink = useMutation({
-    mutationFn: (id: number) =>
-      call(api.DELETE('/api/auth/identities/{identity_id}', { params: { path: { identity_id: id } } })),
-    onSuccess: () => {
-      toast(t('SSO account unlinked'), 'info')
-      return client.invalidateQueries({ queryKey: ['me'] })
-    },
-    onError: (e) => toast(e.message, 'error'),
-  })
 
   if (!me.data) return null
   const user = me.data
-  const sso = providers.data?.providers ?? []
-  const linked = new Set(user.identities.map((i) => i.provider))
   const submit = (e: FormEvent) => {
     e.preventDefault()
     password.mutate()
@@ -227,6 +224,9 @@ export default function Settings() {
 
       <Preferences me={user} />
 
+      {user.sso ? (
+        <SsoAccount account={user.sso_account ?? null} />
+      ) : (
       <div className="card bg-base-200">
         <form className="card-body" onSubmit={submit}>
           <h2 className="card-title">{user.has_password ? t('Change password') : t('Set a password')}</h2>
@@ -263,40 +263,30 @@ export default function Settings() {
           </div>
         </form>
       </div>
-
-      {sso.length > 0 && (
-        <div className="card bg-base-200">
-          <div className="card-body">
-            <h2 className="card-title">{t('Single sign-on')}</h2>
-            <ul className="divide-y divide-base-300">
-              {user.identities.map((i) => (
-                <li key={i.id} className="flex items-center justify-between py-2">
-                  <span>
-                    {sso.find((p) => p.name === i.provider)?.display_name ?? i.provider}
-                    {i.email && <span className="text-sm text-base-content/60"> · {i.email}</span>}
-                  </span>
-                  <button className="btn btn-ghost btn-sm" disabled={unlink.isPending} onClick={() => unlink.mutate(i.id)}>
-                    {t('Unlink')}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <div className="flex flex-wrap gap-2">
-              {sso
-                .filter((p) => !linked.has(p.name))
-                .map((p) => (
-                  <a
-                    key={p.name}
-                    className="btn btn-outline btn-sm"
-                    href={`/api/auth/oidc/${encodeURIComponent(p.name)}/login?link=true&next=/settings`}
-                  >
-                    {t('Link {{provider}}', { provider: p.display_name })}
-                  </a>
-                ))}
-            </div>
-          </div>
-        </div>
       )}
+    </div>
+  )
+}
+
+/** SSO accounts: password and email are changed at the identity provider. */
+function SsoAccount({ account }: { account: Schemas['SsoAccountOut'] | null }) {
+  const { t } = useTranslation()
+  const provider = account?.display_name ?? t('your identity provider')
+  return (
+    <div className="card bg-base-200">
+      <div className="card-body">
+        <h2 className="card-title">{t('Password and email')}</h2>
+        <p className="text-sm text-base-content/70">
+          {t('You sign in with {{provider}}: change your password and email there.', { provider })}
+        </p>
+        {account?.account_url && (
+          <div className="card-actions">
+            <a href={account.account_url} target="_blank" rel="noreferrer" className="btn btn-primary">
+              {t('Manage my account at {{provider}}', { provider })}
+            </a>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

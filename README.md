@@ -148,8 +148,11 @@ After updating your checkout, rerun the command to rebuild.
 ### Connect Android
 
 Android APKs are publicly available on the
-[releases page](https://github.com/FoxOps/zukan/releases). Download and install the APK,
-then sign in using your server address and account.
+[releases page](https://github.com/FoxOps/zukan/releases); the web UI also links the latest
+one (sidebar and About page). Download and install the APK, then sign in using your server
+address and account. The app checks for new versions once a day and asks before
+downloading one; Android then asks you to confirm the install (allow Zukan to install
+apps the first time).
 
 From your phone, use your server's LAN address or domain, such as
 `http://192.168.1.10:8000`; `localhost` refers to the phone itself.

@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -47,6 +48,8 @@ class SessionStore(private val context: Context) : TokenStore {
         // New key in 0.3: everyone starts on AUTO (the old "script" was LATIN for most).
         val script = stringPreferencesKey("ocr_script")
         val autoNext = booleanPreferencesKey("auto_next")
+        val lastUpdateCheck = longPreferencesKey("last_update_check")
+        val skippedVersion = stringPreferencesKey("skipped_version")
     }
 
     // Read by OkHttp threads on every request; kept in memory to avoid blocking reads.
@@ -84,6 +87,20 @@ class SessionStore(private val context: Context) : TokenStore {
                 p[Keys.refresh] = value.refresh
             }
         }
+    }
+
+    /** Last automatic update check (epoch ms, 0: never) and the version the user skipped. */
+    suspend fun updateCheck(): Pair<Long, String?> {
+        val prefs = context.dataStore.data.first()
+        return (prefs[Keys.lastUpdateCheck] ?: 0L) to prefs[Keys.skippedVersion]
+    }
+
+    suspend fun markUpdateChecked(now: Long) {
+        context.dataStore.edit { it[Keys.lastUpdateCheck] = now }
+    }
+
+    suspend fun skipVersion(version: String) {
+        context.dataStore.edit { it[Keys.skippedVersion] = version }
     }
 
     suspend fun update(transform: (Settings) -> Settings) {
