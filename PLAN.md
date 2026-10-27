@@ -1738,6 +1738,20 @@ Report against server 0.19.0 / app 0.11.0. Branch `2026-10-27-001-sso-roles-main
 - [ ] User: tune `TCG_MAINTENANCE_LATENCY_MS` to the server (500 ms = catalog pages
   taking ~5x their idle time on a fast machine).
 
+## Report 2026-10-27 #3 (server 0.20.1, Android unchanged 0.11.0)
+Report against server 0.20.0 / app 0.11.0. Branch `2026-10-27-002-sso-edit-profile-button`.
+- [x] Settings, SSO accounts: no more "Password and email" section ("You sign in with
+  <provider>…", "Manage my account at <provider>"): users don't know what an SSO provider
+  is. The account card shows only an "Edit my profile" button to the provider's account
+  page (`sso_account.account_url`); nothing when no account page is known. Applies to
+  every SSO account (local login on or off: SSO accounts never have a Zukan password).
+  Local accounts unchanged. Old strings removed from fr / de / es.
+- [x] Versions: server 0.20.1 (UI fix), Android unchanged 0.11.0 (no Android report).
+  `.env.example`: user agent 0.20.1, `ACCOUNT_URL` comment names the button; no new
+  variables. `docs/sso.md` wording.
+- [x] Checks: web tsc, check:i18n, oxlint, vite build; backend tests + ruff; browser:
+  Settings as SSO user (button only) and local user (password form).
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.
