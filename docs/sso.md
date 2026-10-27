@@ -36,7 +36,8 @@ Rules worth knowing:
   provider's account page instead of offering password and email forms. That page is
   guessed for Keycloak and Authentik; set `TCG_OIDC_<NAME>_ACCOUNT_URL` for others
   (Authelia: `https://auth.example.com/settings`, Zitadel: `https://<host>/ui/console/users/me`).
-- When `TCG_OIDC_<NAME>_ADMIN_GROUPS` is set, the role is synced from the IdP groups on every SSO login.
+- When `TCG_OIDC_<NAME>_ADMIN_GROUPS` is set, the role is synced from the IdP groups on every SSO login,
+  and administrators cannot change the role of that provider's users on the Users page.
   Leave it empty to manage roles in Zukan instead.
 - ID tokens must be signed with an asymmetric key (RS*/PS*/ES*/EdDSA). HS256 tokens
   are refused.
@@ -45,8 +46,9 @@ Rules worth knowing:
 - Keep one administrator able to sign in locally until SSO is confirmed working, then
   optionally set `TCG_LOCAL_LOGIN_ENABLED=false`. With a single provider, the login page
   then goes straight to it (except after an SSO error, or after logging out when the
-  provider has no logout endpoint). Recovery: set it back to `true`, then
-  `zukan create-admin NAME` inside the api container.
+  provider has no logout endpoint). Administrators can no longer create local accounts
+  then: SSO accounts are created at their first sign-in. Recovery: set it back to
+  `true`, then `zukan create-admin NAME` inside the api container.
 
 ## Keycloak
 

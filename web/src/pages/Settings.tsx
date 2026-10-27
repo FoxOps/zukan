@@ -35,80 +35,88 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
   }
 
   return (
-    <div className="card bg-base-200">
-      <div className="card-body gap-4">
-        <h2 className="card-title">{t('Preferences')}</h2>
-        <label className="fieldset">
-          <span className="fieldset-legend">{t('Language')}</span>
-          <Select
-            className="w-56"
-            value={i18n.resolvedLanguage ?? ''}
-            onChange={(v) => changeLanguage(v as (typeof LANGUAGES)[number]['code'])}
-            options={LANGUAGES.map((l) => ({ value: l.code, label: l.label, lang: l.code }))}
-          />
-          <span className="label whitespace-normal">
-            {t('Card images are shown in this language when available, else in English, else in Japanese.')}
-          </span>
-        </label>
-        <fieldset className="fieldset">
-          <legend className="fieldset-legend">{t('Price sources')}</legend>
-          {sources.map((s) => {
-            const on = me.price_sources.includes(s.id)
-            return (
-              <label key={s.id} className="label cursor-pointer gap-2 text-base-content">
-                <input
-                  type="checkbox"
-                  className="checkbox checkbox-sm"
-                  checked={on}
-                  // At least one source stays shown.
-                  disabled={save.isPending || (on && me.price_sources.length === 1)}
-                  onChange={(e) =>
-                    save.mutate({ price_sources: e.target.checked ? [...me.price_sources, s.id] : me.price_sources.filter((id) => id !== s.id) })
-                  }
-                />
-                {s.name} ({s.currency})
-              </label>
-            )
-          })}
-          <span className="label whitespace-normal">{t('Prices of these markets are shown on card pages and in the app.')}</span>
-        </fieldset>
-        {me.price_sources.length > 1 && (
+    <>
+      <div className="card bg-base-200">
+        <div className="card-body gap-4">
+          <h2 className="card-title">{t('Preferences')}</h2>
           <label className="fieldset">
-            <span className="fieldset-legend">{t('Main price source')}</span>
+            <span className="fieldset-legend">{t('Language')}</span>
             <Select
-              className="w-56"
-              value={me.price_source}
-              disabled={save.isPending}
-              onChange={(v) => save.mutate({ price_source: v })}
-              options={sources.filter((s) => me.price_sources.includes(s.id)).map((s) => ({ value: s.id, label: `${s.name} (${s.currency})` }))}
+              className="w-full max-w-xs"
+              value={i18n.resolvedLanguage ?? ''}
+              onChange={(v) => changeLanguage(v as (typeof LANGUAGES)[number]['code'])}
+              options={LANGUAGES.map((l) => ({ value: l.code, label: l.label, lang: l.code }))}
             />
             <span className="label whitespace-normal">
-              {t('Used for values, price ranges and sorting. Games without it use their own market; other currencies are never added up.')}
+              {t('Card images are shown in this language when available, else in English, else in Japanese.')}
             </span>
           </label>
-        )}
-        <fieldset className="fieldset">
-          <legend className="fieldset-legend">{t('Games shown in the catalog')}</legend>
-          {gameGroups(games).map((group) => (
-            <div key={group.id} className="flex flex-col gap-1">
-              {group.games.length > 1 && <span className="label font-medium text-base-content">{group.name}</span>}
-              {group.games.map((g) => (
-                <label key={g.id} className={`label cursor-pointer gap-2 text-base-content ${group.games.length > 1 ? 'pl-6' : ''}`}>
+          <fieldset className="fieldset">
+            <legend className="fieldset-legend">{t('Price sources')}</legend>
+            {sources.map((s) => {
+              const on = me.price_sources.includes(s.id)
+              return (
+                <label key={s.id} className="label cursor-pointer gap-2 text-base-content">
                   <input
                     type="checkbox"
                     className="checkbox checkbox-sm"
-                    checked={shown.includes(g.id)}
-                    disabled={save.isPending}
-                    onChange={(e) => toggleGame(g.id, e.target.checked)}
+                    checked={on}
+                    // At least one source stays shown.
+                    disabled={save.isPending || (on && me.price_sources.length === 1)}
+                    onChange={(e) =>
+                      save.mutate({ price_sources: e.target.checked ? [...me.price_sources, s.id] : me.price_sources.filter((id) => id !== s.id) })
+                    }
                   />
-                  {group.games.length > 1 ? t(g.region_label ?? g.name) : g.name}
+                  {s.name} ({s.currency})
                 </label>
-              ))}
-            </div>
-          ))}
-        </fieldset>
+              )
+            })}
+            <span className="label whitespace-normal">{t('Prices of these markets are shown on card pages and in the app.')}</span>
+          </fieldset>
+          {me.price_sources.length > 1 && (
+            <label className="fieldset">
+              <span className="fieldset-legend">{t('Main price source')}</span>
+              <Select
+                className="w-full max-w-xs"
+                value={me.price_source}
+                disabled={save.isPending}
+                onChange={(v) => save.mutate({ price_source: v })}
+                options={sources.filter((s) => me.price_sources.includes(s.id)).map((s) => ({ value: s.id, label: `${s.name} (${s.currency})` }))}
+              />
+              <span className="label whitespace-normal">
+                {t('Used for values, price ranges and sorting. Games without it use their own market; other currencies are never added up.')}
+              </span>
+            </label>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Two columns while this card spans the page width (lg), one in the three-card row (xl). */}
+      <div className="card bg-base-200 lg:col-span-2 xl:col-span-1">
+        <div className="card-body gap-4">
+          <h2 className="card-title">{t('Games shown in the catalog')}</h2>
+          <div className="fieldset block gap-x-8 py-0 sm:columns-2 xl:columns-1">
+            {gameGroups(games).map((group) => (
+              <div key={group.id} className="flex break-inside-avoid flex-col gap-1 pb-1">
+                {group.games.length > 1 && <span className="label font-medium text-base-content">{group.name}</span>}
+                {group.games.map((g) => (
+                  <label key={g.id} className={`label cursor-pointer gap-2 text-base-content ${group.games.length > 1 ? 'pl-6' : ''}`}>
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-sm"
+                      checked={shown.includes(g.id)}
+                      disabled={save.isPending}
+                      onChange={(e) => toggleGame(g.id, e.target.checked)}
+                    />
+                    {group.games.length > 1 ? t(g.region_label ?? g.name) : g.name}
+                  </label>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -212,58 +220,61 @@ export default function Settings() {
   }
 
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">{t('Settings')}</h1>
 
-      <div className="card bg-base-200">
-        <div className="card-body">
-          <h2 className="card-title">{user.username}</h2>
-          <EmailForm me={user} />
-        </div>
-      </div>
-
-      <Preferences me={user} />
-
-      {user.sso ? (
-        <SsoAccount account={user.sso_account ?? null} />
-      ) : (
-      <div className="card bg-base-200">
-        <form className="card-body" onSubmit={submit}>
-          <h2 className="card-title">{user.has_password ? t('Change password') : t('Set a password')}</h2>
-          {user.has_password && (
-            <label className="fieldset">
-              <span className="fieldset-legend">{t('Current password')}</span>
-              <input
-                type="password"
-                autoComplete="current-password"
-                required
-                className="input"
-                value={current}
-                onChange={(e) => setCurrent(e.target.value)}
-              />
-            </label>
-          )}
-          <label className="fieldset">
-            <span className="fieldset-legend">{t('New password')}</span>
-            <input
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              required
-              className="input"
-              value={next}
-              onChange={(e) => setNext(e.target.value)}
-            />
-            <span className="label">{t('At least 8 characters')}</span>
-          </label>
-          <div className="card-actions">
-            <button className="btn btn-primary" disabled={password.isPending}>
-              {t('Save password')}
-            </button>
+      {/* Account, preferences and catalog games side by side on wide screens (same height). */}
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+        <div className="card bg-base-200">
+          <div className="card-body gap-4">
+            <div>
+              <h2 className="card-title">{user.username}</h2>
+              <EmailForm me={user} />
+            </div>
+            <div className="divider my-0" />
+            {user.sso ? (
+              <SsoAccount account={user.sso_account ?? null} />
+            ) : (
+              <form className="flex flex-col gap-2" onSubmit={submit}>
+                <h3 className="font-semibold">{user.has_password ? t('Change password') : t('Set a password')}</h3>
+                {user.has_password && (
+                  <label className="fieldset py-0">
+                    <span className="fieldset-legend">{t('Current password')}</span>
+                    <input
+                      type="password"
+                      autoComplete="current-password"
+                      required
+                      className="input w-full max-w-xs"
+                      value={current}
+                      onChange={(e) => setCurrent(e.target.value)}
+                    />
+                  </label>
+                )}
+                <label className="fieldset py-0">
+                  <span className="fieldset-legend">{t('New password')}</span>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    required
+                    className="input w-full max-w-xs"
+                    value={next}
+                    onChange={(e) => setNext(e.target.value)}
+                  />
+                  <span className="label">{t('At least 8 characters')}</span>
+                </label>
+                <div className="card-actions mt-2">
+                  <button className="btn btn-primary" disabled={password.isPending}>
+                    {t('Save password')}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
-        </form>
+        </div>
+
+        <Preferences me={user} />
       </div>
-      )}
     </div>
   )
 }
@@ -273,20 +284,18 @@ function SsoAccount({ account }: { account: Schemas['SsoAccountOut'] | null }) {
   const { t } = useTranslation()
   const provider = account?.display_name ?? t('your identity provider')
   return (
-    <div className="card bg-base-200">
-      <div className="card-body">
-        <h2 className="card-title">{t('Password and email')}</h2>
-        <p className="text-sm text-base-content/70">
-          {t('You sign in with {{provider}}: change your password and email there.', { provider })}
-        </p>
-        {account?.account_url && (
-          <div className="card-actions">
-            <a href={account.account_url} target="_blank" rel="noreferrer" className="btn btn-primary">
-              {t('Manage my account at {{provider}}', { provider })}
-            </a>
-          </div>
-        )}
-      </div>
+    <div className="flex flex-col gap-3">
+      <h3 className="font-semibold">{t('Password and email')}</h3>
+      <p className="text-sm text-base-content/70">
+        {t('You sign in with {{provider}}: change your password and email there.', { provider })}
+      </p>
+      {account?.account_url && (
+        <div className="card-actions">
+          <a href={account.account_url} target="_blank" rel="noreferrer" className="btn btn-primary">
+            {t('Manage my account at {{provider}}', { provider })}
+          </a>
+        </div>
+      )}
     </div>
   )
 }

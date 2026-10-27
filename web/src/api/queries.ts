@@ -62,7 +62,8 @@ export function useHealth() {
   return useQuery({
     queryKey: ['health'],
     queryFn: () => call(api.GET('/api/health')),
-    staleTime: Infinity,
+    // Also tells when maintenance starts and ends (catalog refresh slowing the server).
+    refetchInterval: 15_000,
   })
 }
 

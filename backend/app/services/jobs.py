@@ -11,6 +11,10 @@ when that process starts again, or by any process once their heartbeat is too ol
 The worker's runs are `auto`, the others `manual`. A manual run takes over a running auto
 run of the same game and kind: the auto run is asked to stop (its owner checks every few
 seconds) and the manual one starts.
+
+Runs started from the web UI are `queued` and executed by the worker (`run_queued`), so a
+long catalog refresh never competes with users' requests in the API process. A queued run
+the worker does not pick up within `QUEUE_TIMEOUT` (worker stopped) is failed.
 """
 
 import asyncio
@@ -48,6 +52,8 @@ TIME_LIMITS = {
 CHECK_EVERY = 5.0
 # How long a manual run waits for the auto run it takes over to stop.
 TAKEOVER_WAIT = 60.0
+# A queued run not picked up by the worker this long after it was queued is failed.
+QUEUE_TIMEOUT = timedelta(minutes=5)
 
 # This process ("api", "worker" or "cli", set by its entry point) and its instance.
 INSTANCE = uuid.uuid4().hex[:12]
@@ -108,9 +114,20 @@ async def reap_runs() -> int:
             )
         )
         await session.commit()
-    if result.rowcount:
-        log.warning("Marked %s interrupted job(s) as failed", result.rowcount)
-    return result.rowcount
+        stale = await session.execute(
+            update(SyncRun)
+            .where(SyncRun.status == JobStatus.queued, SyncRun.started_at < now - QUEUE_TIMEOUT)
+            .values(
+                status=JobStatus.failed,
+                error="Not picked up by the worker: is the worker running?",
+                finished_at=now,
+            )
+        )
+        await session.commit()
+    count = result.rowcount + stale.rowcount
+    if count:
+        log.warning("Marked %s interrupted job(s) as failed", count)
+    return count
 
 
 async def _insert(game_id: str, kind: JobKind, trigger: JobTrigger) -> int:
@@ -173,6 +190,101 @@ async def start_job(game_id: str, kind: JobKind, trigger: JobTrigger = JobTrigge
             log.info("Manual %s job for %s takes over run %s", kind, game_id, running.id)
             await _take_over(running)
     raise JobAlreadyRunning(f"{kind} job for {game_id} is already running")
+
+
+async def queue_job(game_id: str, kind: JobKind) -> int:
+    """Queue a manual run for the worker. Raises JobAlreadyRunning when a manual run of the
+    same game and kind is queued or running already."""
+    get_provider(game_id)  # fail fast on unknown game
+    await reap_runs()
+    async with get_sessionmaker()() as session:
+        busy = await session.scalar(
+            select(SyncRun.id).where(
+                SyncRun.game_id == game_id,
+                SyncRun.kind == kind,
+                SyncRun.trigger == JobTrigger.manual,
+                SyncRun.status.in_([JobStatus.queued, JobStatus.running]),
+            )
+        )
+        if busy is None:
+            run = SyncRun(game_id=game_id, kind=kind, status=JobStatus.queued)
+            session.add(run)
+            try:
+                await session.commit()
+                return run.id
+            except IntegrityError:
+                pass  # queued meanwhile
+    raise JobAlreadyRunning(f"{kind} job for {game_id} is already running")
+
+
+async def is_queued(game_id: str, kind: JobKind) -> bool:
+    async with get_sessionmaker()() as session:
+        run_id = await session.scalar(
+            select(SyncRun.id).where(
+                SyncRun.game_id == game_id,
+                SyncRun.kind == kind,
+                SyncRun.status == JobStatus.queued,
+            )
+        )
+    return run_id is not None
+
+
+async def _claim(run: SyncRun) -> bool:
+    """Start a queued run in this process, taking over a running auto run of the same game
+    and kind. False when it cannot start yet (another manual run, or no longer queued)."""
+    running = await _running(run.game_id, run.kind)
+    if running is not None:
+        if running.trigger == JobTrigger.manual:
+            return False
+        log.info("Manual %s job for %s takes over run %s", run.kind, run.game_id, running.id)
+        await _take_over(running)
+    now = datetime.now(UTC)
+    try:
+        async with get_sessionmaker()() as session:
+            result = await session.execute(
+                update(SyncRun)
+                .where(SyncRun.id == run.id, SyncRun.status == JobStatus.queued)
+                .values(status=JobStatus.running, owner=owner(), started_at=now, heartbeat_at=now)
+            )
+            await session.commit()
+    except IntegrityError:
+        return False  # an auto run started meanwhile: next time
+    return result.rowcount == 1
+
+
+# Queued runs this process is starting or running, and their tasks (kept referenced).
+_claimed: set[int] = set()
+_tasks: set[asyncio.Task] = set()
+
+
+async def _run_claimed(run: SyncRun) -> None:
+    try:
+        if await _claim(run):
+            await complete_job(run.id, run.game_id, run.kind)
+    except Exception:
+        pass  # outcome is recorded on the sync_run row and logged
+    finally:
+        _claimed.discard(run.id)
+
+
+async def run_queued() -> list[asyncio.Task]:
+    """Start the queued runs (worker), each in its own task, and return the new tasks."""
+    await reap_runs()
+    async with get_sessionmaker()() as session:
+        queued = (
+            await session.scalars(
+                select(SyncRun).where(SyncRun.status == JobStatus.queued).order_by(SyncRun.id)
+            )
+        ).all()
+    tasks = []
+    for run in queued:
+        if run.id not in _claimed:
+            _claimed.add(run.id)
+            task = asyncio.create_task(_run_claimed(run))
+            _tasks.add(task)
+            task.add_done_callback(_tasks.discard)
+            tasks.append(task)
+    return tasks
 
 
 async def _finish(run_id: int, status: JobStatus, report: dict, error: str | None) -> None:

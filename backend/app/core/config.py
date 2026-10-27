@@ -64,6 +64,12 @@ class Settings(BaseSettings):
     schedule_timezone: str = "UTC"
     user_agent: str = f"Zukan/{__version__}"
 
+    # Maintenance page while a catalog refresh slows the server down: shown to users (not
+    # administrators) when API answers take longer than `maintenance_latency_ms` (median
+    # over 20 s) during a catalog refresh, until they are fast again for 30 s.
+    maintenance_enabled: bool = True
+    maintenance_latency_ms: int = 500
+
     # GitHub repository whose `android-vX.Y.Z` releases hold the Android app, offered for
     # download in the web interface and to the app's update check. Empty: no download.
     android_release_repo: str = "FoxOps/zukan"

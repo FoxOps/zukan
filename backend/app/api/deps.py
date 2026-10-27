@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_session
 from app.core.security import session_alive, unsign
 from app.models import Role, User
+from app.services import load
 
 ACCESS_COOKIE = "tcg_access"
 REFRESH_COOKIE = "tcg_refresh"
@@ -47,6 +48,18 @@ async def current_user(request: Request, session: SessionDep) -> User:
     # Password changed, account disabled, or this session logged out.
     if version != user.auth_version or not await session_alive(session, session_id):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session ended")
+    # Maintenance (catalog refresh slowing the server down): users wait, administrators
+    # keep access to watch the job; account routes stay open so clients know who is in.
+    if (
+        user.role != Role.admin
+        and load.maintenance() is not None
+        and not request.url.path.startswith("/api/auth/")
+    ):
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Zukan is under maintenance (catalog refresh), try again in a few minutes",
+            headers={"Retry-After": "60"},
+        )
     return user
 
 

@@ -10,6 +10,9 @@ image run (new image URLs).
 
 The schedule only follows the worker's own (`auto`) runs: manual runs neither delay nor
 replace them.
+
+Runs started from the web UI are queued; the worker checks the queue every
+`QUEUE_SECONDS`, next to its schedule, and runs them at once.
 """
 
 import asyncio
@@ -18,10 +21,21 @@ from datetime import UTC, datetime
 
 from app.main import register_games
 from app.models import JobTrigger
-from app.services.jobs import JobAlreadyRunning, JobStopped, reap_runs, run_job, set_process_role
+from app.services.jobs import (
+    JobAlreadyRunning,
+    JobStopped,
+    is_queued,
+    reap_runs,
+    run_job,
+    run_queued,
+    set_process_role,
+)
 from app.services.schedule import TICK_SECONDS, is_due, jobs_for, load_schedule, worker_games
 
 log = logging.getLogger("zukan.worker")
+
+# How often the worker looks for runs queued from the web UI.
+QUEUE_SECONDS = 3
 
 
 async def tick() -> None:
@@ -31,6 +45,9 @@ async def tick() -> None:
         for kind in jobs_for(game_id):
             if not await is_due(game_id, kind, datetime.now(UTC), schedule):
                 continue
+            if await is_queued(game_id, kind):
+                continue  # a manual run is about to start
+
             try:
                 await run_job(game_id, kind, JobTrigger.auto)
             except JobAlreadyRunning:
@@ -42,14 +59,27 @@ async def tick() -> None:
                 pass
 
 
+async def scheduled() -> None:
+    while True:
+        await tick()
+        await asyncio.sleep(TICK_SECONDS)
+
+
+async def queue() -> None:
+    while True:
+        try:
+            await run_queued()
+        except Exception:
+            log.exception("Could not read the job queue")
+        await asyncio.sleep(QUEUE_SECONDS)
+
+
 async def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     set_process_role("worker")
     await register_games()
     await reap_runs()
-    while True:
-        await tick()
-        await asyncio.sleep(TICK_SECONDS)
+    await asyncio.gather(scheduled(), queue())
 
 
 if __name__ == "__main__":

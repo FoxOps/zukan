@@ -11,11 +11,14 @@ import { ScheduleEditor } from './ScheduleEditor'
 
 const KINDS = ['catalog', 'prices', 'images', 'refresh'] as const
 const STATUS: Record<string, string> = {
+  queued: 'badge-ghost',
   running: 'badge-info',
   success: 'badge-success',
   failed: 'badge-error',
   cancelled: 'badge-warning',
 }
+// Queued (waiting for the worker) or running.
+const active = (status: string) => status === 'queued' || status === 'running'
 // Report counters in display order, with their labels; others are internal.
 const REPORT: Record<string, string> = {
   sets: 'sets',
@@ -103,7 +106,7 @@ export default function Jobs() {
     queryFn: () => call(api.GET('/api/admin/jobs', { params: { query: { limit: 50 } } })),
     enabled: admin,
     // Poll while something runs.
-    refetchInterval: (query) => (query.state.data?.some((j) => j.status === 'running') ? 3000 : false),
+    refetchInterval: (query) => (query.state.data?.some((j) => active(j.status)) ? 3000 : false),
   })
   const running = !!jobs.data?.some((j) => j.status === 'running')
   const now = useNow(running)
@@ -192,11 +195,11 @@ export default function Jobs() {
                     {/* A manual run takes over a running automatic one. */}
                     <button
                       className="btn btn-sm"
-                      disabled={start.isPending || (run?.status === 'running' && run.trigger === 'manual')}
+                      disabled={start.isPending || (!!run && active(run.status) && run.trigger === 'manual')}
                       title={run?.status === 'running' && run.trigger === 'auto' ? t('Stops the automatic run and starts again now') : undefined}
                       onClick={() => start.mutate({ game: g.id, kind })}
                     >
-                      {run?.status === 'running' && run.trigger === 'manual' ? <span className="loading loading-spinner loading-xs" /> : t('Run')}
+                      {run && active(run.status) && run.trigger === 'manual' ? <span className="loading loading-spinner loading-xs" /> : t('Run')}
                     </button>
                   </div>
                 )
@@ -204,7 +207,7 @@ export default function Jobs() {
               <div className="card-actions justify-end border-t border-base-300 pt-3">
                 <button
                   className="btn btn-sm btn-outline btn-error"
-                  disabled={g.id === resetting?.id || !!jobs.data?.some((j) => j.game_id === g.id && j.status === 'running')}
+                  disabled={g.id === resetting?.id || !!jobs.data?.some((j) => j.game_id === g.id && active(j.status))}
                   onClick={() => {
                     setTyped('')
                     setResetting({ id: g.id, name: g.name })
@@ -294,7 +297,7 @@ export default function Jobs() {
                 <td className="max-w-md text-xs">
                   {j.error ? (
                     <span className="text-error">{j.error}</span>
-                  ) : j.status === 'running' ? null : (
+                  ) : active(j.status) ? null : (
                     <Report report={j.report} />
                   )}
                 </td>
