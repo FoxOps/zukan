@@ -405,6 +405,58 @@ async def test_manual_run_takes_over_auto_run(session, quick_jobs):
     running.cancel()
 
 
+async def test_queued_run_takes_over_auto_run(session, quick_jobs):
+    from app.main import register_games
+
+    await register_games()
+    quick_jobs["body"] = _busy
+    auto = asyncio.create_task(jobs.run_job("sorcery", JobKind.catalog, JobTrigger.auto))
+    await quick_jobs["started"].wait()
+
+    async def done() -> dict:
+        return {"cards": 1}
+
+    run_id = await jobs.queue_job("sorcery", JobKind.catalog)
+    assert await jobs.is_queued("sorcery", JobKind.catalog)
+    quick_jobs["body"] = done
+    await asyncio.gather(*await jobs.run_queued())
+    with pytest.raises(jobs.JobStopped):
+        await auto
+    runs = {r.trigger: r for r in await session.scalars(select(SyncRun))}
+    assert runs[JobTrigger.auto].status == JobStatus.cancelled
+    assert runs[JobTrigger.manual].id == run_id
+    assert runs[JobTrigger.manual].status == JobStatus.success
+    assert runs[JobTrigger.manual].owner == jobs.owner()
+
+
+async def test_queued_run_without_worker_fails(session, monkeypatch):
+    from app.main import register_games
+
+    await register_games()
+    monkeypatch.setattr(jobs, "QUEUE_TIMEOUT", timedelta(0))
+    await jobs.queue_job("sorcery", JobKind.catalog)
+    assert await jobs.reap_runs() == 1
+    run = await session.scalar(select(SyncRun))
+    assert run.status == JobStatus.failed and "worker" in run.error
+
+
+async def test_worker_leaves_queued_job_to_queue(session, monkeypatch):
+    from app import worker
+    from app.main import register_games
+
+    await register_games()
+    started = []
+
+    async def run_job(game_id, kind, trigger):
+        started.append((game_id, kind))
+
+    monkeypatch.setattr(worker, "run_job", run_job)
+    monkeypatch.setattr(worker, "worker_games", lambda: ["sorcery"])
+    await jobs.queue_job("sorcery", JobKind.catalog)
+    await worker.tick()
+    assert ("sorcery", JobKind.catalog) not in started
+
+
 async def test_failed_job_is_recorded(session, sorcery_api):
     from app.main import register_games
 
@@ -427,6 +479,12 @@ async def test_admin_job_endpoints(client, session, sorcery_api):
     assert (await client.post("/api/admin/jobs/nope/catalog", headers=admin)).status_code == 404
     response = await client.post("/api/admin/jobs/sorcery/catalog", headers=admin)
     assert response.status_code == 202
+    # Queued for the worker, never run in the API process.
+    runs = (await client.get("/api/admin/jobs", headers=admin)).json()
+    assert runs[0]["status"] == "queued"
+    again = await client.post("/api/admin/jobs/sorcery/catalog", headers=admin)
+    assert again.status_code == 409
+    await asyncio.gather(*await jobs.run_queued())
 
     runs = (await client.get("/api/admin/jobs", headers=admin)).json()
     assert runs[0]["status"] == "success"
@@ -696,8 +754,10 @@ async def test_reset_catalog_keeps_owned_printings(client, session, sorcery_api)
     body = response.json()
     assert body["kept"] == 1 and body["printings"] == total - 1
     assert files[0].exists() and not files[1].exists()
+    # Queued: the worker syncs the catalog again.
+    await asyncio.gather(*await jobs.run_queued())
     session.expire_all()
-    # The catalog job ran again (test client runs background tasks): everything is back.
+    # The catalog job ran again: everything is back.
     assert await session.scalar(select(func.count()).select_from(Printing)) == total
     assert await session.get(Printing, owned_id) is not None
     runs = (await client.get("/api/admin/jobs", headers=admin)).json()

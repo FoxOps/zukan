@@ -1,11 +1,14 @@
-"""ASGI middlewares: security headers on every response, request body size limit."""
+"""ASGI middlewares: security headers on every response, request body size limit, API
+request timing (maintenance mode)."""
 
 import json
+import time
 
 from starlette.exceptions import HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.config import get_settings
+from app.services import load
 
 _HEADERS = {
     b"x-frame-options": b"DENY",
@@ -101,3 +104,20 @@ async def _too_large(send: Send, limit: int) -> None:
         }
     )
     await send({"type": "http.response.body", "body": body})
+
+
+class RequestTimer:
+    """Reports how long API requests take to the load monitor (`app.services.load`)."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        path = scope.get("path", "") if scope["type"] == "http" else ""
+        if not path.startswith("/api/") or path == "/api/health":
+            return await self.app(scope, receive, send)
+        start = time.perf_counter()
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            load.record_request((time.perf_counter() - start) * 1000)

@@ -27,7 +27,11 @@ async def test_serves_single_page_app(tmp_path, monkeypatch):
         assert (await client.get("/favicon.svg")).text == "<svg/>"
         assert (await client.get("/..%2Fsecret.txt")).text == "<html>app</html>"
         assert (await client.get("/api/nope")).status_code == 404
-        assert (await client.get("/api/health")).json() == {"status": "ok", "version": __version__}
+        assert (await client.get("/api/health")).json() == {
+            "status": "ok",
+            "version": __version__,
+            "maintenance": None,
+        }
 
 
 async def test_no_web_build_means_api_only(tmp_path, monkeypatch):

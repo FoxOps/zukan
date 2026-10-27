@@ -803,7 +803,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start Job */
+        /**
+         * Start Job
+         * @description Queue a run for the worker, which takes over a running automatic run of the same
+         *     job.
+         */
         post: operations["start_job_api_admin_jobs__game_id___kind__post"];
         delete?: never;
         options?: never;
@@ -822,7 +826,7 @@ export interface paths {
         put?: never;
         /**
          * Reset Catalog
-         * @description Delete the game's catalog except owned printings, then sync it again.
+         * @description Delete the game's catalog except owned printings, then queue its sync.
          */
         post: operations["reset_catalog_api_admin_games__game_id__reset_post"];
         delete?: never;
@@ -1419,6 +1423,17 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HealthOut */
+        HealthOut: {
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+            /** Version */
+            version: string;
+            maintenance?: components["schemas"]["MaintenanceOut"] | null;
+        };
         /** HintsOut */
         HintsOut: {
             /** Name */
@@ -1622,7 +1637,7 @@ export interface components {
          * JobStatus
          * @enum {string}
          */
-        JobStatus: "running" | "success" | "failed" | "cancelled";
+        JobStatus: "queued" | "running" | "success" | "failed" | "cancelled";
         /**
          * JobTrigger
          * @enum {string}
@@ -1664,6 +1679,19 @@ export interface components {
              */
             mode: "token" | "cookie";
         };
+        /**
+         * MaintenanceOut
+         * @description A catalog refresh slows the server down: users wait, administrators pass.
+         */
+        MaintenanceOut: {
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+            /** Game Id */
+            game_id: string;
+        };
         /** MeOut */
         MeOut: {
             /** Id */
@@ -1682,6 +1710,11 @@ export interface components {
              * @default false
              */
             sso: boolean;
+            /**
+             * Role Managed By Sso
+             * @default false
+             */
+            role_managed_by_sso: boolean;
             /** Identities */
             identities: components["schemas"]["IdentityOut"][];
             sso_account?: components["schemas"]["SsoAccountOut"] | null;
@@ -2216,6 +2249,11 @@ export interface components {
              * @default false
              */
             sso: boolean;
+            /**
+             * Role Managed By Sso
+             * @default false
+             */
+            role_managed_by_sso: boolean;
         };
         /** UserUpdateIn */
         UserUpdateIn: {
@@ -4072,9 +4110,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
+                    "application/json": components["schemas"]["HealthOut"];
                 };
             };
         };

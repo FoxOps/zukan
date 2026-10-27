@@ -1678,6 +1678,66 @@ and SSO accounts are separate, never mixed.
 - [ ] User: Authelia / Zitadel / others: set `TCG_OIDC_<NAME>_ACCOUNT_URL` to show the
   account button.
 
+## Report 2026-10-27 #2 (server 0.20.0, Android unchanged 0.11.0)
+Report against server 0.19.0 / app 0.11.0. Branch `2026-10-27-001-sso-roles-maintenance-settings`.
+- [x] SSO role lock: when the provider sets `TCG_OIDC_<NAME>_ADMIN_GROUPS`, the role is
+  synced at every SSO login, so the admin console can no longer change it.
+  `UserOut.role_managed_by_sso`; `PATCH /api/users/{id}` with a different role → 409
+  "This user's role is managed by single sign-on"; role select disabled with tooltip.
+  Providers without admin groups: Zukan admins still set roles (else no SSO user could
+  become admin).
+- [x] Local login off (`TCG_LOCAL_LOGIN_ENABLED=false`): `POST /api/users` → 403 "Local
+  accounts are disabled"; Users page keeps the "New user" card greyed out (disabled
+  fieldset) with an info alert.
+- [x] Manual runs in the worker: Data sync "Run" and catalog reset now queue the run
+  (`JobStatus.queued`, partial unique index `uq_sync_run_queued`, migration
+  `e2f4a6b8c013`) instead of running it in the API process (FastAPI BackgroundTasks).
+  The worker checks the queue every 3 s next to its schedule loop (`run_queued`, one task
+  per run), takes over a running auto run of the same job, skips scheduled runs that have
+  a queued manual one. A queued run not picked up in 5 min is failed ("is the worker
+  running?"). Jobs page: "queued" badge, polls while queued.
+- [x] Catalog refresh slowdown, measured (copy of the live DB: MTG 109 505 printings,
+  Pokémon 59 733; API + worker from this branch on a desktop machine; probe every ~2 s):
+
+  | endpoint | idle p50 / p95 | during MTG catalog refresh (worker) p50 / p95 / max |
+  |---|---|---|
+  | `/api/health` | 2 / 3 ms | 2 / 9 / 47 ms |
+  | collection list | 10 / 14 ms | 11 / 24 / 51 ms |
+  | card search `q=dragon` | 62 / 75 ms | 234 / 603 / 3762 ms |
+  | catalog browse (page 40, by name) | 101 / 153 ms | 518 / 1358 / 4026 ms |
+
+  The API process itself stays responsive (health, collection); catalog queries slow
+  4-5x (database contention on the card tables being rewritten). Smaller servers will see
+  more. Before this version a manual run also ran inside the API process (its CPU-bound
+  parsing blocked the API: in the worker it delayed the queue loop by ~30 s while the
+  Sorcery sync parsed).
+- [x] Maintenance mode (`app/services/load.py`): the API samples every 2 s (event loop
+  delay + database round trip, and the median time of the API requests answered since
+  the last sample). Median of the last 10 samples over `TCG_MAINTENANCE_LATENCY_MS`
+  (default 500) while a catalog job runs → maintenance; leaves after 15 fast samples in a
+  row or when no catalog job runs. `/api/health` → `maintenance: {since, game_id}`;
+  non-admin API calls → 503 + Retry-After (auth routes stay open); web: users get a
+  maintenance page (health polled every 15 s, 503 → health refetch, no error toasts,
+  queries reloaded after), admins a warning banner linking to Data sync. Off with
+  `TCG_MAINTENANCE_ENABLED=false`. Checked live: limit 300 ms during the MTG refresh →
+  maintenance started (median 330 ms), user page + admin banner, ended by itself.
+- [x] Settings page width: no `max-w-2xl`; three equal-height cards in one row (xl):
+  Account (name, email, role + password form or SSO account link), Preferences
+  (language, price sources, main source), Games shown in the catalog. lg: two cards, games
+  full width in two columns below; phones: stacked. (A first try with separate account /
+  password cards and a three-column Preferences card looked unbalanced: reworked.)
+- [x] Versions: server 0.20.0, Android unchanged 0.11.0 (no Android report).
+  `.env.example`: `TCG_MAINTENANCE_ENABLED`, `TCG_MAINTENANCE_LATENCY_MS`, local login
+  note, user agent 0.20.0. `docs/sso.md`: role lock, no local accounts with local login
+  off.
+- [x] Checks: backend 250 tests (new `test_maintenance.py`; queue, takeover, stale queue,
+  worker skip in `test_catalog.py`; role lock and local-off creation in `test_oidc.py`),
+  ruff, Alembic upgrade / check / downgrade / upgrade; web tsc, check:i18n, oxlint, vite
+  build, gen:api; browser: maintenance page (user), banner (admin), Settings at 1440 and
+  390 px, Users page with local login off.
+- [ ] User: tune `TCG_MAINTENANCE_LATENCY_MS` to the server (500 ms = catalog pages
+  taking ~5x their idle time on a fast machine).
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.

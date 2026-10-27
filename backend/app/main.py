@@ -13,13 +13,14 @@ from starlette.types import Scope
 
 from app import __version__
 from app.api import admin, auth, catalog, collection, games, releases, scan, users
+from app.api.schemas import HealthOut, MaintenanceOut
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
-from app.core.middleware import BodyLimit, SecurityHeaders
+from app.core.middleware import BodyLimit, RequestTimer, SecurityHeaders
 from app.core.security import hash_password
 from app.games.base import registry, shipped_folders
 from app.models import Game, Role, User
-from app.services import layout
+from app.services import layout, load
 from app.services.jobs import reap_runs
 from app.services.symbols import ensure_symbols
 
@@ -74,8 +75,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         logger.warning("Shipped pictures not copied to the image folder: %s", exc)
     # Game symbols are downloaded once; the API serves requests meanwhile.
     symbols = asyncio.create_task(ensure_symbols())
+    # Maintenance mode while a catalog refresh slows the server down.
+    watcher = asyncio.create_task(load.watch())
     yield
     symbols.cancel()
+    watcher.cancel()
 
 
 def create_app() -> FastAPI:
@@ -97,8 +101,12 @@ def create_app() -> FastAPI:
     api.include_router(releases.router)
 
     @api.get("/health", tags=["meta"])
-    async def health() -> dict[str, str]:
-        return {"status": "ok", "version": __version__}
+    async def health() -> HealthOut:
+        state = load.maintenance()
+        return HealthOut(
+            version=__version__,
+            maintenance=MaintenanceOut(since=state.since, game_id=state.game_id) if state else None,
+        )
 
     @app.exception_handler(Exception)
     async def unexpected_error(request: Request, exc: Exception) -> JSONResponse:
@@ -110,6 +118,7 @@ def create_app() -> FastAPI:
     app.include_router(api)
     mount_web(app, get_settings().web_dir)
     # Last added runs first: headers on every answer, the 413 included.
+    app.add_middleware(RequestTimer)
     app.add_middleware(BodyLimit)
     app.add_middleware(SecurityHeaders)
     return app

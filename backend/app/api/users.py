@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import AdminUser, SessionDep
 from app.api.schemas import UserCreateIn, UserOut, UserUpdateIn
+from app.core.oidc import get_auth_config, local_login_enabled
 from app.core.security import end_all_sessions, hash_password
 from app.models import User, UserIdentity
 
@@ -17,15 +18,23 @@ async def _get_user(session: SessionDep, user_id: int) -> User:
     return user
 
 
-async def _sso_users(session: SessionDep, *user_ids: int) -> set[int]:
-    query = select(UserIdentity.user_id).distinct()
+async def _sso_users(session: SessionDep, *user_ids: int) -> dict[int, bool]:
+    """SSO users, mapped to whether their identity provider sets their role (its
+    admin groups, applied at every login)."""
+    query = select(UserIdentity.user_id, UserIdentity.provider)
     if user_ids:
         query = query.where(UserIdentity.user_id.in_(user_ids))
-    return set(await session.scalars(query))
+    role_providers = {p.name for p in get_auth_config().providers if p.admin_groups}
+    sso_users: dict[int, bool] = {}
+    for user_id, provider in await session.execute(query):
+        sso_users[user_id] = sso_users.get(user_id, False) or provider in role_providers
+    return sso_users
 
 
-def _out(user: User, sso_users: set[int]) -> UserOut:
-    return UserOut.model_validate(user).model_copy(update={"sso": user.id in sso_users})
+def _out(user: User, sso_users: dict[int, bool]) -> UserOut:
+    return UserOut.model_validate(user).model_copy(
+        update={"sso": user.id in sso_users, "role_managed_by_sso": sso_users.get(user.id, False)}
+    )
 
 
 @router.get("")
@@ -37,6 +46,9 @@ async def list_users(_: AdminUser, session: SessionDep) -> list[UserOut]:
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_user(body: UserCreateIn, _: AdminUser, session: SessionDep) -> UserOut:
+    # SSO-only setup: accounts come from the identity provider.
+    if not local_login_enabled():
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Local accounts are disabled")
     user = User(
         username=body.username,
         email=body.email,
@@ -64,6 +76,10 @@ async def update_user(
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             "This user's email and password are managed by single sign-on",
+        )
+    if sso_users.get(user.id) and fields.get("role", user.role) != user.role:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "This user's role is managed by single sign-on"
         )
     # A new password or a disabled account ends the user's sessions.
     ends_sessions = "password" in fields or (fields.get("disabled") and not user.disabled)

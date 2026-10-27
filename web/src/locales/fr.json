@@ -487,5 +487,11 @@
   "Version {{version}} · {{size}} MB · {{date}}": "Version {{version}} · {{size}} Mo · {{date}}",
   "Scan cards with the phone camera. Updates are offered by the app itself.": "Scannez les cartes avec l'appareil photo du téléphone. L'application propose elle-même ses mises à jour.",
   "Release notes": "Notes de version",
-  "Download APK": "Télécharger l'APK"
+  "Download APK": "Télécharger l'APK",
+  "queued": "en attente",
+  "Maintenance in progress": "Maintenance en cours",
+  "The card catalog is being refreshed and the server is busy. This page comes back by itself in a few minutes.": "Le catalogue de cartes est en cours d'actualisation et le serveur est occupé. Cette page revient d'elle-même dans quelques minutes.",
+  "Maintenance: the {{game}} catalog refresh slows the server down, users see a maintenance page until it is fast again.": "Maintenance : l'actualisation du catalogue {{game}} ralentit le serveur, les utilisateurs voient une page de maintenance jusqu'à ce qu'il soit de nouveau rapide.",
+  "Role managed by the SSO provider": "Rôle géré par le fournisseur SSO",
+  "Local accounts are disabled: users sign in with SSO, their account is created at their first sign-in.": "Les comptes locaux sont désactivés : les utilisateurs se connectent par SSO, leur compte est créé à leur première connexion."
 }

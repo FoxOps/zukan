@@ -2,7 +2,7 @@ import asyncio
 from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import distinct_on
@@ -240,26 +240,17 @@ async def preview_sync_schedule(body: SyncScheduleIn, _: AdminUser) -> SyncSched
     return out.model_copy(update={"is_default": False})
 
 
-async def _complete_quietly(run_id: int, game_id: str, kind: JobKind) -> None:
-    try:
-        await jobs.complete_job(run_id, game_id, kind)
-    except Exception:
-        pass  # outcome is recorded on the sync_run row and logged
-
-
 @router.post("/jobs/{game_id}/{kind}", status_code=status.HTTP_202_ACCEPTED)
-async def start_job(
-    game_id: str, kind: JobKind, _: AdminUser, background: BackgroundTasks
-) -> dict[str, int]:
+async def start_job(game_id: str, kind: JobKind, _: AdminUser) -> dict[str, int]:
+    """Queue a run for the worker, which takes over a running automatic run of the same
+    job."""
     _check_game(game_id)
     if kind == JobKind.prices and not prices.has_prices(registry()[game_id]):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"{game_id} has no price source")
     try:
-        # Takes over a running auto run of the same job (waits for it to stop).
-        run_id = await jobs.start_job(game_id, kind)
+        run_id = await jobs.queue_job(game_id, kind)
     except jobs.JobAlreadyRunning as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
-    background.add_task(_complete_quietly, run_id, game_id, kind)
     return {"run_id": run_id}
 
 
@@ -274,14 +265,15 @@ class ResetOut(BaseModel):
 
 
 @router.post("/games/{game_id}/reset")
-async def reset_catalog(
-    game_id: str, _: AdminUser, session: SessionDep, background: BackgroundTasks
-) -> ResetOut:
-    """Delete the game's catalog except owned printings, then sync it again."""
+async def reset_catalog(game_id: str, _: AdminUser, session: SessionDep) -> ResetOut:
+    """Delete the game's catalog except owned printings, then queue its sync."""
     _check_game(game_id)
     await jobs.reap_runs()
     running = await session.scalar(
-        select(SyncRun.kind).where(SyncRun.game_id == game_id, SyncRun.status == JobStatus.running)
+        select(SyncRun.kind).where(
+            SyncRun.game_id == game_id,
+            SyncRun.status.in_([JobStatus.queued, JobStatus.running]),
+        )
     )
     if running is not None:
         raise HTTPException(
@@ -289,8 +281,7 @@ async def reset_catalog(
         )
     report = await catalog.reset_catalog(session, game_id)
     games.clear_filter_values(game_id)
-    run_id = await jobs.start_job(game_id, JobKind.catalog)
-    background.add_task(_complete_quietly, run_id, game_id, JobKind.catalog)
+    run_id = await jobs.queue_job(game_id, JobKind.catalog)
     return ResetOut(
         printings=report.printings,
         cards=report.cards,

@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints
@@ -31,6 +32,8 @@ class UserOut(BaseModel):
     has_password: bool
     # Signs in with SSO: its identity provider manages the email (and the password).
     sso: bool = False
+    # The identity provider sets the role at every login (its admin groups).
+    role_managed_by_sso: bool = False
 
 
 class SsoAccountOut(BaseModel):
@@ -130,3 +133,16 @@ class UserUpdateIn(BaseModel):
     role: Role | None = None
     disabled: bool | None = None
     password: Password | None = None
+
+
+class MaintenanceOut(BaseModel):
+    """A catalog refresh slows the server down: users wait, administrators pass."""
+
+    since: datetime
+    game_id: str
+
+
+class HealthOut(BaseModel):
+    status: str = "ok"
+    version: str
+    maintenance: MaintenanceOut | None = None

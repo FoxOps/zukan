@@ -18,6 +18,8 @@ class JobKind(enum.StrEnum):
 
 
 class JobStatus(enum.StrEnum):
+    # Started from the web UI, waiting for the worker to pick it up.
+    queued = "queued"
     running = "running"
     success = "success"
     failed = "failed"
@@ -43,6 +45,14 @@ class SyncRun(Base):
             unique=True,
             postgresql_where=text("status = 'running'"),
         ),
+        # At most one queued run per game and kind.
+        Index(
+            "uq_sync_run_queued",
+            "game_id",
+            "kind",
+            unique=True,
+            postgresql_where=text("status = 'queued'"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -57,8 +67,8 @@ class SyncRun(Base):
         default=JobTrigger.manual,
         server_default=JobTrigger.manual,
     )
-    # Process running the job ("api:<uuid>", "worker:<uuid>", "cli:<uuid>"): a process
-    # that restarts fails the runs its previous instance left behind.
+    # Process running the job ("api:<uuid>", "worker:<uuid>", "cli:<uuid>", None while
+    # queued): a process that restarts fails the runs its previous instance left behind.
     owner: Mapped[str | None] = mapped_column(String(64))
     # Last progress (a batch stored, an image downloaded).
     heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

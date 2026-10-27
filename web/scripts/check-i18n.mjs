@@ -15,7 +15,7 @@ const DYNAMIC = [
   'Owned first', 'Oldest sets', 'Set name', 'Collector number',
   'Mint', 'Near Mint', 'Excellent', 'Good', 'Light Played', 'Played', 'Poor',
   'catalog', 'prices', 'images', 'running', 'success', 'failed', 'user', 'admin', 'web', 'scan', 'import',
-  'cancelled', 'auto', 'manual',
+  'cancelled', 'queued', 'auto', 'manual',
   // Collection views and trend periods.
   'List', 'Images', '24h', '7d', '30d',
   // Finance periods.

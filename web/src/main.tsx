@@ -22,9 +22,14 @@ function page(load: () => Promise<{ default: ComponentType }>) {
 
 const queryClient = new QueryClient({
   // Failed loads are shown as toasts, except where the page shows them itself
-  // (`meta.inlineError`) and expired sessions (the login page opens).
+  // (`meta.inlineError`), expired sessions (the login page opens) and maintenance (503:
+  // the maintenance page opens once the health check confirms it).
   queryCache: new QueryCache({
     onError: (error, query) => {
+      if (error instanceof ApiError && error.status === 503) {
+        void queryClient.invalidateQueries({ queryKey: ['health'] })
+        return
+      }
       if (query.meta?.inlineError || (error instanceof ApiError && error.status === 401)) return
       showError(error.message)
     },
@@ -32,7 +37,8 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       // Do not retry client errors (404, 403...), only transient failures.
-      retry: (count, error) => !(error instanceof ApiError && error.status < 500) && count < 2,
+      retry: (count, error) =>
+        !(error instanceof ApiError && (error.status < 500 || error.status === 503)) && count < 2,
       refetchOnWindowFocus: false,
     },
   },

@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { api, ApiError, onSessionExpired } from '../api/client'
@@ -7,6 +7,7 @@ import { useAndroidRelease, useHealth, useMe } from '../api/queries'
 import { useServerLanguage } from '../i18n'
 import { LanguageMenu } from './I18n'
 import { ErrorScreen } from './ErrorPage'
+import { MaintenanceBanner, MaintenanceScreen } from './Maintenance'
 import { Logo, Mascot } from './Logo'
 import { applyTheme, savedDark } from '../lib/theme'
 import { useTypeToSearch } from '../lib/typeToSearch'
@@ -42,6 +43,13 @@ export function Layout() {
   const android = useAndroidRelease()
   useServerLanguage(me.data?.language)
   useTypeToSearch()
+  const maintenance = health.data?.maintenance ?? null
+  // Maintenance over: reload what failed meanwhile.
+  const wasInMaintenance = useRef(false)
+  useEffect(() => {
+    if (wasInMaintenance.current && !maintenance) client.invalidateQueries()
+    wasInMaintenance.current = !!maintenance
+  }, [maintenance, client])
 
   useEffect(
     () =>
@@ -108,7 +116,14 @@ export function Layout() {
           </div>
         </header>
         <main className="flex-1 p-4 lg:p-6">
-          <Outlet />
+          {maintenance && me.data.role !== 'admin' ? (
+            <MaintenanceScreen />
+          ) : (
+            <>
+              {maintenance && <MaintenanceBanner state={maintenance} />}
+              <Outlet />
+            </>
+          )}
         </main>
         {/* Publishers' notices (Riot Games, Wizards...) in full on the About page. */}
         <footer className="border-t border-base-300 px-4 py-3 text-xs text-base-content/50 lg:px-6">

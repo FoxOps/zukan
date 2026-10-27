@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router'
 import { api, call, type Schemas } from '../../api/client'
-import { useMe } from '../../api/queries'
+import { useMe, useProviders } from '../../api/queries'
 import { useToast } from '../../components/toast'
 import { Select } from '../../components/Select'
 
@@ -13,6 +13,9 @@ type Update = Schemas['UserUpdateIn']
 export default function Users() {
   const { t } = useTranslation()
   const me = useMe()
+  const providers = useProviders()
+  // SSO only: accounts come from the identity provider.
+  const localDisabled = providers.data?.local_login_enabled === false
   const toast = useToast()
   const client = useQueryClient()
   const users = useQuery({
@@ -100,11 +103,12 @@ export default function Users() {
                     <div className="font-medium">{u.username}</div>
                     <div className="text-xs text-base-content/60">{u.email}</div>
                   </td>
-                  <td>
+                  {/* Set by the identity provider's admin groups at every login. */}
+                  <td title={u.role_managed_by_sso ? t('Role managed by the SSO provider') : undefined}>
                     <Select
                       className="select-sm w-28"
                       value={u.role}
-                      disabled={self}
+                      disabled={self || u.role_managed_by_sso}
                       onChange={(v) => update.mutate({ id: u.id, body: { role: v as User['role'] } })}
                       options={[
                         { value: 'user', label: t('user') },
@@ -155,17 +159,24 @@ export default function Users() {
         </table>
       </div>
 
-      <div className="card max-w-xl bg-base-200">
+      <div className={`card max-w-xl bg-base-200 ${localDisabled ? 'opacity-60' : ''}`}>
         <form className="card-body" onSubmit={submit}>
           <h2 className="card-title">{t('New user')}</h2>
-          <input className="input w-full" placeholder={t('Username')} required pattern="[A-Za-z0-9._@\-]+" value={username} onChange={(e) => setUsername(e.target.value)} />
-          <input className="input w-full" type="email" placeholder={t('Email (optional)')} value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input className="input w-full" type="password" placeholder={t('Password (empty = SSO only)')} minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          <div className="card-actions">
-            <button className="btn btn-primary" disabled={create.isPending}>
-              {t('Create')}
-            </button>
-          </div>
+          {localDisabled && (
+            <div role="alert" className="alert alert-info alert-soft text-sm">
+              {t('Local accounts are disabled: users sign in with SSO, their account is created at their first sign-in.')}
+            </div>
+          )}
+          <fieldset disabled={localDisabled} className="flex flex-col gap-2">
+            <input className="input w-full" placeholder={t('Username')} required pattern="[A-Za-z0-9._@\-]+" value={username} onChange={(e) => setUsername(e.target.value)} />
+            <input className="input w-full" type="email" placeholder={t('Email (optional)')} value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input className="input w-full" type="password" placeholder={t('Password (empty = SSO only)')} minLength={8} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <div className="card-actions">
+              <button className="btn btn-primary" disabled={create.isPending}>
+                {t('Create')}
+              </button>
+            </div>
+          </fieldset>
         </form>
       </div>
     </div>

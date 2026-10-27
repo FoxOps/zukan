@@ -168,6 +168,43 @@ async def test_admin_group_maps_role(client, idp):
     assert (await client.get("/api/auth/me")).json()["role"] == "user"
 
 
+async def test_role_of_sso_users_set_by_idp_is_locked(client, session, idp, monkeypatch):
+    query = await start_login(client)
+    await finish_login(client, idp, query)
+    sso_id = (await client.get("/api/auth/me")).json()["id"]
+    await make_user(session, "root", role=Role.admin)
+    await make_user(session, "bob")
+    admin = {**await bearer(client, "root"), **CSRF}
+    users = {u["username"]: u for u in (await client.get("/api/users", headers=admin)).json()}
+    assert users["sso.alice"]["role_managed_by_sso"] is True
+    assert users["bob"]["role_managed_by_sso"] is False
+
+    # The IdP's admin groups set the role at every login: no change here.
+    response = await client.patch(f"/api/users/{sso_id}", json={"role": "admin"}, headers=admin)
+    assert response.status_code == 409 and "role" in response.json()["detail"]
+    unchanged = {"role": "user", "disabled": True}
+    response = await client.patch(f"/api/users/{sso_id}", json=unchanged, headers=admin)
+    assert response.status_code == 200 and response.json()["role_managed_by_sso"]
+    bob_id = users["bob"]["id"]
+    response = await client.patch(f"/api/users/{bob_id}", json={"role": "admin"}, headers=admin)
+    assert response.status_code == 200
+
+    # Without admin groups, the IdP leaves roles to Zukan's administrators.
+    configure(monkeypatch, admin_groups=[])
+    users = {u["username"]: u for u in (await client.get("/api/users", headers=admin)).json()}
+    assert users["sso.alice"]["sso"] and not users["sso.alice"]["role_managed_by_sso"]
+    response = await client.patch(f"/api/users/{sso_id}", json={"role": "admin"}, headers=admin)
+    assert response.status_code == 200 and response.json()["role"] == "admin"
+
+
+async def test_no_local_users_created_when_local_login_disabled(client, session, monkeypatch):
+    await make_user(session, "root", role=Role.admin)
+    admin = {**await bearer(client, "root"), **CSRF}
+    monkeypatch.setattr(get_settings(), "local_login_enabled", False)
+    response = await client.post("/api/users", json={"username": "bob"}, headers=admin)
+    assert response.status_code == 403
+
+
 async def test_no_account_linking_by_email(client, idp):
     query = await start_login(client)
     await finish_login(client, idp, query)
