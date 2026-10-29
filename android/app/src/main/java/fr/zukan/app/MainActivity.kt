@@ -5,19 +5,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.CollectionsBookmark
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -35,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
 import coil3.svg.SvgDecoder
@@ -49,6 +49,7 @@ import fr.zukan.app.ui.SessionViewModel
 import fr.zukan.app.ui.SettingsScreen
 import fr.zukan.app.ui.UpdateDialog
 import fr.zukan.app.ui.UpdateViewModel
+import fr.zukan.app.ui.ZIcon
 
 class MainActivity : ComponentActivity() {
     private val session: SessionViewModel by viewModels()
@@ -62,11 +63,36 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(@StringRes val label: Int) {
-    SCAN(R.string.tab_scan),
-    COLLECTION(R.string.tab_collection),
-    SEARCH(R.string.tab_search),
-    SETTINGS(R.string.tab_settings),
+private enum class Tab(@StringRes val label: Int, @DrawableRes val icon: Int) {
+    SCAN(R.string.tab_scan, R.drawable.ic_scan),
+    COLLECTION(R.string.tab_collection, R.drawable.ic_collection),
+    SEARCH(R.string.tab_search, R.drawable.ic_search),
+    SETTINGS(R.string.tab_settings, R.drawable.ic_settings),
+}
+
+/** Four destinations on paper / chocolate, the current one on a gold pill. */
+@Composable
+private fun ZukanNavigationBar(tab: Tab, onTab: (Tab) -> Unit) {
+    Column {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+        NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+            Tab.entries.forEach { t ->
+                NavigationBarItem(
+                    selected = tab == t,
+                    onClick = { onTab(t) },
+                    icon = { ZIcon(t.icon, contentDescription = null) },
+                    label = { Text(stringResource(t.label), fontWeight = if (tab == t) FontWeight.Bold else null) },
+                    colors = NavigationBarItemDefaults.colors(
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -112,28 +138,7 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
             }
             Scaffold(
                 snackbarHost = { SnackbarHost(snackbar) },
-                bottomBar = {
-                    NavigationBar {
-                        Tab.entries.forEach { t ->
-                            NavigationBarItem(
-                                selected = tab == t,
-                                onClick = { tab = t },
-                                icon = {
-                                    Icon(
-                                        when (t) {
-                                            Tab.SCAN -> Icons.Default.CameraAlt
-                                            Tab.COLLECTION -> Icons.Default.CollectionsBookmark
-                                            Tab.SEARCH -> Icons.Default.Search
-                                            Tab.SETTINGS -> Icons.Default.Settings
-                                        },
-                                        contentDescription = null,
-                                    )
-                                },
-                                label = { Text(stringResource(t.label)) },
-                            )
-                        }
-                    }
-                },
+                bottomBar = { ZukanNavigationBar(tab) { tab = it } },
             ) { padding ->
                 Box(Modifier.padding(padding)) {
                     when (tab) {
@@ -143,6 +148,7 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
                         Tab.COLLECTION -> CollectionScreen(
                             client?.api,
                             state.games,
+                            state.games.flatMap { it.priceSources }.firstOrNull { it.id == state.priceSources.firstOrNull() },
                             scanState.stockVersion,
                             imageUrl,
                             imageLoader,
@@ -152,7 +158,7 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
                                 tab = Tab.SCAN
                             },
                         )
-                        Tab.SEARCH -> SearchScreen(client?.api, settings.game, state.games, imageUrl, imageLoader) { card ->
+                        Tab.SEARCH -> SearchScreen(client?.api, settings.game, state.games, imageUrl, imageLoader, onScan = { tab = Tab.SCAN }) { card ->
                             scan.showCard(card)
                             tab = Tab.SCAN
                         }

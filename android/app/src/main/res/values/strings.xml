@@ -23,7 +23,7 @@
     <!-- Scan -->
     <string name="camera_needed">The camera is needed to read cards.</string>
     <string name="allow_camera">Allow camera</string>
-    <string name="any_game">Any game</string>
+    <string name="any_game">All games</string>
     <string name="point_at_card">Point at a card</string>
     <string name="identifying">Identifying…</string>
     <string name="try_again">Try again</string>
@@ -43,7 +43,7 @@
     <string name="undone">Undone: %1$s (now %2$d)</string>
 
     <!-- Search -->
-    <string name="search_hint">Card name, any language</string>
+    <string name="search_hint">Card name…</string>
     <plurals name="printing_count">
         <item quantity="one">%1$s · %2$d printing</item>
         <item quantity="other">%1$s · %2$d printings</item>
@@ -51,7 +51,6 @@
 
     <!-- Settings -->
     <string name="settings">Settings</string>
-    <string name="signed_in_as">Signed in as %1$s on %2$s</string>
     <string name="text_recognition">Text recognition</string>
     <string name="text_recognition_help">Automatic reads every script and keeps the one printed on the card. Choose one to force it; each also reads Latin text.</string>
     <string name="script_latin">Latin</string>
@@ -89,7 +88,6 @@
     <string name="cheapest_version">Cheapest version</string>
     <string name="most_expensive_version">Most expensive version</string>
     <string name="lowest_offer">Lowest offer</string>
-    <string name="app_version">App %1$s · server %2$s</string>
     <string name="printings_partial">Shown: %1$d / %2$d. Type to search them all.</string>
     <string name="card_fetched">New card: added to the catalog from its source</string>
     <string name="price_source">Main price source</string>
@@ -108,14 +106,10 @@
     <string name="any_language">All languages</string>
     <string name="filter_sets">Set name or code</string>
     <string name="load_more">Load more (%1$d)</string>
-    <string name="search_collection">Search your cards</string>
-    <plurals name="collection_value">
-        <item quantity="one">%1$s · %2$d card</item>
-        <item quantity="other">%1$s · %2$d cards</item>
-    </plurals>
+    <string name="search_collection">Search my collection</string>
     <string name="collection_empty">No cards here yet</string>
     <string name="sort">Sort</string>
-    <string name="sort_name">Name</string>
+    <string name="sort_name">Name A–Z</string>
     <string name="sort_set">Newest sets</string>
     <string name="sort_updated">Recently changed</string>
     <string name="sort_quantity">Quantity</string>
@@ -151,4 +145,57 @@
     <string name="update_failed">Download failed: %1$s</string>
     <string name="update_checksum">the file is damaged, try again</string>
     <string name="update_retry">Retry</string>
+
+    <!-- 2026-10 redesign -->
+    <string name="clear">Clear</string>
+    <string name="close">Close</string>
+    <string name="filters_on">Filters on</string>
+    <string name="filters_off">No filter</string>
+    <string name="more_games">More games</string>
+    <string name="reset_filters">Reset filters</string>
+    <string name="apply_filters">Apply filters</string>
+    <string name="collection_title">My collection</string>
+    <string name="collection_subtitle">All your cards in one place</string>
+    <string name="all_cards">All cards</string>
+    <string name="error_title">Something went wrong</string>
+    <string name="collection_empty_help">Scan a card or find it in Search to add it.</string>
+    <string name="no_price">No price</string>
+    <string name="estimated_value">Estimated value</string>
+    <string name="filter_collection">Filter the collection</string>
+    <string name="filter_collection_help">Combine your search criteria.</string>
+    <string name="filter_search">Filter the search</string>
+    <string name="game">Game</string>
+    <string name="all">All</string>
+    <string name="set">Set</string>
+    <string name="colors">Colors</string>
+    <string name="card_condition">Card condition</string>
+    <string name="any_condition">Every condition</string>
+    <string name="search_title">Search</string>
+    <string name="search_subtitle">Find a card, whatever its language</string>
+    <string name="search_intro_title">A card in mind?</string>
+    <string name="search_intro_text">Type its name to find it.\nYou can also use the scanner.</string>
+    <string name="scan_a_card">Scan a card</string>
+    <string name="how_it_works">How it works</string>
+    <string name="search_step_game">Choose a game or keep all games.</string>
+    <string name="search_step_filters">Narrow down by set, color or language in the filters.</string>
+    <string name="search_no_result">No card found</string>
+    <string name="search_no_result_help">Check the spelling or remove a filter.</string>
+    <string name="settings_subtitle">Make Zukan yours</string>
+    <string name="group_scan">Scan and add</string>
+    <string name="group_prices">Prices and markets</string>
+    <string name="group_app">App and account</string>
+    <string name="default_values">Default values</string>
+    <string name="default_values_help">Used for scanned cards until you change them.</string>
+    <string name="app_and_connection">App and connection</string>
+    <string name="app_and_connection_value">Updates, server, log out</string>
+    <string name="app_footer">Zukan · %1$s</string>
+    <string name="versions">Versions</string>
+    <string name="app_name_label">App</string>
+    <string name="server_version">Server</string>
+    <string name="unknown">Unknown</string>
+    <string name="connection">Connection</string>
+    <plurals name="cards">
+        <item quantity="one">card</item>
+        <item quantity="other">cards</item>
+    </plurals>
 </resources>

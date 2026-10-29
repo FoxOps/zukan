@@ -58,7 +58,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
             if (saved.serverUrl.isNotEmpty()) {
                 val client = app.connect(saved.serverUrl)
                 runCatching { client.api.providers() }.onSuccess { p -> _state.update { it.copy(providers = p) } }
-                runCatching { client.api.health() }.onSuccess { h -> _state.update { it.copy(serverVersion = h["version"]) } }
+                runCatching { client.api.health() }.onSuccess { h -> _state.update { it.copy(serverVersion = h.version) } }
                 if (app.store.tokens != null) loadAccount(client)
             }
             _state.update { it.copy(loading = false) }
@@ -83,7 +83,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         val health = client.api.health()
         val providers = client.api.providers()
         app.store.update { it.copy(serverUrl = url) }
-        _state.update { it.copy(serverUrl = url, providers = providers, serverVersion = health["version"]) }
+        _state.update { it.copy(serverUrl = url, providers = providers, serverVersion = health.version) }
     }
 
     fun login(username: String, password: String) = work {

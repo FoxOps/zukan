@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Search empty state: a card under a magnifier (maquette 02-recherche), same colours in both themes. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path
+        android:fillColor="#FFDCCCE6"
+        android:pathData="M25,4h38a4,4 0 0,1 4,4v80a4,4 0 0,1 -4,4h-38a4,4 0 0,1 -4,-4v-80a4,4 0 0,1 4,-4z"
+        android:strokeColor="#FF402719"
+        android:strokeWidth="3" />
+    <path
+        android:fillColor="#FFBFA8CF"
+        android:pathData="M28,12h32v50h-32z" />
+    <path
+        android:fillColor="#FF8F7699"
+        android:pathData="M28,12h32v28l-12,8l-8,-10l-12,16z" />
+    <path
+        android:pathData="M29,72h30M29,78h30M29,84h20"
+        android:strokeColor="#FF8F7699"
+        android:strokeLineCap="round"
+        android:strokeWidth="2" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M60,78m-10,0a10,10 0 1,0 20,0a10,10 0 1,0 -20,0"
+        android:strokeColor="#FF402719"
+        android:strokeWidth="3" />
+    <path
+        android:pathData="M67,85l9,9"
+        android:strokeColor="#FF402719"
+        android:strokeLineCap="round"
+        android:strokeWidth="3.5" />
+</vector>

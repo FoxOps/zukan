@@ -5,6 +5,17 @@ import kotlinx.serialization.Serializable
 
 // Mirrors of the server API (see /api/docs). Decimals arrive as strings.
 
+/** `GET /api/health`: `maintenance` (server 0.20.0+) is null or an object, never a string. */
+@Serializable
+data class HealthOut(
+    val status: String = "ok",
+    val version: String? = null,
+    val maintenance: MaintenanceOut? = null,
+)
+
+@Serializable
+data class MaintenanceOut(val since: String, @SerialName("game_id") val gameId: String)
+
 @Serializable
 data class ProvidersOut(
     @SerialName("local_login_enabled") val localLoginEnabled: Boolean,
