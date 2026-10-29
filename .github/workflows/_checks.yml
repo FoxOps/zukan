@@ -1,4 +1,4 @@
-# Backend and web checks, called by the Docker dev and prod workflows.
+# Backend and web checks, called by the Docker dev and prod workflows and by PR checks.
 #   full: false -> lint, smoke tests (pytest -m smoke), type check
 #   full: true  -> also formatting, migrations check, all tests, web lint/build, API types
 name: Checks
