@@ -271,7 +271,8 @@ export interface paths {
         };
         /**
          * Rarity Icon
-         * @description The rarity's pictogram; `lang`: the one of cards printed in that language.
+         * @description The rarity's pictogram; `lang`: the one of cards printed in that language (one of
+         *     the game's languages, others get the plain pictogram).
          */
         get: operations["rarity_icon_api_games__game_id__rarities__code__icon_get"];
         put?: never;

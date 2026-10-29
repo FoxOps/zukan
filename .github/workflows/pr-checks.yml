@@ -1,0 +1,49 @@
+# Tests of every pull request to main, before it is merged (the Docker and Android
+# workflows only run by hand, at build time). Nothing is built or published here.
+#   Backend and web: the full checks of Docker prod (_checks.yml, full: true).
+#   Android: unit tests and lint, without signing secrets.
+name: PR checks
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Backend and web
+    uses: ./.github/workflows/_checks.yml
+    with:
+      full: true
+
+  android:
+    name: Android tests and lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Android SDK platform
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" > /dev/null
+      - name: Unit tests and lint
+        run: ./gradlew testDebugUnitTest lintDebug
+      - name: Test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-reports
+          path: |
+            android/app/build/reports/
+            android/app/build/test-results/
