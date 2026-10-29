@@ -54,20 +54,6 @@ services:
       - ./data-dev/images:/data/images
     command: ["python", "-m", "app.worker"]
 
-  # Test SSO: `docker compose -f docker-compose-dev.yml --profile sso-dev up keycloak`
-  # Realm "tcg" with clients tcg-web / tcg-android and users admin/user (password: password).
-  keycloak:
-    profiles: [sso-dev]
-    image: quay.io/keycloak/keycloak:26.4
-    command: start-dev --import-realm
-    environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
-    volumes:
-      - ./deploy/keycloak:/opt/keycloak/data/import:ro
-    ports:
-      - "8080:8080"
-
 networks:
   default:
     driver_opts:

@@ -33,12 +33,12 @@ def symbol_file(game_id: str, code: str) -> Path | None:
     color = next((c for c in provider.colors if c.code == code), None) if provider else None
     if color is None:
         return None
-    if (own := layout.own_picture(_folder(game_id), code)) is not None:
+    if (own := layout.own_picture(_folder(provider.id), color.code)) is not None:
         return own
     if color.icon_file is not None:
         # The copy in `default/` first, the package file if it is not there yet.
         root = get_settings().image_dir
-        folder = layout.default_folder(root, picture_game(game_id), layout.SYMBOLS)
+        folder = layout.default_folder(root, picture_game(provider.id), layout.SYMBOLS)
         copy = folder / color.icon_file.name
         if copy.is_file():
             return copy

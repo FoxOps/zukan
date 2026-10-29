@@ -39,18 +39,19 @@ the product itself.
 - **Manage several TCGs together.** Browse card catalogs, sets, printings and images
   without switching applications for each game.
 - **Track the copies you actually own.** Record quantity, set, finish, condition,
-  language, notes and an optional manual price. Collection changes can be undone.
+  language, notes and an optional manual price. Quantity changes can be undone.
 - **Scan cards on Android.** Recognize card text with the camera, review matching
   printings, then add or remove copies. Manual search is also available.
-- **Follow collection value.** View Cardmarket prices in EUR and TCGplayer prices in
-  USD where available, with price history for cards in a collection.
+- **Follow collection value.** View Cardmarket and CardNexus prices in EUR and TCGplayer
+  prices in USD where available, with price history for cards in a collection.
 - **Import and export CSV.** Move collection data in or out, with import validation
   and a dry-run option.
 - **Share a server.** Each user has a separate collection. Sign in with a local account
   or an OpenID Connect provider such as Keycloak or Authentik.
 
-The web and Android interfaces are available in English and French. Card languages
-are handled separately; coverage depends on the game and its data sources.
+The web interface is available in English, French, German and Spanish. The Android app
+is available in English and French. Card languages are handled separately; coverage
+depends on the game and its data sources.
 
 ### Supported games
 
@@ -61,7 +62,10 @@ are handled separately; coverage depends on the game and its data sources.
 - Yu-Gi-Oh!
 - Disney Lorcana
 
-Game providers are plugins, so more games can be added.
+Pokémon has separate international, Asia and China catalogs; Yu-Gi-Oh! has separate
+TCG and OCG catalogs. Game providers are plugins, so more games can be added.
+See [Supported games and sources](https://github.com/FoxOps/zukan/wiki/Supported-games-and-sources)
+for the full catalog list and language coverage.
 
 ## Tech stack
 
@@ -79,104 +83,37 @@ The API serves the built web interface. The worker refreshes catalogs, prices an
 card images. Android performs text recognition on the device and sends the recognized
 text to the server to identify cards; scanning requires a connection to your server.
 
-## Quick start
+## Get started
 
-You need Git, Docker and the Docker Compose plugin.
+- **Use an existing server:** follow the [Getting started guide](https://github.com/FoxOps/zukan/wiki/Getting-started).
+- **Host your own server:** follow the [Docker installation guide](https://github.com/FoxOps/zukan/wiki/Docker-installation).
+  Released server images are publicly available on `ghcr.io/foxops/zukan`.
+- **Use Android:** download the APK from [GitHub releases](https://github.com/FoxOps/zukan/releases)
+  and follow the [Android guide](https://github.com/FoxOps/zukan/wiki/Android-guide).
+  Android 8.0 or later and a reachable Zukan server are required.
 
-```sh
-git clone https://github.com/FoxOps/zukan.git
-cd zukan
-cp .env.example .env
-```
+## Documentation
 
-Edit `.env` before starting:
+The **[Zukan wiki](https://github.com/FoxOps/zukan/wiki)** is the main documentation.
+It contains the user guides, deployment instructions, administration procedures and
+technical reference.
 
-- Set `POSTGRES_PASSWORD` to a strong password. A long random hexadecimal value avoids
-  special characters that would need encoding in the database URL.
-- Set `TCG_SECRET_KEY` to at least 32 random characters.
-- Set `TCG_DEFAULT_ADMIN_PASSWORD` to your chosen administrator password.
-- For local access over plain HTTP, add `TCG_COOKIE_SECURE=false` so browser sign-in works.
-  Keep the default `true` when serving over HTTPS.
+| Topic | Guides |
+| --- | --- |
+| Collections and catalog | [Find cards and printings](https://github.com/FoxOps/zukan/wiki/Catalog-and-card-pages) · [Manage your collection](https://github.com/FoxOps/zukan/wiki/Managing-your-collection) |
+| Prices and data transfer | [Prices and valuation](https://github.com/FoxOps/zukan/wiki/Prices-and-valuation) · [CSV import and export](https://github.com/FoxOps/zukan/wiki/CSV-import-and-export) |
+| Accounts and Android | [Account and preferences](https://github.com/FoxOps/zukan/wiki/Account-and-preferences) · [Android guide](https://github.com/FoxOps/zukan/wiki/Android-guide) |
+| Installation and configuration | [Docker installation](https://github.com/FoxOps/zukan/wiki/Docker-installation) · [Configuration reference](https://github.com/FoxOps/zukan/wiki/Configuration-reference) · [Reverse proxy and HTTPS](https://github.com/FoxOps/zukan/wiki/Reverse-proxy-and-HTTPS) |
+| Authentication | [Single sign-on](https://github.com/FoxOps/zukan/wiki/Single-sign-on) · [User administration](https://github.com/FoxOps/zukan/wiki/User-administration) |
+| Server administration | [Synchronization](https://github.com/FoxOps/zukan/wiki/Synchronization) · [Data checks](https://github.com/FoxOps/zukan/wiki/Data-checks) · [Operations](https://github.com/FoxOps/zukan/wiki/Operations) |
+| Maintenance and recovery | [Backup and restore](https://github.com/FoxOps/zukan/wiki/Backup-and-restore) · [Updates and migrations](https://github.com/FoxOps/zukan/wiki/Updates-and-migrations) · [Troubleshooting](https://github.com/FoxOps/zukan/wiki/Troubleshooting) |
+| Development and integration | [Architecture](https://github.com/FoxOps/zukan/wiki/Architecture) · [Development](https://github.com/FoxOps/zukan/wiki/Development) · [API guide](https://github.com/FoxOps/zukan/wiki/API-guide) · [Plugin development](https://github.com/FoxOps/zukan/wiki/Plugin-development) |
 
-For example, `openssl rand -hex 32` generates a random value suitable for either of
-the first two settings. Run it separately for each.
+Server configuration examples remain in [`.env.example`](.env.example). Interactive
+API documentation is available on your running instance at `/api/docs`, with its
+OpenAPI schema at `/api/openapi.json`.
 
-### Start the server
-
-Prebuilt Docker images are public on `ghcr.io/foxops/zukan`. No GitHub token or
-registry sign-in is required.
-
-```sh
-docker compose pull
-docker compose up -d
-```
-
-Open [http://localhost:8000](http://localhost:8000) and sign in as `admin` with the
-password you configured. The initial administrator is created only when the database
-has no users.
-
-The worker starts importing catalogs automatically. The first import can take a while,
-particularly for Magic and Pokémon. Follow its progress with:
-
-```sh
-docker compose logs -f worker
-```
-
-The database is stored in `./data/postgres` and cached images in `./data/images`.
-Database migrations run on startup.
-
-To update the server:
-
-```sh
-docker compose pull
-docker compose up -d
-```
-
-Set `ZUKAN_TAG` in `.env` to pin a release.
-
-### Build from source (optional)
-
-To build the server and web interface from your checkout:
-
-```sh
-docker compose -f docker-compose-dev.yml up -d --build
-```
-
-This uses a separate Compose project, `zukan-dev`, and stores its data in `./data-dev`.
-After updating your checkout, rerun the command to rebuild.
-
-### Connect Android
-
-Android APKs are publicly available on the
-[releases page](https://github.com/FoxOps/zukan/releases); the web UI also links the latest
-one (sidebar and About page). Download and install the APK, then sign in using your server
-address and account. The app checks for new versions once a day and asks before
-downloading one; Android then asks you to confirm the install (allow Zukan to install
-apps the first time).
-
-From your phone, use your server's LAN address or domain, such as
-`http://192.168.1.10:8000`; `localhost` refers to the phone itself.
-Android 8.0 or later is required.
-
-For remote access, serve Zukan over HTTPS through a reverse proxy. Configure
-`TCG_PUBLIC_URL` and `TCG_FORWARDED_ALLOW_IPS`, and serve the full TLS certificate chain.
-Plain HTTP is supported for local networks.
-
-## Configuration and documentation
-
-All server settings are documented in [`.env.example`](.env.example), including
-accounts, synchronization schedules, optional API keys and reverse proxy settings.
-Catalogs refresh weekly by default; prices and owned card images refresh daily.
-
-- [Interactive API documentation](http://localhost:8000/api/docs) — available on your
-  running instance at `/api/docs`.
-- [Single sign-on setup](docs/sso.md).
-- [Price sources](docs/price-sources.md).
-- [Riftbound data and Riot API configuration](docs/riftbound.md).
-- [Design and development progress](PLAN.md).
-
-Back up your PostgreSQL database, image directory and `.env` file. Source builds use
-`./data-dev`; prebuilt deployments use `./data`.
+For common questions, see the [FAQ](https://github.com/FoxOps/zukan/wiki/FAQ).
 
 ## Contributing
 
@@ -187,3 +124,13 @@ If you see a better way to do something, open an issue and explain it.
 Bug reports, feedback from collectors, translations, documentation improvements and
 support for additional games are welcome too. For a larger change, open an issue first
 so we can discuss the approach before you spend time implementing it.
+
+See the [Development guide](https://github.com/FoxOps/zukan/wiki/Development) for local
+setup, builds and checks, and [Plugin development](https://github.com/FoxOps/zukan/wiki/Plugin-development)
+for adding games or price sources.
+
+## License
+
+Zukan is free software distributed under the [CeCILL 2.1](LICENSE) license. See
+[CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the
+[Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
