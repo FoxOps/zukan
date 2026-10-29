@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation (wiki)
+    url: https://github.com/FoxOps/zukan/wiki
+    about: Installation, configuration and user guides.
+  - name: Report a security vulnerability
+    url: https://github.com/FoxOps/zukan/security/advisories/new
+    about: Please report security issues privately, not in a public issue.

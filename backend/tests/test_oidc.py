@@ -137,6 +137,8 @@ async def test_web_login_creates_user(client, idp):
     response = await finish_login(client, idp, query)
     assert response.status_code == 303
     assert response.headers["location"] == "/collection"
+    # The provider cookie holds the configured name.
+    assert "tcg_sso_provider=home;" in response.headers["set-cookie"]
 
     token_request = idp.token_requests[0]
     form = parse_qs(token_request.content.decode())
@@ -275,9 +277,17 @@ async def test_idp_error_and_open_redirect(client, idp):
     response = await client.get("/api/auth/oidc/home/callback", params={"error": "access_denied"})
     assert response.headers["location"] == "/login?error=access_denied"
 
-    query = await start_login(client, next="//evil.test/")
+    for target in ("//evil.test/", "https://evil.test/", "javascript:alert(1)", "evil.test"):
+        query = await start_login(client, next=target)
+        response = await finish_login(client, idp, query)
+        assert response.headers["location"] == "/", target
+    # Backslashes are dropped: browsers read "/\\evil.test" as "//evil.test".
+    query = await start_login(client, next="/\\evil.test/")
     response = await finish_login(client, idp, query)
-    assert response.headers["location"] == "/"
+    assert response.headers["location"] == "/evil.test/"
+    query = await start_login(client, next="/collection?game=mtg")
+    response = await finish_login(client, idp, query)
+    assert response.headers["location"] == "/collection?game=mtg"
 
 
 async def test_allowed_groups_and_auto_create(client, idp, monkeypatch):

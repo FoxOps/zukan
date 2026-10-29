@@ -18,7 +18,7 @@ android {
         targetSdk = 37
         // CI passes -PversionCode / -PversionName (prod: from the release version).
         versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
-        versionName = providers.gradleProperty("versionName").orNull ?: "0.12.0"
+        versionName = providers.gradleProperty("versionName").orNull ?: "0.13.0"
         resValue("string", "app_name", "Zukan")
         redirectScheme("fr.zukan.app")
     }
@@ -51,11 +51,12 @@ android {
             signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
-    // English (default, res/values) and French (res/values-fr). The generated locale config
+    // English (default, res/values), French, German and Spanish (res/values-fr, -de, -es), as
+    // the web interface. The generated locale config
     // lists them in the system's per-app language settings (Android 13+).
     androidResources {
         generateLocaleConfig = true
-        localeFilters += listOf("en", "fr")
+        localeFilters += listOf("en", "fr", "de", "es")
     }
     buildFeatures {
         compose = true

@@ -152,6 +152,23 @@ async def test_rarity_pictures_by_language(client, session, image_dir):
     )
     icon = await client.get(rr["icons"]["ja"], headers=alice)
     assert icon.status_code == 200 and icon.content == b"RIFF own"
+    # A language the game does not have gets the plain pictogram.
+    url = "/api/games/pokemon-asia/rarities/double_rare/icon"
+    other = await client.get(url, params={"lang": "../ja"}, headers=alice)
+    assert other.status_code == 200 and other.content == plain.read_bytes()
+
+
+def test_own_picture_stays_in_its_folder(image_dir):
+    folder = image_dir / "yugioh" / "rarity"
+    folder.mkdir(parents=True)
+    (folder / "secret.png").write_bytes(b"x")
+    (image_dir / "yugioh" / "outside.png").write_bytes(b"x")
+    assert layout.own_picture(folder, "secret") == folder / "secret.png"
+    for code in ("../outside", "..", "/etc/passwd", "a\\b", ""):
+        assert layout.own_picture(folder, code) is None
+    # A link leading out of the folder is not followed.
+    (folder / "link.png").symlink_to(image_dir / "yugioh" / "outside.png")
+    assert layout.own_picture(folder, "link") is None
 
 
 async def test_shipped_pictures_copied_to_default_folder(image_dir):

@@ -126,10 +126,12 @@ async def list_games(_: CurrentUser) -> list[GameOut]:
 
 @router.get("/{game_id}/colors/{code}/icon")
 async def color_icon(game_id: str, code: str, _: CurrentUser) -> FileResponse:
+    # Files are looked up with the registry's ids and codes, never the URL's.
     provider = registry().get(game_id)
-    if provider is None or code not in {c.code for c in provider.colors}:
+    color = next((c for c in provider.colors if c.code == code), None) if provider else None
+    if provider is None or color is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown color")
-    path = symbol_file(game_id, code)
+    path = symbol_file(provider.id, color.code)
     if path is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Symbol not downloaded yet")
     return FileResponse(path, headers=_SYMBOL_HEADERS)
@@ -139,9 +141,16 @@ async def color_icon(game_id: str, code: str, _: CurrentUser) -> FileResponse:
 async def rarity_icon(
     game_id: str, code: str, _: CurrentUser, lang: Annotated[str | None, Query(max_length=8)] = None
 ) -> FileResponse:
-    """The rarity's pictogram; `lang`: the one of cards printed in that language."""
-    path = rarity_icon_file(game_id, code, lang) if game_id in registry() else None
-    if path is None or code not in {r.code for r in getattr(registry()[game_id], "rarities", [])}:
+    """The rarity's pictogram; `lang`: the one of cards printed in that language (one of
+    the game's languages, others get the plain pictogram)."""
+    provider = registry().get(game_id)
+    rarities = getattr(provider, "rarities", []) if provider else []
+    rarity = next((r for r in rarities if r.code == code), None)
+    path = None
+    if provider is not None and rarity is not None:
+        language = next((x for x in provider.languages if x == lang), None)
+        path = rarity_icon_file(provider.id, rarity.code, language)
+    if path is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown rarity")
     return FileResponse(path, headers=_SYMBOL_HEADERS)
 

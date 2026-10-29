@@ -1,5 +1,6 @@
 package fr.zukan.app.ui
 
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
@@ -9,6 +10,10 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -29,6 +34,9 @@ fun CameraPreview(
     onIdentify: (List<OcrLineIn>) -> Unit,
     onAsianFrame: (List<OcrLineIn>) -> Boolean,
     modifier: Modifier = Modifier,
+    torch: Boolean = false,
+    // Whether the camera has a torch, once bound.
+    onTorchAvailable: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -36,6 +44,7 @@ fun CameraPreview(
     val previewView = remember { PreviewView(context).apply { implementationMode = PreviewView.ImplementationMode.COMPATIBLE } }
     val analyzer = remember(script) { TextAnalyzer(script, onFrame, onIdentify, onAsianFrame) }
     analyzer.paused = paused
+    var camera by remember { mutableStateOf<Camera?>(null) }
 
     DisposableEffect(lifecycleOwner, analyzer) {
         val executor = Executors.newSingleThreadExecutor()
@@ -54,13 +63,19 @@ fun CameraPreview(
                 .build()
                 .also { it.setAnalyzer(executor, analyzer) }
             provider.unbindAll()
-            provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
+            camera = provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis).also {
+                onTorchAvailable(it.cameraInfo.hasFlashUnit())
+            }
         }, ContextCompat.getMainExecutor(context))
         onDispose {
+            camera = null
             runCatching { future.get().unbindAll() }
             executor.shutdown()
             analyzer.close()
         }
+    }
+    LaunchedEffect(camera, torch) {
+        camera?.takeIf { it.cameraInfo.hasFlashUnit() }?.cameraControl?.enableTorch(torch)
     }
     AndroidView(factory = { previewView }, modifier = modifier)
 }

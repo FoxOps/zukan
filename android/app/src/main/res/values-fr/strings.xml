@@ -20,11 +20,11 @@
     <string name="sign_in_with">Se connecter avec %1$s</string>
 
     <!-- Scan -->
-    <string name="camera_needed">L\'appareil photo est nécessaire pour lire les cartes.</string>
+    <string name="camera_needed">Zukan lit le texte imprimé sur vos cartes. Les images restent sur votre téléphone : seul le texte lu est envoyé à votre serveur Zukan.</string>
     <string name="allow_camera">Autoriser l\'appareil photo</string>
     <string name="any_game">Tous les jeux</string>
     <string name="point_at_card">Visez une carte</string>
-    <string name="identifying">Identification…</string>
+    <string name="identifying">Recherche de la carte…</string>
     <string name="try_again">Réessayer</string>
 
     <!-- Résultat -->
@@ -34,8 +34,6 @@
     <string name="language">Langue</string>
     <string name="less">Moins</string>
     <string name="more">Plus</string>
-    <string name="remove">Retirer</string>
-    <string name="add">Ajouter</string>
     <string name="scan_next">Carte suivante</string>
     <string name="added">%1$d × %2$s ajouté (total %3$d)</string>
     <string name="removed">%1$d × %2$s retiré (total %3$d)</string>
@@ -122,7 +120,6 @@
     <string name="not_a_card_help">Aucun nom ni numéro de carte n’a pu être lu. Cadrez la carte en entier, avec une bonne lumière.</string>
     <string name="card_of_other_game">C’est une carte %1$s</string>
     <string name="card_of_other_game_help">Elle appartient à un autre jeu que celui choisi en haut.</string>
-    <string name="switch_game">Changer</string>
     <string name="error_identify">La carte n’a pas pu être identifiée</string>
     <string name="show_back">Voir le dos</string>
     <string name="show_front">Voir le recto</string>
@@ -199,4 +196,23 @@
         <item quantity="many">cartes</item>
         <item quantity="other">cartes</item>
     </plurals>
+    <!-- Scanner (0.13.0) -->
+    <string name="scan_title">Scanner une carte</string>
+    <string name="camera_title">Zukan a besoin de l\'appareil photo</string>
+    <string name="camera_blocked">L\'appareil photo est désactivé pour Zukan. Ouvrez les réglages, puis Autorisations, et autorisez Appareil photo.</string>
+    <string name="open_settings">Ouvrir les réglages</string>
+    <string name="search_by_name">Chercher par nom à la place</string>
+    <string name="point_at_card_help">Placez toute la carte dans le cadre et ne bougez plus. Zukan la lit tout seul.</string>
+    <string name="identifying_help">Gardez la carte dans le cadre un instant.</string>
+    <string name="scan_tips">Réessayez avec plus de lumière, sans reflets, et toute la carte dans le cadre.</string>
+    <string name="read_text">Zukan a lu : %1$s</string>
+    <string name="error_identify_help">Vérifiez que votre téléphone accède à votre serveur Zukan, puis réessayez.</string>
+    <string name="switch_to_game">Passer à %1$s</string>
+    <string name="torch_on">Allumer la lampe</string>
+    <string name="torch_off">Éteindre la lampe</string>
+    <string name="card_found">Carte trouvée</string>
+    <string name="add_to_collection">Ajouter à ma collection</string>
+    <string name="remove_from_collection">Retirer de ma collection</string>
+    <string name="copies">Exemplaires</string>
+    <string name="finish">Finition</string>
 </resources>

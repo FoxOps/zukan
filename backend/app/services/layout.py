@@ -45,11 +45,14 @@ def default_folder(root: Path, game_id: str, kind: str) -> Path:
 
 
 def own_picture(folder: Path, code: str) -> Path | None:
-    """`folder/<code>.<svg|png|webp>`, the first that exists."""
+    """`folder/<code>.<svg|png|webp>`, the first that exists. Never a file outside `folder`."""
+    if not code or "/" in code or "\\" in code or ".." in code:
+        return None
+    base = os.path.realpath(folder)
     for suffix in PICTURE_SUFFIXES:
-        path = folder / f"{code}{suffix}"
-        if path.is_file():
-            return path
+        path = os.path.realpath(os.path.join(base, f"{code}{suffix}"))
+        if path.startswith(base + os.sep) and os.path.isfile(path):
+            return Path(path)
     return None
 
 

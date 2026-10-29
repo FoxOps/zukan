@@ -1,6 +1,6 @@
 import secrets
 from datetime import timedelta
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -95,7 +95,9 @@ def _token_out(access: str, refresh: str) -> TokenOut:
 
 def _safe_next(path: str | None) -> str:
     """Only allow local paths, to avoid open redirects."""
-    if not path or not path.startswith("/") or path.startswith("//") or "\\" in path:
+    path = (path or "").replace("\\", "")
+    parsed = urlparse(path)
+    if parsed.scheme or parsed.netloc or not path.startswith("/") or path.startswith("//"):
         return "/"
     return path
 
@@ -397,12 +399,13 @@ async def oidc_callback(
 
     access, refresh_token = await start_session(session, user)
     await session.commit()
-    response = RedirectResponse(saved["next"], status.HTTP_303_SEE_OTHER)
+    response = RedirectResponse(_safe_next(saved.get("next")), status.HTTP_303_SEE_OTHER)
     response.delete_cookie(STATE_COOKIE, path="/api/auth/oidc")
     _set_session_cookies(response, access, refresh_token)
     response.set_cookie(
         SSO_PROVIDER_COOKIE,
-        provider,
+        # The configured name (validated in settings), not the URL's.
+        client.config.name,
         max_age=get_settings().refresh_token_ttl_seconds,
         httponly=True,
         secure=get_settings().cookie_secure,
