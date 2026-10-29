@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="tagline">図鑑 · encyclopédie de cartes</string>
 
     <!-- Onglets -->
@@ -42,7 +42,7 @@
     <string name="undone">Annulé : %1$s (total %2$d)</string>
 
     <!-- Recherche -->
-    <string name="search_hint">Nom de la carte, toute langue</string>
+    <string name="search_hint">Nom de la carte…</string>
     <plurals name="printing_count">
         <item quantity="one">%1$s · %2$d version</item>
         <item quantity="many">%1$s · %2$d versions</item>
@@ -51,7 +51,6 @@
 
     <!-- Réglages -->
     <string name="settings">Réglages</string>
-    <string name="signed_in_as">Connecté en tant que %1$s sur %2$s</string>
     <string name="text_recognition">Reconnaissance de texte</string>
     <string name="text_recognition_help">Automatique lit toutes les écritures et garde celle de la carte. Choisissez-en une pour la forcer ; chacune lit aussi l\'alphabet latin.</string>
     <string name="script_latin">Latin</string>
@@ -89,7 +88,6 @@
     <string name="cheapest_version">Version la moins chère</string>
     <string name="most_expensive_version">Version la plus chère</string>
     <string name="lowest_offer">Offre la plus basse</string>
-    <string name="app_version">Application %1$s · serveur %2$s</string>
     <string name="printings_partial">Affichées : %1$d / %2$d. Tapez pour chercher parmi toutes.</string>
     <string name="card_fetched">Nouvelle carte : ajoutée au catalogue depuis sa source</string>
     <string name="price_source">Source de prix principale</string>
@@ -108,15 +106,10 @@
     <string name="any_language">Toutes les langues</string>
     <string name="filter_sets">Nom ou code d\'extension</string>
     <string name="load_more">Voir plus (%1$d)</string>
-    <string name="search_collection">Chercher dans vos cartes</string>
-    <plurals name="collection_value">
-        <item quantity="one">%1$s · %2$d carte</item>
-        <item quantity="many">%1$s · %2$d cartes</item>
-        <item quantity="other">%1$s · %2$d cartes</item>
-    </plurals>
+    <string name="search_collection">Chercher dans ma collection</string>
     <string name="collection_empty">Aucune carte ici pour l\'instant</string>
     <string name="sort">Trier</string>
-    <string name="sort_name">Nom</string>
+    <string name="sort_name">Nom A–Z</string>
     <string name="sort_set">Extensions récentes</string>
     <string name="sort_updated">Modifiées récemment</string>
     <string name="sort_quantity">Quantité</string>
@@ -152,4 +145,58 @@
     <string name="update_failed">Échec du téléchargement : %1$s</string>
     <string name="update_checksum">le fichier est endommagé, réessayez</string>
     <string name="update_retry">Réessayer</string>
+
+    <!-- 2026-10 redesign -->
+    <string name="clear">Effacer</string>
+    <string name="close">Fermer</string>
+    <string name="filters_on">Filtres actifs</string>
+    <string name="filters_off">Aucun filtre</string>
+    <string name="more_games">Autres jeux</string>
+    <string name="reset_filters">Réinitialiser les filtres</string>
+    <string name="apply_filters">Appliquer les filtres</string>
+    <string name="collection_title">Ma collection</string>
+    <string name="collection_subtitle">Vos cartes, réunies au même endroit</string>
+    <string name="all_cards">Toutes les cartes</string>
+    <string name="error_title">Un problème est survenu</string>
+    <string name="collection_empty_help">Scannez une carte ou retrouvez-la dans Rechercher pour l\'ajouter.</string>
+    <string name="no_price">Pas de prix</string>
+    <string name="estimated_value">Valeur estimée</string>
+    <string name="filter_collection">Filtrer la collection</string>
+    <string name="filter_collection_help">Combinez vos critères de recherche.</string>
+    <string name="filter_search">Filtrer la recherche</string>
+    <string name="game">Jeu</string>
+    <string name="all">Tous</string>
+    <string name="set">Extension</string>
+    <string name="colors">Couleurs</string>
+    <string name="card_condition">État de la carte</string>
+    <string name="any_condition">Tous les états</string>
+    <string name="search_title">Rechercher</string>
+    <string name="search_subtitle">Trouvez une carte, quelle que soit sa langue</string>
+    <string name="search_intro_title">Une carte en tête ?</string>
+    <string name="search_intro_text">Saisissez son nom pour la retrouver.\nVous pouvez aussi utiliser le scanner.</string>
+    <string name="scan_a_card">Scanner une carte</string>
+    <string name="how_it_works">Comment ça marche</string>
+    <string name="search_step_game">Choisissez un jeu ou gardez tous les jeux.</string>
+    <string name="search_step_filters">Affinez par extension, couleur ou langue dans les filtres.</string>
+    <string name="search_no_result">Aucune carte trouvée</string>
+    <string name="search_no_result_help">Vérifiez l\'orthographe ou retirez un filtre.</string>
+    <string name="settings_subtitle">Personnalisez votre expérience</string>
+    <string name="group_scan">Scan et ajout</string>
+    <string name="group_prices">Prix et marchés</string>
+    <string name="group_app">Application et compte</string>
+    <string name="default_values">Valeurs par défaut</string>
+    <string name="default_values_help">Utilisées pour les cartes scannées tant que vous ne les changez pas.</string>
+    <string name="app_and_connection">Application et connexion</string>
+    <string name="app_and_connection_value">Mises à jour, serveur, déconnexion</string>
+    <string name="app_footer">Zukan · %1$s</string>
+    <string name="versions">Versions</string>
+    <string name="app_name_label">Application</string>
+    <string name="server_version">Serveur</string>
+    <string name="unknown">Inconnue</string>
+    <string name="connection">Connexion</string>
+    <plurals name="cards" tools:ignore="ImpliedQuantity">
+        <item quantity="one">carte</item>
+        <item quantity="many">cartes</item>
+        <item quantity="other">cartes</item>
+    </plurals>
 </resources>

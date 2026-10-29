@@ -1752,6 +1752,43 @@ Report against server 0.20.0 / app 0.11.0. Branch `2026-10-27-002-sso-edit-profi
 - [x] Checks: web tsc, check:i18n, oxlint, vite build; backend tests + ruff; browser:
   Settings as SSO user (button only) and local user (password form).
 
+## Report 2026-10-29 (server unchanged 0.20.1, Android 0.12.0)
+Report against server 0.20.1 / app 0.11.0. Branch `2026-10-29-000-android-new-ui-health-fix`.
+- [x] Bug, settings server version "?": not the version format ("0.1.2" vs "0.1"). Since
+  server 0.20.0 `/api/health` returns `maintenance: null | {since, game_id}`; the app decoded
+  the answer as `Map<String, String>`, so decoding failed and the version fell back to "?".
+  The same call runs when connecting to a server (not caught there): app 0.11.0 could not
+  connect to a 0.20+ server from the login screen. Now `HealthOut` (`status`, `version`,
+  `maintenance`) in `data/Models.kt`; `HealthTest` covers the old shape, `null` and an object.
+- [x] New UI/UX from the maquettes (`Zukan GUI/Android GUI`, light + dark, theme-map.json):
+  - Theme: card / sheet / nav surface paper (light) and chocolate (dark) via
+    `surfaceContainerLow`.
+  - Assets: design line icons as VectorDrawables (`res/drawable/ic_*.xml`), mascot
+    `drawable-nodpi/zukan_mascot.webp`, search empty-state illustration.
+  - `ui/Components.kt`: screen header with mascot, pill search field + filter button (dot when
+    filters apply), gold / outlined pill chips, game chips with "…" past two games, section
+    labels, settings groups and rows, picker rows, choice rows, quantity stepper, gold button,
+    bottom sheet with reset / apply footer, message card. 48 dp touch targets.
+  - Navigation bar: four destinations kept, design icons, gold pill on the current tab.
+  - Collection: gold value card (per currency, main price source, copies), search + filter
+    button, game chips, title + sort shortcut, item cards (condition tag, language · finish,
+    rarity, trends, stepper, price or "—"). Filter sheet: game, language, condition (with
+    Cardmarket name), sort; applied together. Loading, empty and error (retry) states.
+  - Search: header, empty state card + "Scan a card" (opens Scan) + how it works; result
+    cards; filter sheet (game, set, colors, language); no-result and error states.
+  - Settings: profile card, groups Scan and add (text recognition, after add, default
+    values), Prices and markets (sources, main source), App and account (sheet: app and
+    server versions, update check, change server, log out); footer "Zukan · version".
+  - Login, Scan, card panel, dialogs: not in the maquettes, only the new theme and nav.
+  - Strings EN + FR; `app_version`, `signed_in_as`, `collection_value` removed.
+- [x] Versions: Android 0.12.0 (new UI), server unchanged 0.20.1. `.env.example`: no new
+  variables.
+- [x] Checks: `./gradlew testDebugUnitTest lint assembleDebug` (48 unit tests, lint clean
+  apart from the existing dependency / SDK warnings); emulator against the local test service
+  (0.18.1 image): connect + log in, Collection, filter sheet, Search (intro + results),
+  Settings, App sheet with server version, dark mode, font scale 1.3.
+- [ ] User: check the App sheet against a 0.20+ server (local test service runs 0.18.1).
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.

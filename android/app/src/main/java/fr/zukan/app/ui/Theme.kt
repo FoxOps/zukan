@@ -50,6 +50,7 @@ private val light = lightColorScheme(
     surfaceVariant = Color(0xFFF3E6CF),
     onSurfaceVariant = Muted,
     surfaceContainerLowest = Color.White,
+    // Cards, sheets and the navigation bar: paper on cream (theme-map.json "surface").
     surfaceContainerLow = Paper,
     surfaceContainer = Color(0xFFFBF0DC),
     surfaceContainerHigh = Color(0xFFF6E8D0),
@@ -78,7 +79,8 @@ private val dark = darkColorScheme(
     surfaceVariant = Color(0xFF3A2A20),
     onSurfaceVariant = Sand,
     surfaceContainerLowest = Color(0xFF1A1411),
-    surfaceContainerLow = Color(0xFF2A201B),
+    // Cards, sheets and the navigation bar: chocolate on night (theme-map.json "surface").
+    surfaceContainerLow = Chocolate,
     surfaceContainer = Color(0xFF30231C),
     surfaceContainerHigh = Chocolate,
     surfaceContainerHighest = Color(0xFF4A3324),
