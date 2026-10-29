@@ -1836,6 +1836,10 @@ Report against server 0.20.1 / app 0.12.0. Branch `2026-10-29-001-project-files-
   permission card, refusal then Open settings, scanner after granting, back to Collection,
   German + dark + font scale 1.3. Pages: Playwright in 4 languages, phone width, no console
   errors.
+- [x] Fix (branch `2026-10-29-002-regen-api-schema`): Docker prod failed in `checks / Full
+  tests`, "src/api/schema.d.ts is out of date": the rarity icon docstring (OpenAPI description)
+  changed without `npm run gen:api`. Schema regenerated; no code change, server stays 0.20.2
+  (its image was never published).
 - [ ] User: replace `<CONTACT ADDRESS>` in CODE_OF_CONDUCT.md (forwarding alias such as
   SimpleLogin / addy.io / Proton / Firefox Relay, or own-domain forwarding).
 - [ ] User: enable Private vulnerability reporting (Settings → Code security) for SECURITY.md.
