@@ -9,7 +9,7 @@ import retrofit2.http.Query
 
 interface ZukanApi {
     @GET("api/health")
-    suspend fun health(): Map<String, String>
+    suspend fun health(): HealthOut
 
     @GET("api/app/android")
     suspend fun androidRelease(): AndroidReleaseOut
