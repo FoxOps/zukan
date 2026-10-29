@@ -49,8 +49,8 @@ the product itself.
 - **Share a server.** Each user has a separate collection. Sign in with a local account
   or an OpenID Connect provider such as Keycloak or Authentik.
 
-The web interface is available in English, French, German and Spanish. The Android app
-is available in English and French. Card languages are handled separately; coverage
+The web interface and the Android app are available in English, French, German and
+Spanish. Card languages are handled separately; coverage
 depends on the game and its data sources.
 
 ### Supported games

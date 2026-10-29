@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- German. Same keys as values/strings.xml; words as on the web interface (web/src/locales/de.json). -->
+<resources>
+    <string name="tagline">図鑑 · Karten-Enzyklopädie</string>
+
+    <!-- Tabs -->
+    <string name="tab_scan">Scannen</string>
+    <string name="tab_search">Suche</string>
+    <string name="tab_settings">Einstellungen</string>
+    <string name="undo">Rückgängig</string>
+
+    <!-- Login -->
+    <string name="server_address">Serveradresse</string>
+    <string name="server_address_hint">karten.example.org oder 192.168.1.10:8000</string>
+    <string name="connect">Verbinden</string>
+    <string name="not_encrypted">Nicht verschlüsselt (HTTP): nur im Heimnetz oder über ein VPN verwenden.</string>
+    <string name="change_server">Server wechseln</string>
+    <string name="user">Benutzer</string>
+    <string name="password">Passwort</string>
+    <string name="log_in">Anmelden</string>
+    <string name="sign_in_with">Mit %1$s anmelden</string>
+
+    <!-- Scan -->
+    <string name="camera_needed">Zukan liest den Text, der auf deine Karten gedruckt ist. Die Bilder bleiben auf deinem Telefon: Nur der gelesene Text wird an deinen Zukan-Server gesendet.</string>
+    <string name="allow_camera">Kamera erlauben</string>
+    <string name="any_game">Alle Spiele</string>
+    <string name="point_at_card">Richte die Kamera auf eine Karte</string>
+    <string name="identifying">Karte wird gesucht…</string>
+    <string name="try_again">Erneut versuchen</string>
+
+    <!-- Result panel -->
+    <string name="no_picture">Kein Bild</string>
+    <string name="printing_position">Druck %1$d / %2$d</string>
+    <string name="condition">Zustand</string>
+    <string name="language">Sprache</string>
+    <string name="less">Weniger</string>
+    <string name="more">Mehr</string>
+    <string name="scan_next">Nächste Karte scannen</string>
+    <string name="added">%1$d × %2$s hinzugefügt (jetzt %3$d)</string>
+    <string name="removed">%1$d × %2$s entfernt (jetzt %3$d)</string>
+    <string name="undone">Rückgängig gemacht: %1$s (jetzt %2$d)</string>
+
+    <!-- Search -->
+    <string name="search_hint">Kartenname…</string>
+    <plurals name="printing_count">
+        <item quantity="one">%1$s · %2$d Druck</item>
+        <item quantity="other">%1$s · %2$d Drucke</item>
+    </plurals>
+
+    <!-- Settings -->
+    <string name="settings">Einstellungen</string>
+    <string name="text_recognition">Texterkennung</string>
+    <string name="text_recognition_help">Automatisch liest jede Schrift und behält die, die auf der Karte gedruckt ist. Wähle eine aus, um sie zu erzwingen; jede liest auch lateinischen Text.</string>
+    <string name="script_latin">Lateinisch</string>
+    <string name="script_japanese">Japanisch</string>
+    <string name="script_chinese">Chinesisch</string>
+    <string name="script_korean">Koreanisch</string>
+    <string name="default_condition">Standardzustand</string>
+    <string name="default_language">Standardsprache (wenn die Karte sie nicht angibt)</string>
+    <string name="printing_language">Die des Drucks</string>
+    <string name="log_out">Abmelden</string>
+
+    <!-- Errors -->
+    <string name="error_session_expired">Sitzung abgelaufen, bitte melde dich erneut an</string>
+    <string name="error_no_login">Keine Anmeldung im Gange</string>
+    <string name="error_not_connected">Verbinde dich zuerst mit einem Server</string>
+    <string name="error_server">Serverfehler %1$d</string>
+    <string name="error_unknown_host">Server nicht gefunden</string>
+    <string name="error_connect">Der Server ist nicht erreichbar</string>
+    <string name="error_timeout">Der Server hat nicht geantwortet</string>
+    <string name="error_ssl">Sichere Verbindung fehlgeschlagen (%1$s)</string>
+    <string name="error_ssl_hostname">Das Serverzertifikat gilt nicht für diese Adresse. Prüfe das Zertifikat, das der Proxy für diesen Namen ausliefert (%1$s)</string>
+    <string name="error_ssl_untrusted">Das Telefon vertraut dem Serverzertifikat nicht. Der Proxy muss die vollständige Kette senden (fullchain.pem mit dem Zwischenzertifikat), oder installiere deine eigene CA auf dem Telefon (%1$s)</string>
+    <string name="error_ssl_plain">Diese Adresse antwortet unverschlüsselt: Verwende http:// oder den HTTPS-Port deines Proxys (%1$s)</string>
+    <string name="error_sso_no_client">Für %1$s ist kein mobiler Client eingerichtet</string>
+    <string name="error_sso_discovery">Discovery fehlgeschlagen</string>
+    <string name="error_sso_cancelled">Anmeldung abgebrochen</string>
+    <string name="error_sso_token">Token-Anfrage fehlgeschlagen</string>
+    <string name="error_sso_no_id_token">Der Identitätsanbieter hat kein ID-Token geliefert</string>
+    <string name="error_sso_no_nonce">Nonce fehlt</string>
+
+    <!-- Collection, search filters, printing picker -->
+    <string name="tab_collection">Sammlung</string>
+    <string name="price_from">ab %1$s</string>
+    <string name="this_version">Diese Version</string>
+    <string name="cheapest_version">Günstigste Version</string>
+    <string name="most_expensive_version">Teuerste Version</string>
+    <string name="lowest_offer">Niedrigstes Angebot</string>
+    <string name="printings_partial">Angezeigt: %1$d / %2$d. Tippe, um alle zu durchsuchen.</string>
+    <string name="card_fetched">Neue Karte: aus ihrer Quelle in den Katalog aufgenommen</string>
+    <string name="price_source">Hauptpreisquelle</string>
+    <string name="price_source_help">Für Werte und die zuerst angezeigten Preise. Spiele ohne diese Quelle nutzen ihren eigenen Markt.</string>
+    <string name="choose_printing">Druck wählen</string>
+    <string name="filter_printings">Set-Name, Code oder Nummer</string>
+    <string name="detected">Gelesen:</string>
+    <string name="not_owned">Nicht in deiner Sammlung</string>
+    <string name="owned_quantity">%1$d× im Besitz</string>
+    <string name="script_auto">Automatisch</string>
+    <string name="after_add">Nach dem Hinzufügen</string>
+    <string name="after_add_stay">Auf der Karte bleiben</string>
+    <string name="after_add_next">Nächste Karte scannen</string>
+    <string name="filters">Filter</string>
+    <string name="any_set">Alle Sets</string>
+    <string name="any_language">Alle Sprachen</string>
+    <string name="filter_sets">Set-Name oder Code</string>
+    <string name="load_more">Mehr laden (%1$d)</string>
+    <string name="search_collection">Meine Sammlung durchsuchen</string>
+    <string name="collection_empty">Hier sind noch keine Karten</string>
+    <string name="sort">Sortieren</string>
+    <string name="sort_name">Name A–Z</string>
+    <string name="sort_set">Neueste Sets</string>
+    <string name="sort_updated">Zuletzt geändert</string>
+    <string name="sort_quantity">Menge</string>
+    <string name="sort_price_asc">Preis: aufsteigend</string>
+    <string name="sort_price_desc">Preis: absteigend</string>
+    <string name="price_sources">Preisquellen</string>
+    <string name="price_sources_help">Märkte, deren Preise hier und im Web angezeigt werden.</string>
+    <string name="card_not_found">Karte nicht gefunden</string>
+    <string name="not_a_card">Keine Karte</string>
+    <string name="not_a_card_help">Weder Kartenname noch Nummer konnten gelesen werden. Fülle den Rahmen mit der Karte, bei gutem Licht.</string>
+    <string name="card_of_other_game">Das ist eine %1$s-Karte</string>
+    <string name="card_of_other_game_help">Sie gehört zu einem anderen Spiel als dem oben gewählten.</string>
+    <string name="error_identify">Die Karte konnte nicht erkannt werden</string>
+    <string name="show_back">Rückseite zeigen</string>
+    <string name="show_front">Vorderseite zeigen</string>
+    <string name="log_in_sso">Mit SSO anmelden</string>
+    <string name="update_check">Nach Updates suchen</string>
+    <string name="update_checking">Suche nach Updates…</string>
+    <string name="update_up_to_date">Zukan ist auf dem neuesten Stand</string>
+    <string name="update_dev_build">Entwicklungsversion: Installiere neue Builds aus ihren GitHub-Vorabversionen.</string>
+    <string name="update_available_title">Update verfügbar</string>
+    <string name="update_available_text">Zukan %1$s ist verfügbar (du hast %2$s). Jetzt herunterladen (%3$s)?</string>
+    <string name="update_download">Herunterladen</string>
+    <string name="update_later">Später</string>
+    <string name="update_skip">Diese Version überspringen</string>
+    <string name="update_downloading">Zukan %1$s wird heruntergeladen…</string>
+    <string name="update_cancel">Abbrechen</string>
+    <string name="update_ready_title">Bereit zur Installation</string>
+    <string name="update_ready_text">Android fragt dich, ob du Zukan %1$s installieren möchtest.</string>
+    <string name="update_install">Installieren</string>
+    <string name="update_permission">Erlaube Zukan im geöffneten Bildschirm, Apps zu installieren, komm dann zurück und tippe erneut auf Installieren.</string>
+    <string name="update_failed">Download fehlgeschlagen: %1$s</string>
+    <string name="update_checksum">die Datei ist beschädigt, versuche es erneut</string>
+    <string name="update_retry">Wiederholen</string>
+
+    <!-- 2026-10 redesign -->
+    <string name="clear">Leeren</string>
+    <string name="close">Schließen</string>
+    <string name="filters_on">Filter aktiv</string>
+    <string name="filters_off">Kein Filter</string>
+    <string name="more_games">Weitere Spiele</string>
+    <string name="reset_filters">Filter zurücksetzen</string>
+    <string name="apply_filters">Filter anwenden</string>
+    <string name="collection_title">Meine Sammlung</string>
+    <string name="collection_subtitle">Alle deine Karten an einem Ort</string>
+    <string name="all_cards">Alle Karten</string>
+    <string name="error_title">Etwas ist schiefgelaufen</string>
+    <string name="collection_empty_help">Scanne eine Karte oder finde sie in der Suche, um sie hinzuzufügen.</string>
+    <string name="no_price">Kein Preis</string>
+    <string name="estimated_value">Geschätzter Wert</string>
+    <string name="filter_collection">Sammlung filtern</string>
+    <string name="filter_collection_help">Kombiniere deine Suchkriterien.</string>
+    <string name="filter_search">Suche filtern</string>
+    <string name="game">Spiel</string>
+    <string name="all">Alle</string>
+    <string name="set">Set</string>
+    <string name="colors">Farben</string>
+    <string name="card_condition">Kartenzustand</string>
+    <string name="any_condition">Jeder Zustand</string>
+    <string name="search_title">Suche</string>
+    <string name="search_subtitle">Finde eine Karte, egal in welcher Sprache</string>
+    <string name="search_intro_title">Eine Karte im Kopf?</string>
+    <string name="search_intro_text">Gib ihren Namen ein, um sie zu finden.\nDu kannst auch den Scanner verwenden.</string>
+    <string name="scan_a_card">Karte scannen</string>
+    <string name="how_it_works">So funktioniert es</string>
+    <string name="search_step_game">Wähle ein Spiel oder behalte alle Spiele.</string>
+    <string name="search_step_filters">Grenze in den Filtern nach Set, Farbe oder Sprache ein.</string>
+    <string name="search_no_result">Keine Karte gefunden</string>
+    <string name="search_no_result_help">Prüfe die Schreibweise oder entferne einen Filter.</string>
+    <string name="settings_subtitle">Mach Zukan zu deinem</string>
+    <string name="group_scan">Scannen und hinzufügen</string>
+    <string name="group_prices">Preise und Märkte</string>
+    <string name="group_app">App und Konto</string>
+    <string name="default_values">Standardwerte</string>
+    <string name="default_values_help">Gelten für gescannte Karten, bis du sie änderst.</string>
+    <string name="app_and_connection">App und Verbindung</string>
+    <string name="app_and_connection_value">Updates, Server, Abmelden</string>
+    <string name="app_footer">Zukan · %1$s</string>
+    <string name="versions">Versionen</string>
+    <string name="app_name_label">App</string>
+    <string name="server_version">Server</string>
+    <string name="unknown">Unbekannt</string>
+    <string name="connection">Verbindung</string>
+    <plurals name="cards">
+        <item quantity="one">Karte</item>
+        <item quantity="other">Karten</item>
+    </plurals>
+    <!-- Scanner (0.13.0) -->
+    <string name="scan_title">Karte scannen</string>
+    <string name="camera_title">Zukan braucht deine Kamera</string>
+    <string name="camera_blocked">Die Kamera ist für Zukan ausgeschaltet. Öffne die Einstellungen, dann Berechtigungen, und erlaube die Kamera.</string>
+    <string name="open_settings">Einstellungen öffnen</string>
+    <string name="search_by_name">Stattdessen nach Namen suchen</string>
+    <string name="point_at_card_help">Lege die ganze Karte in den Rahmen und halte das Telefon still. Zukan liest sie von selbst.</string>
+    <string name="identifying_help">Lass die Karte einen Moment im Rahmen.</string>
+    <string name="scan_tips">Versuche es erneut mit mehr Licht, ohne Spiegelungen und mit der ganzen Karte im Rahmen.</string>
+    <string name="read_text">Zukan hat gelesen: %1$s</string>
+    <string name="error_identify_help">Prüfe, ob dein Telefon deinen Zukan-Server erreicht, und versuche es dann erneut.</string>
+    <string name="switch_to_game">Zu %1$s wechseln</string>
+    <string name="torch_on">Licht einschalten</string>
+    <string name="torch_off">Licht ausschalten</string>
+    <string name="card_found">Karte gefunden</string>
+    <string name="add_to_collection">Zu meiner Sammlung hinzufügen</string>
+    <string name="remove_from_collection">Aus meiner Sammlung entfernen</string>
+    <string name="copies">Exemplare</string>
+    <string name="finish">Ausführung</string>
+</resources>

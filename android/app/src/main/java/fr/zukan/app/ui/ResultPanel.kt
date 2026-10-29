@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,13 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -38,6 +34,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalUriHandler
@@ -104,12 +101,12 @@ fun ResultPanel(
     val mainSource = sources.firstOrNull()
     val stats = priceStats(candidate.printings, printing, finish, complete = candidate.printings.size >= candidate.printingCount, mainSource = mainSource)
 
-    Column(modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(modifier.verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         DetectedRow(result.detected.name, result.detected.lang, result.detected.setCode, result.detected.collectorNumber)
         if (result.candidates.size > 1) {
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 result.candidates.forEachIndexed { index, c ->
-                    FilterChip(selected = index == state.candidate, onClick = { onCandidate(index) }, label = { Text(shownName(c.card.name, c.card.translation), maxLines = 1) })
+                    PillChip(shownName(c.card.name, c.card.translation).text, index == state.candidate, { onCandidate(index) })
                 }
             }
         }
@@ -170,12 +167,14 @@ fun ResultPanel(
 
         // Printing: tap to choose among all printings of the card.
         Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
-                .clickable(enabled = candidate.printings.size > 1) { pickPrinting = true }
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.background)
+                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+                .clickable(enabled = candidate.printings.size > 1, role = Role.Button) { pickPrinting = true }
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Column(Modifier.weight(1f)) {
                 Text(printing.set.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
@@ -187,32 +186,51 @@ fun ResultPanel(
             printing.set.lang?.let { LangFlag(it) }
             if (candidate.printingCount > 1) {
                 Text(stringResource(R.string.printing_position, state.printing + 1, maxOf(candidate.printingCount, candidate.printings.size)), style = MaterialTheme.typography.bodySmall)
-                Icon(Icons.Default.ArrowDropDown, stringResource(R.string.choose_printing))
+                ZIcon(R.drawable.ic_chevron, stringResource(R.string.choose_printing))
             }
         }
 
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            finishes.forEach { f -> FilterChip(selected = f == finish, onClick = { finish = f }, label = { Text(finishName(f)) }) }
-        }
-        Text("${stringResource(R.string.condition)}: ${condition}", style = MaterialTheme.typography.labelLarge)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            CONDITIONS.forEach { c -> ConditionChoice(c, selected = c == condition) { condition = c } }
-        }
-        if (languages.size > 1) {
-            Text("${stringResource(R.string.language)}: ${languageName(language)}", style = MaterialTheme.typography.labelLarge)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                languages.forEach { l -> FilterChip(selected = l == language, onClick = { language = l }, label = { LangFlag(l, size = 20) }) }
+        if (finishes.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SectionLabel(stringResource(R.string.finish))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    finishes.forEach { f -> PillChip(finishName(f), f == finish, { finish = f }) }
+                }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            IconButton(onClick = { if (quantity > 1) quantity-- }) { Icon(Icons.Default.Remove, stringResource(R.string.less)) }
-            Text("$quantity", style = MaterialTheme.typography.titleLarge)
-            IconButton(onClick = { if (quantity < 99) quantity++ }) { Icon(Icons.Default.Add, stringResource(R.string.more)) }
-            Spacer(Modifier.weight(1f))
-            OutlinedButton(onClick = { onAdjust(finish, condition, language, -quantity) }, enabled = !state.busy) { Text(stringResource(R.string.remove)) }
-            Button(onClick = { onAdjust(finish, condition, language, quantity) }, colors = ctaColors(), enabled = !state.busy && finish.isNotEmpty()) { Text(stringResource(R.string.add)) }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SectionLabel("${stringResource(R.string.condition)} · ${CONDITION_NAMES[condition] ?: condition}")
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                CONDITIONS.forEach { c -> ConditionChoice(c, selected = c == condition) { condition = c } }
+            }
         }
-        TextButton(onClick = onClose, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.scan_next)) }
+        if (languages.size > 1) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SectionLabel(stringResource(R.string.language))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    languages.forEach { l -> PillChip(languageName(l), l == language, { language = l }, leading = { LangFlag(l, size = 20) }) }
+                }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.copies), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            QuantityStepper(quantity, onMinus = { if (quantity > 1) quantity-- }, onPlus = { if (quantity < 99) quantity++ })
+        }
+        GoldButton(
+            stringResource(R.string.add_to_collection),
+            { onAdjust(finish, condition, language, quantity) },
+            enabled = !state.busy && finish.isNotEmpty(),
+        )
+        OutlinedButton(
+            onClick = { onAdjust(finish, condition, language, -quantity) },
+            enabled = !state.busy && printing.owned.isNotEmpty(),
+            shape = FieldShape,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+        ) { Text(stringResource(R.string.remove_from_collection), style = MaterialTheme.typography.titleMedium) }
+        TextButton(onClick = onClose, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            ZIcon(R.drawable.ic_scan, null, Modifier.padding(end = 8.dp))
+            Text(stringResource(R.string.scan_next), style = MaterialTheme.typography.titleMedium)
+        }
     }
 
     if (pickPrinting) {
@@ -246,7 +264,7 @@ private fun PriceStatsGrid(stats: PriceStats, finishName: (String) -> String) {
         stats.lowestOffer?.let { Triple(stringResource(R.string.lowest_offer), money(it.price.low, it.price.currency), label(it)) },
     )
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
     ) {
         cells.chunked(2).forEachIndexed { row, pair ->
             Row(Modifier.fillMaxWidth()) {
@@ -304,10 +322,11 @@ private fun OwnedSummary(game: GameOut?, printing: PrintingOut) {
 fun ConditionChoice(code: String, selected: Boolean, onClick: () -> Unit) {
     val color = CONDITION_COLORS[code] ?: MaterialTheme.colorScheme.secondary
     Box(
-        Modifier.clip(RoundedCornerShape(8.dp))
+        Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).clip(RoundedCornerShape(12.dp))
             .background(if (selected) color else color.copy(alpha = 0.45f))
-            .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(8.dp)) else Modifier)
-            .clickable(onClick = onClick)
+            .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(12.dp)) else Modifier)
+            .clickable(role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
     ) { Text(code, color = conditionTextColor(code), fontWeight = FontWeight.Bold) }
 }

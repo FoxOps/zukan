@@ -2,6 +2,7 @@ package fr.zukan.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -35,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
 import coil3.svg.SvgDecoder
@@ -64,8 +66,8 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class Tab(@StringRes val label: Int, @DrawableRes val icon: Int) {
-    SCAN(R.string.tab_scan, R.drawable.ic_scan),
     COLLECTION(R.string.tab_collection, R.drawable.ic_collection),
+    SCAN(R.string.tab_scan, R.drawable.ic_scan),
     SEARCH(R.string.tab_search, R.drawable.ic_search),
     SETTINGS(R.string.tab_settings, R.drawable.ic_settings),
 }
@@ -81,7 +83,8 @@ private fun ZukanNavigationBar(tab: Tab, onTab: (Tab) -> Unit) {
                     selected = tab == t,
                     onClick = { onTab(t) },
                     icon = { ZIcon(t.icon, contentDescription = null) },
-                    label = { Text(stringResource(t.label), fontWeight = if (tab == t) FontWeight.Bold else null) },
+                    // One line: long labels (German "Einstellungen") on big fonts end with "…".
+                    label = { Text(stringResource(t.label), fontWeight = if (tab == t) FontWeight.Bold else null, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = NavigationBarItemDefaults.colors(
                         indicatorColor = MaterialTheme.colorScheme.primaryContainer,
                         selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -120,7 +123,9 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
         state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         !state.loggedIn -> Scaffold { padding -> Box(Modifier.padding(padding)) { LoginScreen(session, state) } }
         else -> {
-            var tab by rememberSaveable { mutableStateOf(Tab.SCAN) }
+            // The collection is the home screen; back from another tab returns to it.
+            var tab by rememberSaveable { mutableStateOf(Tab.COLLECTION) }
+            BackHandler(enabled = tab != Tab.COLLECTION) { tab = Tab.COLLECTION }
             val snackbar = remember { SnackbarHostState() }
             // Offers a newer app (asks before downloading anything).
             LaunchedEffect(Unit) { updates.checkAutomatically() }
@@ -142,7 +147,7 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
             ) { padding ->
                 Box(Modifier.padding(padding)) {
                     when (tab) {
-                        Tab.SCAN -> ScanScreen(scan, scanState, state.games, settings, state.priceSources, imageUrl, imageLoader, snackbar) { game ->
+                        Tab.SCAN -> ScanScreen(scan, scanState, state.games, settings, state.priceSources, imageUrl, imageLoader, snackbar, onSearch = { tab = Tab.SEARCH }) { game ->
                             session.updateSettings { it.copy(game = game) }
                         }
                         Tab.COLLECTION -> CollectionScreen(
