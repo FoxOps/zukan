@@ -92,7 +92,7 @@ Standard OpenID Connect only, so Keycloak, Authentik, Authelia, Zitadel, Google 
 - **Provisioning**: first SSO login auto-creates user if allowed (username from `preferred_username`, email). Role from group claim on each login (admin group → admin). Not in `allowed_groups` → refused. Local and SSO accounts are separate (since 0.19.0; linking from settings removed), never matched by email (avoids account takeover); the IdP manages SSO users' email and password.
 - **Logout**: revoke app refresh token; optional RP-initiated logout via IdP `end_session_endpoint`.
 - Local accounts stay available (bootstrap admin, fallback if IdP down); admin can disable local login once SSO works.
-- Docs: setup notes for Keycloak, Authentik, Authelia client config (redirect URIs, group claim mapping).
+- Docs: IdP setup (Keycloak, Authentik, Authelia: redirect URIs, group claim mapping) in the GitHub wiki, page Single-sign-on.
 
 ## Providers
 - **MTG / Scryfall**: daily bulk `all_cards` (all languages, large; stream-parse with `ijson`) for printings + localized `printed_name`; prices from `prices.eur`/`eur_foil` (Cardmarket trend). Respect 50–100 ms between requests and User-Agent header.
@@ -113,7 +113,7 @@ Phone shows best match; user can swipe other printings, choose finish/condition/
 
 ## Android app
 Package `fr.zukan.app`, app name "Zukan", SSO redirect `fr.zukan.app:/oauth2redirect`.
-Screens: Login (server URL, then local credentials or SSO buttons from `/auth/providers` via AppAuth), Scan (CameraX preview + ML Kit analyzer, throttle, stability check: same parse over N frames before query), Result sheet (candidates, info, price, owned, Add/Remove, quantity stepper), Collection search (read-only light view), Settings (game, default condition/lang/finish, scan model language). ML Kit script models bundled for Latin + JA + ZH + KO; pick per user setting or run Latin + selected script.
+Screens (tabs since 0.13.0: Collection first and home, Scan, Search, Settings; strings EN/FR/DE/ES): Login (server URL, then local credentials or SSO buttons from `/auth/providers` via AppAuth), Scan (CameraX preview + ML Kit analyzer, throttle, stability check: same parse over N frames before query), Result sheet (candidates, info, price, owned, Add/Remove, quantity stepper), Collection search (read-only light view), Settings (game, default condition/lang/finish, scan model language). ML Kit script models bundled for Latin + JA + ZH + KO; pick per user setting or run Latin + selected script.
 
 ## Web UI
 Collection browser per game (filters: set, color, finish, condition, lang, owned/missing), card detail with all printings + price history chart, stock edit, collection value dashboard (total + over time), manual price entry, CSV import/export (generic format: game, set_code, collector_number, lang, finish, condition, quantity, price), admin: users, sync status, trigger sync.
@@ -1789,6 +1789,59 @@ Report against server 0.20.1 / app 0.11.0. Branch `2026-10-29-000-android-new-ui
   Settings, App sheet with server version, dark mode, font scale 1.3.
 - [ ] User: check the App sheet against a 0.20+ server (local test service runs 0.18.1).
 
+## Report 2026-10-29 #2 (server 0.20.2, Android 0.13.0)
+Report against server 0.20.1 / app 0.12.0. Branch `2026-10-29-001-project-files-codeql-scanner-ui`.
+- [x] Project files: README from `Zukan DOC/read-me/README.md` (+ License section; web and
+  Android both EN/FR/DE/ES). LICENSE (CeCILL 2.1), CONTRIBUTING.md, SECURITY.md,
+  CODE_OF_CONDUCT.md (noreply contact replaced by a `<CONTACT ADDRESS>` placeholder + GitHub
+  report-abuse link), `.github/ISSUE_TEMPLATE/` (bug report, feature request, `config.yml` with
+  wiki + private security report links), `.github/pull_request_template.md`.
+- [x] Documentation moved to the GitHub wiki: `docs/` removed; `.env.example` links point to
+  the wiki (Single-sign-on, Supported-games-and-sources). `deploy/keycloak` (dev realm only)
+  and the `sso-dev` Keycloak service of `docker-compose-dev.yml` removed: test SSO against your
+  own IdP. Older entries below still name `docs/*.md` / `deploy/keycloak` as history.
+- [x] GitHub Pages: new site (`Zukan GUI/WEB PUB GUI`) committed to `gh-pages` (`f4df406`), aligned
+  with the new README in EN/FR/DE/ES: CardNexus prices, web + Android languages, Android 8.0+,
+  "Install Zukan" to wiki Docker-installation (README quick start gone), documentation link,
+  CONTRIBUTING and LICENSE links, own prices in the collection feature.
+- [x] CodeQL (5 open alerts, default setup):
+  - py/url-redirection (`api/auth.py` SSO callback): `_safe_next` drops backslashes and refuses
+    any scheme or host (`urlparse`); applied when storing `next` and again at the redirect.
+  - py/cookie-injection (`api/auth.py`): `tcg_sso_provider` cookie holds the configured
+    provider name, not the URL segment.
+  - py/path-injection (`api/games.py` color / rarity icons, `services/layout.py`): game,
+    color, rarity and `lang` resolved from the registry before building paths (unknown `lang`
+    gets the plain pictogram); `own_picture` refuses codes with `/`, `\\`, `..` and resolved
+    paths (links included) outside their folder.
+  - Tests: open-redirect variants, provider cookie, unknown `lang`, `own_picture` escapes.
+- [x] Android, Collection is the main screen: first tab and start tab; back from another tab
+  returns to it; the camera is only asked for on the Scan tab.
+- [x] Android scanner in the 0.12.0 design, for less technical users: paper header (title,
+  torch when the phone has one, game pills + "…" sheet), card-shaped frame over a dimmed
+  camera (gold, pulsing while looking up, green on result, red on failure), one status card
+  with icon, plain title + what to do, a single gold button (Try again / Switch to <game>) and
+  "Search by name instead". Camera permission: message card with mascot and why (only the
+  read text leaves the phone); "Open settings" once refused for good; re-checked on resume.
+  Result sheet: "Card found" header, pills for candidates / finish / language (flag + name),
+  grading tags 48 dp, quantity stepper, gold "Add to my collection", "Remove from my
+  collection" (only when owned), "Scan next card".
+- [x] Android i18n: German and Spanish added (`values-de`, `values-es`, every string, wording
+  from the web locales); `localeFilters` en/fr/de/es; tab labels on one line (ellipsis) on big
+  fonts. Unused `add`, `remove`, `switch_game` strings removed.
+- [x] Versions: server 0.20.2 (security fixes), Android 0.13.0 (home screen, scanner,
+  languages). `.env.example`: user agent 0.20.2, wiki links; no new variables.
+- [x] Checks: backend 251 tests + ruff (fresh venv: the shared one had stale game entry
+  points); `./gradlew testDebugUnitTest lint assembleDebug` (48 tests, lint: only the existing
+  dependency / SDK warnings); emulator against the local test service: opens on Collection,
+  permission card, refusal then Open settings, scanner after granting, back to Collection,
+  German + dark + font scale 1.3. Pages: Playwright in 4 languages, phone width, no console
+  errors.
+- [ ] User: replace `<CONTACT ADDRESS>` in CODE_OF_CONDUCT.md (forwarding alias such as
+  SimpleLogin / addy.io / Proton / Firefox Relay, or own-domain forwarding).
+- [ ] User: enable Private vulnerability reporting (Settings → Code security) for SECURITY.md.
+- [ ] User: check CodeQL closes the 5 alerts after merge; real-phone scan (failure states,
+  torch) not testable on the emulator camera.
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.
@@ -1802,7 +1855,7 @@ Report against server 0.20.1 / app 0.11.0. Branch `2026-10-29-000-android-new-ui
 ## Verification
 - `pytest` backend: provider parsers with recorded API fixtures (no live calls), OCR `parse_ocr` on sample text dumps (EN/FR/JA cards), identify ranking, collection adjust/unique constraint, CSV round-trip.
 - Auth tests: OIDC callback/exchange against mocked IdP (signed test JWKS): bad nonce/aud/iss rejected, group → role mapping, disallowed group refused, (issuer, sub) linking.
-- Manual SSO check: dev compose profile with Keycloak container; log in on web and Android. Then repeat with Authentik/Authelia config.
+- Manual SSO check: against your own IdP (Keycloak, Authentik or Authelia, see wiki Single-sign-on); log in on web and Android.
 - `docker compose up`, run sync for each game, check card/printings counts and images on disk.
 - Web: add/remove items, check value + history chart after two snapshot runs.
 - Android: run on device against LAN server, scan real cards in EN/FR/JA for each game, confirm correct printing and stock change visible in web UI.
