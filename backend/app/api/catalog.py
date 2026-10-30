@@ -13,7 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, SessionDep
 from app.core.db import get_sessionmaker
-from app.core.http import http_client
+from app.core.http import http_client, shared_http_client
 from app.games.base import FilterDef, rarity_of, registry
 from app.models import (
     Card,
@@ -407,8 +407,9 @@ async def set_icon(set_id: int, _: CurrentUser, session: SessionDep) -> FileResp
     card_set = await session.get(CardSet, set_id)
     if card_set is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Set not found")
-    async with http_client(timeout=20) as http:
-        path = await images.cached_asset(http, card_set.icon_url, images.set_icon_stem(card_set))
+    path = await images.cached_asset(
+        shared_http_client(), card_set.icon_url, images.set_icon_stem(card_set)
+    )
     if path is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No icon for this set")
     return FileResponse(path, headers=_ASSET_HEADERS)
@@ -853,19 +854,22 @@ async def printing_image(
     session: SessionDep,
     lang: Annotated[str | None, Query(max_length=8)] = None,
     face: Literal["front", "back"] = "front",
+    size: Literal["full", "thumb"] = "full",
 ) -> FileResponse:
     """Card image in `lang` (default: the user's language), else English, else
-    Japanese, else any language there is. `face=back`: the back of double-faced cards."""
+    Japanese, else any language there is. `face=back`: the back of double-faced cards.
+    `size=thumb`: a small copy for lists and grids."""
     printing = await session.get(Printing, printing_id)
     if printing is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Printing not found")
     if face == "back":
         card_set = await session.get(CardSet, printing.set_id)
         game_id = card_set.game_id if card_set else ""
-        async with http_client(timeout=20) as http:
-            path = await images.cached_asset(
-                http, printing.attributes.get("back_image_url"), images.back_stem(game_id, printing)
-            )
+        path = await images.cached_asset(
+            shared_http_client(),
+            printing.attributes.get("back_image_url"),
+            images.back_stem(game_id, printing),
+        )
         if path is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "No back image for this printing")
         return FileResponse(path, headers=_ASSET_HEADERS)
@@ -875,8 +879,9 @@ async def printing_image(
     # best one), keeping cached fallbacks for when downloads fail.
     path = images.cached_file(printing, languages[0]) if languages else None
     if path is None:
-        async with http_client(timeout=20) as http:
-            path = await images.get_or_fetch(session, http, printing, wanted)
+        path = await images.get_or_fetch(session, shared_http_client(), printing, wanted)
     if path is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No image for this printing")
+    if size == "thumb":
+        path = await images.thumbnail(path)
     return FileResponse(path, headers={"Cache-Control": "private, max-age=604800"})

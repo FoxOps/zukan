@@ -299,7 +299,7 @@ private fun SearchFilters(
 
 /** Sets of a game, newest first, filtered by name or code. */
 @Composable
-private fun SetPicker(api: ZukanApi?, game: String, onPick: (SetOut?) -> Unit, onDismiss: () -> Unit) {
+fun SetPicker(api: ZukanApi?, game: String, onPick: (SetOut?) -> Unit, onDismiss: () -> Unit) {
     var sets by remember { mutableStateOf<List<SetOut>>(emptyList()) }
     var filter by remember { mutableStateOf("") }
     LaunchedEffect(game) { sets = runCatching { api?.sets(game) }.getOrNull().orEmpty() }

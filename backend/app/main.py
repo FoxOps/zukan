@@ -16,7 +16,8 @@ from app.api import admin, auth, catalog, collection, games, releases, scan, use
 from app.api.schemas import HealthOut, MaintenanceOut
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
-from app.core.middleware import BodyLimit, RequestTimer, SecurityHeaders
+from app.core.http import close_shared_http_client
+from app.core.middleware import BodyLimit, RequestTimer, SecurityHeaders, TextCompression
 from app.core.security import hash_password
 from app.games.base import registry, shipped_folders
 from app.models import Game, Role, User
@@ -80,6 +81,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     yield
     symbols.cancel()
     watcher.cancel()
+    await close_shared_http_client()
 
 
 def create_app() -> FastAPI:
@@ -118,6 +120,7 @@ def create_app() -> FastAPI:
     app.include_router(api)
     mount_web(app, get_settings().web_dir)
     # Last added runs first: headers on every answer, the 413 included.
+    app.add_middleware(TextCompression)
     app.add_middleware(RequestTimer)
     app.add_middleware(BodyLimit)
     app.add_middleware(SecurityHeaders)

@@ -214,4 +214,23 @@
     <string name="remove_from_collection">Remove from my collection</string>
     <string name="copies">Copies</string>
     <string name="finish">Finish</string>
+    <string name="view_grid">Picture grid</string>
+    <string name="view_list">List</string>
+    <string name="export_csv">Export (CSV)</string>
+    <string name="export_failed">Export failed: %1$s</string>
+    <string name="colors_include">At least one of these colors</string>
+    <string name="colors_exact">Exactly these colors</string>
+    <string name="finish_guessed">Guessed from the light (experimental): check it.</string>
+    <string name="scan_tips_light">Holo cards: tilt the card a little so reflections leave the name and the number.</string>
+    <string name="scan_tips_light_torch">Holo cards: try with the torch on, and tilt the card a little so reflections leave the name and the number.</string>
+    <string name="finish_guess">Finish guess (experimental)</string>
+    <string name="finish_guess_on">On</string>
+    <string name="finish_guess_off">Off</string>
+    <string name="finish_guess_help">Watches how light moves on the card to pre-select holo or reverse holo. Move the phone slightly while scanning. It can be wrong: check the finish before adding.</string>
+    <string name="group_display">Display</string>
+    <string name="games_shown">Games shown</string>
+    <string name="games_shown_help">Games offered by search and the scanner. Shared with the web interface.</string>
+    <string name="all_games">All games</string>
+    <string name="interface_language">Interface language</string>
+    <string name="interface_language_help">Card names and pictures follow it too. Shared with the web interface.</string>
 </resources>

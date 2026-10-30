@@ -1,7 +1,9 @@
 package fr.zukan.app
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -37,10 +39,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
 import coil3.svg.SvgDecoder
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import fr.zukan.app.data.AppLanguage
 import fr.zukan.app.ui.CollectionScreen
 import fr.zukan.app.ui.ZukanTheme
 import fr.zukan.app.ui.LoginScreen
@@ -57,6 +62,8 @@ class MainActivity : ComponentActivity() {
     private val session: SessionViewModel by viewModels()
     private val scan: ScanViewModel by viewModels()
     private val updates: UpdateViewModel by viewModels()
+
+    override fun attachBaseContext(newBase: Context) = super.attachBaseContext(AppLanguage.wrap(newBase))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -106,10 +113,13 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
     val client by app.client.collectAsStateWithLifecycle()
     val updateState by updates.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val activity = LocalActivity.current
     val undoLabel = stringResource(R.string.undo)
-    // Card images go through the authenticated HTTP client.
+    // Card images go through the authenticated HTTP client; caches outlive the client.
     val imageLoader = remember(client) {
         ImageLoader.Builder(context)
+            .memoryCache { app.imageMemory }
+            .diskCache { app.imageDisk }
             .components {
                 client?.let { c -> add(OkHttpNetworkFetcherFactory(callFactory = { c.http })) }
                 // Game symbols and rarity pictograms are SVG files.
@@ -129,6 +139,13 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
             val snackbar = remember { SnackbarHostState() }
             // Offers a newer app (asks before downloading anything).
             LaunchedEffect(Unit) { updates.checkAutomatically() }
+            // Settings shared with the web UI may have changed there.
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { session.refreshAccount() }
+            // Interface language: the account's (shared with the web UI), whatever the phone's.
+            LaunchedEffect(state.serverLanguage) {
+                val server = state.serverLanguage?.takeIf { it in AppLanguage.SUPPORTED } ?: return@LaunchedEffect
+                if (server != AppLanguage.chosen(context)) activity?.let { AppLanguage.choose(it, server) }
+            }
             UpdateDialog(updates, updateState)
             LaunchedEffect(scanState.undo) {
                 val undo = scanState.undo ?: return@LaunchedEffect
@@ -147,23 +164,25 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
             ) { padding ->
                 Box(Modifier.padding(padding)) {
                     when (tab) {
-                        Tab.SCAN -> ScanScreen(scan, scanState, state.games, settings, state.priceSources, imageUrl, imageLoader, snackbar, onSearch = { tab = Tab.SEARCH }) { game ->
+                        Tab.SCAN -> ScanScreen(scan, scanState, state.catalog, settings, state.priceSources, imageUrl, imageLoader, snackbar, onSearch = { tab = Tab.SEARCH }) { game ->
                             session.updateSettings { it.copy(game = game) }
                         }
                         Tab.COLLECTION -> CollectionScreen(
                             client?.api,
                             state.games,
                             state.games.flatMap { it.priceSources }.firstOrNull { it.id == state.priceSources.firstOrNull() },
-                            scanState.stockVersion,
+                            scanState.stock,
+                            settings,
                             imageUrl,
                             imageLoader,
-                            onAdjust = { item, delta -> scan.adjustItem(item.printingId, item.finish, item.condition, item.language, delta) },
+                            onGrid = { grid -> session.updateSettings { it.copy(collectionGrid = grid) } },
+                            onAdjust = { item, delta -> scan.adjustItem(item, delta) },
                             onOpen = { item ->
-                                scan.showCard(item.cardId, item.printingId)
+                                scan.showCard(item.cardId, item.printingId, item.language, item.finish)
                                 tab = Tab.SCAN
                             },
                         )
-                        Tab.SEARCH -> SearchScreen(client?.api, settings.game, state.games, imageUrl, imageLoader, onScan = { tab = Tab.SCAN }) { card ->
+                        Tab.SEARCH -> SearchScreen(client?.api, settings.game, state.catalog, imageUrl, imageLoader, onScan = { tab = Tab.SCAN }) { card ->
                             scan.showCard(card)
                             tab = Tab.SCAN
                         }

@@ -47,20 +47,26 @@ fun recognizer(script: OcrScript): TextRecognizer = TextRecognition.getClient(
  * Landscape cards held upright put their text sideways: when the reading runs sideways
  * or stays weak, the frame is also read turned by a quarter ([CardTurn]) and the best
  * turn is kept for the next frames.
+ *
+ * At most one frame every [MIN_FRAME_MS] is read (about 6 a second): enough to find a
+ * card steady, without keeping the processor busy.
  */
 class TextAnalyzer(
     private val script: OcrScript,
     private val onFrame: (List<OcrLineIn>) -> Boolean,
     private val onIdentify: (List<OcrLineIn>) -> Unit,
     private val onAsianFrame: (List<OcrLineIn>) -> Boolean = { false },
+    // Experimental finish guess, when on: fed with every frame read.
+    private val glare: () -> GlareMeter? = { null },
 ) : ImageAnalysis.Analyzer {
     @Volatile
     var paused = false
 
     private val main = recognizer(script)
-    private val others: Map<OcrScript, TextRecognizer> by lazy {
-        ASIAN.associateWith(::recognizer)
-    }
+    // Asian models, each loaded the first time it is needed (each holds its own model).
+    private val others = mutableMapOf<OcrScript, TextRecognizer>()
+
+    private fun other(script: OcrScript): TextRecognizer = synchronized(others) { others.getOrPut(script) { recognizer(script) } }
     private var frames = 0
     private var asian = OcrScript.JAPANESE
     // Frames the current Asian model still reads one after the other.
@@ -68,14 +74,17 @@ class TextAnalyzer(
     // Quarter turns added to the camera's rotation (landscape cards), and weak frames.
     private var turn = 0
     private var weakFrames = 0
+    private var lastFrame = 0L
 
     @OptIn(ExperimentalGetImage::class)
     override fun analyze(proxy: ImageProxy) {
         val image = proxy.image
-        if (paused || image == null) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (paused || image == null || now - lastFrame < MIN_FRAME_MS) {
             proxy.close()
             return
         }
+        lastFrame = now
         // Runs on the analysis thread: ML Kit tasks are awaited, so the frame stays open
         // until every model has read it.
         try {
@@ -100,6 +109,13 @@ class TextAnalyzer(
                 weakFrames = 0
             }
             val lines = toLines(text)
+            glare()?.let { meter ->
+                val plane = proxy.planes[0]
+                meter.offer(plane.buffer, proxy.width, proxy.height, plane.rowStride, rotation)
+            }
+            // An Asian set code read by the Latin model ("SV6a", "M6a"): the Asian models
+            // read the next frames.
+            if (script == OcrScript.AUTO && lines.any { ASIAN_CODE.containsMatchIn(it.text) }) asianStreak = ASIAN_STREAK
             if (!onFrame(lines)) {
                 if (script == OcrScript.AUTO && (asianStreak > 0 || ++frames % ASIAN_EVERY == 0)) readAsian(input)
                 return
@@ -108,7 +124,7 @@ class TextAnalyzer(
                 onIdentify(lines)
                 return
             }
-            val readings = others.mapValues { (_, model) -> toLines(Tasks.await(model.process(input))) }
+            val readings = ASIAN.associateWith { toLines(Tasks.await(other(it).process(input))) }
             val best = ScriptPicker.pick(readings.mapValues { (_, l) -> l.map { it.text } } + (OcrScript.LATIN to lines.map { it.text }))
             onIdentify(readings[best] ?: lines)
         } catch (e: Exception) {
@@ -123,7 +139,8 @@ class TextAnalyzer(
     private fun shouldTurn(text: Text): Boolean {
         val read = reads(text)
         if (CardTurn.sideways(read)) return true
-        if (!CardTurn.weak(read)) {
+        // Nothing read at all: no card in view, nothing to turn.
+        if (!CardTurn.weak(read) || read.isEmpty()) {
             weakFrames = 0
             return false
         }
@@ -132,7 +149,7 @@ class TextAnalyzer(
 
     /** One Asian model reads the frame; a steady reading is identified. */
     private fun readAsian(input: InputImage) {
-        val lines = toLines(Tasks.await(others.getValue(asian).process(input)))
+        val lines = toLines(Tasks.await(other(asian).process(input)))
         val texts = lines.map { it.text }
         val found = ScriptPicker.pick(mapOf(asian to texts))
         // Han characters without kana: Chinese more likely than kanji-only Japanese.
@@ -149,13 +166,19 @@ class TextAnalyzer(
 
     fun close() {
         main.close()
-        if (script == OcrScript.AUTO) others.values.forEach { it.close() }
+        synchronized(others) {
+            others.values.forEach { it.close() }
+            others.clear()
+        }
     }
 
     companion object {
         private const val TAG = "TextAnalyzer"
         const val ASIAN_EVERY = 3
         const val ASIAN_STREAK = 3
+        const val MIN_FRAME_MS = 160L
+        // Japanese-style set codes ("SV6a", "M6a", "S12a", "CSV9C") before a number.
+        private val ASIAN_CODE = Regex("""\b(?:SV|S|SM|M|CS|CSV)\d{1,2}[a-zA-Z]{1,2}\s*\d{1,3}\s*/""")
         private val ASIAN = listOf(OcrScript.JAPANESE, OcrScript.KOREAN, OcrScript.CHINESE)
 
         private fun reads(text: Text): List<CardTurn.Read> =

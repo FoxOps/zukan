@@ -144,7 +144,7 @@ function TopItems({ report, games }: { report: Report; games: Game[] }) {
                   <tr key={item.id}>
                     <td>
                       <Link to={`/cards/${item.card_id}/${item.printing_id}`} className="block w-9" tabIndex={-1} aria-hidden>
-                        <CardImage src={item.image} alt="" landscape={item.orientation === 'landscape'} />
+                        <CardImage thumb src={item.image} alt="" landscape={item.orientation === 'landscape'} />
                       </Link>
                     </td>
                     <td>

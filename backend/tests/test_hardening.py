@@ -61,3 +61,13 @@ async def test_downloads_stop_at_the_size_limit():
                 assert exc.response.status_code == 404
             else:
                 raise AssertionError("no error on 404")
+
+
+async def test_text_answers_are_compressed_not_pictures(client):
+    from app.core.middleware import _PICTURES
+
+    response = await client.get("/api/openapi.json", headers={"Accept-Encoding": "gzip"})
+    assert response.headers["content-encoding"] == "gzip"
+    assert _PICTURES.search("/api/printings/3/image")
+    assert _PICTURES.search("/api/games/mtg/colors/W/icon")
+    assert not _PICTURES.search("/api/cards")

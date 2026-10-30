@@ -19,6 +19,7 @@ export function ImageView({ cards, games, showGame }: CatalogViewProps) {
         return (
           <Link key={card.id} to={cardLink(card)} className="group flex flex-col gap-2">
             <CardImage
+              thumb
               src={card.image}
               back={card.back_image}
               alt={card.name}

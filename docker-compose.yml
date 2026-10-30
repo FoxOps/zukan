@@ -8,10 +8,18 @@
 # All settings come from .env (documented in .env.example).
 name: zukan
 
+# Container logs are rotated: at most 3 files of 10 MB per service.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   db:
     image: postgres:17
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_USER: tcg
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
@@ -26,6 +34,7 @@ services:
   api:
     image: ghcr.io/foxops/zukan:${ZUKAN_TAG:-latest}
     restart: unless-stopped
+    logging: *logging
     depends_on:
       db:
         condition: service_healthy
@@ -40,22 +49,40 @@ services:
       - ./import:/data/import:ro
     ports:
       - "${ZUKAN_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/api/health", timeout=5)
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      # Database migrations run before the server starts.
+      start_period: 120s
+    # Memory cap, if the host is shared (idle the API uses about 100 MB):
+    # mem_limit: 1g
 
   # Refreshes catalogs, prices and owned card images (TCG_SYNC_INTERVAL_HOURS).
   worker:
     image: ghcr.io/foxops/zukan:${ZUKAN_TAG:-latest}
     restart: unless-stopped
+    logging: *logging
     depends_on:
       db:
         condition: service_healthy
+      # The API runs the database migrations.
       api:
-        condition: service_started
+        condition: service_healthy
     env_file: .env
     environment:
       TCG_DATABASE_URL: postgresql+asyncpg://tcg:${POSTGRES_PASSWORD}@db:5432/tcg
     volumes:
       - ./data/images:/data/images
     command: ["python", "-m", "app.worker"]
+    # Memory cap, if the host is shared: leave room for catalog refreshes (Magic's is
+    # the largest).
+    # mem_limit: 1500m
 
 networks:
   default:

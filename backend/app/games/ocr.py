@@ -35,9 +35,22 @@ def script_language(lines: list[OcrLine]) -> str | None:
     if _THAI.search(text):
         return "th"
     if _CJK.search(text):
-        # Traditional when converting it to Simplified changes something.
-        return "zh-hant" if _converter("t2s").convert(text) != text else "zh-hans"
+        return chinese_script(text)
     return None
+
+
+def chinese_script(text: str) -> str:
+    """Simplified or Traditional, by majority: characters only Traditional writes
+    (Simplified spells them otherwise) against characters only Simplified writes. One
+    misread glyph must not turn a mainland card into a Taiwan one; most characters are
+    shared by both and count for neither."""
+    traditional = sum(
+        1 for c, s in zip(text, _converter("t2s").convert(text), strict=False) if c != s
+    )
+    simplified = sum(
+        1 for c, t in zip(text, _converter("s2t").convert(text), strict=False) if c != t
+    )
+    return "zh-hant" if traditional > simplified else "zh-hans"
 
 
 @cache

@@ -14,9 +14,9 @@ finding them later updates the same rows). Its prices are the `cardnexus` price 
 (`app.prices.cardnexus`).
 """
 
+import asyncio
 import gzip
 import hashlib
-import io
 import json
 import logging
 import re
@@ -157,35 +157,41 @@ class Feeds:
         checksum = meta.get("checksum") or ""
         if path.exists() and stamp.exists() and stamp.read_text().strip() == checksum:
             return path
-        body = await self._download(meta["url"])
-        if checksum and _content_hash(body) != checksum:
-            raise httpx.HTTPError(f"CardNexus {cn_game} {kind} file does not match its checksum")
-        path.write_bytes(body)
+        tmp = path.with_suffix(".tmp")
+        try:
+            await self._download(meta["url"], tmp)
+            if checksum and await asyncio.to_thread(_content_hash, tmp) != checksum:
+                raise httpx.HTTPError(
+                    f"CardNexus {cn_game} {kind} file does not match its checksum"
+                )
+            tmp.replace(path)
+        finally:
+            tmp.unlink(missing_ok=True)
         stamp.write_text(checksum)
         return path
 
-    async def _download(self, url: str) -> bytes:
-        chunks: list[bytes] = []
+    async def _download(self, url: str, target: Path) -> None:
+        """Stream the file to disk (feeds reach tens of MB: never all in memory)."""
         size = 0
         # A presigned link: no API key, not counted in the budget.
         async with self.http.stream("GET", url, timeout=300) as response:
             response.raise_for_status()
-            async for chunk in response.aiter_bytes():
-                size += len(chunk)
-                if size > MAX_FEED_BYTES:
-                    raise httpx.HTTPError(f"CardNexus file over {MAX_FEED_BYTES} bytes: {url}")
-                chunks.append(chunk)
-        return b"".join(chunks)
+            with target.open("wb") as out:
+                async for chunk in response.aiter_bytes(1 << 20):
+                    size += len(chunk)
+                    if size > MAX_FEED_BYTES:
+                        raise httpx.HTTPError(f"CardNexus file over {MAX_FEED_BYTES} bytes: {url}")
+                    out.write(chunk)
 
     async def records(self, cn_game: str, kind: str) -> Iterator[dict[str, Any]]:
         path = await self.path(cn_game, kind)
         return _lines(path) if path else iter(())
 
 
-def _content_hash(body: bytes) -> str:
+def _content_hash(path: Path) -> str:
     """Their checksum: SHA-256 of the uncompressed file (read in chunks: some are big)."""
     digest = hashlib.sha256()
-    with gzip.GzipFile(fileobj=io.BytesIO(body)) as file:
+    with gzip.open(path, "rb") as file:
         while chunk := file.read(1 << 20):
             digest.update(chunk)
     return digest.hexdigest()

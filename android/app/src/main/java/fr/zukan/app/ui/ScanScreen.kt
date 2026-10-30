@@ -78,6 +78,7 @@ import coil3.ImageLoader
 import fr.zukan.app.R
 import fr.zukan.app.data.GameOut
 import fr.zukan.app.data.Settings
+import fr.zukan.app.scan.GlareMeter
 
 // The scanner of the 2026-10 redesign: a paper header with the game chips, a card-shaped
 // frame over the camera, and one status card at the bottom telling what to do next in
@@ -112,9 +113,10 @@ fun ScanScreen(
     LaunchedEffect(Unit) { if (!granted) permission.launch(Manifest.permission.CAMERA) }
     // Back from the app settings: the camera may be allowed now.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (!granted && hasCamera()) granted = true }
-    LaunchedEffect(settings.game, settings.autoNext) {
+    LaunchedEffect(settings.game, settings.autoNext, settings.glareFinish) {
         scan.game = settings.game
         scan.autoNext = settings.autoNext
+        scan.glare = if (settings.glareFinish) scan.glare ?: GlareMeter() else null
     }
     var torch by remember { mutableStateOf(false) }
     var torchAvailable by remember { mutableStateOf(false) }
@@ -134,17 +136,23 @@ fun ScanScreen(
         return
     }
 
+    // A card opened from the collection or search: no camera behind it (it starts again,
+    // in a moment, when the card is closed).
+    val manual = state.phase == Phase.RESULT && state.result?.candidates?.firstOrNull()?.match == "manual"
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        CameraPreview(
-            settings.script,
-            paused = state.phase != Phase.SCANNING,
-            onFrame = scan::onFrame,
-            onIdentify = scan::identify,
-            onAsianFrame = scan::onAsianFrame,
-            modifier = Modifier.fillMaxSize(),
-            torch = torch,
-            onTorchAvailable = { torchAvailable = it },
-        )
+        if (!manual) {
+            CameraPreview(
+                settings.script,
+                paused = state.phase != Phase.SCANNING,
+                onFrame = scan::onFrame,
+                onIdentify = scan::identify,
+                onAsianFrame = scan::onAsianFrame,
+                modifier = Modifier.fillMaxSize(),
+                torch = torch,
+                onTorchAvailable = { torchAvailable = it },
+                glare = { scan.glare },
+            )
+        }
         Column(Modifier.fillMaxSize()) {
             ScanHeader(
                 games = games,
@@ -156,7 +164,7 @@ fun ScanScreen(
             )
             Viewfinder(state.phase, Modifier.weight(1f).fillMaxWidth())
             if (state.phase != Phase.RESULT) {
-                StatusCard(state, games, onGame = onGame, onRetry = { scan.resume(forgetCard = true) }, onSearch = onSearch)
+                StatusCard(state, games, torchAvailable && !torch, onGame = onGame, onRetry = { scan.resume(forgetCard = true) }, onSearch = onSearch)
             }
         }
 
@@ -319,7 +327,15 @@ private fun Viewfinder(phase: Phase, modifier: Modifier = Modifier) {
 
 /** What is happening and what to do next, in plain words, with at most one main button. */
 @Composable
-private fun StatusCard(state: ScanState, games: List<GameOut>, onGame: (String?) -> Unit, onRetry: () -> Unit, onSearch: () -> Unit) {
+private fun StatusCard(
+    state: ScanState,
+    games: List<GameOut>,
+    // The torch is there and off: suggested after failures (holo cards, dim light).
+    torchHint: Boolean,
+    onGame: (String?) -> Unit,
+    onRetry: () -> Unit,
+    onSearch: () -> Unit,
+) {
     val result = state.result.takeIf { state.phase == Phase.NOT_FOUND }
     val otherGame = result?.otherGame?.takeIf { id -> games.any { it.id == id } }
     val otherName = otherGame?.let { id -> games.first { it.id == id }.name }
@@ -359,7 +375,11 @@ private fun StatusCard(state: ScanState, games: List<GameOut>, onGame: (String?)
         }
         else -> {
             title = stringResource(R.string.card_not_found)
-            text = listOfNotNull(read?.let { stringResource(R.string.read_text, it) }, stringResource(R.string.scan_tips)).joinToString("\n")
+            text = listOfNotNull(
+                read?.let { stringResource(R.string.read_text, it) },
+                stringResource(R.string.scan_tips),
+                stringResource(if (torchHint) R.string.scan_tips_light_torch else R.string.scan_tips_light).takeIf { state.failures >= 2 },
+            ).joinToString("\n")
             icon = R.drawable.ic_search
         }
     }

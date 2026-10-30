@@ -191,3 +191,10 @@ fun CardPicture(
         }
     }
 }
+
+/** Small copy of an API card picture for lists and grids (servers 0.21+; older ones
+ * ignore it and send the full picture). Other links unchanged. */
+fun thumbLink(link: String?): String? {
+    if (link == null || !link.contains("/image") || link.contains("face=back")) return link
+    return link + (if (link.contains('?')) "&" else "?") + "size=thumb"
+}

@@ -26,6 +26,10 @@ data class Settings(
     val script: OcrScript = OcrScript.AUTO,
     // After adding copies: go back to the camera for the next card.
     val autoNext: Boolean = false,
+    // Experimental: guess holo / reverse holo from how light moves on the card.
+    val glareFinish: Boolean = false,
+    // Collection shown as a grid of pictures instead of a list.
+    val collectionGrid: Boolean = false,
 )
 
 data class Tokens(val access: String, val refresh: String)
@@ -48,6 +52,8 @@ class SessionStore(private val context: Context) : TokenStore {
         // New key in 0.3: everyone starts on AUTO (the old "script" was LATIN for most).
         val script = stringPreferencesKey("ocr_script")
         val autoNext = booleanPreferencesKey("auto_next")
+        val glareFinish = booleanPreferencesKey("glare_finish")
+        val collectionGrid = booleanPreferencesKey("collection_grid")
         val lastUpdateCheck = longPreferencesKey("last_update_check")
         val skippedVersion = stringPreferencesKey("skipped_version")
     }
@@ -65,6 +71,8 @@ class SessionStore(private val context: Context) : TokenStore {
             language = p[Keys.language],
             script = p[Keys.script]?.let { runCatching { OcrScript.valueOf(it) }.getOrNull() } ?: OcrScript.AUTO,
             autoNext = p[Keys.autoNext] ?: false,
+            glareFinish = p[Keys.glareFinish] ?: false,
+            collectionGrid = p[Keys.collectionGrid] ?: false,
         )
     }
 
@@ -113,6 +121,8 @@ class SessionStore(private val context: Context) : TokenStore {
             if (next.language == null) p.remove(Keys.language) else p[Keys.language] = next.language
             p[Keys.script] = next.script.name
             p[Keys.autoNext] = next.autoNext
+            p[Keys.glareFinish] = next.glareFinish
+            p[Keys.collectionGrid] = next.collectionGrid
         }
     }
 }

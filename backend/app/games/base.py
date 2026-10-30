@@ -397,6 +397,8 @@ class OcrHints:
     other_names: list[str] = field(default_factory=list)
     set_code: str | None = None
     collector_number: str | None = None
+    # The count printed after the number ("063/189": "189"), when the game prints one.
+    printed_total: str | None = None
     lang: str | None = None
     # The text looks like this game's cards (copyright line, layout markers...).
     recognized: bool = False

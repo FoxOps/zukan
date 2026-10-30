@@ -436,6 +436,7 @@ export interface paths {
          * Printing Image
          * @description Card image in `lang` (default: the user's language), else English, else
          *     Japanese, else any language there is. `face=back`: the back of double-faced cards.
+         *     `size=thumb`: a small copy for lists and grids.
          */
         get: operations["printing_image_api_printings__printing_id__image_get"];
         put?: never;
@@ -3100,6 +3101,7 @@ export interface operations {
             query?: {
                 lang?: string | null;
                 face?: "front" | "back";
+                size?: "full" | "thumb";
             };
             header?: never;
             path: {

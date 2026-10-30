@@ -1,10 +1,12 @@
 """ASGI middlewares: security headers on every response, request body size limit, API
-request timing (maintenance mode)."""
+request timing (maintenance mode), compression of text answers."""
 
 import json
+import re
 import time
 
 from starlette.exceptions import HTTPException
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.config import get_settings
@@ -121,3 +123,21 @@ class RequestTimer:
             await self.app(scope, receive, send)
         finally:
             load.record_request((time.perf_counter() - start) * 1000)
+
+
+# Pictures are already compressed: gzip would spend CPU for nothing.
+_PICTURES = re.compile(r"/(image|icon)$|\.(png|jpe?g|webp|avif|gif|ico|woff2?)$")
+
+
+class TextCompression:
+    """Gzip JSON, CSV and web UI files (a page of cards shrinks about 8 times), not card
+    pictures. Skipped when a reverse proxy already compresses: it sees gzip here."""
+
+    def __init__(self, app: ASGIApp, minimum_size: int = 1024) -> None:
+        self.app = app
+        self.gzip = GZipMiddleware(app, minimum_size=minimum_size, compresslevel=6)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and not _PICTURES.search(scope["path"]):
+            return await self.gzip(scope, receive, send)
+        return await self.app(scope, receive, send)

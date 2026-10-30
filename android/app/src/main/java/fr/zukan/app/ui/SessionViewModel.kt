@@ -10,6 +10,7 @@ import fr.zukan.app.auth.SsoLogin
 import fr.zukan.app.data.ApiClient
 import fr.zukan.app.data.GameOut
 import fr.zukan.app.data.LoginIn
+import fr.zukan.app.data.MeOut
 import fr.zukan.app.data.OidcExchangeIn
 import fr.zukan.app.data.ProviderOut
 import fr.zukan.app.data.ProvidersOut
@@ -27,6 +28,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 data class SessionState(
     val loading: Boolean = true,
@@ -38,9 +43,16 @@ data class SessionState(
     val serverVersion: String? = null,
     // Markets whose prices are shown, main one first (server setting, shared with the web UI).
     val priceSources: List<String> = listOf("cardmarket"),
+    // Games shown in search and the scanner, null for all (server setting, shared with the web UI).
+    val catalogGames: List<String>? = null,
+    // The account's interface language (server setting, shared with the web UI).
+    val serverLanguage: String? = null,
     val error: String? = null,
 ) {
     val loggedIn get() = username != null
+
+    /** Games offered by search and the scanner. */
+    val catalog: List<GameOut> get() = catalogGames?.let { shown -> games.filter { it.id in shown } } ?: games
 }
 
 class SessionViewModel(application: Application) : AndroidViewModel(application) {
@@ -133,14 +145,39 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         runCatching {
             val me = client.api.me()
             val games = client.api.games()
-            _state.update { it.copy(username = me.username, games = games, priceSources = me.shownPriceSources, error = null) }
+            _state.update { it.copy(username = me.username, games = games, error = null).withMe(me) }
         }.onFailure { e -> _state.update { it.copy(username = null, error = e.userMessage(app)) } }
+    }
+
+    private fun SessionState.withMe(me: MeOut) =
+        copy(priceSources = me.shownPriceSources, catalogGames = me.catalogGames, serverLanguage = me.language)
+
+    /** Settings changed on the web meanwhile (back to the app). */
+    fun refreshAccount() {
+        val client = app.client.value ?: return
+        if (!_state.value.loggedIn) return
+        viewModelScope.launch {
+            runCatching { client.api.me() }.onSuccess { me -> _state.update { it.withMe(me) } }
+        }
+    }
+
+    /** Saves the interface language on the account (the web UI follows). */
+    fun setServerLanguage(lang: String) = work {
+        val me = requireClient().api.updateMe(SettingsIn(language = lang))
+        _state.update { it.withMe(me) }
+    }
+
+    /** Games shown in search and the scanner; null: every game. */
+    fun setCatalogGames(games: List<String>?) = work {
+        val value = games?.let { list -> JsonArray(list.map(::JsonPrimitive)) } ?: JsonNull
+        val me = requireClient().api.updateMeJson(JsonObject(mapOf("catalog_games" to value)))
+        _state.update { it.withMe(me) }
     }
 
     /** Makes [source] the main price source. */
     fun setMainPriceSource(source: String) = work {
         val me = requireClient().api.updateMe(SettingsIn(priceSource = source))
-        _state.update { it.copy(priceSources = me.shownPriceSources) }
+        _state.update { it.withMe(me) }
     }
 
     /** Shows or hides the prices of [source] (one source at least stays shown). */
@@ -149,7 +186,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         val next = if (source in current) current - source else current + source
         if (next.isEmpty()) return@work
         val me = requireClient().api.updateMe(SettingsIn(priceSources = next))
-        _state.update { it.copy(priceSources = me.shownPriceSources) }
+        _state.update { it.withMe(me) }
     }
 
     private fun requireClient(): ApiClient = app.client.value ?: error(app.getString(R.string.error_not_connected))

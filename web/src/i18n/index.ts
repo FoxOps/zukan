@@ -4,10 +4,7 @@ import LanguageDetector from 'i18next-browser-languagedetector'
 import { useCallback, useEffect } from 'react'
 import { initReactI18next } from 'react-i18next'
 import { api } from '../api/client'
-import de from '../locales/de.json'
 import en from '../locales/en.json'
-import es from '../locales/es.json'
-import fr from '../locales/fr.json'
 
 /**
  * Interface translations with i18next. Keys are the English texts (natural language
@@ -15,7 +12,8 @@ import fr from '../locales/fr.json'
  * key. Missing translations show the English text.
  *
  * The language is saved on the user (card images follow it) and in the browser (login
- * page, first visit: browser language).
+ * page, first visit: browser language). English is bundled; other languages are
+ * downloaded when chosen (only one is ever needed).
  */
 export const LANGUAGES = [
   { code: 'en', label: 'English', short: 'EN' },
@@ -28,11 +26,31 @@ export type Lang = (typeof LANGUAGES)[number]['code']
 // Set when the language is chosen before signing in, to save it on the user afterwards.
 const PENDING_KEY = 'tcg.ui-language-pending'
 
+const LOADERS: Record<string, () => Promise<{ default: Record<string, string> }>> = {
+  fr: () => import('../locales/fr.json'),
+  de: () => import('../locales/de.json'),
+  es: () => import('../locales/es.json'),
+}
+
+/** Download the translations of `lang` once; components re-render when they arrive. */
+async function loadLanguage(lang: string | undefined) {
+  const loader = lang ? LOADERS[lang] : undefined
+  if (!lang || !loader || i18n.hasResourceBundle(lang, 'translation')) return
+  try {
+    i18n.addResourceBundle(lang, 'translation', (await loader()).default)
+  } catch {
+    // Offline, or a new release replaced the file: English stays shown.
+  }
+}
+
 void i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources: { en: { translation: en }, fr: { translation: fr }, de: { translation: de }, es: { translation: es } },
+    resources: { en: { translation: en } },
+    partialBundledLanguages: true,
+    // Re-render when a language's translations are added.
+    react: { bindI18nStore: 'added' },
     fallbackLng: 'en',
     supportedLngs: LANGUAGES.map((l) => l.code),
     nonExplicitSupportedLngs: true,
@@ -51,8 +69,10 @@ void i18n
 
 i18n.on('languageChanged', (lang) => {
   document.documentElement.lang = lang
+  void loadLanguage(i18n.resolvedLanguage)
 })
 document.documentElement.lang = i18n.resolvedLanguage ?? 'en'
+void loadLanguage(i18n.resolvedLanguage)
 
 export default i18n
 

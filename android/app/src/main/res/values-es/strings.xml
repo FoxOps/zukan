@@ -216,4 +216,23 @@
     <string name="remove_from_collection">Quitar de mi colección</string>
     <string name="copies">Copias</string>
     <string name="finish">Acabado</string>
+    <string name="view_grid">Cuadrícula de imágenes</string>
+    <string name="view_list">Lista</string>
+    <string name="export_csv">Exportar (CSV)</string>
+    <string name="export_failed">Error al exportar: %1$s</string>
+    <string name="colors_include">Al menos uno de estos colores</string>
+    <string name="colors_exact">Exactamente estos colores</string>
+    <string name="finish_guessed">Deducido de los reflejos (experimental): compruébalo.</string>
+    <string name="scan_tips_light">Cartas holo: inclina un poco la carta para que los reflejos salgan del nombre y del número.</string>
+    <string name="scan_tips_light_torch">Cartas holo: prueba con la linterna encendida e inclina un poco la carta para que los reflejos salgan del nombre y del número.</string>
+    <string name="finish_guess">Deducir el acabado (experimental)</string>
+    <string name="finish_guess_on">Activado</string>
+    <string name="finish_guess_off">Desactivado</string>
+    <string name="finish_guess_help">Observa cómo se mueve la luz sobre la carta para preseleccionar holo o reverse holo. Mueve un poco el teléfono al escanear. Puede equivocarse: comprueba el acabado antes de añadir.</string>
+    <string name="group_display">Visualización</string>
+    <string name="games_shown">Juegos mostrados</string>
+    <string name="games_shown_help">Juegos que ofrecen la búsqueda y el escáner. Compartido con la interfaz web.</string>
+    <string name="all_games">Todos los juegos</string>
+    <string name="interface_language">Idioma de la interfaz</string>
+    <string name="interface_language_help">Los nombres e imágenes de las cartas también lo siguen. Compartido con la interfaz web.</string>
 </resources>

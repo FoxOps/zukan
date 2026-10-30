@@ -214,4 +214,23 @@
     <string name="remove_from_collection">Aus meiner Sammlung entfernen</string>
     <string name="copies">Exemplare</string>
     <string name="finish">Ausführung</string>
+    <string name="view_grid">Bildraster</string>
+    <string name="view_list">Liste</string>
+    <string name="export_csv">Exportieren (CSV)</string>
+    <string name="export_failed">Export fehlgeschlagen: %1$s</string>
+    <string name="colors_include">Mindestens eine dieser Farben</string>
+    <string name="colors_exact">Genau diese Farben</string>
+    <string name="finish_guessed">Aus den Lichtreflexen geschätzt (experimentell): bitte prüfen.</string>
+    <string name="scan_tips_light">Holo-Karten: Neige die Karte etwas, damit die Spiegelungen Name und Nummer verlassen.</string>
+    <string name="scan_tips_light_torch">Holo-Karten: Versuche es mit Taschenlampe und neige die Karte etwas, damit die Spiegelungen Name und Nummer verlassen.</string>
+    <string name="finish_guess">Ausführung schätzen (experimentell)</string>
+    <string name="finish_guess_on">An</string>
+    <string name="finish_guess_off">Aus</string>
+    <string name="finish_guess_help">Beobachtet, wie sich das Licht auf der Karte bewegt, um Holo oder Reverse Holo vorzuwählen. Bewege das Telefon beim Scannen leicht. Kann sich irren: Prüfe die Ausführung vor dem Hinzufügen.</string>
+    <string name="group_display">Anzeige</string>
+    <string name="games_shown">Angezeigte Spiele</string>
+    <string name="games_shown_help">Spiele, die Suche und Scanner anbieten. Wird mit der Weboberfläche geteilt.</string>
+    <string name="all_games">Alle Spiele</string>
+    <string name="interface_language">Sprache der Oberfläche</string>
+    <string name="interface_language_help">Kartennamen und -bilder folgen ihr ebenfalls. Wird mit der Weboberfläche geteilt.</string>
 </resources>

@@ -204,7 +204,7 @@ REGIONS = {
 SOUTHEAST_ASIAN = {"th", "id"}
 SOUTHEAST_PREFIX = "sea:"
 # Mainland Chinese set codes: "CSV9C", "CS5aC", "CS4.5C", "151C".
-_CHINA_CODE = re.compile(r"^(?:CS[\w.+]*C|\d{2,3}C)$")
+_CHINA_CODE = re.compile(r"^(?:CS[\w.+]*C|\d{2,3}C)$", re.IGNORECASE)
 
 
 def region_of(hints: OcrHints) -> str:
@@ -537,7 +537,7 @@ def parse_prices(raw: dict[str, Any], set_id: str) -> list[PriceQuote]:
 
 PRINTED_LANGUAGES = {"EN": "en", "FR": "fr", "DE": "de", "IT": "it", "ES": "es", "PT": "pt"}
 # "136/189", "TG05/TG30", "SV107/SV122", "001/073"
-_NUMBER = re.compile(r"\b([A-Z]{0,4}\d{1,3}[a-z]?)\s*/\s*[A-Z]{0,4}\d{1,3}\b")
+_NUMBER = re.compile(r"\b([A-Z]{0,4}\d{1,3}[a-z]?)\s*/\s*([A-Z]{0,4}\d{1,3})\b")
 # Black star promos: "SWSH001", "SVP 045"
 _PROMO = re.compile(r"\b(SWSH|SVP|SM|XY|BW)\s?(\d{2,3})\b")
 # Since Scarlet & Violet: "G PAL EN 123/193"
@@ -569,8 +569,14 @@ def _fix_number(text: str) -> str:
 
 # Asian cards print the set code right before the number: "SV1a 001/073".
 # Mainland Chinese codes: "CSV9C", "CS5aC", "151C" (digits first), "CS4.5C".
-_SET_CODE = r"(?=[\w.+]*[A-Za-z])(?:[A-Za-z]{1,4}\d{1,2}(?:\.\d)?[a-zA-Z+]{0,2}|\d{2,3}[A-Z])"
+# Never the weakness / resistance multiplier ("x2", "×2") of the line above the code.
+_SET_CODE = (
+    r"(?![xX]\d\b)(?=[\w.+]*[A-Za-z])"
+    r"(?:[A-Za-z]{1,4}\d{1,2}(?:\.\d)?[a-zA-Z+]{0,2}|\d{2,3}[A-Za-z])"
+)
 _SET_BEFORE_NUMBER = re.compile(rf"\b({_SET_CODE})\s+[A-Z]{{0,4}}\d{{1,3}}\s*/")
+# The code read glued to the number: "SV6a041/064" (Asian codes end with a small letter).
+_SET_GLUED_NUMBER = re.compile(r"\b([A-Za-z]{1,4}\d{1,2}[a-z])(\d{3})\s*/\s*(\d{2,3})\b")
 # Labels around the name: stage, HP, trainer kinds, in several languages.
 # Asian labels are written without a space before the name: no word boundary there.
 _STAGE = re.compile(
@@ -604,27 +610,70 @@ _SKIP = re.compile(
 )
 
 
+# Words of the bottom rows (weakness, resistance, retreat) by language, for cards
+# without a printed language code (before Scarlet & Violet).
+_LANGUAGE_WORDS = {
+    "fr": re.compile(r"\b(faiblesse|résistance|retraite)\b", re.IGNORECASE),
+    "de": re.compile(r"\b(schwäche|resistenz|rückzug)\b", re.IGNORECASE),
+    "it": re.compile(r"\b(debolezza|resistenza|ritirata)\b", re.IGNORECASE),
+    "es": re.compile(r"\b(debilidad|resistencia|retirada)\b", re.IGNORECASE),
+    "pt": re.compile(r"\b(fraqueza|resistência|recuo)\b", re.IGNORECASE),
+    "en": re.compile(r"\b(weakness|resistance|retreat)\b", re.IGNORECASE),
+}
+# HP is written "PV" on French cards and "KP" on German ones.
+_HP_LANGUAGE = re.compile(r"\b(PV|KP)\s*\d", re.IGNORECASE)
+
+
+def _read_code(lines: list[OcrLine], hints: OcrHints) -> None:
+    """Number and set code from the collector lines. A more telling form of the code
+    ("TWM FR", "SV6a 041/") wins over a code alone on its line, whatever the order."""
+    found: tuple[int, str, str | None] | None = None
+    for line in lines:
+        text = line.text
+        number_text = _fix_number(text)
+        if hints.collector_number is None and (match := _SET_GLUED_NUMBER.search(number_text)):
+            hints.collector_number, hints.printed_total = match.group(2), match.group(3)
+            if found is None or found[0] > 2:
+                found = (2, match.group(1), None)
+        elif hints.collector_number is None and (match := _NUMBER.search(number_text)):
+            hints.collector_number, hints.printed_total = match.group(1), match.group(2)
+        elif hints.collector_number is None and (match := _PROMO.search(text)):
+            hints.collector_number = match.group(1) + match.group(2)
+        if match := _SET_LANG.search(text):
+            code = match.group(1)
+            if glued := _GLUED_MARK.match(code):
+                code = glued.group(1)
+            candidate = (0, code, PRINTED_LANGUAGES[match.group(2)])
+        elif match := _GLUED_SET_LANG.search(text):
+            candidate = (1, match.group(1), PRINTED_LANGUAGES[match.group(2)])
+        elif match := _SET_BEFORE_NUMBER.search(text):
+            candidate = (2, match.group(1), None)
+        elif match := _SET_ALONE.match(text.strip()):
+            candidate = (3, match.group(1), None)
+        else:
+            continue
+        if found is None or candidate[0] < found[0]:
+            found = candidate
+    if found:
+        hints.set_code = found[1]
+        hints.lang = found[2] or hints.lang
+        if _CHINA_CODE.match(hints.set_code):
+            # "151c": mainland codes end with a capital C.
+            hints.set_code = hints.set_code[:-1] + "C"
+
+
 def parse_ocr(lines: list[OcrLine]) -> OcrHints:
     ordered = by_position([OcrLine(clean(line.text), line.left, line.top) for line in lines])
     hints = OcrHints()
     bottom = bottom_part(ordered)
-    for line in bottom:
-        number_text = _fix_number(line.text)
-        if hints.collector_number is None and (match := _NUMBER.search(number_text)):
-            hints.collector_number = match.group(1)
-        elif hints.collector_number is None and (match := _PROMO.search(line.text)):
-            hints.collector_number = match.group(1) + match.group(2)
-        if hints.set_code is None and (match := _SET_LANG.search(line.text)):
-            code = match.group(1)
-            if glued := _GLUED_MARK.match(code):
-                code = glued.group(1)
-            hints.set_code, hints.lang = code, PRINTED_LANGUAGES[match.group(2)]
-        elif hints.set_code is None and (match := _GLUED_SET_LANG.search(line.text)):
-            hints.set_code, hints.lang = match.group(1), PRINTED_LANGUAGES[match.group(2)]
-        elif hints.set_code is None and (match := _SET_BEFORE_NUMBER.search(line.text)):
-            hints.set_code = match.group(1)
-        elif hints.set_code is None and (match := _SET_ALONE.match(line.text.strip())):
-            hints.set_code = match.group(1)
+    _read_code(bottom, hints)
+    if hints.collector_number is None:
+        # Background text read around the card stretches the text box: the collector
+        # line may sit above the bottom quarter. A "NNN/NNN" number is telling anywhere.
+        for line in ordered:
+            if match := _NUMBER.search(_fix_number(line.text)):
+                hints.collector_number, hints.printed_total = match.group(1), match.group(2)
+                break
     names = []
     for line in ordered:
         if line in bottom:
@@ -639,10 +688,13 @@ def parse_ocr(lines: list[OcrLine]) -> OcrHints:
     text = " ".join(line.text for line in ordered)
     hints.recognized = bool(_MARKERS.search(text))
     if hints.lang is None:
-        # HP is written "PV" on French cards and "KP" on German ones.
-        found = re.search(r"\b(PV|KP)\s*\d", " ".join(line.text for line in lines))
-        hp_language = {"PV": "fr", "KP": "de"}
-        hints.lang = script_language(lines) or (hp_language[found.group(1)] if found else None)
+        hints.lang = script_language(lines)
+    if hints.lang is None and (found := _HP_LANGUAGE.search(text)):
+        hints.lang = {"PV": "fr", "KP": "de"}[found.group(1).upper()]
+    if hints.lang is None:
+        hints.lang = next(
+            (lang for lang, words in _LANGUAGE_WORDS.items() if words.search(text)), None
+        )
     return hints
 
 

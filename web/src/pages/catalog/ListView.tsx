@@ -30,7 +30,7 @@ export function ListView({ cards, games, showGame }: CatalogViewProps) {
               <tr key={card.id} className="hover:bg-base-200">
                 <td>
                   <Link to={cardLink(card)} className="block w-10" tabIndex={-1} aria-hidden>
-                    <CardImage src={card.image} alt={card.name} landscape={card.orientation === 'landscape'} />
+                    <CardImage thumb src={card.image} alt={card.name} landscape={card.orientation === 'landscape'} />
                   </Link>
                 </td>
                 <td>

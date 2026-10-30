@@ -32,6 +32,7 @@ export function TopCards() {
           {items.map((item) => (
             <Link key={item.id} to={cardLink(item)} className="group flex flex-col gap-1 text-xs">
               <CardImage
+                thumb
                 src={item.image}
                 alt={item.name}
                 landscape={item.orientation === 'landscape'}
