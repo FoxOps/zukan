@@ -1,0 +1,63 @@
+# CodeQL code scanning (advanced setup; GitHub's "default setup" must be switched off).
+#   Pull requests to main: every language, results shown on the PR.
+#   Weekly on main: keeps the Security tab current (closes fixed alerts) and gives pull
+#   requests a baseline. Nothing runs when a pull request is merged.
+name: CodeQL
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: actions
+            build-mode: none
+          - language: javascript-typescript
+            build-mode: none
+          - language: python
+            build-mode: none
+          # Kotlin needs a build: the debug Kotlin sources are compiled below.
+          - language: java-kotlin
+            build-mode: manual
+    steps:
+      - uses: actions/checkout@v7
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+      - if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+      - if: matrix.language == 'java-kotlin'
+        uses: gradle/actions/setup-gradle@v6
+      - if: matrix.language == 'java-kotlin'
+        name: Build the Android app
+        working-directory: android
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" > /dev/null
+          ./gradlew --no-build-cache --no-configuration-cache compileDebugKotlin
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}

@@ -1846,6 +1846,34 @@ Report against server 0.20.1 / app 0.12.0. Branch `2026-10-29-001-project-files-
 - [ ] User: check CodeQL closes the 5 alerts after merge; real-phone scan (failure states,
   torch) not testable on the emulator camera.
 
+## Report 2026-10-30 (server 0.21.0, Android 0.14.0)
+Report against server 0.20.2 / app 0.13.0. Branch `2026-10-30-000-resources-android-parity-scan-fixes`.
+- [ ] CodeQL: advanced setup workflow `.github/workflows/codeql.yml`, on pull requests to main +
+  weekly scan of main (keeps alerts closing and a PR baseline), no scan on merge.
+- [ ] Server resources: WebP for every cached image, `size=thumb` thumbnails (lists, grids),
+  immutable image caching, orphan / `.tmp` image cleanup, shared HTTP client for image fetches,
+  batched image caching, gzip, no uvicorn access log, slower worker polling, CardNexus feed
+  streamed to disk, indexes (`collection_item` owned, `printing.languages`, redundant price index
+  dropped), unowned prices updated in place, DB pool variables, compose log rotation +
+  healthchecks + Postgres settings, web locales lazy-loaded.
+- [ ] Android bugs: language flags back in Collection; opening an item shows its language
+  (image, language and finish pre-selected).
+- [ ] Android resources: one image loader with caches, thumbnails in lists, ARM-only release
+  APK, camera released off the Scan tab and under the result sheet, OCR capped, Asian models
+  loaded lazily, ±1 updates the row in place, real paging, HTTP cache.
+- [ ] Android parity: collection filters set / finish / colors, image grid, CSV export (share);
+  settings "games shown" (scanner + search) and interface language, both synced with the server.
+- [ ] Android experimental glare finish guess (opt-in setting) + last finish remembered.
+- [ ] Scanner: weakness "x2" no longer read as set code; Simplified / Traditional by majority;
+  China codes case-insensitive; glued Asian regulation mark / number; Sword & Shield
+  "F 063/189"; number beats newest printing; frames merged on glare; `TCG_SCAN_DEBUG_LOG`.
+  Cases: ASR 063 FR, JTG 032 FR reverse, SSP 187 EN vs ASC 200, TWM 106 FR, SV6a 041 JP,
+  M6a 149 JP, 151C 030 CN.
+- [ ] Versions: server 0.21.0, Android 0.14.0. `.env.example`: `TCG_DB_POOL_SIZE`,
+  `TCG_DB_MAX_OVERFLOW`, `TCG_SCAN_DEBUG_LOG`.
+- [ ] User: switch CodeQL default setup off (Settings → Code security); real-phone scans of the
+  reported cards; glare option on reverse holos.
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.
