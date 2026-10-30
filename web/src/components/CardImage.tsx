@@ -15,6 +15,8 @@ type Props = {
   // Picture wider than tall (Riftbound battlefields): turned a quarter to fill the
   // portrait frame instead of being cropped.
   landscape?: boolean
+  // Small copy of the picture (lists, grids); the card page keeps the full one.
+  thumb?: boolean
   // Shown on the placeholder when there is no picture.
   game?: string
   setCode?: string | null
@@ -70,12 +72,18 @@ export function FlipIcon({ className = 'h-4 w-4' }: { className?: string }) {
   )
 }
 
+/** Link to the small copy of a card picture served by the API (other links unchanged). */
+function thumbUrl(url: string | null | undefined): string | null | undefined {
+  if (!url || !/^\/api\/printings\/\d+\/image(\?|$)/.test(url) || url.includes('face=back')) return url
+  return `${url}${url.includes('?') ? '&' : '?'}size=thumb`
+}
+
 // A landscape picture as wide as the frame is tall (88/63) and as tall as it is wide (63/88),
 // centered then turned a quarter clockwise.
 const TURNED = 'left-1/2 top-1/2 h-[71.59%] w-[139.68%] max-w-none -translate-x-1/2 -translate-y-1/2 rotate-90'
 
 /** Card picture at card proportions. Double-faced cards get a flip button (3D turn). */
-export function CardImage({ src, back, alt, className = '', faceClassName = '', flipOnClick = false, landscape = false, game, setCode, number }: Props) {
+export function CardImage({ src, back, alt, className = '', faceClassName = '', flipOnClick = false, landscape = false, thumb = false, game, setCode, number }: Props) {
   const { t } = useTranslation()
   const [flipped, setFlipped] = useState(false)
   // The back is only downloaded once someone asks for it.
@@ -115,7 +123,7 @@ export function CardImage({ src, back, alt, className = '', faceClassName = '', 
           className={`relative h-full w-full ${back ? 'transition-transform duration-500 transform-3d' : ''} ${flipped ? 'rotate-y-180' : ''} ${back && flipOnClick ? 'cursor-pointer' : ''}`}
           onClick={back && flipOnClick ? flip : undefined}
         >
-          {face(src, alt)}
+          {face(thumb ? thumbUrl(src) : src, alt)}
           {back && backWanted && face(back, `${alt} (${t('back')})`, 'rotate-y-180')}
         </div>
       </div>

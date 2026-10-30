@@ -32,12 +32,11 @@ class Condition(enum.StrEnum):
 
 class PriceSnapshot(Base):
     __tablename__ = "price_snapshot"
+    # The unique index starts with the printing: it serves printing lookups too.
     __table_args__ = (UniqueConstraint("printing_id", "finish", "date", "source"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    printing_id: Mapped[int] = mapped_column(
-        ForeignKey("printing.id", ondelete="CASCADE"), index=True
-    )
+    printing_id: Mapped[int] = mapped_column(ForeignKey("printing.id", ondelete="CASCADE"))
     finish: Mapped[str] = mapped_column(String(32))
     date: Mapped[dt.date] = mapped_column(Date, index=True)
     source: Mapped[str] = mapped_column(String(32))
@@ -55,7 +54,8 @@ class CollectionItem(TimestampMixin, Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    # Indexed by the unique constraint, which starts with it.
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
     printing_id: Mapped[int] = mapped_column(ForeignKey("printing.id"), index=True)
     finish: Mapped[str] = mapped_column(String(32))
     condition: Mapped[str] = mapped_column(String(2), default=Condition.NM)

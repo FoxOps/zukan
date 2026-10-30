@@ -39,9 +39,16 @@ _EXTENSIONS = {
 }
 _IMPORT_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".avif"}
 _MAX_IMAGE_BYTES = 15 * 1024 * 1024
-# Lossless scans (Sorcery PNGs are ~2 MB) are stored as WebP at this width.
-_REENCODE_ABOVE_BYTES = 1024 * 1024
+# JPEG and PNG scans are stored as WebP at most this wide (a third smaller for JPEGs,
+# far smaller for lossless PNGs).
+_REENCODE_TYPES = {".jpg", ".png"}
 _REENCODE_WIDTH = 745
+# Small copies for lists and grids, made on first request next to the full image.
+THUMB_WIDTH = 400
+THUMB_SUFFIX = ".thumb.webp"
+# Downloads cut short by a restart, removed by the image job after this long.
+_STALE_TMP_SECONDS = 3600
+_BATCH = 500
 FALLBACK_LANGUAGES = ("en", "ja")
 
 
@@ -112,15 +119,36 @@ def _copy_atomic(source: Path, target: Path) -> None:
     tmp.replace(target)
 
 
-def _shrink(data: bytes) -> bytes:
-    """Card-sized WebP version of a large scan."""
+def _shrink(data: bytes, width: int = _REENCODE_WIDTH, quality: int = 85) -> bytes:
+    """WebP version of a scan, at most `width` wide."""
     with Image.open(io.BytesIO(data)) as image:
-        if image.width > _REENCODE_WIDTH:
-            height = round(image.height * _REENCODE_WIDTH / image.width)
-            image = image.resize((_REENCODE_WIDTH, height), Image.Resampling.LANCZOS)
+        if image.mode not in ("RGB", "RGBA"):
+            # CMYK or palette scans: WebP stores RGB(A) only.
+            transparent = "A" in image.mode or "transparency" in image.info
+            image = image.convert("RGBA" if transparent else "RGB")
+        if image.width > width:
+            height = round(image.height * width / image.width)
+            image = image.resize((width, height), Image.Resampling.LANCZOS)
         out = io.BytesIO()
-        image.save(out, "WEBP", quality=88, method=4)
+        image.save(out, "WEBP", quality=quality, method=4)
         return out.getvalue()
+
+
+def _thumb(path: Path) -> Path:
+    target = path.with_name(path.name.split(".")[0] + THUMB_SUFFIX)
+    if not target.is_file() or target.stat().st_mtime < path.stat().st_mtime:
+        _write_atomic(target, _shrink(path.read_bytes(), THUMB_WIDTH, 80))
+    return target
+
+
+async def thumbnail(path: Path) -> Path:
+    """Small WebP copy of a cached card image (lists, grids), made once. Falls back to
+    the image itself when it cannot be read."""
+    try:
+        return await asyncio.to_thread(_thumb, path)
+    except OSError as exc:
+        log.warning("No thumbnail for %s: %s", path, exc)
+        return path
 
 
 async def download_image(
@@ -145,12 +173,12 @@ async def download_image(
     if extension is None or data is None:
         log.warning("Rejected image for printing %s (%s)", printing.id, content_type)
         return False
-    if len(data) > _REENCODE_ABOVE_BYTES:
+    if extension in _REENCODE_TYPES:
         try:
             data, extension = await asyncio.to_thread(_shrink, data), ".webp"
-        except OSError as exc:
-            log.warning("Unreadable image for printing %s: %s", printing.id, exc)
-            return False
+        except (OSError, ValueError) as exc:
+            # Kept as the source sent it: browsers may read what Pillow does not.
+            log.warning("Image of printing %s not converted to WebP: %s", printing.id, exc)
     relative = _relative_path(game_id, printing, lang, extension)
     await asyncio.to_thread(_write_atomic, image_root() / relative, data)
     _set_path(printing, lang, relative)
@@ -232,7 +260,8 @@ async def cache_images(
     session: AsyncSession, http: httpx.AsyncClient, game_id: str, concurrency: int = 4
 ) -> ImageReport:
     """Pre-fetch the default image (English, else Japanese, else any) of owned printings,
-    or of every printing when the provider sets `cache_all_images`."""
+    or of every printing when the provider sets `cache_all_images`. Printings are loaded
+    and fetched a batch at a time, so large catalogs do not sit in memory."""
     query = select(Printing).join(Card).where(Card.game_id == game_id).order_by(Printing.id)
     if not getattr(get_provider(game_id), "cache_all_images", False):
         owned = select(CollectionItem.printing_id).where(CollectionItem.quantity > 0)
@@ -240,8 +269,7 @@ async def cache_images(
     else:
         # Be gentle with servers that were not made for bulk downloads.
         concurrency = 2
-    printings = (await session.scalars(query)).all()
-    report = ImageReport(printings=len(printings))
+    report = ImageReport()
     semaphore = asyncio.Semaphore(concurrency)
 
     async def fetch(printing: Printing) -> None:
@@ -263,9 +291,6 @@ async def cache_images(
             else:
                 report.failed += 1
 
-    await asyncio.gather(*(fetch(p) for p in printings))
-    await session.commit()
-
     # Back faces of the same printings, and every set icon.
     async def asset(url: str | None, stem: str) -> bool:
         if not url or asset_file(stem) is not None:
@@ -275,20 +300,61 @@ async def cache_images(
         report.assets_failed += not stored
         return stored
 
-    backs = await asyncio.gather(
-        *(asset(p.attributes.get("back_image_url"), back_stem(game_id, p)) for p in printings)
-    )
-    report.backs = sum(backs)
+    last_id = 0
+    while True:
+        batch = (await session.scalars(query.where(Printing.id > last_id).limit(_BATCH))).all()
+        if not batch:
+            break
+        last_id = batch[-1].id
+        report.printings += len(batch)
+        await asyncio.gather(*(fetch(p) for p in batch))
+        backs = await asyncio.gather(
+            *(asset(p.attributes.get("back_image_url"), back_stem(game_id, p)) for p in batch)
+        )
+        report.backs += sum(backs)
+        await session.commit()
+        # Done with these objects: let them go.
+        session.expunge_all()
     sets = (await session.scalars(select(CardSet).where(CardSet.game_id == game_id))).all()
     icons = await asyncio.gather(*(asset(s.icon_url, set_icon_stem(s)) for s in sets))
     report.icons = sum(icons)
-    if report.missing and report.missing == len(printings):
+    if report.missing and report.missing == report.printings:
         log.warning(
             "No image source for any of %s %s printings: run the catalog job first",
-            len(printings),
+            report.printings,
             game_id,
         )
+    removed = await remove_orphans(session, game_id)
+    if removed:
+        log.info("Removed %s image files of %s printings gone from the catalog", removed, game_id)
     return report
+
+
+def _orphans(folder: Path, printing_ids: set[int], now: float) -> int:
+    removed = 0
+    for path in folder.glob("*/*"):
+        if not path.is_file():
+            continue
+        name = path.name
+        if name.endswith(".tmp"):
+            stale = now - path.stat().st_mtime > _STALE_TMP_SECONDS
+        else:
+            stem = name.split("-", 1)[0]
+            stale = stem.isdigit() and int(stem) not in printing_ids
+        if stale:
+            path.unlink(missing_ok=True)
+            removed += 1
+    return removed
+
+
+async def remove_orphans(session: AsyncSession, game_id: str) -> int:
+    """Delete cached card files (images, thumbnails, back faces) of printings gone from
+    the catalog, and downloads left half-written."""
+    folder = image_root() / game_id / layout.CARDS
+    if not folder.is_dir():
+        return 0
+    ids = set(await session.scalars(select(Printing.id).join(Card).where(Card.game_id == game_id)))
+    return await asyncio.to_thread(_orphans, folder, ids, time.time())
 
 
 def _index_folder(folder: Path) -> dict[str, Path]:

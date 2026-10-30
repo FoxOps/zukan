@@ -19,6 +19,26 @@ def http_client(timeout: float = 60) -> httpx.AsyncClient:
     )
 
 
+_shared: tuple[asyncio.AbstractEventLoop, httpx.AsyncClient] | None = None
+
+
+def shared_http_client() -> httpx.AsyncClient:
+    """One client for downloads made while answering API requests (card images, set
+    icons): its connections are kept and reused instead of a new client per request."""
+    global _shared
+    loop = asyncio.get_running_loop()
+    if _shared is None or _shared[0] is not loop or _shared[1].is_closed:
+        _shared = (loop, http_client(timeout=20))
+    return _shared[1]
+
+
+async def close_shared_http_client() -> None:
+    global _shared
+    if _shared is not None and _shared[0] is asyncio.get_running_loop():
+        await _shared[1].aclose()
+    _shared = None
+
+
 async def _answered(_: httpx.Response) -> None:
     await progress()
 

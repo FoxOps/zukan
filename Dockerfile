@@ -28,6 +28,9 @@ ENV ZUKAN_VERSION=$ZUKAN_VERSION
 RUN useradd --create-home tcg && mkdir -p /data/images && chown tcg /data/images
 COPY deploy/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 ENV TCG_IMAGE_DIR=/data/images TCG_IMPORT_DIR=/data/import TCG_WEB_DIR=/app/web
+# No line per request in the log (a reverse proxy usually keeps one); set
+# UVICORN_ACCESS_LOG=true in .env to get them back.
+ENV UVICORN_ACCESS_LOG=false
 
 EXPOSE 8000
 # Starts as root to fix data folder ownership, then runs as `tcg`.

@@ -152,7 +152,7 @@ export function CatalogSearch({ game }: { game: string }) {
                   >
                     <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => go(card)}>
                       <span className="w-9 shrink-0">
-                        <CardImage src={card.image} alt="" landscape={card.orientation === 'landscape'} />
+                        <CardImage thumb src={card.image} alt="" landscape={card.orientation === 'landscape'} />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium">

@@ -97,11 +97,16 @@ class Printing(Base):
     """A card as printed in one set (one edition)."""
 
     __tablename__ = "printing"
-    __table_args__ = (UniqueConstraint("set_id", "external_id"),)
+    __table_args__ = (
+        UniqueConstraint("set_id", "external_id"),
+        # Language filter of searches (`languages @> {fr}`).
+        Index("ix_printing_languages", "languages", postgresql_using="gin"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     card_id: Mapped[int] = mapped_column(ForeignKey("card.id", ondelete="CASCADE"), index=True)
-    set_id: Mapped[int] = mapped_column(ForeignKey("card_set.id", ondelete="CASCADE"), index=True)
+    # Indexed by the unique constraint, which starts with it.
+    set_id: Mapped[int] = mapped_column(ForeignKey("card_set.id", ondelete="CASCADE"))
     external_id: Mapped[str] = mapped_column(String(128))
     collector_number: Mapped[str | None] = mapped_column(String(32), index=True)
     rarity: Mapped[str | None] = mapped_column(String(64))

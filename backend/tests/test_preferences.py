@@ -2,6 +2,7 @@
 Sorcery Cardmarket prices and game symbols."""
 
 import io
+import os
 from decimal import Decimal
 
 import httpx
@@ -125,7 +126,9 @@ async def test_image_in_user_language_with_fallbacks(client, session, alice):
 
         def color(response) -> tuple:
             assert response.status_code == 200, response.text
-            return Image.open(io.BytesIO(response.content)).getpixel((0, 0))
+            # Stored as lossy WebP: near the source color.
+            pixel = Image.open(io.BytesIO(response.content)).convert("RGB").getpixel((0, 0))
+            return tuple(round(c / 32) * 32 if c < 240 else 255 for c in pixel)
 
         # German: no scan, English. French: missing on the server, English too.
         assert color(await client.get(url, params={"lang": "de"}, headers=alice)) == (255, 0, 0)
@@ -159,8 +162,7 @@ async def test_image_in_user_language_with_fallbacks(client, session, alice):
     assert shown["image"].endswith("?lang=fr")
 
 
-async def test_sorcery_images_job_caches_every_printing(session, alice, monkeypatch):
-    monkeypatch.setattr(images, "_REENCODE_ABOVE_BYTES", 100)
+async def test_sorcery_images_job_caches_every_printing(client, session, alice):
     big = png(width=900)
     with respx.mock as router:
         route = router.get(url__startswith=IMAGE_URL).respond(
@@ -179,6 +181,23 @@ async def test_sorcery_images_job_caches_every_printing(session, alice, monkeypa
     stored = get_settings().image_dir / p.image_paths["en"]
     assert stored.suffix == ".webp"
     assert Image.open(stored).width == images._REENCODE_WIDTH
+
+    # Lists ask for a small copy, made once next to the image.
+    response = await client.get(
+        f"/api/printings/{p.id}/image", params={"size": "thumb"}, headers=alice
+    )
+    assert response.status_code == 200
+    assert Image.open(io.BytesIO(response.content)).width == images.THUMB_WIDTH
+    assert stored.with_name(f"{p.id}-en{images.THUMB_SUFFIX}").is_file()
+
+    # Files of printings gone from the catalog, and stale partial downloads, are removed.
+    orphan = stored.with_name("999999-en.webp")
+    orphan.write_bytes(b"x")
+    partial = stored.with_name(f"{p.id}-fr.webp.tmp")
+    partial.write_bytes(b"x")
+    os.utime(partial, (0, 0))
+    assert await images.remove_orphans(session, "sorcery") == 2
+    assert stored.is_file() and not orphan.exists() and not partial.exists()
 
 
 CM_PRODUCTS = [
