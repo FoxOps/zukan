@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="TCG_", env_file=".env", extra="ignore")
 
     database_url: str = "postgresql+asyncpg://tcg:tcg@localhost:5432/tcg"
+    # Database connections kept open per process (API and worker each have their own),
+    # and extra ones opened under load then closed.
+    db_pool_size: int = 5
+    db_max_overflow: int = 5
     secret_key: str = "change-me"
 
     # Public URL of the site. Web UI is served at `/`, API at `/api`.
@@ -80,6 +84,10 @@ class Settings(BaseSettings):
     tcgapi_eu_daily_requests: int = 9000
     # CardNexus API requests a day (one per game and run; their limit is 60 a minute).
     cardnexus_daily_requests: int = 1000
+
+    # Log the text the scanner app sends and what was read from it (no image, no user),
+    # to reproduce a card that does not scan. Off by default.
+    scan_debug_log: bool = False
 
 
 @lru_cache

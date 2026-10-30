@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, status
@@ -5,10 +6,13 @@ from pydantic import BaseModel, Field, StringConstraints
 
 from app.api.catalog import PrintingOut, describe_printings, load_names, show_card
 from app.api.deps import CurrentUser, SessionDep
+from app.core.config import get_settings
 from app.core.http import http_client
 from app.games.base import OcrLine, registry
 from app.models import Printing
 from app.services import identify, lookup
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/scan", tags=["scan"])
 
@@ -126,6 +130,24 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
             )
         )
     hints = result.hints
+    if get_settings().scan_debug_log:
+        read = [(line.text, line.left, line.top) for line in lines]
+        # Warning level: shown with the server's default logging, only when asked for.
+        log.warning(
+            "scan game=%s lines=%r -> game=%s code=%s number=%s lang=%s name=%r found=%s",
+            body.game,
+            read,
+            result.game_id,
+            hints.set_code,
+            hints.collector_number,
+            hints.lang,
+            hints.name,
+            [
+                (c.card.name, [p.id for p in c.card.printings if p.id in c.printing_ids[:1]])
+                for c in result.candidates[:3]
+                if c.card
+            ],
+        )
     found_status: Literal["found", "not_found", "other_game", "not_a_card"]
     if candidates:
         found_status = "found"

@@ -13,7 +13,7 @@ from datetime import date
 
 from sqlalchemy import Float, and_, case, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import contains_eager, selectinload
 
 from app.games.base import GameProvider, OcrHints, OcrLine, registry
 from app.games.ocr import chinese_variants, has_cjk
@@ -71,17 +71,26 @@ async def _exact(session: AsyncSession, game_id: str, hints: OcrHints) -> list[P
         if printings:
             return printings
     code = hints.set_code.lower()
-    return list(
-        await session.scalars(
-            select(Printing)
-            .join(CardSet)
-            .where(
-                CardSet.game_id == game_id,
-                or_(func.lower(CardSet.code) == code, func.lower(CardSet.external_id) == code),
-                number_matches(Printing.collector_number, hints.collector_number),
+    codes = [code]
+    if len(code) >= 3 and code[0] in "defghijklm" and code[1].isalpha():
+        # The regulation mark read glued to the code ("HSV6a" for "H SV6a"); tried second
+        # so a real four-letter code still wins.
+        codes.append(code[1:])
+    for code in codes:
+        printings = list(
+            await session.scalars(
+                select(Printing)
+                .join(CardSet)
+                .where(
+                    CardSet.game_id == game_id,
+                    or_(func.lower(CardSet.code) == code, func.lower(CardSet.external_id) == code),
+                    number_matches(Printing.collector_number, hints.collector_number),
+                )
             )
         )
-    )
+        if printings:
+            return printings
+    return []
 
 
 async def _by_number(
@@ -93,6 +102,7 @@ async def _by_number(
         select(Printing)
         .join(CardSet)
         .where(CardSet.game_id == game_id, number_matches(Printing.collector_number, number))
+        .options(contains_eager(Printing.set))
     )
     if lang:
         query = query.order_by(Printing.languages.contains([lang]).desc())
@@ -181,6 +191,9 @@ async def _identify_game(
         similarity = await _name_similarity(session, provider.id, names, cards) if cards else {}
         for printing in numbered:
             score = similarity.get(printing.card_id, 0)
+            if not _fits_total(printing, hints.printed_total):
+                # "063/189" cannot be in a 100-card set: other prints of the same name.
+                score -= 0.2
             if score >= NUMBER_NAME_SIMILARITY:
                 # The number read and a fair name: above any name-only match ("M Camerupt
                 # ex" + 022 is Mega Camerupt ex 022, not the old M Camerupt-EX).
@@ -197,6 +210,15 @@ async def _identify_game(
             if card_id not in found and score >= MIN_SIMILARITY:
                 add(card_id, 0.9 * score, "name", [])
     return hints, found
+
+
+def _fits_total(printing: Printing, printed_total: str | None) -> bool:
+    """Whether the set can hold the printed count ("063/189"): its catalog total (secret
+    rares included) is at least the printed one. Unknown totals fit."""
+    total = printing.set.total if "set" in printing.__dict__ else None
+    if not (printed_total and printed_total.isdigit() and total):
+        return True
+    return total >= int(printed_total)
 
 
 def _printing_order(printing: Printing, lang: str | None) -> tuple:

@@ -13,7 +13,13 @@ from app.core.config import get_settings
 
 @lru_cache
 def get_engine() -> AsyncEngine:
-    return create_async_engine(get_settings().database_url, pool_pre_ping=True)
+    settings = get_settings()
+    return create_async_engine(
+        settings.database_url,
+        pool_pre_ping=True,
+        pool_size=settings.db_pool_size,
+        max_overflow=settings.db_max_overflow,
+    )
 
 
 @lru_cache

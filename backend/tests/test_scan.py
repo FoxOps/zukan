@@ -444,3 +444,60 @@ def test_pokemon_parser_reads_mega_evolution_cards():
     assert pokemon.parse_ocr(ocr("Pikachu", "TG05/TG30")).collector_number == "TG05"
     # A four-letter code without a regulation mark letter in front stays whole.
     assert pokemon.parse_ocr(ocr("Pikachu", "G SVPX EN 001/010")).set_code == "SVPX"
+
+
+def boxed(*rows: tuple[str, float]) -> list[OcrLine]:
+    """Lines with their top position (fraction of the text box), as the app sends them."""
+    return [OcrLine(text, 0.1, top) for text, top in rows]
+
+
+def test_pokemon_parser_reported_scans():
+    from app.games.pokemon.provider import CHINA, region_of
+
+    pokemon = get_provider("pokemon")
+    # The weakness "x2" sits in the bottom quarter above the code line: never the code.
+    twm = pokemon.parse_ocr(
+        boxed(("Amphinobi-ex PV 310", 0.05), ("x2", 0.8), ("H TWM FR 106/167", 0.95))
+    )
+    assert (twm.set_code, twm.lang, twm.collector_number) == ("TWM", "fr", "106")
+    jtg = pokemon.parse_ocr(
+        boxed(("Artikodin PV 120", 0.05), ("x2", 0.82), ("I JTG FR 032/159", 0.96))
+    )
+    assert (jtg.set_code, jtg.lang, jtg.collector_number) == ("JTG", "fr", "032")
+    # Mainland card, code read in lower case, one Traditional-looking glyph: still China.
+    cn = pokemon.parse_ocr(
+        boxed(("尼多娜", 0.05), ("HP 90 宝可梦 進化", 0.1), ("x2", 0.8), ("151c 030/151", 0.95))
+    )
+    assert (cn.set_code, cn.lang, cn.collector_number) == ("151C", "zh-hans", "030")
+    assert region_of(cn) == CHINA
+    # Sword & Shield: no set code, the printed count and French words tell.
+    asr = pokemon.parse_ocr(
+        boxed(("Baudrive PV 70", 0.05), ("Faiblesse x2 Retraite", 0.8), ("F 063/189", 0.95))
+    )
+    assert (asr.set_code, asr.collector_number, asr.printed_total, asr.lang) == (
+        None,
+        "063",
+        "189",
+        "fr",
+    )
+    # Regulation mark glued to an Asian code, and the code glued to the number.
+    for text, code in (("HSV6a 041/064", "HSV6a"), ("SV6a041/064", "SV6a")):
+        sv6a = pokemon.parse_ocr(boxed(("ゾウドウ", 0.05), ("x2", 0.8), (text, 0.95)))
+        assert (sv6a.set_code, sv6a.collector_number) == (code, "041")
+    # Background text read below the card: the number is found above the bottom quarter.
+    surfer = pokemon.parse_ocr(
+        boxed(("Surfer", 0.05), ("Supporter", 0.1), ("SSP EN 187/191", 0.6), ("desk", 0.98))
+    )
+    assert surfer.collector_number == "187"
+    # "PV" read in any case.
+    assert pokemon.parse_ocr(ocr("Mewtwo", "pv 120", "x2")).lang == "fr"
+
+
+def test_chinese_script_by_majority():
+    from app.games.ocr import chinese_script
+
+    # Mostly Simplified with one Traditional glyph read by mistake.
+    assert chinese_script("尼多娜 宝可梦 进化 能量 進") == "zh-hans"
+    assert chinese_script("尼多娜 寶可夢 進化 能量") == "zh-hant"
+    # Shared characters only: Simplified (mainland) by default.
+    assert chinese_script("尼多娜") == "zh-hans"
