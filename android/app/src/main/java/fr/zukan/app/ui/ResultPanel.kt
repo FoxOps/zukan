@@ -49,6 +49,22 @@ import fr.zukan.app.data.PrintingOut
 import fr.zukan.app.data.Settings
 import java.util.Locale
 
+/** A finish code of [finishes] matching the light's guess ("holo": holo or foil). */
+fun guessedFinish(guess: String?, finishes: List<String>): String? = when (guess) {
+    "holo" -> listOf("holo", "foil").firstOrNull { it in finishes }
+    "reverse" -> "reverse".takeIf { it in finishes }
+    else -> null
+}
+
+private val LANG_PARAM = Regex("""([?&])lang=[^&]*&?""")
+
+/** A card picture link of the API in [lang]: `lang=` set or replaced. */
+fun withImageLanguage(link: String, lang: String): String {
+    if (!link.contains("/image")) return link
+    val base = link.replace(LANG_PARAM) { it.groupValues[1] }.trimEnd('?', '&')
+    return base + (if (base.contains('?')) "&" else "?") + "lang=$lang"
+}
+
 fun languageName(code: String): String =
     Locale.forLanguageTag(code).getDisplayName(Locale.getDefault()).ifEmpty { code }
 
@@ -82,10 +98,15 @@ fun ResultPanel(
     val finishes = printing.finishes.ifEmpty { game?.finishes?.map { it.code } ?: emptyList() }
     // Languages the printing exists in (all of the game's when the catalog does not say).
     val languages = printing.languages.ifEmpty { game?.languages ?: listOf("en") }
-    // Defaults: detected language, else preferred, else the printing's first language.
-    val defaultLanguage = listOfNotNull(result.detected.lang, settings.language).firstOrNull { it in languages } ?: languages.first()
+    // Defaults: the copy opened from the collection, else detected language, else
+    // preferred, else the printing's first language.
+    val defaultLanguage = listOfNotNull(state.language, result.detected.lang, settings.language).firstOrNull { it in languages } ?: languages.first()
+    // The copy's finish, else the light's guess (experimental), else the finish of the last
+    // copies added, else the first.
+    val guessed = guessedFinish(state.finishGuess, finishes)
+    val defaultFinish = listOfNotNull(state.finish, guessed, state.lastFinish).firstOrNull { it in finishes } ?: finishes.firstOrNull() ?: ""
 
-    var finish by remember(printing.id) { mutableStateOf(finishes.firstOrNull() ?: "") }
+    var finish by remember(printing.id) { mutableStateOf(defaultFinish) }
     var condition by remember(printing.id) { mutableStateOf(settings.condition) }
     var language by remember(printing.id) { mutableStateOf(defaultLanguage) }
     var quantity by remember(printing.id) { mutableIntStateOf(1) }
@@ -112,7 +133,8 @@ fun ResultPanel(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             CardPicture(
-                printing.image,
+                // In the language chosen below (the server falls back to another one).
+                printing.image?.let { withImageLanguage(it, language) },
                 imageUrl,
                 imageLoader,
                 Modifier.width(120.dp),
@@ -195,6 +217,13 @@ fun ResultPanel(
                 SectionLabel(stringResource(R.string.finish))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     finishes.forEach { f -> PillChip(finishName(f), f == finish, { finish = f }) }
+                }
+                if (guessed != null && finish == guessed && state.finish == null) {
+                    Text(
+                        stringResource(R.string.finish_guessed),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

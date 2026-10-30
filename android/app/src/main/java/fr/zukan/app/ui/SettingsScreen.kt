@@ -27,18 +27,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import fr.zukan.app.BuildConfig
 import fr.zukan.app.R
+import fr.zukan.app.data.AppLanguage
 import fr.zukan.app.data.OcrScript
 import fr.zukan.app.data.Settings
 import java.net.URI
 
 /** Bottom sheets opened from the settings rows. */
-private enum class SettingsSheet { SCRIPT, AFTER_ADD, DEFAULTS, SOURCES, MAIN_SOURCE, APP }
+private enum class SettingsSheet { SCRIPT, AFTER_ADD, DEFAULTS, FINISH_GUESS, GAMES, LANGUAGE, SOURCES, MAIN_SOURCE, APP }
 
 @Composable
 fun SettingsScreen(
@@ -54,6 +56,9 @@ fun SettingsScreen(
     val shownSources = sources.filter { it.id in state.priceSources }
     val mainSource = sources.firstOrNull { it.id == state.priceSources.firstOrNull() }
     val defaultLanguage = settings.language?.let { languageName(it) } ?: stringResource(R.string.printing_language)
+    val context = LocalContext.current
+    val interfaceLanguage = AppLanguage.effective(context)
+    val shownGames = state.catalog.takeIf { state.catalogGames != null }?.joinToString(", ") { it.name } ?: stringResource(R.string.all_games)
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp),
@@ -72,7 +77,19 @@ fun SettingsScreen(
                 { sheet = SettingsSheet.AFTER_ADD },
                 divider = true,
             )
-            SettingsRow(R.drawable.ic_card, stringResource(R.string.default_values), "${settings.condition} · $defaultLanguage", { sheet = SettingsSheet.DEFAULTS })
+            SettingsRow(R.drawable.ic_card, stringResource(R.string.default_values), "${settings.condition} · $defaultLanguage", { sheet = SettingsSheet.DEFAULTS }, divider = true)
+            SettingsRow(
+                R.drawable.ic_spark,
+                stringResource(R.string.finish_guess),
+                stringResource(if (settings.glareFinish) R.string.finish_guess_on else R.string.finish_guess_off),
+                { sheet = SettingsSheet.FINISH_GUESS },
+            )
+        }
+
+        SectionLabel(stringResource(R.string.group_display), Modifier.padding(top = 16.dp))
+        SettingsGroup {
+            SettingsRow(R.drawable.ic_search, stringResource(R.string.games_shown), shownGames, { sheet = SettingsSheet.GAMES }, divider = true)
+            SettingsRow(R.drawable.ic_globe, stringResource(R.string.interface_language), languageName(interfaceLanguage), { sheet = SettingsSheet.LANGUAGE })
         }
 
         if (sources.size > 1) {
@@ -141,6 +158,41 @@ fun SettingsScreen(
                             { session.updateSettings { it.copy(language = l) } },
                         )
                     }
+                }
+            }
+        }
+        SettingsSheet.FINISH_GUESS -> ZukanSheet(stringResource(R.string.finish_guess), close, subtitle = stringResource(R.string.finish_guess_help)) {
+            Column {
+                ChoiceRow(stringResource(R.string.finish_guess_off), !settings.glareFinish, { session.updateSettings { it.copy(glareFinish = false) } })
+                ChoiceRow(stringResource(R.string.finish_guess_on), settings.glareFinish, { session.updateSettings { it.copy(glareFinish = true) } })
+            }
+        }
+        SettingsSheet.GAMES -> ZukanSheet(stringResource(R.string.games_shown), close, subtitle = stringResource(R.string.games_shown_help)) {
+            Column {
+                ChoiceRow(stringResource(R.string.all_games), state.catalogGames == null, { session.setCatalogGames(null) })
+                state.games.forEach { g ->
+                    val shown = state.catalogGames?.contains(g.id) ?: true
+                    ChoiceRow(
+                        g.name,
+                        shown,
+                        {
+                            val current = state.catalogGames ?: state.games.map { it.id }
+                            val next = if (g.id in current) current - g.id else current + g.id
+                            // One game at least; every game is the same as all.
+                            if (next.isNotEmpty()) session.setCatalogGames(next.takeIf { it.size < state.games.size })
+                        },
+                        // The last game shown stays.
+                        enabled = !(shown && state.catalogGames?.size == 1),
+                        role = Role.Checkbox,
+                    )
+                }
+            }
+        }
+        SettingsSheet.LANGUAGE -> ZukanSheet(stringResource(R.string.interface_language), close, subtitle = stringResource(R.string.interface_language_help)) {
+            Column {
+                AppLanguage.SUPPORTED.forEach { lang ->
+                    // Saved on the account first; the app follows the account (see MainActivity).
+                    ChoiceRow(languageName(lang), interfaceLanguage == lang, { session.setServerLanguage(lang) })
                 }
             }
         }

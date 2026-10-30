@@ -44,6 +44,7 @@ private val FINISH_GRADIENTS = mapOf(
 private val LANGUAGE_FLAGS = mapOf(
     "en" to "GB", "fr" to "FR", "de" to "DE", "it" to "IT", "es" to "ES", "pt" to "PT",
     "ja" to "JP", "ko" to "KR", "zh-hans" to "CN", "zh-hant" to "TW", "ru" to "RU",
+    "th" to "TH", "id" to "ID",
 )
 
 /** Flag emoji of a card language (regional indicator letters), null when unknown. */

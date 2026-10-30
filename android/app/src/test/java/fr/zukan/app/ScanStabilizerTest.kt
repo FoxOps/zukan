@@ -1,5 +1,6 @@
 package fr.zukan.app
 
+import fr.zukan.app.data.OcrLineIn
 import fr.zukan.app.scan.ScanStabilizer
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -55,5 +56,40 @@ class ScanStabilizerTest {
         val glare = listOf("Mega Cam", "Volc", "022/132")
         val stabilizer = ScanStabilizer(framesNeeded = 3)
         assertEquals(listOf(false, false, true, false), stabilizer.run(clear, glare, clear, glare))
+    }
+
+    @Test
+    fun glareHidingTheNumberDoesNotBreakTheRun() {
+        // Reverse holo: the number line comes and goes, the rest of the text changes.
+        val clear = listOf("Artikodin PV 120", "Rafale glacée 60", "I JTG FR 032/159")
+        val glare = listOf("Artik", "glac 60")
+        val stabilizer = ScanStabilizer(framesNeeded = 3)
+        assertEquals(listOf(false, false, false, true), stabilizer.run(clear, glare, clear, clear))
+    }
+
+    @Test
+    fun anotherNumberIsAnotherCard() {
+        val articuno = listOf("Artikodin PV 120", "I JTG FR 032/159")
+        val drifloon = listOf("Baudrive PV 70", "F 063/189")
+        val stabilizer = ScanStabilizer(framesNeeded = 2)
+        assertEquals(listOf(false, true, false, true), stabilizer.run(articuno, articuno, drifloon, drifloon))
+    }
+
+    @Test
+    fun waitsAWhileForTheNumber() {
+        val nameOnly = listOf("Surfer", "Supporter", "Draw cards until you have 5")
+        val stabilizer = ScanStabilizer(framesNeeded = 2)
+        val waited = List(ScanStabilizer.NUMBER_WAIT) { false }
+        assertEquals(listOf(false) + waited + true, stabilizer.run(*Array(ScanStabilizer.NUMBER_WAIT + 2) { nameOnly }))
+    }
+
+    @Test
+    fun numberLineTakenFromARecentFrame() {
+        val now = listOf(OcrLineIn("Surfer", 0f, 0f))
+        val earlier = listOf(OcrLineIn("Surfer", 0f, 0f), OcrLineIn("SSP EN 187/191", 0f, 0.95f))
+        val sent = ScanStabilizer.withNumberLine(now, listOf(earlier, now))
+        assertEquals(listOf("Surfer", "SSP EN 187/191"), sent.map { it.text })
+        // Already there: unchanged.
+        assertEquals(earlier, ScanStabilizer.withNumberLine(earlier, listOf(now)))
     }
 }

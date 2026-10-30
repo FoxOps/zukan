@@ -18,7 +18,7 @@ android {
         targetSdk = 37
         // CI passes -PversionCode / -PversionName (prod: from the release version).
         versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
-        versionName = providers.gradleProperty("versionName").orNull ?: "0.13.0"
+        versionName = providers.gradleProperty("versionName").orNull ?: "0.14.0"
         resValue("string", "app_name", "Zukan")
         redirectScheme("fr.zukan.app")
     }
@@ -40,6 +40,9 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("release")
+            // Phones only (ARM): the text recognition libraries of the x86 emulators add
+            // some 23 MB. Debug builds keep every ABI for emulators.
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
         }
         // Dev builds install next to the released app ("Zukan dev").
         debug {
@@ -74,7 +77,6 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

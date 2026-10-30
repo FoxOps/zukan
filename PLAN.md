@@ -1848,31 +1848,81 @@ Report against server 0.20.1 / app 0.12.0. Branch `2026-10-29-001-project-files-
 
 ## Report 2026-10-30 (server 0.21.0, Android 0.14.0)
 Report against server 0.20.2 / app 0.13.0. Branch `2026-10-30-000-resources-android-parity-scan-fixes`.
-- [ ] CodeQL: advanced setup workflow `.github/workflows/codeql.yml`, on pull requests to main +
-  weekly scan of main (keeps alerts closing and a PR baseline), no scan on merge.
-- [ ] Server resources: WebP for every cached image, `size=thumb` thumbnails (lists, grids),
-  immutable image caching, orphan / `.tmp` image cleanup, shared HTTP client for image fetches,
-  batched image caching, gzip, no uvicorn access log, slower worker polling, CardNexus feed
-  streamed to disk, indexes (`collection_item` owned, `printing.languages`, redundant price index
-  dropped), unowned prices updated in place, DB pool variables, compose log rotation +
-  healthchecks + Postgres settings, web locales lazy-loaded.
-- [ ] Android bugs: language flags back in Collection; opening an item shows its language
-  (image, language and finish pre-selected).
-- [ ] Android resources: one image loader with caches, thumbnails in lists, ARM-only release
-  APK, camera released off the Scan tab and under the result sheet, OCR capped, Asian models
-  loaded lazily, ±1 updates the row in place, real paging, HTTP cache.
-- [ ] Android parity: collection filters set / finish / colors, image grid, CSV export (share);
-  settings "games shown" (scanner + search) and interface language, both synced with the server.
-- [ ] Android experimental glare finish guess (opt-in setting) + last finish remembered.
-- [ ] Scanner: weakness "x2" no longer read as set code; Simplified / Traditional by majority;
-  China codes case-insensitive; glued Asian regulation mark / number; Sword & Shield
-  "F 063/189"; number beats newest printing; frames merged on glare; `TCG_SCAN_DEBUG_LOG`.
-  Cases: ASR 063 FR, JTG 032 FR reverse, SSP 187 EN vs ASC 200, TWM 106 FR, SV6a 041 JP,
-  M6a 149 JP, 151C 030 CN.
-- [ ] Versions: server 0.21.0, Android 0.14.0. `.env.example`: `TCG_DB_POOL_SIZE`,
-  `TCG_DB_MAX_OVERFLOW`, `TCG_SCAN_DEBUG_LOG`.
-- [ ] User: switch CodeQL default setup off (Settings → Code security); real-phone scans of the
-  reported cards; glare option on reverse holos.
+- [x] CodeQL: advanced setup `.github/workflows/codeql.yml` (actions, javascript-typescript,
+  python, java-kotlin built with `compileDebugKotlin`): pull requests to main + weekly scan of
+  main on Mondays (closes fixed alerts, PR baseline), none on merge; manual run possible.
+- [x] Scanner (server):
+  - The weakness "x2" line (bottom quarter, above the code line) was read as the set code and
+    hid the real one ("TWM FR", "151C", "SV6a"): `x2` never a code, and a more telling code form
+    ("CODE LANG", "CODE number") wins over a lone code whatever the line order. Cause of TWM 106
+    FR wrong language / set, 151C seen as Taiwan (a set code + Chinese meant Asia), part of ASR,
+    SV6a.
+  - Simplified / Traditional by majority of script-specific characters (`ocr.chinese_script`),
+    not "one character changes"; China codes case-insensitive ("151c" → "151C").
+  - Asian codes with the regulation mark glued ("HSV6a", "JM6a": identify retries without it) or
+    glued to the number ("SV6a041/064").
+  - Collector number searched in every line when the bottom quarter has none (background text
+    stretches the text box); printed count kept (`OcrHints.printed_total`): numbered printings
+    of sets too small for it ("063/189") score lower.
+  - Language from "PV"/"KP" in any case, then weakness / resistance / retreat words (fr, de, it,
+    es, pt, en) for cards without a printed language code (Sword & Shield).
+  - `TCG_SCAN_DEBUG_LOG=true`: text received from the app and what was read / found, logged.
+  - Replay of simulated readings against the local catalog (read only): ASR 063, JTG 032,
+    SSP 187 (not ASC 200), TWM 106 FR, SV6a 041 (with "HSV6a" and "SV6a041/064"), M6a 149,
+    151C 030 (China game, also with every game).
+- [x] Scanner (app): frames where glare hides the collector number neither count nor break the
+  run; another number means another card; a steady card waits up to 3 frames for its number;
+  the number line of a recent frame is added when the sent frame lacks it; an Asian set code
+  read by the Latin model starts the Asian models; after 2 cards not found the tips mention
+  tilting holo cards and the torch (when there is one, off). JTG 032 FR reverse "not detected
+  at all": most likely the old run rule (3 similar frames in a row) never met under reverse
+  holo glare; to check on a phone.
+- [x] Experimental finish guess (setting, off by default): share of near-white pixels in the art
+  window vs the rest of the card over the last 8 frames (`scan/GlareMeter`, Y plane, 48x48
+  grid); holo / reverse pre-selected with "guessed (experimental): check it". Last finish
+  added is pre-selected for the next card of a batch.
+- [x] Server resources:
+  - Images: every JPEG / PNG stored as WebP (≤745 px, q85; kept as sent when Pillow cannot read
+    it); `?size=thumb` 400 px WebP thumbnails made once next to the image (web lists, grids,
+    dashboard, finance, search; Android lists and grid); image job loads printings 500 at a
+    time and removes files of printings gone from the catalog and `.tmp` older than an hour.
+    Cache-Control stays 7 days, not immutable: a fallback-language picture can be replaced
+    under the same link.
+  - One shared HTTP client for card pictures, back faces and set icons fetched by the API.
+  - Gzip for JSON, CSV and web files (not pictures): `TextCompression` middleware.
+  - CardNexus feeds streamed to disk and checked from the file (no 400 MB in RAM).
+  - Indexes (migration `f3a5c7e9b124`): redundant `ix_price_snapshot_printing_id` (15 MB on the
+    test service), `ix_printing_set_id`, `ix_collection_item_user_id` dropped (their unique
+    indexes start with the column); GIN `ix_printing_languages` for the language filter.
+  - `TCG_DB_POOL_SIZE` / `TCG_DB_MAX_OVERFLOW` (5 / 5, overflow was 10).
+  - Image: `UVICORN_ACCESS_LOG=false` (one log line per request gone; settable in .env).
+  - Compose: json-file log rotation (3 × 10 MB) on every service, API healthcheck on
+    `/api/health` (120 s start period for migrations), worker waits for a healthy API,
+    commented `mem_limit` examples.
+  - Web: only the active locale is downloaded (fr/de/es chunks, ~11 kB gzip each).
+  - Not done: unowned prices updated in place (charts read dated rows, little gain with
+    Postgres MVCC); slower worker / load polling (one small query every few seconds; the
+    maintenance window tests rely on the sampling); Postgres tuning (defaults fit a small host).
+- [x] Android bugs: language flag back on collection rows (and grid tiles); a copy opened from
+  the collection shows its picture in its language and pre-selects its language and finish
+  (the result panel picture also follows the language picked).
+- [x] Android resources: image memory (15 %) and disk (100 MB) caches kept across logins,
+  thumbnails in lists; release APK ARM only (arm64-v8a, armeabi-v7a); no camera behind a card
+  opened from the collection or search; OCR at most ~6 frames a second; no turned re-reads
+  when nothing is in view; Asian models loaded one by one when first needed; ±1 and undo
+  update the row in place; real paging (next page appended, no 500-row cap); unused
+  navigation-compose removed.
+- [x] Android parity (chosen scope): collection filters set / finish / colors (at least one /
+  exactly), picture grid (remembered), CSV export through the share sheet; settings "Games
+  shown" (search and scanner) and interface language, both stored on the account (shared with
+  the web UI, read again when the app comes back to the front); signed in, the app always shows
+  the account's language, never the phone's. EN/FR/DE/ES strings.
+- [x] Versions: server 0.21.0 (migration, scanner, resources), Android 0.14.0. `.env.example`:
+  `TCG_DB_POOL_SIZE`, `TCG_DB_MAX_OVERFLOW`, `TCG_SCAN_DEBUG_LOG`, `UVICORN_ACCESS_LOG`, user
+  agent 0.21.0. Web API types regenerated.
+- [ ] User: switch CodeQL "default setup" off (Settings → Code security), or the advanced
+  workflow fails to upload; real-phone scans of the reported cards (with
+  `TCG_SCAN_DEBUG_LOG=true` for the ones that still fail); finish guess on holo / reverse holo.
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.

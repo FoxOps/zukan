@@ -12,9 +12,11 @@ import fr.zukan.app.data.CardSummaryOut
 import fr.zukan.app.data.HintsOut
 import fr.zukan.app.data.IdentifyIn
 import fr.zukan.app.data.IdentifyOut
+import fr.zukan.app.data.ItemOut
 import fr.zukan.app.data.OcrLineIn
 import fr.zukan.app.data.PrintingOut
 import fr.zukan.app.data.userMessage
+import fr.zukan.app.scan.GlareMeter
 import fr.zukan.app.scan.ScanStabilizer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +28,10 @@ enum class Phase { SCANNING, IDENTIFYING, RESULT, NOT_FOUND, ERROR }
 
 data class Undoable(val transactionId: Int, val text: String)
 
+/** A stock change: lists of owned cards update [item] in place when they show it, else
+ * reload ([item] null: undo, or unknown). */
+data class StockChange(val version: Int = 0, val item: ItemOut? = null)
+
 data class ScanState(
     val phase: Phase = Phase.SCANNING,
     val result: IdentifyOut? = null,
@@ -36,8 +42,17 @@ data class ScanState(
     // Why identification failed (phase ERROR): network, server...
     val error: String? = null,
     val undo: Undoable? = null,
-    // Bumped after every stock change, so lists of owned cards reload.
-    val stockVersion: Int = 0,
+    // Every stock change, so lists of owned cards follow.
+    val stock: StockChange = StockChange(),
+    // A copy opened from the collection: its language and finish come first.
+    val language: String? = null,
+    val finish: String? = null,
+    // Finish of the last copies added (the next card of a batch is often the same).
+    val lastFinish: String? = null,
+    // Experimental guess from how light moves on the card ("holo", "reverse").
+    val finishGuess: String? = null,
+    // Cards not found in a row (hints about light and holo cards).
+    val failures: Int = 0,
 ) {
     val current: CandidateOut? get() = result?.candidates?.getOrNull(candidate)
 }
@@ -48,6 +63,9 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     private val stabilizer = ScanStabilizer()
     // Readings of Asian models in automatic mode come every 3rd frame: 2 in a row suffice.
     private val asianStabilizer = ScanStabilizer(framesNeeded = 2)
+    /** Set while the experimental finish guess is on (fed by the camera analysis thread). */
+    @Volatile
+    var glare: GlareMeter? = null
     private val _state = MutableStateFlow(ScanState())
     val state: StateFlow<ScanState> = _state.asStateFlow()
     var game: String? = null
@@ -58,17 +76,33 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Called from the camera analysis thread for every frame: true when the card is
      * steady and new, so the frame is read for identification. */
+    // Lines of the last frames: a frame sent without the collector number line (glare)
+    // gets it from a recent frame of the same card.
+    private val recent = ArrayDeque<List<OcrLineIn>>()
+
     @Synchronized
-    fun onFrame(lines: List<OcrLineIn>): Boolean = scanning && stabilizer.offer(lines.map { it.text })
+    fun onFrame(lines: List<OcrLineIn>): Boolean {
+        if (!scanning) return false
+        remember(lines)
+        return stabilizer.offer(lines.map { it.text })
+    }
 
     @Synchronized
     fun onAsianFrame(lines: List<OcrLineIn>): Boolean = scanning && asianStabilizer.offer(lines.map { it.text })
 
+    private fun remember(lines: List<OcrLineIn>) {
+        recent.addLast(lines)
+        while (recent.size > ScanStabilizer.WINDOW) recent.removeFirst()
+    }
+
     fun identify(lines: List<OcrLineIn>) {
         val client = app.client.value ?: return
+        val sent = synchronized(this) { ScanStabilizer.withNumberLine(lines, recent.toList()) }
+        val guess = glare?.guess()
+        glare?.reset()
         _state.update { it.copy(phase = Phase.IDENTIFYING, message = null, error = null) }
         viewModelScope.launch {
-            runCatching { client.api.identify(IdentifyIn(game, lines)) }
+            runCatching { client.api.identify(IdentifyIn(game, sent)) }
                 .onSuccess { result ->
                     _state.update {
                         it.copy(
@@ -76,6 +110,10 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                             result = result,
                             candidate = 0,
                             printing = 0,
+                            language = null,
+                            finish = null,
+                            finishGuess = guess,
+                            failures = if (result.candidates.isEmpty()) it.failures + 1 else 0,
                             // Missing from the server catalog: fetched from its source.
                             message = if (result.fetched) app.getString(R.string.card_fetched) else it.message,
                         )
@@ -90,7 +128,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
      * `printingId` first when given, else the printing the catalog shows. */
     fun showCard(summary: CardSummaryOut) = showCard(summary.id, summary.printingId)
 
-    fun showCard(cardId: Int, printingId: Int? = null) {
+    fun showCard(cardId: Int, printingId: Int? = null, language: String? = null, finish: String? = null) {
         val client = app.client.value ?: return
         viewModelScope.launch {
             runCatching { client.api.card(cardId) }
@@ -104,7 +142,10 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                             phase = Phase.RESULT,
                             result = IdentifyOut(card.gameId, HintsOut(), listOf(candidate)),
                             undo = it.undo,
-                            stockVersion = it.stockVersion,
+                            stock = it.stock,
+                            language = language,
+                            finish = finish,
+                            lastFinish = it.lastFinish,
                         )
                     }
                 }
@@ -137,8 +178,8 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Quick +1 / -1 from the collection list. */
-    fun adjustItem(printingId: Int, finish: String, condition: String, language: String, delta: Int) =
-        change(AdjustIn(printingId, finish, condition, language, delta, source = "web"), fromPanel = false)
+    fun adjustItem(item: ItemOut, delta: Int) =
+        change(AdjustIn(item.printingId, item.finish, item.condition, item.language, delta, source = "web"), fromPanel = false)
 
     private fun change(body: AdjustIn, fromPanel: Boolean) {
         val client = app.client.value ?: return
@@ -153,7 +194,14 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     app.getString(R.string.removed, -delta, out.item.name, out.item.quantity)
                 }
-                _state.update { it.copy(busy = false, undo = Undoable(out.transactionId, text), stockVersion = it.stockVersion + 1) }
+                _state.update {
+                    it.copy(
+                        busy = false,
+                        undo = Undoable(out.transactionId, text),
+                        stock = StockChange(it.stock.version + 1, out.item),
+                        lastFinish = if (fromPanel && delta > 0) body.finish else it.lastFinish,
+                    )
+                }
                 if (!fromPanel) return@launch
                 if (autoNext && delta > 0 && state.result?.candidates?.firstOrNull()?.match != "manual") {
                     resume()
@@ -174,7 +222,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
             runCatching { client.api.undo(undo.transactionId) }
                 .onSuccess { item ->
                     _state.update {
-                        it.copy(message = app.getString(R.string.undone, item.name, item.quantity), stockVersion = it.stockVersion + 1)
+                        it.copy(message = app.getString(R.string.undone, item.name, item.quantity), stock = StockChange(it.stock.version + 1, item))
                     }
                     refreshCurrent()
                 }
@@ -199,10 +247,14 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     /** Back to the camera. The same card is not identified again until it changes. */
     fun resume(forgetCard: Boolean = false) {
         if (forgetCard) {
-            stabilizer.reset()
-            asianStabilizer.reset()
+            synchronized(this) {
+                stabilizer.reset()
+                asianStabilizer.reset()
+                recent.clear()
+            }
         }
-        _state.update { it.copy(phase = Phase.SCANNING, result = null, error = null) }
+        glare?.reset()
+        _state.update { it.copy(phase = Phase.SCANNING, result = null, error = null, language = null, finish = null, finishGuess = null) }
     }
 
     fun consumeMessage() = _state.update { it.copy(message = null) }

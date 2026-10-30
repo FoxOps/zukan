@@ -1,11 +1,14 @@
 package fr.zukan.app.data
 
+import kotlinx.serialization.json.JsonObject
+import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Streaming
 
 interface ZukanApi {
     @GET("api/health")
@@ -34,6 +37,10 @@ interface ZukanApi {
 
     @PATCH("api/auth/me")
     suspend fun updateMe(@Body body: SettingsIn): MeOut
+
+    /** For fields where null means something (`catalog_games: null`: every game). */
+    @PATCH("api/auth/me")
+    suspend fun updateMeJson(@Body body: JsonObject): MeOut
 
     @GET("api/games")
     suspend fun games(): List<GameOut>
@@ -66,6 +73,9 @@ interface ZukanApi {
         @Query("game") game: String? = null,
         @Query("q") query: String? = null,
         @Query("set_id") setId: Int? = null,
+        @Query("color") colors: List<String>? = null,
+        @Query("color_mode") colorMode: String = "include",
+        @Query("finish") finish: String? = null,
         @Query("condition") condition: String? = null,
         @Query("language") language: String? = null,
         @Query("sort") sort: String = "name",
@@ -75,6 +85,10 @@ interface ZukanApi {
 
     @GET("api/collection/value")
     suspend fun collectionValue(): ValueOut
+
+    @Streaming
+    @GET("api/collection/export.csv")
+    suspend fun exportCsv(@Query("game") game: String? = null): ResponseBody
 
     @GET("api/cards/{id}")
     suspend fun card(@Path("id") cardId: Int): CardOut

@@ -60,6 +60,8 @@ data class MeOut(
     @SerialName("price_source") val priceSource: String = "cardmarket",
     // Shown price sources, main one first (servers before 0.7: only the main one).
     @SerialName("price_sources") val priceSources: List<String> = emptyList(),
+    // Games shown in the catalog (search, scanner), null for all; shared with the web UI.
+    @SerialName("catalog_games") val catalogGames: List<String>? = null,
 ) {
     val shownPriceSources get() = priceSources.ifEmpty { listOf(priceSource) }
 }
@@ -67,6 +69,8 @@ data class MeOut(
 /** Fields left null are not changed. */
 @Serializable
 data class SettingsIn(
+    // Interface language ("en", "fr", "de", "es"); card names and pictures follow it.
+    val language: String? = null,
     // Makes this source the main one.
     @SerialName("price_source") val priceSource: String? = null,
     @SerialName("price_sources") val priceSources: List<String>? = null,

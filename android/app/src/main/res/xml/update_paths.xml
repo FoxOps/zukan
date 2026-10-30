@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Downloaded app updates, shared with the system installer. -->
+<!-- Downloaded app updates, shared with the system installer; collection exports, shared
+     with the app the user picks. -->
 <paths>
     <cache-path name="updates" path="updates/" />
+    <cache-path name="exports" path="exports/" />
 </paths>

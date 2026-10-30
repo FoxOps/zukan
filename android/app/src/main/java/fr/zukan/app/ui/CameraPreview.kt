@@ -22,6 +22,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import fr.zukan.app.data.OcrScript
 import fr.zukan.app.data.OcrLineIn
+import fr.zukan.app.scan.GlareMeter
 import fr.zukan.app.scan.TextAnalyzer
 import java.util.concurrent.Executors
 
@@ -37,12 +38,13 @@ fun CameraPreview(
     torch: Boolean = false,
     // Whether the camera has a torch, once bound.
     onTorchAvailable: (Boolean) -> Unit = {},
+    glare: () -> GlareMeter? = { null },
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     // TextureView mode: composes correctly under the overlays drawn on top of the preview.
     val previewView = remember { PreviewView(context).apply { implementationMode = PreviewView.ImplementationMode.COMPATIBLE } }
-    val analyzer = remember(script) { TextAnalyzer(script, onFrame, onIdentify, onAsianFrame) }
+    val analyzer = remember(script) { TextAnalyzer(script, onFrame, onIdentify, onAsianFrame, glare) }
     analyzer.paused = paused
     var camera by remember { mutableStateOf<Camera?>(null) }
 
