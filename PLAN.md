@@ -1962,6 +1962,10 @@ Report against server 0.21.0 / app 0.14.0. Branch `2026-11-01-000-china-prices-s
     already counted as sent;
   - "Scan now" button after 4 s of text in view without a send: identifies the latest frame
     as is (always reaches the server, so `TCG_SCAN_DEBUG_LOG=true` shows what was read).
+- [x] CI `npm audit`: minimatch < 11.0.1 (GHSA-g3hv-75wg-m249, published 2026-10-30, no 5.x
+  fix) through openapi-typescript → @redocly/openapi-core; `overrides.minimatch` ^11.0.3
+  (redocly's only minimatch call is an unused exported helper; `gen:api` output unchanged).
+  Remove the override once redocly depends on minimatch ≥ 11.0.1.
 - [x] Versions: server 0.22.0, Android 0.15.0. `.env.example`: user agent 0.22.0, China
   Cardmarket note (no new variable). API schema unchanged.
 - [ ] User: after upgrading, the worker resyncs Pokémon (catalog version 10), then the next
