@@ -27,7 +27,8 @@ async def test_games_list_their_group(client, session):
         "mtg": ("mtg", "Magic: The Gathering", None),
     }
     assert games["pokemon-asia"]["languages"] == ["ja", "ko", "zh-hant", "th", "id"]
-    assert games["pokemon-china"]["has_prices"] is False
+    # Cardmarket ids paired by name (`services.cardmarket_links`).
+    assert games["pokemon-china"]["has_prices"] is True
     assert games["yugioh-ocg"]["languages"] == ["ja", "ko", "zh-hans", "zh-hant", "en"]
     # The games of a group are listed together.
     ids = list(games)

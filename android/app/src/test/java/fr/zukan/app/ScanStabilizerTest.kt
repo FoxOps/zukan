@@ -51,6 +51,28 @@ class ScanStabilizerTest {
     }
 
     @Test
+    fun gluedAndSpacedNumbersCount() {
+        // "JTG FR 032/159" read glued to the set code, or with spaces around the slash.
+        assertEquals(true, ScanStabilizer.hasNumber(ScanStabilizer.words(listOf("Artikodin", "IJTGFR032/159"))))
+        assertEquals(true, ScanStabilizer.hasNumber(ScanStabilizer.words(listOf("Artikodin", "JTG FR 032 / 159"))))
+        assertEquals(false, ScanStabilizer.hasNumber(ScanStabilizer.words(listOf("Artikodin", "1032/1590"))))
+        val clear = listOf("Artikodin", "PV 110", "Envol Glacial", "JTGFR032/159")
+        val glare = listOf("Arti", "032 / 159")
+        val stabilizer = ScanStabilizer(framesNeeded = 3)
+        assertEquals(listOf(false, false, true), stabilizer.run(clear, glare, clear))
+    }
+
+    @Test
+    fun glareFlickerWithoutNumberKeepsTheRun() {
+        // Reverse holo: every other frame loses half its words, the number never read.
+        val a = listOf("Artikodin", "PV 110", "Envol Glacial", "Blizzard 110", "faiblesse résistance retraite")
+        val b = listOf("Artikodin", "PV 110", "Blizzard")
+        val stabilizer = ScanStabilizer(framesNeeded = 3)
+        // Sent once the number wait is over.
+        assertEquals(true, stabilizer.run(a, b, a, b, a, b, a).any { it })
+    }
+
+    @Test
     fun glareKeepsTheSameCardWhenTheNumberStays() {
         val clear = listOf("Mega Camerupt ex", "HP 330", "Volcanic Burst 230", "I MEG EN 022/132")
         val glare = listOf("Mega Cam", "Volc", "022/132")

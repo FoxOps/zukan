@@ -27,6 +27,7 @@
     <string name="point_at_card">Richte die Kamera auf eine Karte</string>
     <string name="identifying">Karte wird gesucht…</string>
     <string name="try_again">Erneut versuchen</string>
+    <string name="scan_now">Jetzt scannen</string>
 
     <!-- Result panel -->
     <string name="no_picture">Kein Bild</string>

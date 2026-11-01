@@ -780,7 +780,9 @@ class PokemonProvider:
     # 8: Thai, Indonesian, Traditional Chinese and Korean cards of the official searches.
     # 9: Asian Trainers, Energies and Pokémon named with other words translated (card
     #    names table), international names of the English card.
-    catalog_version = 9
+    # 10: mainland Chinese Trainers, Energies and owners' Pokémon translated (card names
+    #     table "zh-hans").
+    catalog_version = 10
 
     def __init__(self, region: str = INTERNATIONAL):
         self.market = REGIONS[region]
@@ -790,14 +792,14 @@ class PokemonProvider:
         self.region_label = self.market.region_label
         self.languages = list(self.market.languages)
         self.short_names = list(self.market.short_names)
-        # Mainland Chinese data has no prices.
+        # Mainland Chinese data has no prices: Cardmarket product ids are paired by English
+        # card name (`services.cardmarket_links`), then priced from the price guide.
         self.price_sources = [] if region == CHINA else ["cardmarket", "tcgplayer"]
+        self.cardmarket_link = region == CHINA
         self.secondary_sources = [official_jp.source] if region == ASIA else []
         # Collection copies without a picture in their language: Japanese for Asia, none
         # for China (its cards are printed nowhere else).
         self.image_fallback = {ASIA: "ja", CHINA: None}.get(region, "en")
-        if region == CHINA:
-            self.cardmarket_guide = None
 
     async def _get(self, http: httpx.AsyncClient, path: str) -> Any:
         return (await get_with_retry(http, f"{API_URL}{path}")).json()

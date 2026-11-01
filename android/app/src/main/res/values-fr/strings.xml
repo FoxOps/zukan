@@ -26,6 +26,7 @@
     <string name="point_at_card">Visez une carte</string>
     <string name="identifying">Recherche de la carte…</string>
     <string name="try_again">Réessayer</string>
+    <string name="scan_now">Scanner maintenant</string>
 
     <!-- Résultat -->
     <string name="no_picture">Pas d\'image</string>

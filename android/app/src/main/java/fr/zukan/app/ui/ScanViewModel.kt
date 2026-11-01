@@ -26,6 +26,9 @@ import kotlinx.coroutines.launch
 
 enum class Phase { SCANNING, IDENTIFYING, RESULT, NOT_FOUND, ERROR }
 
+/** Text in view this long without a card sent: "Scan now" is offered. */
+private const val STUCK_MS = 4000L
+
 data class Undoable(val transactionId: Int, val text: String)
 
 /** A stock change: lists of owned cards update [item] in place when they show it, else
@@ -53,6 +56,8 @@ data class ScanState(
     val finishGuess: String? = null,
     // Cards not found in a row (hints about light and holo cards).
     val failures: Int = 0,
+    // Text in view for a while and nothing sent (glare on holo cards): "Scan now" shown.
+    val stuck: Boolean = false,
 ) {
     val current: CandidateOut? get() = result?.candidates?.getOrNull(candidate)
 }
@@ -80,11 +85,29 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     // gets it from a recent frame of the same card.
     private val recent = ArrayDeque<List<OcrLineIn>>()
 
+    // When text came into view without a card being sent since (0: nothing in view).
+    private var readingSince = 0L
+
     @Synchronized
     fun onFrame(lines: List<OcrLineIn>): Boolean {
         if (!scanning) return false
         remember(lines)
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (lines.size < 2) {
+            readingSince = 0L
+        } else if (readingSince == 0L) {
+            readingSince = now
+        }
+        val stuck = readingSince != 0L && now - readingSince >= STUCK_MS
+        if (stuck != _state.value.stuck) _state.update { it.copy(stuck = stuck) }
         return stabilizer.offer(lines.map { it.text })
+    }
+
+    /** "Scan now": the latest frame with text is identified without waiting for a steady
+     * reading (glare on a holo card can keep the reading from settling). */
+    fun scanNow() {
+        val lines = synchronized(this) { recent.lastOrNull { it.size >= 2 } } ?: return
+        identify(lines)
     }
 
     @Synchronized
@@ -97,10 +120,11 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     fun identify(lines: List<OcrLineIn>) {
         val client = app.client.value ?: return
+        synchronized(this) { readingSince = 0L }
         val sent = synchronized(this) { ScanStabilizer.withNumberLine(lines, recent.toList()) }
         val guess = glare?.guess()
         glare?.reset()
-        _state.update { it.copy(phase = Phase.IDENTIFYING, message = null, error = null) }
+        _state.update { it.copy(phase = Phase.IDENTIFYING, message = null, error = null, stuck = false) }
         viewModelScope.launch {
             runCatching { client.api.identify(IdentifyIn(game, sent)) }
                 .onSuccess { result ->
@@ -246,6 +270,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Back to the camera. The same card is not identified again until it changes. */
     fun resume(forgetCard: Boolean = false) {
+        synchronized(this) { readingSince = 0L }
         if (forgetCard) {
             synchronized(this) {
                 stabilizer.reset()

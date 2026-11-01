@@ -60,6 +60,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -164,7 +165,15 @@ fun ScanScreen(
             )
             Viewfinder(state.phase, Modifier.weight(1f).fillMaxWidth())
             if (state.phase != Phase.RESULT) {
-                StatusCard(state, games, torchAvailable && !torch, onGame = onGame, onRetry = { scan.resume(forgetCard = true) }, onSearch = onSearch)
+                StatusCard(
+                    state,
+                    games,
+                    torchAvailable && !torch,
+                    onGame = onGame,
+                    onRetry = { scan.resume(forgetCard = true) },
+                    onSearch = onSearch,
+                    onScanNow = scan::scanNow,
+                )
             }
         }
 
@@ -252,7 +261,8 @@ private fun ScanHeader(
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp),
+        // Square: rounded corners showed the undimmed camera in their cut-outs.
+        shape = RectangleShape,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(start = 24.dp, end = 12.dp, top = 12.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -335,6 +345,7 @@ private fun StatusCard(
     onGame: (String?) -> Unit,
     onRetry: () -> Unit,
     onSearch: () -> Unit,
+    onScanNow: () -> Unit,
 ) {
     val result = state.result.takeIf { state.phase == Phase.NOT_FOUND }
     val otherGame = result?.otherGame?.takeIf { id -> games.any { it.id == id } }
@@ -386,7 +397,7 @@ private fun StatusCard(
     val failed = state.phase == Phase.NOT_FOUND || state.phase == Phase.ERROR
 
     Surface(
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+        shape = RectangleShape,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -412,6 +423,10 @@ private fun StatusCard(
                     Text(title, style = MaterialTheme.typography.titleLarge)
                     text?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
+            }
+            if (state.phase == Phase.SCANNING && state.stuck) {
+                // The reading does not settle (glare on holo cards): send what is read now.
+                GoldButton(stringResource(R.string.scan_now), onScanNow)
             }
             if (failed) {
                 if (otherGame != null && otherName != null) {

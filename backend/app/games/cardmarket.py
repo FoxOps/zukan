@@ -62,6 +62,12 @@ def name_key(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", stripped.casefold()).strip()
 
 
+def pokemon_name_key(name: str) -> str:
+    """`name_key` of a Pokémon product name without its bracketed attacks, which only tell
+    same-named cards apart ("Nidorina [Fetch Family | Sharp Fang]", "Nidoran [F] [...]")."""
+    return name_key(re.sub(r"\[[^\]]*\]", " ", name))
+
+
 def match_products(
     catalog: CatalogBatch,
     products: list[dict[str, Any]],
@@ -69,6 +75,11 @@ def match_products(
     expansions: dict[int, list[str]],
     suffix: Callable[[str], str],
     order: Callable[[PrintingData], Any] = lambda p: p.external_id,
+    key: Callable[[str], str] = name_key,
+    min_share: float = 0.0,
+    min_names: int = 1,
+    min_expansion_share: float = 0.0,
+    strict: bool = False,
 ) -> list[PriceQuote]:
     """Price quotes for catalog printings from Cardmarket's product list and price guide,
     for games whose products carry no collector number. Matched printings also get their
@@ -79,11 +90,19 @@ def match_products(
     other expansions go to the free set sharing the most card names. When one name has
     several products in an expansion (alternate arts, box toppers), they are paired in
     product id order with the printings of that name sorted by `order`. `suffix(finish)`
-    is the price guide field suffix of a finish ("" or "-foil")."""
+    is the price guide field suffix of a finish ("" or "-foil"). `key` turns card and
+    product names into comparable keys (names it maps to "" are left out); an expansion
+    goes to a free set only when they share at least `min_names` names, `min_share` of
+    the set's names and `min_expansion_share` of the expansion's. `strict` pairs a name
+    only when the expansion has as many products of it as the set has printings (no guess
+    between a common and its promos)."""
     ours: dict[tuple[str, str], list[PrintingData]] = defaultdict(list)
     for card in catalog.cards:
+        card_key = key(card.name)
+        if not card_key:
+            continue
         for printing in card.printings:
-            ours[(printing.set_external_id, name_key(card.name))].append(printing)
+            ours[(printing.set_external_id, card_key)].append(printing)
     for printings in ours.values():
         printings.sort(key=order)
 
@@ -93,24 +112,30 @@ def match_products(
 
     mapped = {expansion: list(codes) for expansion, codes in expansions.items()}
     set_names: dict[str, set[str]] = defaultdict(set)
-    for set_code, key in ours:
-        set_names[set_code].add(key)
+    for set_code, card_key in ours:
+        set_names[set_code].add(card_key)
     taken = {code for codes in mapped.values() for code in codes}
     # Largest overlaps first, so a small expansion reprinting a few cards of a set (a
     # starter deck) does not take the set from its main expansion.
     pairs = sorted(
         (
-            (len(names & set_names[code]), expansion, code)
+            (len(names & set_names[code]), len(names), expansion, code)
             for expansion, items in by_expansion.items()
             if expansion not in mapped
-            for names in [{name_key(p["name"]) for p in items}]
+            for names in [{key(p["name"]) for p in items} - {""}]
             for code in set_names
             if code not in taken
         ),
-        key=lambda pair: (-pair[0], pair[1], pair[2]),
+        key=lambda pair: (-pair[0], pair[2], pair[3]),
     )
-    for overlap, expansion, code in pairs:
-        if overlap and expansion not in mapped and code not in taken:
+    for overlap, size, expansion, code in pairs:
+        if (
+            overlap >= min_names
+            and overlap >= min_share * len(set_names[code])
+            and overlap >= min_expansion_share * size
+            and expansion not in mapped
+            and code not in taken
+        ):
             mapped[expansion] = [code]
             taken.add(code)
 
@@ -121,9 +146,11 @@ def match_products(
             continue
         same_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for product in items:
-            same_name[name_key(product["name"])].append(product)
-        for key, matches in same_name.items():
-            printings = [p for code in set_codes for p in ours.get((code, key), [])]
+            same_name[key(product["name"])].append(product)
+        for card_key, matches in same_name.items():
+            printings = [p for code in set_codes for p in ours.get((code, card_key), [])]
+            if strict and len(printings) != len(matches):
+                continue
             for product, printing in zip(matches, printings, strict=False):
                 printing.attributes.setdefault("market_ids", {})["cardmarket"] = product[
                     "idProduct"

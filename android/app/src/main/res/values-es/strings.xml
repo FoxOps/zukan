@@ -27,6 +27,7 @@
     <string name="point_at_card">Apunta a una carta</string>
     <string name="identifying">Buscando la carta…</string>
     <string name="try_again">Reintentar</string>
+    <string name="scan_now">Escanear ahora</string>
 
     <!-- Result panel -->
     <string name="no_picture">Sin imagen</string>
