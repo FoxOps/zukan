@@ -47,6 +47,13 @@ jobs:
       - name: Lint
         working-directory: backend
         run: .venv/bin/ruff check .
+      - name: Dependency audit
+        working-directory: backend
+        # Known vulnerabilities (PyPI / OSV advisories) in the installed packages; the
+        # backend itself is not on PyPI and is skipped.
+        run: |
+          .venv/bin/pip install pip-audit==2.9.0
+          .venv/bin/pip-audit --skip-editable --progress-spinner off
       - name: Formatting and migrations
         if: inputs.full
         working-directory: backend
