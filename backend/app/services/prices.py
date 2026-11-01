@@ -21,6 +21,7 @@ from app.core.progress import progress
 from app.games.base import GameProvider, PriceQuote, PriceTarget
 from app.models import CardSet, CollectionItem, Game, PriceSnapshot, Printing
 from app.prices.base import MarketTarget, fetches, price_sources
+from app.services.cardmarket_links import link_cardmarket
 
 log = logging.getLogger(__name__)
 
@@ -197,6 +198,11 @@ async def sync_prices(
         report.targets = len(targets)
         await store(provider.fetch_prices(http, targets))
     standalone = [s for s in price_sources().values() if fetches(s, provider.id)]
+    if getattr(provider, "cardmarket_link", False):
+        try:
+            await link_cardmarket(session, http, provider)
+        except httpx.HTTPError as exc:
+            log.warning("Cardmarket products for %s unavailable: %s", provider.id, exc)
     if standalone:
         everything = await market_targets(session, provider.id)
         for source in standalone:

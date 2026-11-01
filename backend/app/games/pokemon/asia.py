@@ -25,7 +25,7 @@ import httpx
 
 from app.core.http import get_with_retry
 from app.games.base import CardData, PrintingData, SetData
-from app.games.pokemon.species import card_translations, derive_names, find_species
+from app.games.pokemon.species import card_translations, find_species
 from app.games.pokemon.types import card_colors
 
 log = logging.getLogger(__name__)
@@ -208,9 +208,10 @@ def chinese_card(raw: dict[str, Any], set_id: str) -> CardData | None:
     dex = find_species(name, "zh-hans") if category == "Pokemon" else []
     if dex:
         attributes["dexId"] = dex
-    names = {"zh-hans": name}
-    if dex:
-        names = derive_names(name, "zh-hans", dex) | names
+    # Species names, else the card names table (Trainers, Energies, owners' Pokémon).
+    names = card_translations(name, "zh-hans", dex, pokemon=category == "Pokemon") | {
+        "zh-hans": name
+    }
     rarity = details.get("rarityText") or ""
     stars = len(_STARS.search(rarity).group()) if _STARS.search(rarity) else 0
     rarity = _STARS.sub("", rarity)

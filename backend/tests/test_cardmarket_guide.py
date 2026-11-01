@@ -9,8 +9,8 @@ from app.prices.cardmarket import source
 
 
 def test_guide_games():
-    assert {"pokemon", "pokemon-asia"} <= source.games
-    assert "pokemon-china" not in source.games
+    # China: product ids paired by name (`services.cardmarket_links`).
+    assert {"pokemon", "pokemon-asia", "pokemon-china"} <= source.games
 
 
 async def test_guide_prices_printings_left_unpriced():

@@ -124,7 +124,14 @@ class TextAnalyzer(
                 onIdentify(lines)
                 return
             }
-            val readings = ASIAN.associateWith { toLines(Tasks.await(other(it).process(input))) }
+            // This frame passed the stabilizer: an Asian model failing must not lose it (the
+            // card would count as sent and never be asked for).
+            val readings = try {
+                ASIAN.associateWith { toLines(Tasks.await(other(it).process(input))) }
+            } catch (e: Exception) {
+                Log.w(TAG, "Asian text recognition failed, sending the Latin reading", e)
+                emptyMap()
+            }
             val best = ScriptPicker.pick(readings.mapValues { (_, l) -> l.map { it.text } } + (OcrScript.LATIN to lines.map { it.text }))
             onIdentify(readings[best] ?: lines)
         } catch (e: Exception) {

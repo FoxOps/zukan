@@ -39,8 +39,8 @@ class ScanStabilizer(
         // Another collector number: another card, older frames no longer count.
         val otherCard = numbers.isNotEmpty() && seen.isNotEmpty() && numbers.none { it in seen }
         if (otherCard) window.clear()
-        val previous = window.lastOrNull()
-        val sameCard = previous != null && (jaccard(words, previous) >= similar || numbers.any { it in seen })
+        // Similar to any recent frame: glare flicker on one frame does not break the run.
+        val sameCard = window.isNotEmpty() && (numbers.any { it in seen } || window.any { jaccard(words, it) >= similar })
         streak = when {
             sameCard -> streak + 1
             // Glare hid the number of the card seen so far: this frame neither counts nor
@@ -79,15 +79,20 @@ class ScanStabilizer(
         private val cjk = Regex("""[\p{IsHan}\p{IsHiragana}\p{IsKatakana}\p{IsHangul}]""")
 
         /** Normalized words; unspaced Japanese, Korean and Chinese text is cut into pairs
-         * of characters, so one misread glyph does not change the whole line. */
-        fun words(lines: List<String>): Set<String> = lines
-            .flatMap { it.lowercase().split(Regex("""[^\p{L}\p{N}/]+""")) }
-            .flatMap { if (it.length > 2 && cjk.containsMatchIn(it)) it.windowed(2) else listOf(it) }
-            .filter { it.length >= 2 }
-            .toSet()
+         * of characters, so one misread glyph does not change the whole line. Collector
+         * numbers are added as read in the line, whether glued to the set code
+         * ("FR032/159") or spaced ("032 / 159"). */
+        fun words(lines: List<String>): Set<String> = (
+            lines
+                .flatMap { it.lowercase().split(Regex("""[^\p{L}\p{N}/]+""")) }
+                .flatMap { if (it.length > 2 && cjk.containsMatchIn(it)) it.windowed(2) else listOf(it) }
+                .filter { it.length >= 2 } +
+                lines.flatMap { line -> numberInText.findAll(line).map { "${it.groupValues[1]}/${it.groupValues[2]}" } }
+            ).toSet()
 
         private val number = Regex("""\d{1,3}/\d{2,3}""")
         private val numberInLine = Regex("""\d{1,3}\s*/\s*\d{2,3}""")
+        private val numberInText = Regex("""(?<!\d)(\d{1,3})\s*/\s*(\d{2,3})(?!\d)""")
 
         fun hasNumber(words: Set<String>): Boolean = words.any { number.matches(it) }
 

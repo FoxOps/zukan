@@ -1924,6 +1924,61 @@ Report against server 0.20.2 / app 0.13.0. Branch `2026-10-30-000-resources-andr
   workflow fails to upload; real-phone scans of the reported cards (with
   `TCG_SCAN_DEBUG_LOG=true` for the ones that still fail); finish guess on holo / reverse holo.
 
+## Report 2026-11-01 (server 0.22.0, Android 0.15.0)
+Report against server 0.21.0 / app 0.14.0. Branch `2026-11-01-000-china-prices-scan-fixes`.
+- [x] `.github/workflows/codeql0.yml` removed (copy of `codeql.yml` GitHub required to switch
+  the default setup off).
+- [x] Pokémon China prices (none at all): pricing was off for the game and its dataset
+  printings carry no market ids. Cardmarket's public product list has neither collector
+  numbers nor expansion names (expansion id + English name with attacks in brackets), so
+  `services/cardmarket_links.py` pairs them by English card name in the price job (daily, new
+  expansions linked without a resync): `match_products` with `pokemon_name_key` (brackets
+  dropped), candidates = expansions no `pokemon` / `pokemon-asia` printing uses and first
+  listed from 2024, a set takes an expansion holding ≥ 80% of its names, ≥ 5 names and ≥ 15%
+  of the expansion's names; a name is paired only when the expansion has as many products of
+  it as the set has printings (Pikachu 151C 025 vs four promo products: left out, no guessed
+  913 € price). `market_ids.cardmarket` stored on the printings; `cardmarket_guide = 6` for
+  China, so `CardmarketSource` prices them (normal / reverse / holo) and card pages link to
+  Cardmarket. Replay on live data + test catalog: 8 095 of 14 343 printings linked over ~85
+  sets (151C ↔ 6099, CSV1C–CSV10C, CS*, CBB*, 30thC…), 151C 030 Nidorina → 819096.
+- [x] Pokémon China names (user: translate like Asia, official names first, community for the
+  rest): `card_names.json` gains a "zh-hans" section (771 names), made by
+  `scripts/pokemon_china_names.py` (only that section; ~100 requests): Traditional table after
+  OpenCC s2t (official Taiwan names), PokeAPI item names, 52poke (`<name>（TCG）` pages,
+  `{{N|…|English}}`, CC BY-NC-SA), then owner / form names from parts ("火箭队的超梦ex" = "Team
+  Rocket's Mewtwo ex"). `asia.chinese_card` uses `card_translations` (table + Basic Energy
+  words, was species only). Untranslated China printings 3 926 → ~880 (215 names left: tag
+  teams, "船长 皮卡丘", Rotom forms…), which also lets more of them get Cardmarket prices.
+  `catalog_version` 10 (resync).
+- [x] Android scan screen: header and status panels square (their rounded corners showed the
+  undimmed camera).
+- [x] Android scan, JTG 032 FR reverse holo never sent (nothing reached the server):
+  - collector numbers read in the raw lines (`(?<!\d)\d{1,3}\s*/\s*\d{2,3}(?!\d)`): glued to the
+    code ("JTGFR032/159") or spaced ("032 / 159") they were never a number, so glare-tolerant
+    rules never applied;
+  - a frame is the same card when similar to any of the last 4 frames, not only the previous
+    one (glare flicker reset the run to 1 forever);
+  - an Asian-model failure in AUTO mode sends the Latin reading instead of losing a frame
+    already counted as sent;
+  - "Scan now" button after 4 s of text in view without a send: identifies the latest frame
+    as is (always reaches the server, so `TCG_SCAN_DEBUG_LOG=true` shows what was read).
+- [x] CI `npm audit`: minimatch < 11.0.1 (GHSA-g3hv-75wg-m249, published 2026-10-30, no 5.x
+  fix) through openapi-typescript → @redocly/openapi-core; `overrides.minimatch` ^11.0.3
+  (redocly's only minimatch call is an unused exported helper; `gen:api` output unchanged).
+  Remove the override once redocly depends on minimatch ≥ 11.0.1.
+- [x] CI: Python dependency audit (`pip-audit` 2.9.0, `--skip-editable`) after the backend lint
+  in `_checks.yml`, beside the web `npm audit`.
+- [x] `.github/dependabot.yml`: weekly (Monday) version updates for backend pip, web npm,
+  Android Gradle (version catalog), Dockerfile base images and GitHub Actions; minor / patch
+  grouped per ecosystem, majors one by one.
+- [ ] User: Settings -> Code security: enable Dependabot alerts and security updates.
+- [x] Versions: server 0.22.0, Android 0.15.0. `.env.example`: user agent 0.22.0, China
+  Cardmarket note (no new variable). API schema unchanged.
+- [ ] User: after upgrading, the worker resyncs Pokémon (catalog version 10), then the next
+  price run links and prices China; spot-check a few China sets against Cardmarket. Scan JTG
+  032 FR on the phone (with `TCG_SCAN_DEBUG_LOG=true`), "Scan now" if it still does not send.
+- [ ] Later: rerun `scripts/pokemon_china_names.py` after new mainland sets.
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.

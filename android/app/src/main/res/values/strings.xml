@@ -27,6 +27,7 @@
     <string name="point_at_card">Point at a card</string>
     <string name="identifying">Looking up the card…</string>
     <string name="try_again">Try again</string>
+    <string name="scan_now">Scan now</string>
 
     <!-- Result panel -->
     <string name="no_picture">No picture</string>
