@@ -1968,6 +1968,10 @@ Report against server 0.21.0 / app 0.14.0. Branch `2026-11-01-000-china-prices-s
   Remove the override once redocly depends on minimatch ≥ 11.0.1.
 - [x] CI: Python dependency audit (`pip-audit` 2.9.0, `--skip-editable`) after the backend lint
   in `_checks.yml`, beside the web `npm audit`.
+- [x] `.github/dependabot.yml`: weekly (Monday) version updates for backend pip, web npm,
+  Android Gradle (version catalog), Dockerfile base images and GitHub Actions; minor / patch
+  grouped per ecosystem, majors one by one.
+- [ ] User: Settings -> Code security: enable Dependabot alerts and security updates.
 - [x] Versions: server 0.22.0, Android 0.15.0. `.env.example`: user agent 0.22.0, China
   Cardmarket note (no new variable). API schema unchanged.
 - [ ] User: after upgrading, the worker resyncs Pokémon (catalog version 10), then the next
