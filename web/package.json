@@ -40,6 +40,7 @@
     "vite": "^8.3.0"
   },
   "overrides": {
-    "postcss-selector-parser": "^7.1.6"
+    "postcss-selector-parser": "^7.1.6",
+    "minimatch": "^11.0.3"
   }
 }
