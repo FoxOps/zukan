@@ -1966,6 +1966,8 @@ Report against server 0.21.0 / app 0.14.0. Branch `2026-11-01-000-china-prices-s
   fix) through openapi-typescript → @redocly/openapi-core; `overrides.minimatch` ^11.0.3
   (redocly's only minimatch call is an unused exported helper; `gen:api` output unchanged).
   Remove the override once redocly depends on minimatch ≥ 11.0.1.
+- [x] CI: Python dependency audit (`pip-audit` 2.9.0, `--skip-editable`) after the backend lint
+  in `_checks.yml`, beside the web `npm audit`.
 - [x] Versions: server 0.22.0, Android 0.15.0. `.env.example`: user agent 0.22.0, China
   Cardmarket note (no new variable). API schema unchanged.
 - [ ] User: after upgrading, the worker resyncs Pokémon (catalog version 10), then the next
