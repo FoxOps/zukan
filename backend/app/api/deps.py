@@ -35,6 +35,34 @@ async def current_user(request: Request, session: SessionDep) -> User:
             check_csrf(request)
     if not token:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
+    user = await _token_user(session, token)
+    # Maintenance (catalog refresh slowing the server down): users wait, administrators
+    # keep access to watch the job; account routes stay open so clients know who is in.
+    if (
+        user.role != Role.admin
+        and load.maintenance() is not None
+        and not request.url.path.startswith("/api/auth/")
+    ):
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Zukan is under maintenance (catalog refresh), try again in a few minutes",
+            headers={"Retry-After": "60"},
+        )
+    return user
+
+
+async def cookie_user(request: Request, session: AsyncSession) -> User | None:
+    """The user signed in by the access cookie, if valid (web pages, no error)."""
+    token = request.cookies.get(ACCESS_COOKIE)
+    if not token:
+        return None
+    try:
+        return await _token_user(session, token)
+    except HTTPException:
+        return None
+
+
+async def _token_user(session: AsyncSession, token: str) -> User:
     try:
         claims = unsign(token, audience="access")
         session_id = uuid.UUID(claims["sid"])
@@ -48,18 +76,6 @@ async def current_user(request: Request, session: SessionDep) -> User:
     # Password changed, account disabled, or this session logged out.
     if version != user.auth_version or not await session_alive(session, session_id):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session ended")
-    # Maintenance (catalog refresh slowing the server down): users wait, administrators
-    # keep access to watch the job; account routes stay open so clients know who is in.
-    if (
-        user.role != Role.admin
-        and load.maintenance() is not None
-        and not request.url.path.startswith("/api/auth/")
-    ):
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "Zukan is under maintenance (catalog refresh), try again in a few minutes",
-            headers={"Retry-After": "60"},
-        )
     return user
 
 

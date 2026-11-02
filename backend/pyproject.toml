@@ -66,6 +66,7 @@ include = ["app*"]
 
 [tool.setuptools.package-data]
 "app.games.pokemon" = ["*.json"]
+"app" = ["static/*"]
 "*" = ["rarities/*.svg", "rarities/*.png", "symbols/*.svg"]
 
 [tool.pytest.ini_options]

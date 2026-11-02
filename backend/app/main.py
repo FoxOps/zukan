@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request, Response, status
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import exists, select
 from sqlalchemy.dialects.postgresql import insert
@@ -13,6 +13,7 @@ from starlette.types import Scope
 
 from app import __version__
 from app.api import admin, auth, catalog, collection, games, releases, scan, users
+from app.api.deps import cookie_user
 from app.api.schemas import HealthOut, MaintenanceOut
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
@@ -21,7 +22,7 @@ from app.core.middleware import BodyLimit, RequestTimer, SecurityHeaders, TextCo
 from app.core.security import hash_password
 from app.games.base import registry, shipped_folders
 from app.models import Game, Role, User
-from app.services import layout, load
+from app.services import layout, load, maintenance_page
 from app.services.jobs import reap_runs
 from app.services.symbols import ensure_symbols
 
@@ -138,13 +139,35 @@ def mount_web(app: FastAPI, web_dir: Path) -> None:
         app.mount("/assets", ImmutableStaticFiles(directory=web_dir / "assets"), name="assets")
 
     @app.get("/{path:path}", include_in_schema=False)
-    async def spa(path: str) -> FileResponse:
+    async def spa(path: str, request: Request) -> Response:
         if path == "api" or path.startswith("api/"):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
         file = (root / path).resolve()
         if path and file.is_relative_to(root) and file.is_file():
             return FileResponse(file)
+        # The login page stays, so administrators can sign in.
+        if load.maintenance() is not None and path != "login":
+            page = await maintenance_response(request)
+            if page is not None:
+                return page
         return FileResponse(index, headers={"Cache-Control": "no-cache"})
+
+
+async def maintenance_response(request: Request) -> HTMLResponse | None:
+    """The maintenance page instead of the web interface, except for administrators."""
+    async with get_sessionmaker()() as session:
+        user = await cookie_user(request, session)
+    if user is not None and user.role == Role.admin:
+        return None
+    lang = user.language if user is not None else None
+    return HTMLResponse(
+        maintenance_page.render(
+            lang or maintenance_page.accept_language(request.headers.get("accept-language")),
+            known=user is not None,
+        ),
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        headers={"Retry-After": "60", "Cache-Control": "no-store"},
+    )
 
 
 class ImmutableStaticFiles(StaticFiles):

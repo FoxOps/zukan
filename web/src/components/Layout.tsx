@@ -7,7 +7,7 @@ import { useAndroidRelease, useHealth, useMe } from '../api/queries'
 import { useServerLanguage } from '../i18n'
 import { LanguageMenu } from './I18n'
 import { ErrorScreen } from './ErrorPage'
-import { MaintenanceBanner, MaintenanceScreen } from './Maintenance'
+import { MaintenanceBanner } from './Maintenance'
 import { Logo, Mascot } from './Logo'
 import { applyTheme, savedDark } from '../lib/theme'
 import { useTypeToSearch } from '../lib/typeToSearch'
@@ -50,6 +50,12 @@ export function Layout() {
     if (wasInMaintenance.current && !maintenance) client.invalidateQueries()
     wasInMaintenance.current = !!maintenance
   }, [maintenance, client])
+  // Users: the server answers its maintenance page instead of the interface (it comes back
+  // by itself); administrators keep the interface, with a notice.
+  const role = me.data?.role
+  useEffect(() => {
+    if (maintenance && role && role !== 'admin') window.location.reload()
+  }, [maintenance, role])
 
   useEffect(
     () =>
@@ -116,14 +122,8 @@ export function Layout() {
           </div>
         </header>
         <main className="flex-1 p-4 lg:p-6">
-          {maintenance && me.data.role !== 'admin' ? (
-            <MaintenanceScreen />
-          ) : (
-            <>
-              {maintenance && <MaintenanceBanner state={maintenance} />}
-              <Outlet />
-            </>
-          )}
+          {maintenance && <MaintenanceBanner state={maintenance} />}
+          <Outlet />
         </main>
         {/* Publishers' notices (Riot Games, Wizards...) in full on the About page. */}
         <footer className="border-t border-base-300 px-4 py-3 text-xs text-base-content/50 lg:px-6">
