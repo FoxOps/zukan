@@ -8,7 +8,7 @@ COPY web/ ./
 RUN npm run build
 
 # API + worker, serving the built web UI on the same origin
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
