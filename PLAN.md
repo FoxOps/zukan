@@ -20,8 +20,8 @@ Decisions from Q&A:
 - Login: local accounts + SSO via OpenID Connect (Keycloak, Authentik, Authelia, any OIDC IdP).
 
 ## Tech stack
-- **Backend**: Python 3.13, FastAPI, SQLAlchemy 2 + Alembic, PostgreSQL 17 with `pg_trgm` (fuzzy OCR name match). Background jobs: separate `worker` process with APScheduler (catalog sync, daily price snapshot, image cache). httpx for API calls.
-- **Web UI**: React + TypeScript + Vite, TanStack Query/Table, typed client generated from FastAPI OpenAPI (`openapi-typescript`).
+- **Backend**: Python 3.14 (since 0.23.0), FastAPI, SQLAlchemy 2 + Alembic, PostgreSQL 17 with `pg_trgm` (fuzzy OCR name match). Background jobs: separate `worker` process with APScheduler (catalog sync, daily price snapshot, image cache). httpx for API calls.
+- **Web UI**: React + TypeScript (7 since 0.23.0) + Vite, TanStack Query/Table, typed client generated from FastAPI OpenAPI (`openapi-typescript`, in `web/tools/openapi` with its own TypeScript 5).
 - **Styling**: Tailwind CSS v4 (`@tailwindcss/vite`), no custom CSS framework. Plugins loaded with `@plugin` in `web/src/index.css`:
   - `daisyui` (v5): components (navbar, drawer, card, table, modal, badge, stat), custom themes `zukan` (light) / `zukan-dark` from the Zukan identity (since 0.15.0)
   - `@tailwindcss/typography`: `prose` for card rules text / docs pages
@@ -1978,6 +1978,61 @@ Report against server 0.21.0 / app 0.14.0. Branch `2026-11-01-000-china-prices-s
   price run links and prices China; spot-check a few China sets against Cardmarket. Scan JTG
   032 FR on the phone (with `TCG_SCAN_DEBUG_LOG=true`), "Scan now" if it still does not send.
 - [ ] Later: rerun `scripts/pokemon_china_names.py` after new mainland sets.
+
+## Report 2026-11-02 (server 0.23.0, Android 0.15.1)
+Report against server 0.22.0 / app 0.15.0. Branch `2026-11-02-000-maintenance-i18n-dependabot`.
+- [x] HIGH: language switch did nothing (pages stayed English, no request) since the lazy
+  locales of 0.21.0: i18next resolves the language to the first one with translations
+  loaded, and the `languageChanged` handler loaded `i18n.resolvedLanguage` (still `en`), so
+  fr/de/es were never downloaded. `setLanguage()` (`web/src/i18n/index.ts`) loads the
+  requested language, then switches; used at startup (detected language), by the menu,
+  Settings and the server language. Checked in the browser: EN → FR → DE → ES, login page
+  choice kept after sign-in, saved on the account.
+- [x] Dependabot PRs integrated on this branch (they close once main has the updates):
+  - #40 Python 3.14-slim image (CI and README 3.14 too; 258 tests pass on 3.14).
+  - #34 Node 26-slim (CI Node 26). #35 Android group (AGP 9.5.0, Gradle 9.8.2, datastore
+    1.3.0, serialization 1.12.0, okhttp 5.5.1; unit tests, build, lint pass).
+  - #36 web group, #38 @types/node 26, #39 react-router 8.5.1 (no code change needed:
+    type check, build and navigation fine).
+  - #37 TypeScript 7.0 (failed `npm ci`: ERESOLVE): openapi-typescript 7.13.0 (latest)
+    peers `typescript@^5` and builds the schema with the TypeScript 5 compiler API
+    (`ts.factory`), gone from TypeScript 7 (`Cannot read properties of undefined`). The
+    generator moved to `web/tools/openapi` (own package and lock, TypeScript 5,
+    minimatch override moved there); `gen:api` runs it from there, CI installs and audits
+    it, Dependabot watches it and keeps TypeScript 5 there. The app type checks with
+    TypeScript 7; `schema.d.ts` output unchanged. Back to one package once openapi-typescript
+    supports TypeScript 7.
+- [x] Maintenance came and went during a sync (left after 30 s of fast answers, or when the
+  catalog row ended while prices/images/next game followed). Entry unchanged (median over
+  `TCG_MAINTENANCE_LATENCY_MS` during a catalog refresh); once in, it lasts while any job
+  runs and ends after 30 s without one (`services/load.py`, `IDLE`).
+- [x] Maintenance page cuts the service: web pages answer a self-contained page (503,
+  `Retry-After: 60`, `no-store`) made from the Zukan 502 error page
+  (`backend/app/static/maintenance.html`, logo-dark inline, `services/maintenance_page.py`),
+  in en/fr/de/es: language saved on the signed-in user, else the one last used in the
+  browser (`tcg.ui-language`), else Accept-Language. It polls `/api/health` and reloads when
+  maintenance ends. Administrators keep the interface (an expired page cookie is refreshed
+  once by the page), `/login` stays reachable, static files and `/api` unchanged (users get
+  JSON 503 there, Android unchanged). The web interface reloads a user into the page when
+  maintenance starts; the old in-page screen is gone.
+- [x] Data sync page: Next run lines blinked during a run (schedule query keyed on the poll
+  time, so a new empty query every 3 s); keyed on the runs' statuses with the previous
+  answer kept.
+- [x] Worker stayed at 700+ MB after a sync: catalog caches in module variables
+  (Yu-Gi-Oh! TCG batch, YGOPRODeck / YGOJSON data, Riftbound, Sorcery, Pokémon names) lived
+  forever, and glibc kept the freed pages in per-thread arenas. `app/core/memory.py`:
+  modules register their cache clearer, the worker calls `release()` when no job runs any
+  more (end of a scheduled check, last queued run done): caches emptied, `gc.collect()`,
+  `malloc_trim(0)`, RSS before/after logged. Image: `MALLOC_ARENA_MAX=2`.
+- [x] Zukan names (`app/core/naming.py`, dependency `setproctitle`): processes `zukan-api`,
+  `zukan-worker`, `zukan-cli` (title and main thread), executor threads `zukan-<role>_N`
+  (seen by `top -H` with Python 3.14); log lines show `process/thread`; the API logs Zukan's
+  own INFO messages (maintenance start/end). uvloop's DNS threads keep libuv's
+  `libuv-worker` name. `sync_run.owner` unchanged (restart reaping matches it).
+- [x] Versions: server 0.23.0, Android 0.15.1 (dependency updates only). `.env.example`:
+  user agent 0.23.0, maintenance text, `MALLOC_ARENA_MAX`. API schema unchanged.
+- [ ] User: watch the next data sync: maintenance page stays until the end, worker log
+  "memory released: X MB -> Y MB", `docker stats` of the worker back down afterwards.
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
