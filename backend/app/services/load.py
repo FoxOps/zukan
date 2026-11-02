@@ -9,8 +9,10 @@ database. The API process measures its own responsiveness every `SAMPLE_SECONDS`
 
 When the median of the last `WINDOW` samples exceeds `TCG_MAINTENANCE_LATENCY_MS` while a
 catalog job runs, the server enters maintenance: users get a maintenance page (and 503 on
-the API), administrators keep access to watch or cancel the job. It leaves maintenance
-after `CALM` samples in a row under the limit, or as soon as no catalog job runs.
+the API), administrators keep access to watch or cancel the job. Once in, it stays until the
+data sync is over: no job (any kind, any game) running for `IDLE` samples in a row, so the
+short gaps between the jobs of one worker run don't end it. Leaving as soon as the server
+looked fast again made the page come and go during a sync.
 """
 
 import asyncio
@@ -30,15 +32,16 @@ from app.models import JobKind, JobStatus, SyncRun
 log = logging.getLogger(__name__)
 
 SAMPLE_SECONDS = 2.0
-# Samples making the slow window (20 s), and fast samples in a row needed to leave (30 s).
+# Samples making the slow window (20 s), and samples in a row without any job needed to
+# leave (30 s).
 WINDOW = 10
-CALM = 15
+IDLE = 15
 
 
 @dataclass(frozen=True)
 class Maintenance:
     since: datetime
-    # Game whose catalog refresh is running.
+    # Game whose job is running (the catalog refresh that started it, then the next ones).
     game_id: str
 
 
@@ -48,36 +51,42 @@ class LoadMonitor:
     def __init__(self, limit_ms: float) -> None:
         self.limit_ms = limit_ms
         self.samples: deque[float] = deque(maxlen=WINDOW)
-        self.calm = 0
+        self.idle = 0
         self.state: Maintenance | None = None
 
     def _reset(self) -> None:
         self.samples.clear()
-        self.calm = 0
+        self.idle = 0
         self.state = None
 
-    def record(self, latency_ms: float, catalog_game: str | None, now: datetime) -> None:
+    def record(
+        self, latency_ms: float, catalog_game: str | None, active_game: str | None, now: datetime
+    ) -> None:
+        """`catalog_game`: game whose catalog refresh runs; `active_game`: game of any job
+        running (the catalog one first)."""
+        if self.state is not None:
+            if active_game is None:
+                self.idle += 1
+                if self.idle >= IDLE:
+                    log.info("Maintenance ends: data sync over")
+                    self._reset()
+                return
+            self.idle = 0
+            if active_game != self.state.game_id:
+                self.state = Maintenance(since=self.state.since, game_id=active_game)
+            return
         if catalog_game is None:
-            if self.state is not None:
-                log.info("Maintenance ends: no catalog refresh running")
-            self._reset()
+            self.samples.clear()
             return
         self.samples.append(latency_ms)
-        if self.state is None:
-            full = len(self.samples) == WINDOW
-            if full and statistics.median(self.samples) > self.limit_ms:
-                self.state = Maintenance(since=now, game_id=catalog_game)
-                self.calm = 0
-                log.warning(
-                    "Maintenance starts: %s catalog refresh slows the server (median %.0f ms)",
-                    catalog_game,
-                    statistics.median(self.samples),
-                )
-            return
-        self.calm = self.calm + 1 if latency_ms <= self.limit_ms else 0
-        if self.calm >= CALM:
-            log.info("Maintenance ends: the server is fast again")
-            self._reset()
+        if len(self.samples) == WINDOW and statistics.median(self.samples) > self.limit_ms:
+            self.state = Maintenance(since=now, game_id=catalog_game)
+            self.idle = 0
+            log.warning(
+                "Maintenance starts: %s catalog refresh slows the server (median %.0f ms)",
+                catalog_game,
+                statistics.median(self.samples),
+            )
 
 
 _monitor: LoadMonitor | None = None
@@ -94,23 +103,32 @@ def record_request(duration_ms: float) -> None:
         _requests.append(duration_ms)
 
 
-async def _catalog_game() -> str | None:
+@dataclass(frozen=True)
+class Activity:
+    # Game whose catalog refresh runs, and game of any job running (catalog first).
+    catalog_game: str | None
+    active_game: str | None
+
+
+async def _activity() -> Activity:
     async with get_sessionmaker()() as session:
-        return await session.scalar(
-            select(SyncRun.game_id)
-            .where(SyncRun.kind == JobKind.catalog, SyncRun.status == JobStatus.running)
-            .limit(1)
-        )
+        rows = (
+            await session.execute(
+                select(SyncRun.game_id, SyncRun.kind).where(SyncRun.status == JobStatus.running)
+            )
+        ).all()
+    catalog = next((game for game, kind in rows if kind == JobKind.catalog), None)
+    return Activity(catalog, catalog or (rows[0][0] if rows else None))
 
 
-async def _sample(loop_delay_ms: float) -> tuple[float, str | None]:
-    """Latency (ms) and the game whose catalog refresh runs, if any."""
+async def _sample(loop_delay_ms: float) -> tuple[float, Activity]:
+    """Latency (ms) and the jobs running."""
     start = time.perf_counter()
-    game_id = await _catalog_game()
+    activity = await _activity()
     probe = loop_delay_ms + (time.perf_counter() - start) * 1000
     answered = _requests[:]
     _requests.clear()
-    return max(probe, statistics.median(answered)) if answered else probe, game_id
+    return max(probe, statistics.median(answered)) if answered else probe, activity
 
 
 async def watch() -> None:
@@ -126,8 +144,8 @@ async def watch() -> None:
         # Event loop delay: how late this task wakes up.
         delay = max(0.0, (time.perf_counter() - start - SAMPLE_SECONDS) * 1000)
         try:
-            latency, game_id = await _sample(delay)
+            latency, activity = await _sample(delay)
         except Exception:
             log.exception("Load sample failed")
             continue
-        _monitor.record(latency, game_id, datetime.now(UTC))
+        _monitor.record(latency, activity.catalog_game, activity.active_game, datetime.now(UTC))
