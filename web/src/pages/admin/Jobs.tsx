@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router'
@@ -113,12 +113,15 @@ export default function Jobs() {
   // Elapsed time from the server clock, plus the time since it was fetched.
   const elapsed = (job: { status: string; elapsed_seconds: number }) =>
     job.elapsed_seconds + (job.status === 'running' ? Math.max(0, Math.round((now - jobs.dataUpdatedAt) / 1000)) : 0)
-  // Next automatic run of each job; follows the job list (a run moves it).
+  // Next automatic run of each job; reloaded when a run starts or ends (a run moves it),
+  // not at every poll, and the previous answer stays shown meanwhile (the lines blinked).
+  const runs = jobs.data?.map((j) => `${j.id}:${j.status}`).join(',')
   const schedule = useQuery({
-    queryKey: ['schedule', jobs.dataUpdatedAt],
+    queryKey: ['schedule', runs],
     queryFn: () => call(api.GET('/api/admin/schedule')),
     enabled: admin,
     refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
   })
   const nextRun = (game: string, kind: string) => schedule.data?.find((s) => s.game_id === game && s.kind === kind)
   const folders = useQuery({

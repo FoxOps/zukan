@@ -257,6 +257,11 @@ _claimed: set[int] = set()
 _tasks: set[asyncio.Task] = set()
 
 
+def queued_runs_active() -> bool:
+    """Whether runs started by `run_queued` are still going."""
+    return bool(_tasks)
+
+
 async def _run_claimed(run: SyncRun) -> None:
     try:
         if await _claim(run):

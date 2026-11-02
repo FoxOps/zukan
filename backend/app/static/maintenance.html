@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="$lang" data-known="$known"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="dark"><title>$title</title><style>
+:root{color-scheme:dark;--bg:#211a17;--panel:#2a201b;--text:#fff6e5;--muted:#cfbdac;--gold:#ffc21a;--border:#4a3324}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;min-height:100svh;background:radial-gradient(ellipse at 50% 0%,#443020 0%,transparent 65%),var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6;display:flex;flex-direction:column}
+header,footer{width:min(1120px,100%);margin-inline:auto;padding:28px 32px}header{display:flex;align-items:center;justify-content:space-between;gap:20px}.brand{display:flex;align-items:center}.brand img{display:block;width:140px;height:auto}.tagline{color:var(--muted);font-size:13px}
+main{flex:1;display:grid;place-items:center;padding:30px 24px 50px;position:relative;isolation:isolate}.panel{width:min(680px,100%);padding:52px 48px 44px;text-align:center;background:linear-gradient(145deg,#30251e,var(--panel));border:1px solid var(--border);border-top:3px solid var(--gold);border-radius:24px;box-shadow:0 24px 80px #0004;position:relative}.illustration{width:156px;height:128px;margin:0 auto 25px;display:block}.eyebrow{font-size:12px;font-weight:750;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin:0 0 12px}h1{font-size:clamp(28px,5vw,38px);line-height:1.2;letter-spacing:-.025em;margin:0 0 20px;font-weight:800}.description{max-width:470px;margin:0 auto;color:var(--muted);font-size:16px}.actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:30px}.button{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:11px 22px;border-radius:12px;background:var(--gold);color:#402719;text-decoration:none;font-weight:750;border:1px solid var(--gold)}.button:hover{background:#ffd25b;border-color:#ffd25b}a:focus-visible{outline:3px solid var(--gold);outline-offset:5px}.note{margin:30px 0 0;padding-top:22px;border-top:1px solid var(--border);font-size:13px;color:var(--muted)}footer{text-align:center;color:#bda591;font-size:12px;padding-top:16px;padding-bottom:24px}footer span{color:var(--gold)}
+@media(max-width:540px){header{padding:22px 24px}.tagline{display:none}main{padding:20px 16px 32px}.panel{padding:35px 22px 30px;border-radius:20px}.actions{flex-direction:column}.button{width:100%}.illustration{width:136px;height:112px}}
+@media(forced-colors:active){.panel,.button{border:1px solid CanvasText}}
+</style></head>
+<body><header><a class="brand" href="/" aria-label="$home" data-t-label="home"><img src="$logo" alt="Zukan" width="720" height="256"></a><span class="tagline" data-t="tagline">$tagline</span></header>
+<main><section class="panel" aria-labelledby="title"><svg class="illustration" viewBox="0 0 156 128" fill="none" aria-hidden="true"><circle cx="78" cy="65" r="54" fill="#ffc21a" fill-opacity=".06"/><rect x="29" y="22" width="57" height="82" rx="9" transform="rotate(-14 29 22)" fill="#211a17" stroke="#705342" stroke-width="2"/><rect x="65" y="13" width="57" height="82" rx="9" transform="rotate(10 65 13)" fill="#30251e" stroke="#ffc21a" stroke-width="2"/><path d="m94 33 3 7 7 3-7 3-3 7-3-7-7-3 7-3Z" fill="#ffc21a"/><path d="M18 61h8m-4-4v8m108-35h8m-4-4v8" stroke="#8fc4a5" stroke-width="2" stroke-linecap="round"/><circle cx="87" cy="93" r="25" fill="#211a17" stroke="#ffc21a" stroke-width="2"/><path d="M87 79v14l9 6" stroke="#ffc21a" stroke-width="3" stroke-linecap="round"/><circle cx="87" cy="93" r="3" fill="#ffc21a"/></svg><p class="eyebrow" data-t="eyebrow">$eyebrow</p><h1 id="title" data-t="heading">$heading</h1><p class="description" data-t="description">$description</p><nav class="actions" aria-label="$actions" data-t-label="actions"><a class="button" href="" data-t="retry">$retry</a></nav><p class="note" data-t="note">$note</p></section></main>
+<footer><span>Zukan</span> · <span data-t="footer" style="color:inherit">$footer</span></footer>
+<script type="application/json" id="texts">$texts</script>
+<script>
+(function () {
+  var texts = JSON.parse(document.getElementById('texts').textContent);
+  var root = document.documentElement;
+  var REFRESHED = 'tcg.maintenance-refreshed';
+  function apply(lang) {
+    var t = texts[lang];
+    if (!t || lang === root.lang) return;
+    root.lang = lang;
+    document.title = t.title;
+    document.querySelectorAll('[data-t]').forEach(function (e) { e.textContent = t[e.getAttribute('data-t')]; });
+    document.querySelectorAll('[data-t-label]').forEach(function (e) { e.setAttribute('aria-label', t[e.getAttribute('data-t-label')]); });
+  }
+  function storage(kind) { try { return window[kind]; } catch (e) { return null; } }
+  if (root.getAttribute('data-known') !== '1') {
+    // The interface language last used in this browser.
+    var local = storage('localStorage');
+    if (local) apply(local.getItem('tcg.ui-language'));
+    // Signed in, but the page cookie expired: a fresh one lets administrators in, and
+    // tells the user's language. Once per tab, not at every reload.
+    var session = storage('sessionStorage');
+    if (session && !session.getItem(REFRESHED)) {
+      session.setItem(REFRESHED, '1');
+      fetch('/api/auth/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-TCG-CSRF': '1' }, body: '{}' })
+        .then(function (r) { return r.ok ? fetch('/api/auth/me') : null; })
+        .then(function (r) { return r && r.ok ? r.json() : null; })
+        .then(function (me) {
+          if (!me) return;
+          if (me.role === 'admin') location.reload();
+          else apply(me.language);
+        })
+        .catch(function () {});
+    }
+  }
+  // Back by itself once the data sync is over.
+  setInterval(function () {
+    fetch('/api/health', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (h) {
+        if (h.maintenance) return;
+        var session = storage('sessionStorage');
+        if (session) session.removeItem(REFRESHED);
+        location.reload();
+      })
+      .catch(function () {});
+  }, 30000);
+})();
+</script></body></html>

@@ -20,6 +20,7 @@ from typing import Any
 
 import httpx
 
+from app.core import memory
 from app.games import cardmarket
 from app.games.base import (
     CardData,
@@ -172,6 +173,12 @@ def _price_order(printing: PrintingData) -> tuple[bool, str]:
 # Catalog kept for card refreshes and price runs: (time.monotonic(), catalog, expansions).
 CATALOG_TTL = 3600
 _cached: tuple[float, CatalogBatch, dict[int, list[str]]] | None = None
+
+
+@memory.releasable
+def _clear() -> None:
+    global _cached
+    _cached = None
 
 
 class RiftboundProvider:

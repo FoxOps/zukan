@@ -1,0 +1,12 @@
+{
+  "name": "zukan-openapi-types",
+  "private": true,
+  "description": "Generates src/api/schema.d.ts (npm run gen:api). Kept apart from the web app: openapi-typescript needs the TypeScript 5 compiler API, which TypeScript 7 no longer ships.",
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0",
+    "typescript": "~5.9.3"
+  },
+  "overrides": {
+    "minimatch": "^11.0.3"
+  }
+}

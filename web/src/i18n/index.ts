@@ -43,6 +43,17 @@ async function loadLanguage(lang: string | undefined) {
   }
 }
 
+/** Switch to `lang` once its translations are there. i18next resolves the language to the
+ * first one with translations loaded, so switching before the download stays on English. */
+export async function setLanguage(lang: string) {
+  await loadLanguage(lang)
+  await i18n.changeLanguage(lang)
+}
+
+i18n.on('languageChanged', () => {
+  document.documentElement.lang = i18n.resolvedLanguage ?? 'en'
+})
+
 void i18n
   .use(LanguageDetector)
   .use(initReactI18next)
@@ -66,13 +77,8 @@ void i18n
       caches: ['localStorage'],
     },
   })
-
-i18n.on('languageChanged', (lang) => {
-  document.documentElement.lang = lang
-  void loadLanguage(i18n.resolvedLanguage)
-})
-document.documentElement.lang = i18n.resolvedLanguage ?? 'en'
-void loadLanguage(i18n.resolvedLanguage)
+  // The detected language (stored or browser one, language part only).
+  .then(() => setLanguage(i18n.languages[0] ?? 'en'))
 
 export default i18n
 
@@ -100,7 +106,7 @@ export function useChangeLanguage() {
   const client = useQueryClient()
   return useCallback(
     (lang: Lang, signedIn = true) => {
-      void i18n.changeLanguage(lang)
+      void setLanguage(lang)
       if (signedIn) {
         void api.PATCH('/api/auth/me', { body: { language: lang } }).then(() => client.invalidateQueries())
       } else {
@@ -120,7 +126,7 @@ export function useServerLanguage(serverLang: string | undefined) {
     const pending = session()?.getItem(PENDING_KEY)
     session()?.removeItem(PENDING_KEY)
     if (isLang(pending) && pending !== serverLang) change(pending)
-    else if (serverLang !== currentLanguage()) void i18n.changeLanguage(serverLang)
+    else if (serverLang !== currentLanguage()) void setLanguage(serverLang)
   }, [serverLang, change])
 }
 

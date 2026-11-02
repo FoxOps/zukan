@@ -70,7 +70,8 @@ class Settings(BaseSettings):
 
     # Maintenance page while a catalog refresh slows the server down: shown to users (not
     # administrators) when API answers take longer than `maintenance_latency_ms` (median
-    # over 20 s) during a catalog refresh, until they are fast again for 30 s.
+    # over 20 s) during a catalog refresh, until the data sync is over (no job running for
+    # 30 s).
     maintenance_enabled: bool = True
     maintenance_latency_ms: int = 500
 

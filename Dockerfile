@@ -1,6 +1,6 @@
 # Web UI build. Static output, so it always runs on the build machine's platform
 # (multi-arch images do not emulate Node).
-FROM --platform=$BUILDPLATFORM node:24-slim AS web
+FROM --platform=$BUILDPLATFORM node:26-slim AS web
 WORKDIR /web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
@@ -8,9 +8,12 @@ COPY web/ ./
 RUN npm run build
 
 # API + worker, serving the built web UI on the same origin
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+# Few glibc malloc arenas: each thread parsing a catalog otherwise keeps its own, and
+# the memory of a sync is not given back afterwards.
+ENV MALLOC_ARENA_MAX=2
 WORKDIR /app
 
 COPY backend/pyproject.toml ./
