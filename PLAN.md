@@ -1988,7 +1988,8 @@ Report against server 0.22.0 / app 0.15.0. Branch `2026-11-02-000-maintenance-i1
   requested language, then switches; used at startup (detected language), by the menu,
   Settings and the server language. Checked in the browser: EN → FR → DE → ES, login page
   choice kept after sign-in, saved on the account.
-- [x] Dependabot PRs integrated on this branch (they close once main has the updates):
+- [x] Dependabot PRs retargeted to this branch and merged into it (#34-#40 merged; the
+  npm ones conflicted on package-lock, regenerated once for all four in 388391d):
   - #40 Python 3.14-slim image (CI and README 3.14 too; 258 tests pass on 3.14).
   - #34 Node 26-slim (CI Node 26). #35 Android group (AGP 9.5.0, Gradle 9.8.2, datastore
     1.3.0, serialization 1.12.0, okhttp 5.5.1; unit tests, build, lint pass).
