@@ -23,6 +23,7 @@ from typing import Any
 
 import httpx
 
+from app.core import memory
 from app.core.http import get_with_retry
 from app.games import cardmarket
 from app.games.base import (
@@ -184,6 +185,12 @@ def match_cardmarket(
 # Catalog kept for card refreshes: (time.monotonic() of download, catalog).
 CATALOG_TTL = 3600
 _cached_catalog: tuple[float, CatalogBatch] | None = None
+
+
+@memory.releasable
+def _clear() -> None:
+    global _cached_catalog
+    _cached_catalog = None
 
 
 class SorceryProvider:

@@ -13,18 +13,23 @@ replace them.
 
 Runs started from the web UI are queued; the worker checks the queue every
 `QUEUE_SECONDS`, next to its schedule, and runs them at once.
+
+When no job runs any more (the scheduled ones of a check and the queued ones), the
+memory the sync took is given back (`app.core.memory`).
 """
 
 import asyncio
 import logging
 from datetime import UTC, datetime
 
+from app.core import memory, naming
 from app.main import register_games
 from app.models import JobTrigger
 from app.services.jobs import (
     JobAlreadyRunning,
     JobStopped,
     is_queued,
+    queued_runs_active,
     reap_runs,
     run_job,
     run_queued,
@@ -37,26 +42,44 @@ log = logging.getLogger("zukan.worker")
 # How often the worker looks for runs queued from the web UI.
 QUEUE_SECONDS = 3
 
+# A scheduled check is running its jobs.
+_ticking = False
+
+
+def release_if_idle() -> None:
+    """Data sync over (no scheduled nor queued job left): give the memory back."""
+    if not _ticking and not queued_runs_active():
+        memory.release()
+
 
 async def tick() -> None:
+    global _ticking
     await reap_runs()
     schedule = await load_schedule()
-    for game_id in worker_games():
-        for kind in jobs_for(game_id):
-            if not await is_due(game_id, kind, datetime.now(UTC), schedule):
-                continue
-            if await is_queued(game_id, kind):
-                continue  # a manual run is about to start
+    ran = False
+    _ticking = True
+    try:
+        for game_id in worker_games():
+            for kind in jobs_for(game_id):
+                if not await is_due(game_id, kind, datetime.now(UTC), schedule):
+                    continue
+                if await is_queued(game_id, kind):
+                    continue  # a manual run is about to start
 
-            try:
-                await run_job(game_id, kind, JobTrigger.auto)
-            except JobAlreadyRunning:
-                log.info("%s/%s already running elsewhere", game_id, kind)
-            except JobStopped:
-                pass  # recorded in sync_run
-            except Exception:
-                # Logged and recorded in sync_run; later jobs of this game still run.
-                pass
+                ran = True
+                try:
+                    await run_job(game_id, kind, JobTrigger.auto)
+                except JobAlreadyRunning:
+                    log.info("%s/%s already running elsewhere", game_id, kind)
+                except JobStopped:
+                    pass  # recorded in sync_run
+                except Exception:
+                    # Logged and recorded in sync_run; later jobs of this game still run.
+                    pass
+    finally:
+        _ticking = False
+    if ran:
+        release_if_idle()
 
 
 async def scheduled() -> None:
@@ -68,14 +91,17 @@ async def scheduled() -> None:
 async def queue() -> None:
     while True:
         try:
-            await run_queued()
+            for task in await run_queued():
+                task.add_done_callback(lambda _: release_if_idle())
         except Exception:
             log.exception("Could not read the job queue")
         await asyncio.sleep(QUEUE_SECONDS)
 
 
 async def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    naming.name_process("worker")
+    naming.name_threads("worker")
+    logging.basicConfig(level=logging.INFO, format=naming.LOG_FORMAT)
     set_process_role("worker")
     await register_games()
     await reap_runs()

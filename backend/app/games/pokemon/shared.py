@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 
 import httpx
 
+from app.core import memory
 from app.core.http import get_with_retry
 
 TTL = 6 * 3600
@@ -91,6 +92,7 @@ async def international(
         return _cached[1]
 
 
+@memory.releasable
 def clear() -> None:
     global _cached
     _cached = None

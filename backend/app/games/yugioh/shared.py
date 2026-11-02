@@ -8,6 +8,7 @@ from typing import Any
 
 import httpx
 
+from app.core import memory
 from app.games.yugioh import ygojson, ygoprodeck
 from app.games.yugioh.ygojson import YgoJson
 
@@ -47,6 +48,7 @@ async def ygojson_data(http: httpx.AsyncClient) -> YgoJson | None:
         return _ygojson[1]
 
 
+@memory.releasable
 def clear() -> None:
     global _cards, _ygojson
     _cards = _ygojson = None

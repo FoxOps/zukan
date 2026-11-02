@@ -31,6 +31,7 @@ from typing import Any
 import httpx
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core import memory
 from app.games import cardmarket
 from app.games.base import (
     CardData,
@@ -71,6 +72,14 @@ GUESSED_FINISHES = ["first", "unlimited"]
 CATALOG_TTL = 3600
 # The TCG catalog of the last sync, for price runs.
 _cached: tuple[float, CatalogBatch] | None = None
+
+
+@memory.releasable
+def _clear() -> None:
+    global _cached
+    _cached = None
+
+
 TCG, OCG = "tcg", "ocg"
 
 # Spell and Trap: YGOPRODeck has no symbol; Konami's card database has (Fandom shows the

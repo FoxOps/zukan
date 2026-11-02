@@ -15,6 +15,7 @@ from app import __version__
 from app.api import admin, auth, catalog, collection, games, releases, scan, users
 from app.api.deps import cookie_user
 from app.api.schemas import HealthOut, MaintenanceOut
+from app.core import naming
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
 from app.core.http import close_shared_http_client
@@ -66,6 +67,11 @@ async def create_default_admin() -> None:
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     if len(get_settings().secret_key) < 32:
         raise RuntimeError("Set TCG_SECRET_KEY to a random value of at least 32 characters")
+    naming.name_process("api")
+    naming.name_threads("api")
+    # Zukan's own messages (maintenance, jobs…) next to uvicorn's; HTTP calls stay quiet.
+    logging.basicConfig(level=logging.INFO, format=naming.LOG_FORMAT)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     await register_games()
     await create_default_admin()
     # Jobs this API process ran before a restart are gone.

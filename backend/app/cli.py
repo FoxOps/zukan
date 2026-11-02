@@ -15,6 +15,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 
+from app.core import naming
 from app.core.db import get_sessionmaker
 from app.core.security import end_all_sessions, hash_password
 from app.games.base import get_provider
@@ -64,7 +65,8 @@ def main() -> None:
     import_cmd.add_argument("game")
     import_cmd.add_argument("folder", type=Path)
     args = parser.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
+    naming.name_process("cli")
+    logging.basicConfig(level=logging.INFO, format=naming.LOG_FORMAT)
 
     if args.command == "create-admin":
         # Env var allows non-interactive bootstrap (docker compose run).
