@@ -71,7 +71,7 @@ for the full catalog list and language coverage.
 
 | Component | Technologies |
 | --- | --- |
-| Backend and API | Python 3.13, FastAPI, Pydantic, HTTPX |
+| Backend and API | Python 3.14, FastAPI, Pydantic, HTTPX |
 | Database | PostgreSQL 17, SQLAlchemy 2, Alembic migrations |
 | Web interface | React 19, TypeScript, Vite, TanStack Query, i18next |
 | Styling | Tailwind CSS 4, daisyUI 5 |
