@@ -501,3 +501,41 @@ def test_chinese_script_by_majority():
     assert chinese_script("尼多娜 寶可夢 進化 能量") == "zh-hant"
     # Shared characters only: Simplified (mainland) by default.
     assert chinese_script("尼多娜") == "zh-hans"
+
+
+def test_stray_katakana_in_latin_text_is_not_japanese():
+    from app.games.ocr import script_language
+
+    # The Japanese model reads "O", "I" and "-" of a French card as ロ, エ and ー.
+    french = ocr("Elfes de Llanowar", "Créature : elfe et druide", "ロ : Ajoutez エ.", "ー")
+    assert script_language(french) is None
+    assert get_provider("mtg").parse_ocr(french).lang == "fr"
+    assert script_language(ocr("寛大なる者、アジャニ", "WAR • JP 184/264")) == "ja"
+
+
+def test_mtg_type_words_tell_latin_languages_apart():
+    mtg = get_provider("mtg")
+
+    def lang(*texts: str) -> str | None:
+        return mtg.parse_ocr(ocr("Name", *texts, "™ & © 2008 Wizards of the Coast")).lang
+
+    assert lang("Creature : Elfe", "Quand le terrain arrive") == "fr"
+    assert lang("Kreatur — Elf Druide") == "de"
+    assert lang("Criatura — Elfo", "Conjuro") == "es"
+    assert lang("Criatura — Elfo", "Feitiço") == "pt"
+    assert lang("Criatura — Elfo") is None  # Spanish or Portuguese: the name tells
+    assert lang("Creatura — Elfo") == "it"
+    # "creature" is French too (accent missed): the name tells.
+    assert lang("Creature — Elf Druid", "Target creature gets +1/+1.") is None
+    assert lang("Instant", "Destroy target artifact.") == "en"
+
+
+async def test_identify_language_from_the_name(client, alice):
+    # Old frame: no "DOM • FR"; the French name says the language.
+    french = await scan(client, alice, ocr("Elfes de Llanowar", "168/269"), game="mtg")
+    assert french["candidates"][0]["card"]["name"] == "Llanowar Elves"
+    assert french["detected"]["lang"] == "fr"
+    german = await scan(client, alice, ocr("Llanowarelfen"), game="mtg")
+    assert german["detected"]["lang"] == "de"
+    english = await scan(client, alice, ocr("Llanowar Elves"), game="mtg")
+    assert english["detected"]["lang"] == "en"

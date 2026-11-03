@@ -23,6 +23,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import fr.zukan.app.data.OcrScript
 import fr.zukan.app.data.OcrLineIn
 import fr.zukan.app.scan.GlareMeter
+import fr.zukan.app.scan.ScanPicture
 import fr.zukan.app.scan.TextAnalyzer
 import java.util.concurrent.Executors
 
@@ -32,19 +33,20 @@ fun CameraPreview(
     script: OcrScript,
     paused: Boolean,
     onFrame: (List<OcrLineIn>) -> Boolean,
-    onIdentify: (List<OcrLineIn>) -> Unit,
+    onIdentify: (List<OcrLineIn>, ScanPicture?) -> Unit,
     onAsianFrame: (List<OcrLineIn>) -> Boolean,
     modifier: Modifier = Modifier,
     torch: Boolean = false,
     // Whether the camera has a torch, once bound.
     onTorchAvailable: (Boolean) -> Unit = {},
     glare: () -> GlareMeter? = { null },
+    wantPicture: () -> Boolean = { false },
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     // TextureView mode: composes correctly under the overlays drawn on top of the preview.
     val previewView = remember { PreviewView(context).apply { implementationMode = PreviewView.ImplementationMode.COMPATIBLE } }
-    val analyzer = remember(script) { TextAnalyzer(script, onFrame, onIdentify, onAsianFrame, glare) }
+    val analyzer = remember(script) { TextAnalyzer(script, onFrame, onIdentify, onAsianFrame, glare, wantPicture) }
     analyzer.paused = paused
     var camera by remember { mutableStateOf<Camera?>(null) }
 

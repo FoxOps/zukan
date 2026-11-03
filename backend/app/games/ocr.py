@@ -13,6 +13,9 @@ _HANGUL = re.compile(r"[가-힯ᄀ-ᇿ]")
 _CJK = re.compile(r"[一-鿿]")
 _THAI = re.compile(r"[\u0e00-\u0e7f]")
 _LETTERS = re.compile(r"[^\W\d_]", re.UNICODE)
+# Asian glyphs needed, in number and as a share of all letters, to call the text Asian.
+MIN_SCRIPT_GLYPHS = 2
+MIN_SCRIPT_SHARE = 0.2
 
 
 def clean(text: str) -> str:
@@ -26,8 +29,14 @@ def has_cjk(text: str) -> bool:
 
 
 def script_language(lines: list[OcrLine]) -> str | None:
-    """Language implied by the writing system (Japanese, Korean, Chinese, Thai), if any."""
+    """Language implied by the writing system (Japanese, Korean, Chinese, Thai), if any.
+    A few glyphs in Latin text do not count: the Japanese model reads Latin letters as
+    look-alike katakana ("ロ" for "O", "エ" for "I", "ー" for "-")."""
     text = " ".join(line.text for line in lines)
+    asian = sum(len(p.findall(text)) for p in (_KANA, _HANGUL, _CJK, _THAI))
+    letters = len(_LETTERS.findall(text))
+    if asian < MIN_SCRIPT_GLYPHS or asian < MIN_SCRIPT_SHARE * letters:
+        return None
     if _KANA.search(text):
         return "ja"
     if _HANGUL.search(text):

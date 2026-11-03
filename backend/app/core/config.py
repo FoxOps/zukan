@@ -89,6 +89,9 @@ class Settings(BaseSettings):
     # Log the text the scanner app sends and what was read from it (no image, no user),
     # to reproduce a card that does not scan. Off by default.
     scan_debug_log: bool = False
+    # Compare the set symbol in the picture the app sends with set icons, to pick the
+    # printing of cards without a printed set code (old Magic frames).
+    scan_symbol_match: bool = True
 
 
 @lru_cache

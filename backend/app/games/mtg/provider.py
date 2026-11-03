@@ -18,6 +18,7 @@ import asyncio
 import json
 import logging
 import re
+import unicodedata
 import zlib
 from collections.abc import AsyncIterator
 from datetime import date
@@ -292,11 +293,59 @@ _NUMBER_RARITY = re.compile(
     r"(?:^|\s)(?:[CURMSLTP]\s+)?(\d{3,4}[a-z★*]?)(?:\s+[CURMSLTP])?(?:\s|$)"
 )
 _MARKERS = re.compile(r"Wizards of the Coast|Wizards|™ ?& ?©", re.IGNORECASE)
+# Type line words per printed language (accents dropped, OCR often misses them); the
+# Latin languages share the alphabet, these tell old cards (no "DOM • FR") apart.
+TYPE_WORDS = {
+    "fr": ("creature", "ephemere", "rituel", "enchantement", "artefact", "terrain", "legendaire"),
+    "de": (
+        "kreatur",
+        "spontanzauber",
+        "hexerei",
+        "verzauberung",
+        "artefakt",
+        "standardland",
+        "legendare",
+    ),
+    "it": (
+        "creatura",
+        "istantaneo",
+        "stregoneria",
+        "incantesimo",
+        "artefatto",
+        "terra base",
+        "leggendaria",
+    ),
+    "es": (
+        "criatura",
+        "instantaneo",
+        "conjuro",
+        "encantamiento",
+        "artefacto",
+        "tierra",
+        "legendaria",
+    ),
+    "pt": (
+        "criatura",
+        "magica instantanea",
+        "feitico",
+        "encantamento",
+        "artefato",
+        "terreno",
+        "lendaria",
+    ),
+    "en": ("creature", "instant", "sorcery", "enchantment", "artifact", "land", "legendary"),
+}
+# French writes "Créature : Elfe", English "Creature — Elf".
+_FRENCH_TYPE = re.compile(r"^\w+( \w+)? : ")
+# The type line, between the art and the rules text.
+TYPE_LINE_TOP = (0.35, 0.75)
 _MANA_TAIL = re.compile(r"(\s+[\dWUBRGCXP{}()@®©*]{1,4})+$")
 
 
 def parse_ocr(lines: list[OcrLine]) -> OcrHints:
-    ordered = by_position([OcrLine(clean(line.text), line.left, line.top) for line in lines])
+    ordered = by_position(
+        [OcrLine(clean(line.text), line.left, line.top, line.width, line.height) for line in lines]
+    )
     hints = OcrHints()
     bottom = bottom_part(ordered)
     for line in bottom:
@@ -310,7 +359,7 @@ def parse_ocr(lines: list[OcrLine]) -> OcrHints:
     for line in on_left + [line for line in bottom if line not in on_left]:
         match = _NUMBER_TOTAL.search(line.text)
         if match and int(match.group(2)) >= MIN_SET_SIZE:
-            hints.collector_number = match.group(1)
+            hints.collector_number, hints.printed_total = match.group(1), match.group(2)
             break
     if hints.collector_number is None:
         for line in bottom:
@@ -331,10 +380,56 @@ def parse_ocr(lines: list[OcrLine]) -> OcrHints:
     names = [n for n in names if len(n) >= 2]
     if names:
         hints.name, hints.other_names = names[0], names[1:3]
-    hints.lang = hints.lang or script_language(lines)
+    hints.lang = hints.lang or script_language(lines) or type_language(ordered)
+    hints.symbol_line = type_line(ordered, bottom)
     text = " ".join(line.text for line in ordered)
     hints.recognized = hints.set_code is not None or bool(_MARKERS.search(text))
     return hints
+
+
+def _plain(text: str) -> str:
+    return "".join(
+        c for c in unicodedata.normalize("NFKD", text.lower()) if not unicodedata.combining(c)
+    )
+
+
+def _type_words(text: str) -> dict[str, int]:
+    plain = _plain(text)
+    return {
+        lang: sum(1 for word in words if re.search(rf"\b{word}\b", plain))
+        for lang, words in TYPE_WORDS.items()
+    }
+
+
+def type_language(lines: list[OcrLine]) -> str | None:
+    """Language of the type words read (whole card: rules text names types too), when
+    one language has the most."""
+    counts = {lang: 0 for lang in TYPE_WORDS}
+    for line in lines:
+        found = _type_words(line.text)
+        if _FRENCH_TYPE.match(line.text) and found["fr"]:
+            found["fr"] += 1
+        for lang, count in found.items():
+            counts[lang] += count
+    best = max(counts.values())
+    leaders = [lang for lang, count in counts.items() if count == best]
+    if best == 0 or len(leaders) > 1:
+        return None
+    return leaders[0]
+
+
+def type_line(lines: list[OcrLine], bottom: list[OcrLine]) -> OcrLine | None:
+    """The type line: mid card, with type words or the "—"/" : " separator."""
+    for line in lines:
+        if (
+            line in bottom
+            or line.top is None
+            or not TYPE_LINE_TOP[0] <= line.top <= TYPE_LINE_TOP[1]
+        ):
+            continue
+        if "—" in line.text or " : " in line.text or any(_type_words(line.text).values()):
+            return line
+    return None
 
 
 class MtgProvider:

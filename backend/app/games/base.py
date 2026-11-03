@@ -405,6 +405,8 @@ class OcrHints:
     # Our stored set's external id for `set_code`, when the catalog has that set (set
     # by the lookup service: a source's ids may differ from printed codes, "MEG" = me01).
     set_external_id: str | None = None
+    # The line whose right end holds the set symbol (MTG type line), when found.
+    symbol_line: OcrLine | None = None
 
 
 @runtime_checkable

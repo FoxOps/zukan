@@ -8,6 +8,7 @@ recognized lines. Candidates come from, in order of confidence:
 3. trigram similarity of the name against card names in every language.
 """
 
+import asyncio
 from dataclasses import dataclass, field
 from datetime import date
 
@@ -15,9 +16,13 @@ from sqlalchemy import Float, and_, case, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager, selectinload
 
+from app.core.config import get_settings
+from app.core.http import shared_http_client
 from app.games.base import GameProvider, OcrHints, OcrLine, registry
 from app.games.ocr import chinese_variants, has_cjk
 from app.models import Card, CardName, CardSet, Printing
+from app.services import set_symbols
+from app.services.set_symbols import ScanPicture
 
 MAX_CARDS = 8
 MAX_PRINTINGS = 30
@@ -26,6 +31,8 @@ MIN_SIMILARITY = 0.3
 GOOD_SIMILARITY = 0.6
 # With the collector number read, from this similarity the name is taken as confirmed.
 NUMBER_NAME_SIMILARITY = 0.5
+# A name's language counts when no other language's name is within this of it.
+NAME_LANGUAGE_MARGIN = 0.05
 
 
 @dataclass
@@ -35,6 +42,8 @@ class Candidate:
     # Best matching printings first; the rest of the card's printings follow.
     printing_ids: list[int] = field(default_factory=list)
     card: Card | None = None
+    # How many of `printing_ids` (the first ones) the read text matched.
+    matched: int = 0
 
 
 @dataclass
@@ -42,6 +51,8 @@ class Identification:
     game_id: str | None
     hints: OcrHints
     candidates: list[Candidate]
+    # Set symbol similarity per set code, when the picture was compared (debug log).
+    symbol_scores: dict[str, float] = field(default_factory=dict)
 
 
 def number_matches(column, number: str):
@@ -121,13 +132,7 @@ async def _name_similarity(
     if not names:
         return {}
     texts = [func.lower(func.f_unaccent(name)) for name in names]
-    scores = [
-        func.greatest(
-            func.similarity(CardName.search_name, text),
-            func.similarity(func.split_part(CardName.search_name, " // ", 1), text),
-        )
-        for text in texts
-    ]
+    scores = [_similarity(text) for text in texts]
     # Asian names are short and unspaced: a misread or extra glyph costs most of their
     # few trigrams. A name found inside the read text (or the reverse) scores by length.
     contained = []
@@ -163,6 +168,33 @@ async def _name_similarity(
             or_(*(CardName.search_name.op("%")(text) for text in texts), *contained)
         )
     return {card_id: float(score) for card_id, score in await session.execute(query)}
+
+
+def _similarity(text):
+    return func.greatest(
+        func.similarity(CardName.search_name, text),
+        func.similarity(func.split_part(CardName.search_name, " // ", 1), text),
+    )
+
+
+async def _name_language(session: AsyncSession, card_id: int, name: str) -> str | None:
+    """Language of the card's name the read name is closest to, when it is clearly one
+    (a name spelled the same in several languages tells nothing)."""
+    best = func.max(_similarity(func.lower(func.f_unaccent(name))))
+    rows = (
+        await session.execute(
+            select(CardName.lang, best)
+            .where(CardName.card_id == card_id)
+            .group_by(CardName.lang)
+            .order_by(best.desc())
+            .limit(2)
+        )
+    ).all()
+    if not rows or rows[0][1] < GOOD_SIMILARITY:
+        return None
+    if len(rows) > 1 and rows[0][1] - rows[1][1] < NAME_LANGUAGE_MARGIN:
+        return None
+    return rows[0][0]
 
 
 async def _identify_game(
@@ -221,6 +253,12 @@ def _fits_total(printing: Printing, printed_total: str | None) -> bool:
     return total >= int(printed_total)
 
 
+def _total_matches(printing: Printing, printed_total: str | None) -> bool:
+    """The set's catalog size is the printed one ("273/301" in a 301-card set)."""
+    total = printing.set.total
+    return bool(printed_total and printed_total.isdigit() and total == int(printed_total))
+
+
 def _printing_order(printing: Printing, lang: str | None) -> tuple:
     """Printings in the detected language first, then the newest."""
     return (
@@ -241,7 +279,10 @@ def other_game(lines: list[OcrLine], game_id: str) -> str | None:
 
 
 async def identify(
-    session: AsyncSession, lines: list[OcrLine], game_id: str | None = None
+    session: AsyncSession,
+    lines: list[OcrLine],
+    game_id: str | None = None,
+    picture: ScanPicture | None = None,
 ) -> Identification:
     providers = [registry()[game_id]] if game_id else list(registry().values())
     # Games whose markers appear in the text are searched first; a printing-level match
@@ -277,6 +318,10 @@ async def identify(
     }
     best_game = cards[ranked[0][0]].game_id
     hints = hints_by_game[best_game]
+    top = ranked[0][1]
+    if hints.lang is None and hints.name and top.match != "set_number":
+        # Old cards print no language: the name read tells it ("Forêt" is French).
+        hints.lang = await _name_language(session, ranked[0][0], hints.name)
     result = []
     for card_id, candidate in ranked:
         card = cards[card_id]
@@ -286,6 +331,46 @@ async def identify(
             key=lambda p: _printing_order(p, hints_by_game[card.game_id].lang),
         )
         candidate.card = card
-        candidate.printing_ids = (candidate.printing_ids + [p.id for p in rest])[:MAX_PRINTINGS]
+        candidate.matched = len(candidate.printing_ids)
+        candidate.printing_ids = candidate.printing_ids + [p.id for p in rest]
         result.append(candidate)
-    return Identification(best_game, hints, result)
+    symbol_scores = await _confirm_printing(result[0], hints, picture)
+    for candidate in result:
+        candidate.printing_ids = candidate.printing_ids[:MAX_PRINTINGS]
+    return Identification(best_game, hints, result, symbol_scores)
+
+
+async def _confirm_printing(
+    candidate: Candidate, hints: OcrHints, picture: ScanPicture | None
+) -> dict[str, float]:
+    """Without a set code, the best card's printings whose set fits what else is printed
+    come first (matched ones stay ahead of the others): the set symbol, then the set
+    size. Returns the symbol scores."""
+    card = candidate.card
+    if card is None or candidate.match == "set_number":
+        return {}
+    by_id = {p.id: p for p in card.printings}
+    printings = [by_id[i] for i in candidate.printing_ids]
+    symbol_set, scores = None, {}
+    area = set_symbols.symbol_area(hints.symbol_line) if hints.symbol_line else None
+    if (
+        picture is not None
+        and area is not None
+        and get_settings().scan_symbol_match
+        and len({p.set_id for p in printings}) > 1
+    ):
+        symbol = await asyncio.to_thread(set_symbols.crop_symbol, picture, area)
+        if symbol is not None:
+            symbol_set, scores = await set_symbols.best_set(
+                shared_http_client(), symbol, [p.set for p in printings]
+            )
+    rank = {p.id: i for i, p in enumerate(printings)}
+    printings.sort(
+        key=lambda p: (
+            rank[p.id] >= candidate.matched,
+            p.set_id != symbol_set,
+            not _total_matches(p, hints.printed_total),
+        )
+    )
+    candidate.printing_ids = [p.id for p in printings]
+    return scores
