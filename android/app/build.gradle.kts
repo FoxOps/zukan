@@ -18,7 +18,7 @@ android {
         targetSdk = 37
         // CI passes -PversionCode / -PversionName (prod: from the release version).
         versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
-        versionName = providers.gradleProperty("versionName").orNull ?: "0.15.1"
+        versionName = providers.gradleProperty("versionName").orNull ?: "0.16.0"
         resValue("string", "app_name", "Zukan")
         redirectScheme("fr.zukan.app")
     }

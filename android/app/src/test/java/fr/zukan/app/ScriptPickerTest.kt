@@ -38,4 +38,12 @@ class ScriptPickerTest {
         val text = "Llanowar Elves\nCreature — Elf Druid\n168/269 C"
         assertEquals(OcrScript.LATIN, ScriptPicker.pick(readings(text, text, text, text)))
     }
+
+    @Test
+    fun latinLettersReadAsKatakanaStayLatin() {
+        // A French card through the Japanese model: "O", "I" and "-" come back as ロ, エ, ー.
+        val latin = "Elfes de Llanowar\nCréature : elfe et druide\nT : Ajoutez G.\n168/269 C"
+        val japanese = "Elfes de Llanロwar\nCréature : elfe et druエde\nT : Ajoutez G.\nー168/269 C"
+        assertEquals(OcrScript.LATIN, ScriptPicker.pick(readings(latin, japanese, latin, latin)))
+    }
 }

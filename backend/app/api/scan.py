@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, status
@@ -10,13 +11,14 @@ from app.core.config import get_settings
 from app.core.http import http_client
 from app.games.base import OcrLine, registry
 from app.models import Printing
-from app.services import identify, lookup
+from app.services import identify, lookup, set_symbols
 
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/scan", tags=["scan"])
 
 Fraction = Annotated[float, Field(ge=0, le=1)]
+MAX_IMAGE_BASE64 = set_symbols.MAX_IMAGE_BYTES * 4 // 3 + 4
 
 
 class OcrLineIn(BaseModel):
@@ -32,6 +34,11 @@ class IdentifyIn(BaseModel):
     # Restrict to one game; all games when omitted.
     game: str | None = None
     lines: list[OcrLineIn] = Field(max_length=200)
+    # Grayscale JPEG (base64) around the text, to compare the set symbol with set icons
+    # on cards without a printed set code. `image_box`: its left, top, right and bottom
+    # in the boxes' frame (past 0..1 when it has a margin around the text).
+    image: Annotated[str, StringConstraints(max_length=MAX_IMAGE_BASE64)] | None = None
+    image_box: Annotated[list[float], Field(min_length=4, max_length=4)] | None = None
 
 
 class HintsOut(BaseModel):
@@ -84,19 +91,22 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
     """Match OCR text from a card photo to catalog printings."""
     if body.game and body.game not in registry():
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unknown game {body.game!r}")
+    started = time.monotonic()
     lines = [OcrLine(**line.model_dump()) for line in body.lines if line.text.strip()]
-    result = await identify.identify(session, lines, body.game)
-    fetched = False
+    picture = set_symbols.decode(body.image, body.image_box)
+    result = await identify.identify(session, lines, body.game, picture)
+    fetched = lookup_ran = False
     other_game = None
     if not result.candidates and lines and body.game:
         other_game = identify.other_game(lines, body.game)
     if not result.candidates and lines and other_game is None:
         # Not in the catalog (yet): ask the game's source, then match again.
         providers = [registry()[body.game]] if body.game else list(registry().values())
+        lookup_ran = True
         async with http_client(timeout=20) as http:
             fetched = await lookup.look_up(session, http, providers, lines, bool(body.game))
         if fetched:
-            result = await identify.identify(session, lines, body.game)
+            result = await identify.identify(session, lines, body.game, picture)
     card_names, printing_names = await load_names(
         session, (c.card.id for c in result.candidates if c.card)
     )
@@ -134,7 +144,8 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
         read = [(line.text, line.left, line.top) for line in lines]
         # Warning level: shown with the server's default logging, only when asked for.
         log.warning(
-            "scan game=%s lines=%r -> game=%s code=%s number=%s lang=%s name=%r found=%s",
+            "scan game=%s lines=%r -> game=%s code=%s number=%s lang=%s name=%r found=%s "
+            "symbol=%s picture=%s lookup=%s ms=%d",
             body.game,
             read,
             result.game_id,
@@ -147,6 +158,10 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
                 for c in result.candidates[:3]
                 if c.card
             ],
+            result.symbol_scores,
+            picture is not None,
+            lookup_ran,
+            (time.monotonic() - started) * 1000,
         )
     found_status: Literal["found", "not_found", "other_game", "not_a_card"]
     if candidates:

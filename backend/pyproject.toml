@@ -1,6 +1,6 @@
 [project]
 name = "zukan"
-version = "0.23.0"
+version = "0.24.0"
 description = "Zukan (図鑑, illustrated encyclopedia): self-hosted TCG collection manager"
 requires-python = ">=3.13"
 dependencies = [
@@ -21,6 +21,8 @@ dependencies = [
     "opencc-python-reimplemented>=0.1.7",
     # zukan-api / zukan-worker process and thread names (ps, top, htop).
     "setproctitle>=1.3.8",
+    # Set icons (SVG) rendered to compare with the set symbol on scanned cards.
+    "resvg-py>=0.5.0",
 ]
 
 [project.optional-dependencies]

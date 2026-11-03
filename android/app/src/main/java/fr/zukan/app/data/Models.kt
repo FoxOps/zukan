@@ -120,7 +120,14 @@ data class OcrLineIn(
 )
 
 @Serializable
-data class IdentifyIn(val game: String?, val lines: List<OcrLineIn>)
+data class IdentifyIn(
+    val game: String?,
+    val lines: List<OcrLineIn>,
+    // Grayscale JPEG (base64) around the text and where it lies in the lines' frame, to
+    // compare the set symbol of cards without a set code.
+    val image: String? = null,
+    @SerialName("image_box") val imageBox: List<Float>? = null,
+)
 
 @Serializable
 data class HintsOut(

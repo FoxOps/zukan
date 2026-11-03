@@ -152,6 +152,7 @@ fun ScanScreen(
                 torch = torch,
                 onTorchAvailable = { torchAvailable = it },
                 glare = { scan.glare },
+                wantPicture = { scan.wantsPicture },
             )
         }
         Column(Modifier.fillMaxSize()) {

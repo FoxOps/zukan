@@ -17,7 +17,12 @@ import fr.zukan.app.data.OcrLineIn
 import fr.zukan.app.data.PrintingOut
 import fr.zukan.app.data.userMessage
 import fr.zukan.app.scan.GlareMeter
+import fr.zukan.app.scan.ScanPicture
 import fr.zukan.app.scan.ScanStabilizer
+import fr.zukan.app.scan.toJpegBase64
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,6 +33,12 @@ enum class Phase { SCANNING, IDENTIFYING, RESULT, NOT_FOUND, ERROR }
 
 /** Text in view this long without a card sent: "Scan now" is offered. */
 private const val STUCK_MS = 4000L
+
+/** Games with set symbols the server compares (old Magic cards print no set code). */
+private val SYMBOL_GAMES = setOf("mtg")
+
+/** An Asian reading this recent is what "Scan now" sends. */
+private const val ASIAN_FRESH_MS = 2000L
 
 data class Undoable(val transactionId: Int, val text: String)
 
@@ -79,6 +90,14 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     val scanning get() = _state.value.phase == Phase.SCANNING
 
+    /** Games whose old cards print no set code: a picture goes with the text so the server
+     * can compare the set symbol (any game: the card may be one). */
+    val wantsPicture get() = game == null || game in SYMBOL_GAMES
+
+    // Each identify request; an answer to an older one (or after leaving) is dropped.
+    @Volatile
+    private var request = 0
+
     /** Called from the camera analysis thread for every frame: true when the card is
      * steady and new, so the frame is read for identification. */
     // Lines of the last frames: a frame sent without the collector number line (glare)
@@ -106,29 +125,57 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     /** "Scan now": the latest frame with text is identified without waiting for a steady
      * reading (glare on a holo card can keep the reading from settling). */
     fun scanNow() {
-        val lines = synchronized(this) { recent.lastOrNull { it.size >= 2 } } ?: return
+        val lines = synchronized(this) {
+            // An Asian model that just found its script read the card better than the
+            // Latin one (whose reading would lose the card's language).
+            val now = android.os.SystemClock.elapsedRealtime()
+            recentAsian?.takeIf { now - recentAsianAt <= ASIAN_FRESH_MS } ?: recent.lastOrNull { it.size >= 2 }
+        } ?: return
         identify(lines)
     }
 
+    // The last reading of an Asian model that found its script (automatic mode).
+    private var recentAsian: List<OcrLineIn>? = null
+    private var recentAsianAt = 0L
+
     @Synchronized
-    fun onAsianFrame(lines: List<OcrLineIn>): Boolean = scanning && asianStabilizer.offer(lines.map { it.text })
+    fun onAsianFrame(lines: List<OcrLineIn>): Boolean {
+        if (!scanning) return false
+        if (lines.size >= 2) {
+            recentAsian = lines
+            recentAsianAt = android.os.SystemClock.elapsedRealtime()
+        }
+        return asianStabilizer.offer(lines.map { it.text })
+    }
 
     private fun remember(lines: List<OcrLineIn>) {
         recent.addLast(lines)
         while (recent.size > ScanStabilizer.WINDOW) recent.removeFirst()
     }
 
-    fun identify(lines: List<OcrLineIn>) {
+    fun identify(lines: List<OcrLineIn>, picture: ScanPicture? = null) {
         val client = app.client.value ?: return
-        synchronized(this) { readingSince = 0L }
+        val id = synchronized(this) {
+            // One card at a time: "Scan now" and a steady frame arriving together would
+            // send it twice, and the later answer (or failure) replace the shown one.
+            if (_state.value.phase == Phase.IDENTIFYING) return
+            readingSince = 0L
+            ++request
+        }
         val sent = synchronized(this) { ScanStabilizer.withNumberLine(lines, recent.toList()) }
         val guess = glare?.guess()
         glare?.reset()
         _state.update { it.copy(phase = Phase.IDENTIFYING, message = null, error = null, stuck = false) }
         viewModelScope.launch {
-            runCatching { client.api.identify(IdentifyIn(game, sent)) }
-                .onSuccess { result ->
+            runCatching {
+                val image = picture?.let { withContext(Dispatchers.Default) { runCatching { it.toJpegBase64() }.getOrNull() } }
+                client.api.identify(IdentifyIn(game, sent, image, picture?.box?.takeIf { image != null }))
+            }
+                .onSuccess { answer ->
+                    // A card the server returns without printings cannot be shown.
+                    val result = answer.copy(candidates = answer.candidates.filter { it.printings.isNotEmpty() })
                     _state.update {
+                        if (!current(id, it)) return@update it
                         it.copy(
                             phase = if (result.candidates.isEmpty()) Phase.NOT_FOUND else Phase.RESULT,
                             result = result,
@@ -144,9 +191,15 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 // Shown on the camera until "Try again" (no scanning against a server that fails).
-                .onFailure { e -> _state.update { it.copy(phase = Phase.ERROR, error = e.userMessage(app)) } }
+                .onFailure { e ->
+                    if (e is CancellationException) throw e
+                    _state.update { if (current(id, it)) it.copy(phase = Phase.ERROR, error = e.userMessage(app)) else it }
+                }
         }
     }
+
+    /** The answer to request [id] is still awaited: the newest request, not left since. */
+    private fun current(id: Int, state: ScanState) = id == request && state.phase == Phase.IDENTIFYING
 
     /** Show a card picked by hand (search or collection screen) in the result panel,
      * `printingId` first when given, else the printing the catalog shows. */
@@ -270,12 +323,16 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Back to the camera. The same card is not identified again until it changes. */
     fun resume(forgetCard: Boolean = false) {
-        synchronized(this) { readingSince = 0L }
+        synchronized(this) {
+            readingSince = 0L
+            request++ // an identify still running is no longer awaited
+        }
         if (forgetCard) {
             synchronized(this) {
                 stabilizer.reset()
                 asianStabilizer.reset()
                 recent.clear()
+                recentAsian = null
             }
         }
         glare?.reset()

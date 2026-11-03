@@ -108,6 +108,10 @@ Phone sends OCR text lines + bounding boxes + chosen game (or auto). Server:
 1. Provider `parse_ocr` extracts collector number + set code (bottom line, language-independent — key for JA/ZH/KO) and name (top line).
 2. Exact match on (set code, collector number) → printing.
 3. Fallback: trigram fuzzy match on `card_name` across languages, rank candidates.
+   No printed language (old cards): the language of the closest `card_name` (since 0.24.0).
+   No set code (old Magic frames): printings of the best card ordered by set symbol (phone's
+   grayscale picture around the text vs. rasterized set icons, `services/set_symbols.py`),
+   then by set size equal to the printed total ("273/301").
 4. Return top candidates with image, set, colors, price, and user's current owned quantity per finish/condition/lang.
 Phone shows best match; user can swipe other printings, choose finish/condition/language, tap Add / Remove. Endpoint `POST /collection/adjust` (delta), returns new quantity; undo via transaction.
 
@@ -2034,6 +2038,51 @@ Report against server 0.22.0 / app 0.15.0. Branch `2026-11-02-000-maintenance-i1
   user agent 0.23.0, maintenance text, `MALLOC_ARENA_MAX`. API schema unchanged.
 - [ ] User: watch the next data sync: maintenance page stays until the end, worker log
   "memory released: X MB -> Y MB", `docker stats` of the worker back down afterwards.
+
+## Report 2026-11-03 (server 0.24.0, Android 0.16.0)
+Report against server 0.23.0 / app 0.15.1 (Xiaomi Redmi Note 5, MIUI 12.5.6). Branch
+`2026-11-03-000-scan-language-symbol`.
+- [x] Auto mode: French cards detected as Japanese or Russian; Latin mode: Portuguese.
+  - Japanese: the Japanese model reads Latin letters as look-alike katakana (ロ for O, エ
+    for I, ー for -). `ScriptPicker` took 2 kana as Japanese and the server
+    (`script_language`) a single one. Both now also need the script to be 20% of the
+    reading's letters (phone: of that model's reading).
+  - Russian / Portuguese: old Magic cards print no "DOM • FR", so no language was read and
+    the result panel took the printing's first language (order of the merged catalog rows).
+    Server: the language of the card name the read name is closest to
+    (`identify._name_language`, `card_name.lang`, unclear when two languages are within
+    0.05), and Magic type words per language (`TYPE_WORDS`: Créature/Kreatur/Creatura/
+    Criatura/Feitiço…, accents ignored). Phone: English before the printing's first
+    language when nothing else fits.
+  - Asian path (auto mode): the Japanese model handing over to the Chinese one needs 2
+    kanji-only frames in a row (one blurred frame lost the kana); the model starts over
+    with Japanese once the card is taken away (6 frames without text). "Scan now" sends the
+    last reading of an Asian model that found its script (2 s), not always the Latin one.
+- [x] Server answered, app showed nothing: the phone gave up after 30 s (OkHttp read
+  timeout) while the server fetched a missing card from its sources (20 s per source,
+  several when scanning any game). Identify requests get 90 s. One identify at a time
+  ("Scan now" and a steady frame together sent two, and the later failure replaced the shown
+  card); an answer to an older request or after leaving is dropped; candidates without
+  printings are dropped (empty sheet). ML Kit waits are bounded (10 s) so a hung model loses
+  a frame, not the scanner. Scan debug log: symbol scores, picture sent, lookup ran, ms.
+- [x] Old Magic cards (no set code, e.g. SHM 273 Leechridden Swamp, "273/301"):
+  - The printed total is read (`printed_total`); printings whose set size equals it come
+    first.
+  - Set symbol: the phone sends a grayscale JPEG of the text area plus a margin (25% wide,
+    6% high, at most 640x900, Magic or any game) and where it lies in the lines' frame
+    (`image`, `image_box` in `POST /scan/identify`). The server finds the type line,
+    crops right of it, keeps the largest dark shape not touching the sides (holes filled,
+    32x32), and compares it with the sets' cached SVG icons rendered by `resvg-py`
+    (intersection over union). The clearly best set (≥ 0.45, 0.08 ahead of the next) goes
+    first among the best card's printings; matched-by-number printings stay ahead. Never
+    finds a card on its own. Checked on Scryfall's SHM 273 scan at full and half size: SHM
+    0.68/0.72 vs. next M10 0.55/0.60. `TCG_SCAN_SYMBOL_MATCH` (default on).
+- [x] Versions: server 0.24.0 (new request fields, dependency `resvg-py`), Android 0.16.0.
+  `.env.example`: user agent 0.24.0, `TCG_SCAN_SYMBOL_MATCH`. API schema regenerated
+  (`IdentifyIn.image`, `image_box`).
+- [ ] User: scan SHM 273 and a few other old-frame cards with reprints (debug log on:
+  `symbol=` scores); French cards in auto and Latin modes on the Redmi Note 5 (language
+  shown); a card missing from the catalog on slow network (result shown after the fetch).
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.

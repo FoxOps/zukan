@@ -22,6 +22,9 @@ import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
+private const val IDENTIFY_PATH = "/api/scan/identify"
+private const val IDENTIFY_TIMEOUT_SECONDS = 90
+
 private val NO_REFRESH = listOf("/api/auth/login", "/api/auth/refresh", "/exchange")
 
 val json = Json {
@@ -53,6 +56,18 @@ class ApiClient(
         chain.proceed(if (token == null) request else request.withToken(token))
     }
 
+    // A card missing from the server's catalog is fetched from its source before the
+    // answer (several sources when scanning any game): the server may take longer than
+    // other requests, and a phone giving up first never shows the card it found.
+    private val slowScan = Interceptor { chain ->
+        val request = chain.request()
+        if (request.url.encodedPath.endsWith(IDENTIFY_PATH)) {
+            chain.withReadTimeout(IDENTIFY_TIMEOUT_SECONDS, TimeUnit.SECONDS).proceed(request)
+        } else {
+            chain.proceed(request)
+        }
+    }
+
     private val refresher = object : Authenticator {
         override fun authenticate(route: Route?, response: Response): Request? {
             // A 401 from login/refresh endpoints means bad credentials, not an expired token.
@@ -81,6 +96,7 @@ class ApiClient(
 
     /** Also used by the image loader, so card pictures carry the token too. */
     val http: OkHttpClient = plain.newBuilder()
+        .addInterceptor(slowScan)
         .addInterceptor(bearer)
         .authenticator(refresher)
         .build()

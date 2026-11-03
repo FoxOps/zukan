@@ -1453,6 +1453,10 @@ export interface components {
             game?: string | null;
             /** Lines */
             lines: components["schemas"]["OcrLineIn"][];
+            /** Image */
+            image?: string | null;
+            /** Image Box */
+            image_box?: number[] | null;
         };
         /** IdentifyOut */
         IdentifyOut: {

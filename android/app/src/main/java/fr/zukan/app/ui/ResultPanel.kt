@@ -99,8 +99,9 @@ fun ResultPanel(
     // Languages the printing exists in (all of the game's when the catalog does not say).
     val languages = printing.languages.ifEmpty { game?.languages ?: listOf("en") }
     // Defaults: the copy opened from the collection, else detected language, else
-    // preferred, else the printing's first language.
-    val defaultLanguage = listOfNotNull(state.language, result.detected.lang, settings.language).firstOrNull { it in languages } ?: languages.first()
+    // preferred, else English, else the printing's first language (its order says nothing:
+    // a French card shown as Portuguese or Russian).
+    val defaultLanguage = listOfNotNull(state.language, result.detected.lang, settings.language, "en").firstOrNull { it in languages } ?: languages.first()
     // The copy's finish, else the light's guess (experimental), else the finish of the last
     // copies added, else the first.
     val guessed = guessedFinish(state.finishGuess, finishes)
