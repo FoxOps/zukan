@@ -1,6 +1,7 @@
 """Store normalized catalog data from game providers (idempotent upserts)."""
 
 import asyncio
+import logging
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -26,6 +27,8 @@ from app.games.base import (
 from app.models import Card, CardName, CardSet, CollectionItem, Game, Printing, StockTransaction
 from app.services import layout, prices, translations
 from app.services.names import update_sort_names
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -124,6 +127,34 @@ def _dedupe_printings(
             merged[key] = (_merge_printing(printing, existing), False)
         else:
             merged[key] = (_merge_printing(existing, printing), existing_partial and partial)
+    return list(merged.values())
+
+
+def _dedupe_shared_printings(
+    rows: list[tuple[int, PrintingData, bool]],
+) -> list[tuple[int, PrintingData, bool]]:
+    """One printing claimed by several cards of a batch (sources disagreeing on its card,
+    two cards of one number): keep one row, on the card of its full data, else the first."""
+    merged: dict[tuple[str, str], tuple[int, PrintingData, bool]] = {}
+    clashes: dict[tuple[str, str], set[int]] = {}
+    for card_id, printing, partial in rows:
+        key = (printing.set_external_id, printing.external_id)
+        if key not in merged:
+            merged[key] = (card_id, printing, partial)
+            continue
+        kept_id, kept, kept_partial = merged[key]
+        if kept_id != card_id:
+            clashes.setdefault(key, {kept_id}).add(card_id)
+        if kept_partial and not partial:
+            merged[key] = (card_id, _merge_printing(printing, kept), False)
+        else:
+            merged[key] = (kept_id, _merge_printing(kept, printing), kept_partial and partial)
+    if clashes:
+        log.warning(
+            "%d printings claimed by several cards, merged (set, number: card ids): %s",
+            len(clashes),
+            "; ".join(f"{s}, {n}: {sorted(ids)}" for (s, n), ids in list(clashes.items())[:20]),
+        )
     return list(merged.values())
 
 
@@ -351,6 +382,7 @@ class CatalogWriter:
                 replacing += card_names
             for printing, partial in _dedupe_printings(card.printings):
                 printing_rows.append((card_id, printing, partial))
+        printing_rows = _dedupe_shared_printings(printing_rows)
 
         printing_ids = await self._upsert_printings(
             [(cid, p) for cid, p, partial in printing_rows if not partial], _PRINTING_FULL
@@ -359,7 +391,7 @@ class CatalogWriter:
             [(cid, p) for cid, p, partial in printing_rows if partial], _PRINTING_PARTIAL
         )
         self.report.printings += len(printing_rows)
-        for card_id, printing, _ in printing_rows:
+        for card_id, printing, partial in printing_rows:
             printing_id = printing_ids[
                 (self.set_ids[printing.set_external_id], printing.external_id)
             ]

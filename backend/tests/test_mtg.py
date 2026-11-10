@@ -113,6 +113,18 @@ def test_parse_card():
     assert parse_card(raw("en", "ymid")) is None  # Arena only
     assert parse_card(raw("ph", "dmu")) is None  # unsupported language
 
+    # A printed name every source has wrong is corrected (PRINTED_NAME_ERRATA).
+    mansion = {
+        **raw("fr", "dom"),
+        "set": "spm",
+        "collector_number": "183",
+        "name": "Savage Mansion",
+        "printed_name": "Manoir sauvage",
+    }
+    corrected = parse_card(mansion).printings[0]
+    assert corrected.names == {"fr": "Manoir Kravinoff"} and corrected.partial is False
+    assert french.printings[0].partial is None
+
 
 async def test_jsonl_stream_in_small_chunks():
     class Chunks(httpx.AsyncByteStream):

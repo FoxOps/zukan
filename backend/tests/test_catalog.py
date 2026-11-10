@@ -12,8 +12,9 @@ from app.api import catalog as catalog_api
 from app.core.config import get_settings
 from app.core.http import http_client
 from app.core.progress import progress
-from app.games.base import get_provider
+from app.games.base import CardData, CatalogBatch, PrintingData, SetData, get_provider
 from app.games.sorcery.provider import IMAGE_URL, parse_cards
+from app.main import register_games
 from app.models import (
     Card,
     CardName,
@@ -27,6 +28,7 @@ from app.models import (
     User,
 )
 from app.services import images, jobs, refresh
+from app.services.catalog import CatalogWriter
 from app.services.names import update_sort_names
 from app.worker import is_due
 from tests.conftest import SORCERY_CARDS as FIXTURE
@@ -850,3 +852,53 @@ async def test_whole_catalog_sorts_by_latin_name(client, session, synced, monkey
     latin = sorted(n for n in names if n not in ("Abundance", "Aqueduct"))
     assert await order() == [*latin, "Zénith", "가나"]
     assert await order(order="desc") == ["Zénith", *latin[::-1], "가나"]
+
+
+async def test_printing_claimed_by_two_cards_is_written_once(session, caplog):
+    """Two cards of one batch with the same printing (two Asian cards of one number): one
+    upsert statement cannot touch the row twice: the first card keeps it, data merged."""
+    await register_games()
+    writer = CatalogWriter(session, "sorcery")
+    first = CardData(
+        "ko:a",
+        "A",
+        printings=[PrintingData("001", "S1", "001", languages=["ko"], names={"ko": "가"})],
+    )
+    second = CardData(
+        "ko:b", "B", printings=[PrintingData("001", "S1", "001", rarity="R", languages=["ko"])]
+    )
+    batch = CatalogBatch(sets=[SetData("S1", "S1", "Set one", "ko")], cards=[first, second])
+    await writer.write(batch)
+    await session.commit()
+
+    printing = await session.scalar(select(Printing).where(Printing.external_id == "001"))
+    card = await session.get(Card, printing.card_id)
+    assert card.external_id == "ko:a" and printing.rarity == "R"
+    names = await session.scalars(select(CardName.name).where(CardName.printing_id == printing.id))
+    assert set(names) == {"가"}
+    assert "claimed by several cards" in caplog.text
+
+
+async def test_full_printing_name_replaces_stored_one(session):
+    """A localized row only adds names; one sent as full printing data (a corrected name)
+    replaces the stored name of its language."""
+    await register_games()
+    writer = CatalogWriter(session, "sorcery")
+    card_set = SetData("S1", "S1", "Set one")
+
+    def french(name: str, partial: bool | None) -> CardData:
+        printing = PrintingData("183", "S1", "183", languages=["fr"], names={"fr": name})
+        printing.partial = partial
+        return CardData("mansion", "Savage Mansion", printings=[printing], partial=True)
+
+    english = CardData("mansion", "Savage Mansion", printings=[PrintingData("183", "S1", "183")])
+    wrong = french("Manoir sauvage", None)
+    await writer.write(CatalogBatch(sets=[card_set], cards=[english, wrong]))
+    await writer.write(CatalogBatch(cards=[french("Autre nom", None)]))
+    await session.commit()
+    stored = select(CardName.name).where(CardName.lang == "fr", CardName.printing_id.is_not(None))
+    assert set(await session.scalars(stored)) == {"Manoir sauvage", "Autre nom"}
+
+    await writer.write(CatalogBatch(cards=[french("Manoir Kravinoff", False)]))
+    await session.commit()
+    assert set(await session.scalars(stored)) == {"Manoir Kravinoff"}

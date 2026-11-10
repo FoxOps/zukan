@@ -2084,6 +2084,40 @@ Report against server 0.23.0 / app 0.15.1 (Xiaomi Redmi Note 5, MIUI 12.5.6). Br
   `symbol=` scores); French cards in auto and Latin modes on the Redmi Note 5 (language
   shown); a card missing from the catalog on slow network (result shown after the fetch).
 
+## Report 2026-11-10 (server 0.24.1, Android 0.16.1)
+Report against server 0.24.0 / app 0.16.0. Branch `2026-11-10-000-asia-sync-mtg-scan-fixes`.
+- [x] Dependabot #43 (web: react-query, i18next, react-i18next, tailwindcss, vite,
+  plugin-react, oxlint) and #44 (AGP 9.5.0 → 9.5.1) retargeted to the branch and merged.
+  #44's CodeQL java-kotlin failure was a transient `HTTP 504` downloading Gradle. Web build,
+  lint, i18n check and Android `testDebugUnitTest lint assembleDebug` pass.
+- [x] Pokémon Asia catalog sync failing in a loop (`ON CONFLICT DO UPDATE command cannot
+  affect row a second time`, `INSERT INTO printing`): printings were merged per card only,
+  so two cards of one batch with the same (set, number), e.g. two cards of one number under
+  different names on an official Asian site, put the row twice in one statement. The
+  writer now merges them across the batch (`catalog._dedupe_shared_printings`): the row of
+  full data keeps its card, otherwise the first, fields merged; a warning lists the clashing
+  (set, number: card ids). Checked without DB: TCGdex and the Korean / Chinese datasets
+  give no such batch, so the official site searches do (the warning names the set).
+  - Names of a printing from partial data (localized rows) only add to the stored ones;
+    full data replaces them. The name loop read a stale `partial` (the last card's), so
+    which one happened depended on the batch order.
+- [x] MtG SPM 183 (FR) scanned wrong: the collector line was misread. `SPM • FR` came as
+  `SPM AFR` (dot read as a letter) and `L 0183` as `LO183` (rarity stuck, zero read as O).
+  `_SET_LANG` accepts one letter stuck to the language, `_NUMBER_RARITY` a stuck rarity and
+  a leading O, so the card is found by code and number again.
+- [x] SPM 183 French name: Scryfall (`printed_name`), MTGJSON `foreignData` (from Scryfall)
+  and Gatherer's FR text all give "Manoir sauvage"; the printed card, Gatherer's picture and
+  Cardmarket's French page say "Manoir Kravinoff". Cardmarket's French names are only on its
+  site (scripts refused) or its partner API (MKM v2 `localization`, credentials needed); the
+  downloadable product list is English only. User choice: a correction table,
+  `mtg.provider.PRINTED_NAME_ERRATA` ((set, number, language) → name), sent as full printing
+  data so the wrong stored name is replaced at the next sync. New reported errors: one line.
+- [x] Versions: server 0.24.1 (fixes), Android 0.16.1 (AGP update only). `.env.example`: user
+  agent 0.24.1, no new variables. API schema unchanged.
+- [ ] User: after upgrading, the Pokémon Asia sync completes; look for "claimed by several
+  cards" in the worker log (which set and numbers) and report it if the cards look wrong.
+  Scan SPM 183 FR again (expected: SPM 183, "Manoir Kravinoff" after the next Magic sync).
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.
