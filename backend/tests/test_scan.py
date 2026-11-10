@@ -513,6 +513,39 @@ def test_stray_katakana_in_latin_text_is_not_japanese():
     assert script_language(ocr("寛大なる者、アジャニ", "WAR • JP 184/264")) == "ja"
 
 
+def test_mtg_parser_reported_scans():
+    mtg = get_provider("mtg")
+    # SPM 183 French foil: "L 0183" read "LO183", "SPM • FR" read "SPM AFR".
+    lines = [
+        ("Manoir Kravinoff", 0.07797271, 0.0),
+        ("Terrain", 0.058479533, 0.561008),
+        ("Ce terrain arrive engage.", 0.07212476, 0.63395226),
+        ("-:Ajoutez", 0.05068226, 0.67639256),
+        ("ou", 0.38791424, 0.6777188),
+        ("4, c:", 0.056530215, 0.71750665),
+        ("Surveillez 1. (Regardez la carte du", 0.21637426, 0.7188329),
+        ("dessus de votre bibliöthèquc. louspouves la", 0.054580897, 0.75596815),
+        ("mettre dans vore", 0.064327486, 0.79045093),
+        ("GinLLlieru.)", 0.41520467, 0.7944297),
+        ("Des trophées exotiques de chasses victorieuses", 0.064327486, 0.8567639),
+        ("ornent les murs du Domaine des Kravinoff.", 0.046783626, 0.89257294),
+        ("MARVi.", 0.9025341, 0.96153843),
+        ("IM&2025 Wvads of the", 0.61208576, 0.9761273),
+        ("(Cst", 0.9356725, 0.9814324),
+        ("LO183", 0.0, 0.9535809),
+        ("SPM AFR DAYID AIYARIZ", 0.01754386, 0.969496),
+    ]
+    hints = mtg.parse_ocr([OcrLine(text, left, top) for text, left, top in lines])
+    assert (hints.name, hints.set_code, hints.collector_number, hints.lang) == (
+        "Manoir Kravinoff",
+        "SPM",
+        "183",
+        "fr",
+    )
+    # A real code is still taken over a word stuck to it.
+    assert mtg.parse_ocr(ocr("Forest", "0280 L", "BLB • EN Artist")).set_code == "BLB"
+
+
 def test_mtg_type_words_tell_latin_languages_apart():
     mtg = get_provider("mtg")
 

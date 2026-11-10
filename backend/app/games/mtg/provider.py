@@ -140,6 +140,12 @@ def _face_images(raw: dict[str, Any]) -> list[str]:
     return [f["image_uris"]["normal"] for f in raw.get("card_faces", []) if f.get("image_uris")]
 
 
+# Printed names every source has wrong, by (set, number, language). SPM 183: Scryfall,
+# MTGJSON and Gatherer's text give "Manoir sauvage", the card and Cardmarket "Manoir
+# Kravinoff".
+PRINTED_NAME_ERRATA = {("spm", "183", "fr"): "Manoir Kravinoff"}
+
+
 def _printed_name(raw: dict[str, Any]) -> str | None:
     if raw.get("printed_name"):
         return raw["printed_name"]
@@ -198,7 +204,8 @@ def parse_card(raw: dict[str, Any]) -> CardData | None:
     if len(images) > 1 and raw.get("layout") != "art_series":
         printing_attributes["back_image_url"] = images[1]
 
-    printed = _printed_name(raw)
+    errata = PRINTED_NAME_ERRATA.get((raw["set"], raw["collector_number"], raw.get("lang")))
+    printed = errata or _printed_name(raw)
     printing = PrintingData(
         external_id=raw["collector_number"],
         set_external_id=raw["set"],
@@ -210,6 +217,9 @@ def parse_card(raw: dict[str, Any]) -> CardData | None:
         images={lang: images[0]} if images else {},
         attributes=printing_attributes,
         names={lang: printed} if printed and printed != raw["name"] else {},
+        # Full printing data: its name replaces the wrong one stored before (the
+        # localized row has the English one's number, rarity and artist).
+        partial=False if errata else None,
     )
     return CardData(
         external_id=oracle_id,
@@ -284,13 +294,17 @@ PRINTED_LANGUAGES = {
     "EN": "en", "FR": "fr", "DE": "de", "IT": "it", "ES": "es", "SP": "es", "PT": "pt",
     "JP": "ja", "JA": "ja", "KO": "ko", "KR": "ko", "RU": "ru", "CS": "zh-hans", "CT": "zh-hant",
 }  # fmt: skip
-_SET_LANG = re.compile(r"\b([A-Z0-9]{3,5})\s*[•·.*+\-]?\s*(" + "|".join(PRINTED_LANGUAGES) + r")\b")
+# The dot may be read as a letter stuck to the language ("SPM AFR" for "SPM • FR").
+_SET_LANG = re.compile(
+    r"\b([A-Z0-9]{3,5})(?:\s*[•·.*+\-]?\s*|\s+[A-Za-z])(" + "|".join(PRINTED_LANGUAGES) + r")\b"
+)
 # Collector number over set size; the size filter tells it from power/toughness ("1/1").
 _NUMBER_TOTAL = re.compile(r"\b(\d{1,4}[a-z★*]?)\s*/\s*(\d{2,4})\b")
 MIN_SET_SIZE = 20
-# Since 2023 the total is gone: "0123 R" or "R 0123".
+# Since 2023 the total is gone: "0123 R" or "R 0123", read as "LO183" too (letter stuck,
+# zero read as O).
 _NUMBER_RARITY = re.compile(
-    r"(?:^|\s)(?:[CURMSLTP]\s+)?(\d{3,4}[a-z★*]?)(?:\s+[CURMSLTP])?(?:\s|$)"
+    r"(?:^|\s)(?:[CURMSLTP]\s*)?((?:[0O]\d{3}|\d{3,4})[a-z★*]?)(?:\s+[CURMSLTP])?(?:\s|$)"
 )
 _MARKERS = re.compile(r"Wizards of the Coast|Wizards|™ ?& ?©", re.IGNORECASE)
 # Type line words per printed language (accents dropped, OCR often misses them); the
@@ -368,7 +382,7 @@ def parse_ocr(lines: list[OcrLine]) -> OcrHints:
             if _MARKERS.search(line.text) or "©" in line.text:
                 continue  # copyright years are not collector numbers
             if match := _NUMBER_RARITY.search(line.text):
-                hints.collector_number = match.group(1)
+                hints.collector_number = match.group(1).replace("O", "0")
                 break
     if hints.collector_number:
         hints.collector_number = strip_number(hints.collector_number.replace("*", "★"))
