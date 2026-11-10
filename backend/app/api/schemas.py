@@ -55,6 +55,9 @@ class MeOut(UserOut):
     price_source: str
     # Price sources shown, main one first.
     price_sources: list[str]
+    # Optional modules turned on (`available_modules` the server offers), e.g. "binder".
+    modules: list[str] = []
+    available_modules: list[str] = []
 
 
 class SettingsIn(BaseModel):
@@ -66,6 +69,8 @@ class SettingsIn(BaseModel):
     price_source: str | None = None
     # Sources shown, main one first (at least one).
     price_sources: list[str] | None = None
+    # Optional modules turned on (see MeOut.available_modules).
+    modules: list[str] | None = None
 
 
 class TokenOut(BaseModel):

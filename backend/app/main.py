@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import insert
 from starlette.types import Scope
 
 from app import __version__
-from app.api import admin, auth, catalog, collection, games, releases, scan, users
+from app.api import admin, auth, binder, catalog, collection, games, releases, scan, users
 from app.api.deps import cookie_user
 from app.api.schemas import HealthOut, MaintenanceOut
 from app.core import naming
@@ -105,6 +105,7 @@ def create_app() -> FastAPI:
     api.include_router(games.router)
     api.include_router(catalog.router)
     api.include_router(collection.router)
+    api.include_router(binder.router)
     api.include_router(scan.router)
     api.include_router(admin.router)
     api.include_router(releases.router)

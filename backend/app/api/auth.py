@@ -8,6 +8,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from app import modules
 from app.api.deps import (
     ACCESS_COOKIE,
     REFRESH_COOKIE,
@@ -214,6 +215,9 @@ async def _load_me(session: SessionDep, user_id: int) -> MeOut:
         select(User).where(User.id == user_id).options(selectinload(User.identities))
     )
     out = MeOut.model_validate(user)
+    disabled = await modules.disabled_modules(session)
+    out.modules = modules.enabled(user, disabled)
+    out.available_modules = modules.available(disabled)
     out.sso = bool(user.identities)
     out.sso_account = sso_account(user.identities)
     return out
@@ -262,6 +266,13 @@ async def update_settings(body: SettingsIn, user: CurrentUser, session: SessionD
                 status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown price sources: {unknown}"
             )
         user.price_sources = chosen
+    if fields.get("modules") is not None:
+        unknown = sorted(set(fields["modules"]) - set(modules.MODULES))
+        if unknown:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown modules: {unknown}"
+            )
+        user.modules = [m for m in modules.MODULES if m in fields["modules"]]
     await session.commit()
     return await _load_me(session, user.id)
 

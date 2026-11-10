@@ -10,7 +10,7 @@ export function useInvalidateStock() {
   const client = useQueryClient()
   return () =>
     Promise.all(
-      ['card', 'collection', 'value', 'transactions'].map((key) =>
+      ['card', 'collection', 'value', 'transactions', 'binder'].map((key) =>
         client.invalidateQueries({ queryKey: [key] }),
       ),
     )

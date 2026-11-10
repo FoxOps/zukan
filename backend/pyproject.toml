@@ -1,11 +1,14 @@
 [project]
 name = "zukan"
-version = "0.24.1"
+version = "0.25.0"
 description = "Zukan (図鑑, illustrated encyclopedia): self-hosted TCG collection manager"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.115",
-    "uvicorn[standard]>=0.32",
+    # Not uvicorn[standard]: no auto-reload (watchfiles) or websockets in production.
+    "uvicorn>=0.32",
+    "uvloop>=0.21; sys_platform != 'win32'",
+    "httptools>=0.6",
     "sqlalchemy[asyncio]>=2.0.36",
     "asyncpg>=0.30",
     "alembic>=1.14",

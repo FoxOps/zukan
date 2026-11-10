@@ -14,6 +14,9 @@ export type StockTarget = {
   languages: string[]
   // Short name in the version list ("MH2 267 · Modern Horizons 2").
   label?: string
+  // Chosen first when the printing offers them (a binder's language and finish).
+  finish?: string | null
+  language?: string | null
 }
 
 type Props = {
@@ -55,10 +58,10 @@ function StockForm({ game, initial, versions, close }: FormProps) {
   const languagesOf = (v: StockTarget) => (v.languages.length ? v.languages : game.languages)
   const finishes = finishesOf(target)
   const languages = languagesOf(target)
-  const [finish, setFinish] = useState(finishes[0] ?? '')
+  const [finish, setFinish] = useState(initial.finish && finishes.includes(initial.finish) ? initial.finish : (finishes[0] ?? ''))
   const [condition, setCondition] = useState<(typeof CONDITIONS)[number]['code']>('NM')
   const [language, setLanguage] = useState(() => {
-    const preferred = [localStorage.getItem('tcg.language'), currentLanguage()]
+    const preferred = [initial.language, localStorage.getItem('tcg.language'), currentLanguage()]
     return preferred.find((l) => l && languages.includes(l)) ?? languages[0] ?? 'en'
   })
   const [quantity, setQuantity] = useState(1)

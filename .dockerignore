@@ -14,3 +14,12 @@ web/dist
 android
 **/.gradle
 **/build
+# Not used by the image build (docs, CI, repository tooling, local test output).
+*.md
+.github
+.claude
+.playwright-mcp
+scripts
+web/tools
+web/openapi.json
+Nouveau document

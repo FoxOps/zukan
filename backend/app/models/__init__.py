@@ -1,4 +1,5 @@
 from app.models.base import Base
+from app.models.binder import BinderSet
 from app.models.catalog import Card, CardName, CardSet, Game, Printing
 from app.models.checks import CatalogDiscrepancy, CatalogFieldRule
 from app.models.collection import CollectionItem, Condition, PriceSnapshot, StockTransaction
@@ -11,6 +12,7 @@ __all__ = [
     "ApiUsage",
     "AppSetting",
     "Base",
+    "BinderSet",
     "Card",
     "CatalogDiscrepancy",
     "CatalogFieldRule",

@@ -18,7 +18,7 @@ android {
         targetSdk = 37
         // CI passes -PversionCode / -PversionName (prod: from the release version).
         versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
-        versionName = providers.gradleProperty("versionName").orNull ?: "0.16.1"
+        versionName = providers.gradleProperty("versionName").orNull ?: "0.17.0"
         resValue("string", "app_name", "Zukan")
         redirectScheme("fr.zukan.app")
     }
@@ -40,9 +40,10 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("release")
-            // Phones only (ARM): the text recognition libraries of the x86 emulators add
-            // some 23 MB. Debug builds keep every ABI for emulators.
-            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+            // 64-bit ARM phones only: the text recognition libraries of each other ABI
+            // add megabytes (x86 emulators some 23 MB, 32-bit ARM phones from before 2017
+            // are left out since 0.17.0). Debug builds keep every ABI for emulators.
+            ndk { abiFilters += listOf("arm64-v8a") }
         }
         // Dev builds install next to the released app ("Zukan dev").
         debug {
@@ -66,6 +67,19 @@ android {
         buildConfig = true
         resValues = true
     }
+    // License and version files of the libraries, unused at run time.
+    packaging {
+        resources.excludes += listOf(
+            "META-INF/*.version",
+            "META-INF/*.kotlin_module",
+            "META-INF/LICENSE*",
+            "META-INF/NOTICE*",
+            "META-INF/AL2.0",
+            "META-INF/LGPL2.1",
+            "DebugProbesKt.bin",
+            "kotlin-tooling-metadata.json",
+        )
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -80,9 +94,7 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
-    implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
-    implementation(libs.compose.material.icons)
     debugImplementation(libs.compose.ui.tooling)
     implementation(libs.camera.camera2)
     implementation(libs.camera.lifecycle)

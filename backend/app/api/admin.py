@@ -8,6 +8,7 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import selectinload
 
+from app import modules
 from app.api import games
 from app.api.deps import AdminUser, SessionDep
 from app.core.budget import period_start
@@ -212,6 +213,36 @@ def _validated(body: SyncScheduleIn) -> schedule.SyncSchedule:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     default = schedule.default_schedule()
     return rules.model_copy(update={"jobs": {**default.jobs, **rules.jobs}})
+
+
+class ModulesOut(BaseModel):
+    # Every optional module (`app.modules`), and those turned off for the whole server.
+    modules: list[str]
+    disabled: list[str]
+
+
+class ModulesIn(BaseModel):
+    disabled: list[str]
+
+
+@router.get("/modules")
+async def get_modules(_: AdminUser, session: SessionDep) -> ModulesOut:
+    """Optional modules users can turn on, and those turned off server-wide."""
+    return ModulesOut(
+        modules=list(modules.MODULES), disabled=await modules.disabled_modules(session)
+    )
+
+
+@router.put("/modules")
+async def set_modules(body: ModulesIn, _: AdminUser, session: SessionDep) -> ModulesOut:
+    """Turn modules off (hidden and refused) or back on for every user; users keep
+    their own choice for when a module comes back."""
+    unknown = sorted(set(body.disabled) - set(modules.MODULES))
+    if unknown:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown modules: {unknown}")
+    disabled = await modules.save_disabled(session, body.disabled)
+    await session.commit()
+    return ModulesOut(modules=list(modules.MODULES), disabled=disabled)
 
 
 @router.get("/sync-schedule")

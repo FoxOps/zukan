@@ -670,6 +670,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/binder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Binders
+         * @description Followed sets, newest set first, with their progress.
+         */
+        get: operations["list_binders_api_binder_get"];
+        put?: never;
+        /**
+         * Follow Set
+         * @description Follow a set (once per set).
+         */
+        post: operations["follow_set_api_binder_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/binder/{binder_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Binder Detail
+         * @description Every printing of the set in collector number order, with the matching copies.
+         */
+        get: operations["binder_detail_api_binder__binder_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Unfollow Set
+         * @description Stop following a set (the collection is not changed).
+         */
+        delete: operations["unfollow_set_api_binder__binder_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Binder */
+        patch: operations["update_binder_api_binder__binder_id__patch"];
+        trace?: never;
+    };
     "/api/scan/identify": {
         parameters: {
             query?: never;
@@ -740,6 +789,31 @@ export interface paths {
          */
         get: operations["job_schedule_api_admin_schedule_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/modules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Modules
+         * @description Optional modules users can turn on, and those turned off server-wide.
+         */
+        get: operations["get_modules_api_admin_modules_get"];
+        /**
+         * Set Modules
+         * @description Turn modules off (hidden and refused) or back on for every user; users keep
+         *     their own choice for when a module comes back.
+         */
+        put: operations["set_modules_api_admin_modules_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1077,6 +1151,100 @@ export interface components {
             sha256: string | null;
             /** Notes Url */
             notes_url: string;
+        };
+        /** BinderDetailOut */
+        BinderDetailOut: {
+            binder: components["schemas"]["BinderOut"];
+            /** Rows */
+            rows: components["schemas"]["BinderRowOut"][];
+        };
+        /** BinderIn */
+        BinderIn: {
+            /** Set Id */
+            set_id: number;
+            /** Language */
+            language?: string | null;
+            /** Finish */
+            finish?: string | null;
+        };
+        /**
+         * BinderItemOut
+         * @description A collection item counting for the binder (to remove a copy).
+         */
+        BinderItemOut: {
+            /** Id */
+            id: number;
+            /** Finish */
+            finish: string;
+            /** Condition */
+            condition: string;
+            /** Language */
+            language: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** BinderOut */
+        BinderOut: {
+            /** Id */
+            id: number;
+            /** Game Id */
+            game_id: string;
+            set: components["schemas"]["SetOut"];
+            /** Language */
+            language: string | null;
+            /** Finish */
+            finish: string | null;
+            /** Owned */
+            owned: number;
+            /** Total */
+            total: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** BinderRowOut */
+        BinderRowOut: {
+            /** Printing Id */
+            printing_id: number;
+            /** Card Id */
+            card_id: number;
+            /** Collector Number */
+            collector_number: string | null;
+            /** Name */
+            name: string;
+            /** Translation */
+            translation?: string | null;
+            /** Rarity */
+            rarity: string | null;
+            /** Rarity Code */
+            rarity_code?: string | null;
+            /** Image */
+            image: string | null;
+            /**
+             * Orientation
+             * @default portrait
+             */
+            orientation: string;
+            /** Finishes */
+            finishes: string[];
+            /** Languages */
+            languages: string[];
+            /** Quantity */
+            quantity: number;
+            /** Items */
+            items: components["schemas"]["BinderItemOut"][];
+        };
+        /**
+         * BinderUpdateIn
+         * @description Fields left out are not changed; null: any language / finish.
+         */
+        BinderUpdateIn: {
+            /** Language */
+            language?: string | null;
+            /** Finish */
+            finish?: string | null;
         };
         /** Body_import_csv_api_collection_import_post */
         Body_import_csv_api_collection_import_post: {
@@ -1735,6 +1903,28 @@ export interface components {
             price_source: string;
             /** Price Sources */
             price_sources: string[];
+            /**
+             * Modules
+             * @default []
+             */
+            modules: string[];
+            /**
+             * Available Modules
+             * @default []
+             */
+            available_modules: string[];
+        };
+        /** ModulesIn */
+        ModulesIn: {
+            /** Disabled */
+            disabled: string[];
+        };
+        /** ModulesOut */
+        ModulesOut: {
+            /** Modules */
+            modules: string[];
+            /** Disabled */
+            disabled: string[];
         };
         /** MoverOut */
         MoverOut: {
@@ -2069,6 +2259,8 @@ export interface components {
             price_source?: string | null;
             /** Price Sources */
             price_sources?: string[] | null;
+            /** Modules */
+            modules?: string[] | null;
         };
         /** ShareOut */
         ShareOut: {
@@ -3550,6 +3742,154 @@ export interface operations {
             };
         };
     };
+    list_binders_api_binder_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BinderOut"][];
+                };
+            };
+        };
+    };
+    follow_set_api_binder_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BinderIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BinderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    binder_detail_api_binder__binder_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                binder_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BinderDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unfollow_set_api_binder__binder_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                binder_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_binder_api_binder__binder_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                binder_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BinderUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BinderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     identify_card_api_scan_identify_post: {
         parameters: {
             query?: never;
@@ -3651,6 +3991,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScheduleOut"][];
+                };
+            };
+        };
+    };
+    get_modules_api_admin_modules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModulesOut"];
+                };
+            };
+        };
+    };
+    set_modules_api_admin_modules_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModulesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModulesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -14,11 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.automirrored.filled.TrendingFlat
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.FlipCameraAndroid
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,6 +30,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
@@ -110,13 +106,13 @@ fun TrendIcons(trends: TrendsOut) {
 @Composable
 private fun TrendMark(label: String, trend: TrendOut) {
     val (icon, tint) = when (trend.direction) {
-        "up" -> Icons.AutoMirrored.Filled.TrendingUp to Color(0xFF16A34A)
-        "down" -> Icons.AutoMirrored.Filled.TrendingDown to Color(0xFFDC2626)
-        else -> Icons.AutoMirrored.Filled.TrendingFlat to MaterialTheme.colorScheme.onSurfaceVariant
+        "up" -> R.drawable.ic_trending_up to Color(0xFF16A34A)
+        "down" -> R.drawable.ic_trending_down to Color(0xFFDC2626)
+        else -> R.drawable.ic_trending_flat to MaterialTheme.colorScheme.onSurfaceVariant
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Icon(icon, contentDescription = trendText(trend), tint = tint, modifier = Modifier.size(14.dp))
+        Icon(painterResource(icon), contentDescription = trendText(trend), tint = tint, modifier = Modifier.size(14.dp))
     }
 }
 
@@ -186,7 +182,7 @@ fun CardPicture(
                     .clickable(onClickLabel = label) { flipped = !flipped },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.FlipCameraAndroid, contentDescription = label, modifier = Modifier.size(18.dp).graphicsLayer { rotationZ = turn })
+                Icon(painterResource(R.drawable.ic_flip_camera), contentDescription = label, modifier = Modifier.size(18.dp).graphicsLayer { rotationZ = turn })
             }
         }
     }

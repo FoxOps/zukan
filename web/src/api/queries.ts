@@ -88,3 +88,21 @@ export function useProviders() {
     staleTime: Infinity,
   })
 }
+
+export type Binder = Schemas['BinderOut']
+
+/** Sets followed in the Binder module, with their progress. */
+export function useBinders(enabled = true) {
+  return useQuery({
+    queryKey: ['binder'],
+    queryFn: () => call(api.GET('/api/binder')),
+    enabled,
+  })
+}
+
+export function useBinder(binderId: number) {
+  return useQuery({
+    queryKey: ['binder', binderId],
+    queryFn: () => call(api.GET('/api/binder/{binder_id}', { params: { path: { binder_id: binderId } } })),
+  })
+}
