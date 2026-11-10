@@ -16,6 +16,8 @@ const DYNAMIC = [
   'Mint', 'Near Mint', 'Excellent', 'Good', 'Light Played', 'Played', 'Poor',
   'catalog', 'prices', 'images', 'running', 'success', 'failed', 'user', 'admin', 'web', 'scan', 'import',
   'cancelled', 'queued', 'auto', 'manual',
+  // Optional modules and binder tabs.
+  'Binder', 'All', 'Missing', 'Owned',
   // Collection views and trend periods.
   'List', 'Images', '24h', '7d', '30d',
   // Finance periods.

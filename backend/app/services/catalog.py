@@ -24,7 +24,16 @@ from app.games.base import (
     catalog_version,
     rarity_key,
 )
-from app.models import Card, CardName, CardSet, CollectionItem, Game, Printing, StockTransaction
+from app.models import (
+    BinderSet,
+    Card,
+    CardName,
+    CardSet,
+    CollectionItem,
+    Game,
+    Printing,
+    StockTransaction,
+)
 from app.services import layout, prices, translations
 from app.services.names import update_sort_names
 
@@ -490,10 +499,13 @@ async def sync_catalog(
         )
     )
     writer.report.pruned_cards = pruned.rowcount
-    # Sets a source lists without any card (TCGdex's mainland Chinese ones).
+    # Sets a source lists without any card (TCGdex's mainland Chinese ones); sets users
+    # follow in a binder stay.
     empty = await session.execute(
         delete(CardSet).where(
-            CardSet.game_id == provider.id, ~exists().where(Printing.set_id == CardSet.id)
+            CardSet.game_id == provider.id,
+            ~exists().where(Printing.set_id == CardSet.id),
+            ~exists().where(BinderSet.set_id == CardSet.id),
         )
     )
     writer.report.pruned_sets = empty.rowcount
@@ -581,8 +593,9 @@ def _remove_image_files(
 
 async def reset_catalog(session: AsyncSession, game_id: str) -> ResetReport:
     """Delete the game's catalog (names, prices, cross-check differences and cached
-    images go with it) except the printings in collections, to sync it again from
-    scratch. Committed."""
+    images go with it) except the printings in collections and the sets followed in
+    binders, to sync it again from scratch: the sync fills the kept sets again (same
+    source id). Committed."""
     from app.models import CatalogDiscrepancy, CollectionItem
     from app.services.images import image_root
 
@@ -600,7 +613,9 @@ async def reset_catalog(session: AsyncSession, game_id: str) -> ResetReport:
     report.cards = removed.rowcount
     removed = await session.execute(
         delete(CardSet).where(
-            CardSet.game_id == game_id, ~exists().where(Printing.set_id == CardSet.id)
+            CardSet.game_id == game_id,
+            ~exists().where(Printing.set_id == CardSet.id),
+            ~exists().where(BinderSet.set_id == CardSet.id),
         )
     )
     report.sets = removed.rowcount

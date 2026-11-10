@@ -118,9 +118,20 @@ Phone shows best match; user can swipe other printings, choose finish/condition/
 ## Android app
 Package `fr.zukan.app`, app name "Zukan", SSO redirect `fr.zukan.app:/oauth2redirect`.
 Screens (tabs since 0.13.0: Collection first and home, Scan, Search, Settings; strings EN/FR/DE/ES): Login (server URL, then local credentials or SSO buttons from `/auth/providers` via AppAuth), Scan (CameraX preview + ML Kit analyzer, throttle, stability check: same parse over N frames before query), Result sheet (candidates, info, price, owned, Add/Remove, quantity stepper), Collection search (read-only light view), Settings (game, default condition/lang/finish, scan model language). ML Kit script models bundled for Latin + JA + ZH + KO; pick per user setting or run Latin + selected script.
+Release APK: arm64-v8a only since 0.17.0 (32-bit ARM dropped), fonts subset to Latin scripts, the few Material
+icons used copied as vector drawables (no material-icons-extended).
 
 ## Web UI
 Collection browser per game (filters: set, color, finish, condition, lang, owned/missing), card detail with all printings + price history chart, stock edit, collection value dashboard (total + over time), manual price entry, CSV import/export (generic format: game, set_code, collector_number, lang, finish, condition, quantity, price), admin: users, sync status, trigger sync.
+Optional modules (0.25.0, `app/modules.py`): extra features each user turns on in Settings (`User.modules`,
+`PATCH /api/auth/me {modules}`); plain Zukan without them. Administrators turn a module off for the whole
+server (`AppSetting` `modules_disabled`, `GET/PUT /api/admin/modules`): hidden, routes refused (403), users'
+choices kept. `MeOut.modules` (effective) / `available_modules`. Web only so far (the app ignores them).
+- Binder (first module, `binder_set`, `/api/binder`): sets a user follows (optional language / finish
+  filter), one checklist row per printing in collector number order. Progress is read from the collection
+  (no copy of data), so cards added anywhere count. Ticking a row opens the stock dialog (filters
+  preselected); unticking asks, then removes one copy (undo toast). Followed sets are never deleted with the
+  catalog: reset and empty set pruning skip them, FK `RESTRICT`; the sync fills them again (same source id).
 
 ## Progress
 - [x] Phase 0 — plan copied, git init (2026-10-12)
@@ -2117,6 +2128,40 @@ Report against server 0.24.0 / app 0.16.0. Branch `2026-11-10-000-asia-sync-mtg-
 - [ ] User: after upgrading, the Pokémon Asia sync completes; look for "claimed by several
   cards" in the worker log (which set and numbers) and report it if the cards look wrong.
   Scan SPM 183 FR again (expected: SPM 183, "Manoir Kravinoff" after the next Magic sync).
+
+## Report 2026-11-10 #2 (server 0.25.0, Android 0.17.0)
+Report against server 0.24.1 / app 0.16.1. Branch `2026-11-10-001-binder-modules-cleanup`.
+- [x] Dependabot: no open pull request (#43 and #44 merged in the previous report).
+- [x] Optional modules (see Web UI): per-user `User.modules`, server-wide switch
+  (`modules_disabled` app setting, admin `GET/PUT /api/admin/modules`), `require_module()`
+  dependency (403). Settings page: "Modules" card with a toggle per module, and for
+  administrators "Turned off for every user". Default stays plain Zukan.
+- [x] Binder module (first one; name chosen by the user over "Set completion"): follow sets of any
+  game (Binder page, "Follow a set": game, set, optional language / finish), progress bar per set,
+  checklist table per printing (All / Missing / Owned tabs, search, filters editable). Completion
+  comes from the collection; ticking opens the stock dialog, unticking confirms and removes one copy.
+  `binder_set` table (migration `a7c9e1f3b256`). Nav entry only for users with the module.
+  - Catalog reset / empty set pruning keep followed sets (they would have been deleted with their
+    binders: a reset only kept sets with owned printings); FK `RESTRICT` so no other path
+    deletes them silently. Test: reset, binder kept, set refilled by the sync under the same id.
+- [x] House cleaning.
+  - Docker: `uvicorn[standard]` replaced by `uvicorn` + `uvloop` + `httptools` (no watchfiles,
+    websockets, PyYAML); `.dockerignore` leaves out docs, CI, scripts, OpenAPI tooling, test output.
+    No source maps in the web build (Vite default, checked). Image 268 MB -> 262 MB.
+  - Android: release APK arm64-v8a only (armeabi-v7a dropped), `compose-ui-tooling-preview` and
+    `material-icons-extended` removed (5 icons as vector drawables), library license/version files
+    excluded, Inter / Nunito subset to Latin scripts and symbols (variable weight kept;
+    635 + 277 KB -> 409 + 184 KB). Unsigned release APK 24.7 MB -> 17.7 MB.
+- [x] Releases: Android prod and Docker prod release notes now include a changelog
+  (`scripts/ci/changelog.sh`): commits touching the component's files since its previous release
+  tag (`git describe --match <component>-v*`), merges left out, compare link; checkout with full
+  history. Also in the build summary.
+- [x] Versions: server 0.25.0 (new API, new table, dependency change), Android 0.17.0 (ABI drop,
+  dependencies). `.env.example`: user agent 0.25.0, no new variables. API schema regenerated.
+- [ ] User: Settings > Modules > Binder, follow a set, tick a missing card (stock dialog), untick
+  (one copy removed), turn the module off server-wide (nav entry gone). Android 0.17.0 on a 32-bit
+  phone no longer installs (expected); check the scan screen's flip and trend icons, and the market
+  link icon.
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.

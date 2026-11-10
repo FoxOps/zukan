@@ -12,10 +12,12 @@ import { Logo, Mascot } from './Logo'
 import { applyTheme, savedDark } from '../lib/theme'
 import { useTypeToSearch } from '../lib/typeToSearch'
 
-const NAV = [
+// `module`: shown to users who turned that optional module on.
+const NAV: { to: string; label: string; end?: boolean; module?: string }[] = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/collection', label: 'Collection' },
   { to: '/catalog', label: 'Catalog' },
+  { to: '/binder', label: 'Binder', module: 'binder' },
   { to: '/finance', label: 'Finance' },
   { to: '/import', label: 'Import / export' },
   { to: '/settings', label: 'Settings' },
@@ -139,7 +141,7 @@ export function Layout() {
             <div className="mt-1 text-xs text-neutral-content/60"><span lang="ja">図鑑</span> · {t('card encyclopedia')}</div>
           </div>
           <ul className="menu w-full gap-1 px-3" onClick={closeDrawer}>
-            {NAV.map((n) => (
+            {NAV.filter((n) => !n.module || me.data.modules?.includes(n.module)).map((n) => (
               <li key={n.to}><NavLink to={n.to} end={n.end} className={link}>{t(n.label)}</NavLink></li>
             ))}
             {me.data.role === 'admin' && (

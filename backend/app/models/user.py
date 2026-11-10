@@ -39,6 +39,11 @@ class User(TimestampMixin, Base):
         ARRAY(String(32)), default=lambda: ["cardmarket"], server_default=text("'{cardmarket}'")
     )
 
+    # Optional modules turned on (`app.modules`), e.g. "binder".
+    modules: Mapped[list[str]] = mapped_column(
+        ARRAY(String(32)), default=list, server_default=text("'{}'")
+    )
+
     @property
     def price_source(self) -> str:
         """Main price source."""

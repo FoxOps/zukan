@@ -20,8 +20,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -38,6 +36,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -180,7 +179,7 @@ fun ResultPanel(
                 printing.links.filter { isWebLink(it.url) && (game == null || it.source in sources) }.forEach { link ->
                     TextButton(onClick = { uriHandler.openUri(link.url) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
                         Text(link.name)
-                        Icon(Icons.AutoMirrored.Filled.OpenInNew, null, Modifier.padding(start = 4.dp).size(16.dp))
+                        Icon(painterResource(R.drawable.ic_open_in_new), null, Modifier.padding(start = 4.dp).size(16.dp))
                     }
                 }
             }

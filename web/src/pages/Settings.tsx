@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, call, type Schemas } from '../api/client'
@@ -117,6 +117,81 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
         </div>
       </div>
     </>
+  )
+}
+
+// Optional modules (`MeOut.available_modules`): name and what they add.
+const MODULES: Record<string, { name: string; text: string }> = {
+  binder: { name: 'Binder', text: 'Follow sets and check off the cards you own.' },
+}
+
+/** Optional modules each user turns on; administrators can also turn one off for the
+ * whole server (hidden for everyone, the users' choices kept). */
+function Modules({ me }: { me: Schemas['MeOut'] }) {
+  const { t } = useTranslation()
+  const toast = useToast()
+  const client = useQueryClient()
+  const admin = me.role === 'admin'
+  const server = useQuery({
+    queryKey: ['admin-modules'],
+    queryFn: () => call(api.GET('/api/admin/modules')),
+    enabled: admin,
+  })
+  const save = useMutation({
+    mutationFn: (modules: string[]) => call(api.PATCH('/api/auth/me', { body: { modules } })),
+    onSuccess: (data) => client.setQueryData(['me'], data),
+    onError: (e) => toast(e.message, 'error'),
+  })
+  const saveServer = useMutation({
+    mutationFn: (disabled: string[]) => call(api.PUT('/api/admin/modules', { body: { disabled } })),
+    onSuccess: (data) => {
+      client.setQueryData(['admin-modules'], data)
+      return client.invalidateQueries({ queryKey: ['me'] })
+    },
+    onError: (e) => toast(e.message, 'error'),
+  })
+  const all = admin ? (server.data?.modules ?? me.available_modules) : me.available_modules
+  const disabled = server.data?.disabled ?? []
+
+  return (
+    <div className="card bg-base-200">
+      <div className="card-body gap-4">
+        <h2 className="card-title">{t('Modules')}</h2>
+        <p className="text-sm text-base-content/70">{t('Extra features for other ways of collecting. Zukan works the same without them.')}</p>
+        {all.length === 0 && <p className="text-sm text-base-content/60">{t('No module is available on this server.')}</p>}
+        {all.map((id) => {
+          const info = MODULES[id] ?? { name: id, text: '' }
+          const offered = me.available_modules.includes(id)
+          return (
+            <div key={id} className="flex flex-col gap-1">
+              <label className="label cursor-pointer gap-3 text-base-content">
+                <input
+                  type="checkbox"
+                  className="toggle toggle-primary toggle-sm"
+                  checked={me.modules.includes(id)}
+                  disabled={!offered || save.isPending}
+                  onChange={(e) => save.mutate(e.target.checked ? [...me.modules, id] : me.modules.filter((m) => m !== id))}
+                />
+                <span className="font-medium">{t(info.name)}</span>
+              </label>
+              {info.text && <span className="pl-12 text-xs whitespace-normal text-base-content/60">{t(info.text)}</span>}
+              {admin && (
+                <label className="label cursor-pointer gap-2 pl-12 text-xs">
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-xs"
+                    checked={disabled.includes(id)}
+                    disabled={server.isPending || saveServer.isPending}
+                    onChange={(e) => saveServer.mutate(e.target.checked ? [...disabled, id] : disabled.filter((m) => m !== id))}
+                  />
+                  {t('Turned off for every user (administrator)')}
+                </label>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -283,6 +358,7 @@ export default function Settings() {
         </div>
 
         <Preferences me={user} />
+        <Modules me={user} />
       </div>
     </div>
   )
