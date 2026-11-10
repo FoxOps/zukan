@@ -2163,6 +2163,36 @@ Report against server 0.24.1 / app 0.16.1. Branch `2026-11-10-001-binder-modules
   phone no longer installs (expected); check the scan screen's flip and trend icons, and the market
   link icon.
 
+## Report 2026-11-10 #3 (server 0.25.1, Android 0.17.0)
+Report against server 0.25.0 / app 0.17.0. Branch `2026-11-10-002-mtg-scan-missing-language`.
+- [x] Dependabot: no open pull request.
+- [x] MtG TDM 269 FR (Chutes de Boisépine) gave Melt Terrain. Three causes, all fixed:
+  - Name read as two pieces on one row ("Chutes de" + "Boisépine"): `parse_ocr` joins the first
+    name line with the next lines of its row to its right (bare first piece kept as other name).
+  - Collector line "TDM FRALEXANDER OSTROWSKI" (and "CMMFRAMES PAICK"): language stuck to the
+    artist name. Fallback regex on all-capital bottom lines starting with code + language.
+  - Set code read without its number: name matches now put the printing of that set first (and
+    skip the set symbol comparison when the code already picks one).
+- [x] MtG CMM 408 / 417 FR (and other CMM cards): the card was found, but French was not offered.
+  Why: Scryfall has no French object for them (French for 613 of 1067 CMM printings, 203-283
+  missing among others) and MTGJSON has no French `foreignData` either; both come from Gatherer.
+  The set was printed in French. Fix (user's choice "offer + learn"):
+  - Scan: when the language read is missing on a printing but other cards of its set have it,
+    the scan result lists it in that printing's `languages` (app 0.17.0 picks it up as is).
+  - Adding a copy in such a language (`collection.adjust`, so scan, web, Android, CSV) records it
+    on the printing; catalog syncs merge languages, so it stays (a catalog reset forgets it).
+  - The French name shown comes from the card's other printings ("Griffe faucheuse").
+- [x] Releases: changelog now has each commit's full message (title, then its body indented,
+  trailers dropped), cut at 120,000 characters. Workflows unchanged (same script).
+- [x] House cleaning: stray line removed from `.dockerignore`. Checked, nothing more to drop:
+  image deps layer is runtime libraries only (removing pip saves nothing, it is in the base
+  layer); Android lint finds no unused resources. ML Kit Asian models stay bundled (user's choice:
+  offline and phones without Google Play services).
+- [x] Versions: server 0.25.1 (fixes), Android unchanged (no app change). `.env.example`: user
+  agent 0.25.1, no new variables. API schema unchanged.
+- [ ] User: scan TDM 269 FR (expected Thornwood Falls TDM 269, French), CMM 408 / 417 FR (French
+  offered in the language choice; once added, the printing shows French in search).
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.

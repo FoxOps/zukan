@@ -298,6 +298,11 @@ PRINTED_LANGUAGES = {
 _SET_LANG = re.compile(
     r"\b([A-Z0-9]{3,5})(?:\s*[•·.*+\-]?\s*|\s+[A-Za-z])(" + "|".join(PRINTED_LANGUAGES) + r")\b"
 )
+# The language read stuck to the artist name after it ("TDM FRALEXANDER OSTROWSKI",
+# "CMMFRAMES PAICK"): only on all-capital lines starting with the code.
+_SET_LANG_GLUED = re.compile(
+    r"^([A-Z0-9]{3,5}?)\s*[•·.*+\-]?\s*(" + "|".join(PRINTED_LANGUAGES) + r")(?=[A-Z]{2})"
+)
 # Collector number over set size; the size filter tells it from power/toughness ("1/1").
 _NUMBER_TOTAL = re.compile(r"\b(\d{1,4}[a-z★*]?)\s*/\s*(\d{2,4})\b")
 MIN_SET_SIZE = 20
@@ -367,6 +372,13 @@ def parse_ocr(lines: list[OcrLine]) -> OcrHints:
             if not match.group(1).isdigit():
                 hints.set_code = match.group(1)
                 hints.lang = PRINTED_LANGUAGES[match.group(2)]
+    for line in bottom:
+        if hints.set_code is not None:
+            break
+        if line.text == line.text.upper() and (match := _SET_LANG_GLUED.match(line.text)):
+            if not match.group(1).isdigit():
+                hints.set_code = match.group(1)
+                hints.lang = PRINTED_LANGUAGES[match.group(2)]
     # Power/toughness sits bottom right, collector info bottom left; old frames end the
     # copyright line with it, which ML Kit may return as a block of its own on the right.
     on_left = [line for line in bottom if line.left is None or line.left < 0.6]
@@ -386,19 +398,37 @@ def parse_ocr(lines: list[OcrLine]) -> OcrHints:
                 break
     if hints.collector_number:
         hints.collector_number = strip_number(hints.collector_number.replace("*", "★"))
-    names = [
-        _MANA_TAIL.sub("", line.text).strip()
+    named = [
+        (line, _MANA_TAIL.sub("", line.text).strip())
         for line in ordered
         if line not in bottom and letter_ratio(line.text) > 0.6 and len(line.text) >= 2
     ]
-    names = [n for n in names if len(n) >= 2]
+    named = [(line, name) for line, name in named if len(name) >= 2]
+    names = [name for _, name in named]
     if names:
         hints.name, hints.other_names = names[0], names[1:3]
+        if joined := _name_row(named):
+            hints.name, hints.other_names = joined, names[:3]
     hints.lang = hints.lang or script_language(lines) or type_language(ordered)
     hints.symbol_line = type_line(ordered, bottom)
     text = " ".join(line.text for line in ordered)
     hints.recognized = hints.set_code is not None or bool(_MARKERS.search(text))
     return hints
+
+
+def _name_row(named: list[tuple[OcrLine, str]]) -> str | None:
+    """The name read in pieces side by side ("Chutes de" + "Boisépine"): the first
+    name line and the next ones on its row, to its right. None when read whole."""
+    first, name = named[0]
+    if first.top is None or first.left is None:
+        return None
+    pieces = [name]
+    for line, text in named[1:]:
+        if line.top is None or round(line.top, 2) != round(first.top, 2):
+            break
+        if line.left is not None and line.left > first.left:
+            pieces.append(text)
+    return " ".join(pieces) if len(pieces) > 1 else None
 
 
 def _plain(text: str) -> str:

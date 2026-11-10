@@ -343,18 +343,25 @@ async def identify(
 async def _confirm_printing(
     candidate: Candidate, hints: OcrHints, picture: ScanPicture | None
 ) -> dict[str, float]:
-    """Without a set code, the best card's printings whose set fits what else is printed
-    come first (matched ones stay ahead of the others): the set symbol, then the set
-    size. Returns the symbol scores."""
+    """Without a set and number match, the best card's printings whose set fits what
+    else is printed come first (matched ones stay ahead of the others): the set code
+    read without its number, the set symbol, then the set size. Returns the symbol
+    scores."""
     card = candidate.card
     if card is None or candidate.match == "set_number":
         return {}
     by_id = {p.id: p for p in card.printings}
     printings = [by_id[i] for i in candidate.printing_ids]
+    code = (hints.set_code or "").lower()
+
+    def in_read_set(printing: Printing) -> bool:
+        return code in (printing.set.code.lower(), printing.set.external_id.lower())
+
     symbol_set, scores = None, {}
     area = set_symbols.symbol_area(hints.symbol_line) if hints.symbol_line else None
     if (
-        picture is not None
+        not (code and any(in_read_set(p) for p in printings))
+        and picture is not None
         and area is not None
         and get_settings().scan_symbol_match
         and len({p.set_id for p in printings}) > 1
@@ -368,6 +375,7 @@ async def _confirm_printing(
     printings.sort(
         key=lambda p: (
             rank[p.id] >= candidate.matched,
+            bool(code) and not in_read_set(p),
             p.set_id != symbol_set,
             not _total_matches(p, hints.printed_total),
         )

@@ -1,6 +1,7 @@
 # Production Android app from main. Lint, unit tests and a signed R8 release build.
 # On success the Release workflow publishes GitHub Release android-v<version> with the APK,
-# its R8 mapping file and the changelog since the previous Android release. The app version is independent of the server one.
+# its R8 mapping file and the full changelog since the previous Android release (each commit's
+# whole message, scripts/ci/changelog.sh). The app version is independent of the server one.
 #
 # Secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS,
 # ANDROID_KEY_PASSWORD.

@@ -572,3 +572,144 @@ async def test_identify_language_from_the_name(client, alice):
     assert german["detected"]["lang"] == "de"
     english = await scan(client, alice, ocr("Llanowar Elves"), game="mtg")
     assert english["detected"]["lang"] == "en"
+
+
+def test_mtg_parser_split_name_and_glued_language():
+    mtg = get_provider("mtg")
+
+    def parse(lines):
+        return mtg.parse_ocr([OcrLine(text, left, top) for text, left, top in lines])
+
+    # TDM 269 French: the name read in two pieces, "TDM • FR" stuck to the artist.
+    thornwood = parse(
+        [
+            ("Chutes de", 0.044315994, 0.0),
+            ("Boisépine", 0.31984586, 0.0013020834),
+            ("Terrain", 0.0327553, 0.56640625),
+            ("Ce terrain arrive engagé.", 0.048169557, 0.63671875),
+            ("Quand ce terrain arrive, VOus gagnez 1 point", 0.048169557, 0.68619794),
+            ("de vie.", 0.046242774, 0.71875),
+            ("-:Ajoutez ou &.", 0.040462427, 0.7604167),
+            ("Au matin, la seule trace du conflit opposant les", 0.038535647, 0.8255208),
+            ("chasseurs temuriens et les", 0.030828517, 0.859375),
+            ("éclaireurs sultat était", 0.53757226, 0.85807294),
+            ("des étendards abandonnés dans la neige fraîche.", 0.04238921, 0.8880208),
+            ("M& C 2025 \\Wizards of the Coast", 0.62813103, 0.9583333),
+            ("TDM FRALEXANDER OSTROWSKI", 0.0057803467, 0.9713542),
+            ("L", 0.0, 0.9609375),
+        ]
+    )
+    assert (thornwood.name, thornwood.set_code, thornwood.lang) == (
+        "Chutes de Boisépine",
+        "TDM",
+        "fr",
+    )
+    assert "Chutes de" in thornwood.other_names
+    # CMM 408 French: "CMM • FR" stuck to "JAMES PAICK"; the mana cost is not the name.
+    scytheclaw = parse(
+        [
+            ("5", 0.94056845, 0.015734266),
+            ("Griffe faucheuse", 0.04909561, 0.0),
+            ("Artefact: equipement", 0.04134367, 0.5629371),
+            ("Arme vvante (Oiuand cet èquipenent arrive sur le", 0.033591732, 0.6451049),
+            ("La créature équipée gagne +1/+1.", 0.03875969, 0.73426574),
+            ("Equipement 3", 0.03875969, 0.8986014),
+            ("i&", 0.6098191, 0.96503496),
+            ("302TWzarts of the Cust", 0.70284235, 0.9632867),
+            ("CMMFRAMES PAICK", 0.0, 0.9807692),
+            ("R", 0.0, 0.96153843),
+            ("0408", 0.03617571, 0.9597902),
+        ]
+    )
+    assert (
+        scytheclaw.name,
+        scytheclaw.set_code,
+        scytheclaw.collector_number,
+        scytheclaw.lang,
+    ) == ("Griffe faucheuse", "CMM", "408", "fr")
+    # Capitals that only look like a code and a language are not taken.
+    assert mtg.parse_ocr(ocr("Forest", "Illus. FRANK FRAZETTA")).set_code is None
+
+
+async def _mtg_printing(session, set_code: str, number: str):
+    from sqlalchemy import select
+
+    from app.models import CardSet, Printing
+
+    session.expire_all()
+    return await session.scalar(
+        select(Printing)
+        .join(CardSet)
+        .where(CardSet.game_id == "mtg", CardSet.external_id == set_code)
+        .where(Printing.external_id == number)
+    )
+
+
+async def test_identify_set_code_without_number(client, session, alice):
+    from app.models import Printing
+
+    card_id = (await _mtg_printing(session, "dom", "168")).card_id
+    war_id = (await _mtg_printing(session, "war", "184★")).set_id
+    # A newer reprint, in French too: first by date, but the code read says DOM.
+    session.add(
+        Printing(
+            card_id=card_id,
+            set_id=war_id,
+            external_id="999",
+            collector_number="999",
+            finishes=["nonfoil"],
+            languages=["en", "fr"],
+        )
+    )
+    await session.commit()
+    lines = ocr("Elfes de Llanowar", "Créature : elfe et druide", "DOM • FR Chris Rahn")
+    result = await scan(client, alice, lines, game="mtg")
+    assert result["detected"]["set_code"] == "DOM"
+    first = result["candidates"][0]["printings"][0]
+    assert (first["set"]["code"], first["collector_number"]) == ("DOM", "168")
+
+
+async def test_missing_language_is_offered_and_learned(client, session, alice):
+    from sqlalchemy import update
+
+    from app.models import Printing
+
+    elves = await _mtg_printing(session, "dom", "168")
+    elves_id, set_id, card_id = elves.id, elves.set_id, elves.card_id
+    # Sources know no French Llanowar Elves in DOM, nor any French card of DOM.
+    await session.execute(update(Printing).where(Printing.id == elves_id).values(languages=["en"]))
+    await session.commit()
+    result = await scan(client, alice, ELVES_FR, game="mtg")
+    assert result["candidates"][0]["printings"][0]["languages"] == ["en"]
+
+    # Another DOM card is known in French: the set was printed in French.
+    session.add(
+        Printing(
+            card_id=card_id,
+            set_id=set_id,
+            external_id="168p",
+            collector_number="168p",
+            finishes=["nonfoil"],
+            languages=["en", "fr"],
+        )
+    )
+    await session.commit()
+    result = await scan(client, alice, ELVES_FR, game="mtg")
+    printing = result["candidates"][0]["printings"][0]
+    assert printing["id"] == elves_id and printing["languages"] == ["en", "fr"]
+
+    # Adding a French copy records the language on the printing.
+    response = await client.post(
+        "/api/collection/adjust",
+        json={"printing_id": elves_id, "finish": "nonfoil", "language": "fr", "delta": 1},
+        headers=alice,
+    )
+    assert response.status_code == 200, response.text
+    assert (await _mtg_printing(session, "dom", "168")).languages == ["en", "fr"]
+    # A language the set has no card in is stored on the copy only.
+    await client.post(
+        "/api/collection/adjust",
+        json={"printing_id": elves_id, "finish": "nonfoil", "language": "ko", "delta": 1},
+        headers=alice,
+    )
+    assert (await _mtg_printing(session, "dom", "168")).languages == ["en", "fr"]
