@@ -72,6 +72,25 @@ def check_variant(game_id: str, printing: Printing, variant: Variant) -> None:
         raise StockError(f"Unknown condition {variant.condition!r}")
 
 
+async def learn_language(session: AsyncSession, printing: Printing, lang: str) -> None:
+    """A copy in a language the sources miss for this printing (Commander Masters French
+    408) proves it exists when its set has other cards in that language: recorded on
+    the printing. Catalog syncs merge languages, so it stays."""
+    if lang in printing.languages:
+        return
+    other = (
+        select(Printing.id)
+        .where(Printing.set_id == printing.set_id, Printing.languages.contains([lang]))
+        .exists()
+    )
+    await session.execute(
+        update(Printing)
+        .where(Printing.id == printing.id, ~Printing.languages.contains([lang]), other)
+        .values(languages=func.array_append(Printing.languages, lang))
+        .execution_options(synchronize_session=False)
+    )
+
+
 async def adjust(
     session: AsyncSession,
     user_id: int,
@@ -86,6 +105,7 @@ async def adjust(
         raise StockError("Quantity change cannot be zero")
     check_variant(game_id or await game_of(session, printing), printing, variant)
     if delta > 0:
+        await learn_language(session, printing, variant.language)
         stmt = insert(CollectionItem).values(
             user_id=user_id,
             printing_id=printing.id,

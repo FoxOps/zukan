@@ -5,7 +5,13 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, StringConstraints
 
-from app.api.catalog import PrintingOut, describe_printings, load_names, show_card
+from app.api.catalog import (
+    PrintingOut,
+    describe_printings,
+    load_names,
+    set_languages,
+    show_card,
+)
 from app.api.deps import CurrentUser, SessionDep
 from app.core.config import get_settings
 from app.core.http import http_client
@@ -81,6 +87,20 @@ class IdentifyOut(BaseModel):
     detected_game: str | None = None
 
 
+def _offer_language(
+    described: list[PrintingOut],
+    printings: list[Printing],
+    lang: str | None,
+    printed_in: dict[int, set[str]],
+) -> list[PrintingOut]:
+    """The language read added to printings missing it whose set has it."""
+    set_ids = {p.id: p.set_id for p in printings}
+    for out in described:
+        if lang and lang not in out.languages and lang in printed_in.get(set_ids[out.id], ()):
+            out.languages = [*out.languages, lang]
+    return described
+
+
 # A card photo reads as several lines (name, type, rules, credits); a stray sign or
 # label is one or two.
 CARD_LINES = 4
@@ -110,6 +130,17 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
     card_names, printing_names = await load_names(
         session, (c.card.id for c in result.candidates if c.card)
     )
+    lang = result.hints.lang
+    # Sources miss some printed languages (Commander Masters French 408): a set with
+    # cards in the language read was printed in it: offered for the scanned card too.
+    printed_in = (
+        await set_languages(
+            session,
+            {p.set_id for c in result.candidates if c.card for p in c.card.printings},
+        )
+        if lang
+        else {}
+    )
     candidates = []
     for candidate in result.candidates:
         card = candidate.card
@@ -135,7 +166,9 @@ async def identify_card(body: IdentifyIn, user: CurrentUser, session: SessionDep
                     translation=shown.name.translation,
                     colors=card.colors,
                 ),
-                printings=await describe_printings(session, user, printings),
+                printings=_offer_language(
+                    await describe_printings(session, user, printings), printings, lang, printed_in
+                ),
                 printing_count=len(card.printings),
             )
         )

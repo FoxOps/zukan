@@ -1,6 +1,7 @@
 # Production server image from main. Full lint and tests, then an amd64 + arm64 image
 # pushed as latest, <version> and sha-<sha>. On success the Release workflow publishes
-# GitHub Release server-v<version> with the changelog since the previous server release. The server version is independent of the Android one.
+# GitHub Release server-v<version> with the full changelog since the previous server release
+# (each commit's whole message, scripts/ci/changelog.sh). The server version is independent of the Android one.
 name: Docker prod
 
 on:
