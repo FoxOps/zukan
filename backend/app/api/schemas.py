@@ -21,6 +21,15 @@ class IdentityOut(BaseModel):
     email: str | None
 
 
+class GroupRefOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    # "admins" for the Administrators group.
+    builtin: str | None = None
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -32,8 +41,11 @@ class UserOut(BaseModel):
     has_password: bool
     # Signs in with SSO: its identity provider manages the email (and the password).
     sso: bool = False
-    # The identity provider sets the role at every login (its admin groups).
+    # The identity provider sets the role at every login (Administrators group linked
+    # to identity provider groups).
     role_managed_by_sso: bool = False
+    # Groups the user belongs to (Administrators included).
+    groups: list[GroupRefOut] = []
 
 
 class SsoAccountOut(BaseModel):
@@ -55,9 +67,12 @@ class MeOut(UserOut):
     price_source: str
     # Price sources shown, main one first.
     price_sources: list[str]
-    # Optional modules turned on (`available_modules` the server offers), e.g. "binder".
+    # Optional modules the user can use, e.g. "binder".
     modules: list[str] = []
+    # Modules the user turns on or off in their settings.
     available_modules: list[str] = []
+    # Modules given by one of the user's groups (nothing to turn on).
+    managed_modules: list[str] = []
 
 
 class SettingsIn(BaseModel):

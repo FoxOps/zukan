@@ -124,6 +124,14 @@ export default function Jobs() {
     placeholderData: keepPreviousData,
   })
   const nextRun = (game: string, kind: string) => schedule.data?.find((s) => s.game_id === game && s.kind === kind)
+  // Latest run of each job however old: the list above only holds the 50 newest runs of
+  // every game, which a weekly catalog run leaves within a day ("never run" otherwise).
+  const latest = useQuery({
+    queryKey: ['admin', 'overview', runs],
+    queryFn: () => call(api.GET('/api/admin/overview')),
+    enabled: admin,
+    placeholderData: keepPreviousData,
+  })
   const folders = useQuery({
     queryKey: ['import-folders'],
     queryFn: () => call(api.GET('/api/admin/import-folders')),
@@ -162,7 +170,10 @@ export default function Jobs() {
 
   if (!admin) return <Navigate to="/" replace />
 
-  const lastRun = (game: string, kind: string) => jobs.data?.find((j) => j.game_id === game && j.kind === kind)
+  // A run in the recent list is the newest one (and polled while it runs).
+  const lastRun = (game: string, kind: string) =>
+    jobs.data?.find((j) => j.game_id === game && j.kind === kind) ??
+    latest.data?.games.find((s) => s.game_id === game)?.runs.find((r) => r.kind === kind)
 
   return (
     <div className="flex flex-col gap-6">

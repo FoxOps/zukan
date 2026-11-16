@@ -507,6 +507,46 @@ async def test_admin_job_endpoints(client, session, sorcery_api):
     assert response.status_code == 409
 
 
+async def test_overview_keeps_old_runs(client, session):
+    """A weekly catalog run stays shown on the Data sync page after many newer runs
+    (it was looked up among the 50 newest runs only: "never run" within a day)."""
+    from app.main import register_games
+
+    await register_games()
+    await make_user(session, "root", role=Role.admin)
+    admin = await bearer(client, "root")
+    old = datetime.now(UTC) - timedelta(days=6)
+    session.add(
+        SyncRun(
+            game_id="sorcery",
+            kind=JobKind.catalog,
+            status=JobStatus.success,
+            trigger=JobTrigger.auto,
+            started_at=old,
+            finished_at=old + timedelta(minutes=2),
+        )
+    )
+    for hour in range(60):
+        at = old + timedelta(hours=hour + 1)
+        session.add(
+            SyncRun(
+                game_id="sorcery",
+                kind=JobKind.prices,
+                status=JobStatus.failed,
+                trigger=JobTrigger.auto,
+                started_at=at,
+                finished_at=at,
+            )
+        )
+    await session.commit()
+    recent = (await client.get("/api/admin/jobs", headers=admin)).json()
+    assert len(recent) == 50 and all(j["kind"] == "prices" for j in recent)
+    overview = (await client.get("/api/admin/overview", headers=admin)).json()
+    runs = {r["kind"]: r for g in overview["games"] if g["game_id"] == "sorcery" for r in g["runs"]}
+    assert (runs["catalog"]["status"], runs["catalog"]["trigger"]) == ("success", "auto")
+    assert runs["catalog"]["elapsed_seconds"] == 120
+
+
 async def test_worker_schedule(session):
     from app.main import register_games
 

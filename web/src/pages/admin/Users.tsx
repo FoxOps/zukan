@@ -89,6 +89,7 @@ export default function Users() {
             <tr>
               <th>{t('User')}</th>
               <th>{t('Role')}</th>
+              <th>{t('Groups')}</th>
               <th>{t('Login')}</th>
               <th>{t('Status')}</th>
               <th />
@@ -103,7 +104,7 @@ export default function Users() {
                     <div className="font-medium">{u.username}</div>
                     <div className="text-xs text-base-content/60">{u.email}</div>
                   </td>
-                  {/* Set by the identity provider's admin groups at every login. */}
+                  {/* Set at every login when the Administrators group is linked to identity provider groups. */}
                   <td title={u.role_managed_by_sso ? t('Role managed by the SSO provider') : undefined}>
                     <Select
                       className="select-sm w-28"
@@ -115,6 +116,17 @@ export default function Users() {
                         { value: 'admin', label: t('admin') },
                       ]}
                     />
+                  </td>
+                  <td>
+                    <div className="flex flex-wrap gap-1">
+                      {u.groups
+                        .filter((g) => !g.builtin)
+                        .map((g) => (
+                          <span key={g.id} className="badge badge-sm badge-outline">
+                            {g.name}
+                          </span>
+                        ))}
+                    </div>
                   </td>
                   <td className="text-sm">
                     {u.sso ? <span className="badge badge-sm badge-info badge-soft">{t('SSO')}</span> : t('Password')}

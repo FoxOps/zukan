@@ -805,13 +805,13 @@ export interface paths {
         };
         /**
          * Get Modules
-         * @description Optional modules users can turn on, and those turned off server-wide.
+         * @description Optional modules and who can use them.
          */
         get: operations["get_modules_api_admin_modules_get"];
         /**
          * Set Modules
-         * @description Turn modules off (hidden and refused) or back on for every user; users keep
-         *     their own choice for when a module comes back.
+         * @description Set the access of the modules given; users keep their own choice for when a
+         *     module goes back to everyone.
          */
         put: operations["set_modules_api_admin_modules_put"];
         post?: never;
@@ -1063,6 +1063,67 @@ export interface paths {
          */
         post: operations["refresh_card_api_admin_cards__card_id__refresh_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Groups
+         * @description Every group, Administrators first.
+         */
+        get: operations["list_groups_api_admin_groups_get"];
+        put?: never;
+        /** Create Group */
+        post: operations["create_group_api_admin_groups_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Group */
+        delete: operations["delete_group_api_admin_groups__group_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Group
+         * @description Rename a group or change its identity provider groups (SSO members follow at
+         *     their next sign-in).
+         */
+        patch: operations["update_group_api_admin_groups__group_id__patch"];
+        trace?: never;
+    };
+    "/api/admin/groups/{group_id}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Add Member */
+        put: operations["add_member_api_admin_groups__group_id__members__user_id__put"];
+        post?: never;
+        /** Remove Member */
+        delete: operations["remove_member_api_admin_groups__group_id__members__user_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1571,7 +1632,7 @@ export interface components {
             /** Game Id */
             game_id: string;
             /** Runs */
-            runs: components["schemas"]["LastRunOut"][];
+            runs: components["schemas"]["JobOut"][];
         };
         /** GameValueOut */
         GameValueOut: {
@@ -1587,6 +1648,58 @@ export interface components {
             priced: number;
             /** Unpriced */
             unpriced: number;
+        };
+        /** GroupIn */
+        GroupIn: {
+            /** Name */
+            name: string;
+            /**
+             * Idp Groups
+             * @default []
+             */
+            idp_groups: string[];
+        };
+        /** GroupMemberOut */
+        GroupMemberOut: {
+            /** Id */
+            id: number;
+            /** Username */
+            username: string;
+            /** Disabled */
+            disabled: boolean;
+            /** Sso */
+            sso: boolean;
+            /** Managed By Sso */
+            managed_by_sso: boolean;
+        };
+        /** GroupOut */
+        GroupOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Builtin */
+            builtin: string | null;
+            /** Idp Groups */
+            idp_groups: string[];
+            /** Members */
+            members: components["schemas"]["GroupMemberOut"][];
+        };
+        /** GroupRefOut */
+        GroupRefOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Builtin */
+            builtin?: string | null;
+        };
+        /** GroupUpdateIn */
+        GroupUpdateIn: {
+            /** Name */
+            name?: string | null;
+            /** Idp Groups */
+            idp_groups?: string[] | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1817,20 +1930,6 @@ export interface components {
          * @enum {string}
          */
         JobTrigger: "auto" | "manual";
-        /** LastRunOut */
-        LastRunOut: {
-            kind: components["schemas"]["JobKind"];
-            status: components["schemas"]["JobStatus"];
-            /**
-             * Started At
-             * Format: date-time
-             */
-            started_at: string;
-            /** Finished At */
-            finished_at: string | null;
-            /** Error */
-            error: string | null;
-        };
         /** LinkOut */
         LinkOut: {
             /** Source */
@@ -1889,6 +1988,11 @@ export interface components {
              * @default false
              */
             role_managed_by_sso: boolean;
+            /**
+             * Groups
+             * @default []
+             */
+            groups: components["schemas"]["GroupRefOut"][];
             /** Identities */
             identities: components["schemas"]["IdentityOut"][];
             sso_account?: components["schemas"]["SsoAccountOut"] | null;
@@ -1913,18 +2017,38 @@ export interface components {
              * @default []
              */
             available_modules: string[];
+            /**
+             * Managed Modules
+             * @default []
+             */
+            managed_modules: string[];
         };
-        /** ModulesIn */
-        ModulesIn: {
-            /** Disabled */
-            disabled: string[];
+        /** ModuleAccessIn */
+        ModuleAccessIn: {
+            /** Id */
+            id: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "off" | "everyone" | "groups";
+            /**
+             * Groups
+             * @default []
+             */
+            groups: number[];
         };
-        /** ModulesOut */
-        ModulesOut: {
-            /** Modules */
-            modules: string[];
-            /** Disabled */
-            disabled: string[];
+        /** ModuleAccessOut */
+        ModuleAccessOut: {
+            /** Id */
+            id: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "off" | "everyone" | "groups";
+            /** Groups */
+            groups: number[];
         };
         /** MoverOut */
         MoverOut: {
@@ -2452,6 +2576,11 @@ export interface components {
              * @default false
              */
             role_managed_by_sso: boolean;
+            /**
+             * Groups
+             * @default []
+             */
+            groups: components["schemas"]["GroupRefOut"][];
         };
         /** UserUpdateIn */
         UserUpdateIn: {
@@ -4010,7 +4139,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ModulesOut"];
+                    "application/json": components["schemas"]["ModuleAccessOut"][];
                 };
             };
         };
@@ -4024,7 +4153,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ModulesIn"];
+                "application/json": components["schemas"]["ModuleAccessIn"][];
             };
         };
         responses: {
@@ -4034,7 +4163,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ModulesOut"];
+                    "application/json": components["schemas"]["ModuleAccessOut"][];
                 };
             };
             /** @description Validation Error */
@@ -4462,6 +4591,187 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CardRefreshOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_groups_api_admin_groups_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupOut"][];
+                };
+            };
+        };
+    };
+    create_group_api_admin_groups_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_group_api_admin_groups__group_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_group_api_admin_groups__group_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_member_api_admin_groups__group_id__members__user_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_member_api_admin_groups__group_id__members__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupOut"];
                 };
             };
             /** @description Validation Error */

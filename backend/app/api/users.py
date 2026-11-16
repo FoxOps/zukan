@@ -3,10 +3,11 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import AdminUser, SessionDep
-from app.api.schemas import UserCreateIn, UserOut, UserUpdateIn
-from app.core.oidc import get_auth_config, local_login_enabled
+from app.api.schemas import GroupRefOut, UserCreateIn, UserOut, UserUpdateIn
+from app.core.oidc import local_login_enabled
 from app.core.security import end_all_sessions, hash_password
 from app.models import User, UserIdentity
+from app.services import groups
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -19,29 +20,35 @@ async def _get_user(session: SessionDep, user_id: int) -> User:
 
 
 async def _sso_users(session: SessionDep, *user_ids: int) -> dict[int, bool]:
-    """SSO users, mapped to whether their identity provider sets their role (its
-    admin groups, applied at every login)."""
-    query = select(UserIdentity.user_id, UserIdentity.provider)
+    """SSO users, mapped to whether their identity provider sets their role (the
+    Administrators group is linked to identity provider groups, applied at every login)."""
+    query = select(UserIdentity.user_id)
     if user_ids:
         query = query.where(UserIdentity.user_id.in_(user_ids))
-    role_providers = {p.name for p in get_auth_config().providers if p.admin_groups}
-    sso_users: dict[int, bool] = {}
-    for user_id, provider in await session.execute(query):
-        sso_users[user_id] = sso_users.get(user_id, False) or provider in role_providers
-    return sso_users
+    managed = bool((await groups.admins_group(session)).idp_groups)
+    return {user_id: managed for user_id in await session.scalars(query)}
 
 
-def _out(user: User, sso_users: dict[int, bool]) -> UserOut:
-    return UserOut.model_validate(user).model_copy(
-        update={"sso": user.id in sso_users, "role_managed_by_sso": sso_users.get(user.id, False)}
-    )
+async def _outs(
+    session: SessionDep, users: list[User], sso_users: dict[int, bool]
+) -> list[UserOut]:
+    by_user = await groups.groups_by_user(session, users)
+    return [
+        UserOut.model_validate(user).model_copy(
+            update={
+                "sso": user.id in sso_users,
+                "role_managed_by_sso": sso_users.get(user.id, False),
+                "groups": [GroupRefOut.model_validate(g) for g in by_user[user.id]],
+            }
+        )
+        for user in users
+    ]
 
 
 @router.get("")
 async def list_users(_: AdminUser, session: SessionDep) -> list[UserOut]:
-    users = await session.scalars(select(User).order_by(User.username))
-    sso_users = await _sso_users(session)
-    return [_out(u, sso_users) for u in users]
+    users = list(await session.scalars(select(User).order_by(User.username)))
+    return await _outs(session, users, await _sso_users(session))
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -60,7 +67,7 @@ async def create_user(body: UserCreateIn, _: AdminUser, session: SessionDep) -> 
         await session.commit()
     except IntegrityError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, "Username already taken") from exc
-    return UserOut.model_validate(user)
+    return (await _outs(session, [user], {}))[0]
 
 
 @router.patch("/{user_id}")
@@ -91,7 +98,7 @@ async def update_user(
     if ends_sessions:
         await end_all_sessions(session, user)
     await session.commit()
-    return _out(user, sso_users)
+    return (await _outs(session, [user], sso_users))[0]
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

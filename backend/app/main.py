@@ -12,7 +12,18 @@ from sqlalchemy.dialects.postgresql import insert
 from starlette.types import Scope
 
 from app import __version__
-from app.api import admin, auth, binder, catalog, collection, games, releases, scan, users
+from app.api import (
+    admin,
+    auth,
+    binder,
+    catalog,
+    collection,
+    games,
+    groups,
+    releases,
+    scan,
+    users,
+)
 from app.api.deps import cookie_user
 from app.api.schemas import HealthOut, MaintenanceOut
 from app.core import naming
@@ -23,6 +34,7 @@ from app.core.middleware import BodyLimit, RequestTimer, SecurityHeaders, TextCo
 from app.core.security import hash_password
 from app.games.base import registry, shipped_folders
 from app.models import Game, Role, User
+from app.services import groups as groups_service
 from app.services import layout, load, maintenance_page
 from app.services.jobs import reap_runs
 from app.services.symbols import ensure_symbols
@@ -74,6 +86,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     logging.getLogger("httpx").setLevel(logging.WARNING)
     await register_games()
     await create_default_admin()
+    # Administrators group, seeded from the providers' admin groups on first start.
+    async with get_sessionmaker()() as session:
+        await groups_service.admins_group(session)
+        await session.commit()
     # Jobs this API process ran before a restart are gone.
     await reap_runs()
     # Reference copy of the shipped pictures, next to the user's own.
@@ -108,6 +124,7 @@ def create_app() -> FastAPI:
     api.include_router(binder.router)
     api.include_router(scan.router)
     api.include_router(admin.router)
+    api.include_router(groups.router)
     api.include_router(releases.router)
 
     @api.get("/health", tags=["meta"])

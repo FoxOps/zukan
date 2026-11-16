@@ -18,6 +18,7 @@ from app.api.deps import (
 )
 from app.api.schemas import (
     EmailChangeIn,
+    GroupRefOut,
     LoginIn,
     MeOut,
     OidcExchangeIn,
@@ -45,6 +46,7 @@ from app.core.security import (
 from app.games.base import registry
 from app.models import User, UserIdentity
 from app.prices.base import price_sources
+from app.services import groups
 from app.services.sso import resolve_sso_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -215,9 +217,14 @@ async def _load_me(session: SessionDep, user_id: int) -> MeOut:
         select(User).where(User.id == user_id).options(selectinload(User.identities))
     )
     out = MeOut.model_validate(user)
-    disabled = await modules.disabled_modules(session)
-    out.modules = modules.enabled(user, disabled)
-    out.available_modules = modules.available(disabled)
+    mine = await modules.for_user(session, user)
+    out.modules = mine.enabled
+    out.available_modules = mine.toggleable
+    out.managed_modules = mine.granted
+    out.groups = [
+        GroupRefOut.model_validate(g)
+        for g in (await groups.groups_by_user(session, [user]))[user.id]
+    ]
     out.sso = bool(user.identities)
     out.sso_account = sso_account(user.identities)
     return out

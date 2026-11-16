@@ -170,6 +170,62 @@ async def test_admin_group_maps_role(client, idp):
     assert (await client.get("/api/auth/me")).json()["role"] == "user"
 
 
+async def test_groups_linked_to_idp_follow_the_claim(client, session, idp):
+    await make_user(session, "root", role=Role.admin)
+    await make_user(session, "bob")
+    admin = {**await bearer(client, "root"), **CSRF}
+    linked = await client.post(
+        "/api/admin/groups",
+        json={"name": "Binder", "idp_groups": [" zukan-binder ", "zukan-binder", ""]},
+        headers=admin,
+    )
+    assert linked.json()["idp_groups"] == ["zukan-binder"]
+    linked_id = linked.json()["id"]
+    manual_id = (
+        await client.post("/api/admin/groups", json={"name": "Friends"}, headers=admin)
+    ).json()["id"]
+    taken = await client.post("/api/admin/groups", json={"name": "Friends"}, headers=admin)
+    assert taken.status_code == 409
+
+    query = await start_login(client)
+    await finish_login(client, idp, query, groups=["zukan-binder"])
+    sso_id = (await client.get("/api/auth/me")).json()["id"]
+    assert [g["name"] for g in (await client.get("/api/auth/me")).json()["groups"]] == ["Binder"]
+
+    # The IdP decides for SSO members of linked groups; local users and unlinked
+    # groups are managed by hand.
+    member = f"/api/admin/groups/{linked_id}/members/{sso_id}"
+    assert (await client.delete(member, headers=admin)).status_code == 409
+    bob_id = next(
+        u["id"]
+        for u in (await client.get("/api/users", headers=admin)).json()
+        if u["username"] == "bob"
+    )
+    response = await client.put(f"/api/admin/groups/{linked_id}/members/{bob_id}", headers=admin)
+    members = {m["username"]: m["managed_by_sso"] for m in response.json()["members"]}
+    assert members == {"bob": False, "sso.alice": True}
+    response = await client.put(f"/api/admin/groups/{manual_id}/members/{sso_id}", headers=admin)
+    assert response.status_code == 200
+
+    # Next sign-in without the IdP group: out of the linked group, unlinked one kept.
+    client.cookies.clear()
+    query = await start_login(client)
+    await finish_login(client, idp, query, groups=["tcg-users"])
+    assert [g["name"] for g in (await client.get("/api/auth/me")).json()["groups"]] == ["Friends"]
+
+    # The built-in group cannot be renamed or deleted, nor an admin remove themself.
+    admins = (await client.get("/api/admin/groups", headers=admin)).json()[0]
+    assert admins["name"] == "Administrators"
+    path = f"/api/admin/groups/{admins['id']}"
+    assert (await client.patch(path, json={"name": "Root"}, headers=admin)).status_code == 400
+    assert (await client.delete(path, headers=admin)).status_code == 400
+    root_id = admins["members"][0]["id"]
+    assert (await client.delete(f"{path}/members/{root_id}", headers=admin)).status_code == 400
+    # Bob made administrator through the group (local account: by hand).
+    response = await client.put(f"{path}/members/{bob_id}", headers=admin)
+    assert {m["username"] for m in response.json()["members"]} == {"root", "bob"}
+
+
 async def test_role_of_sso_users_set_by_idp_is_locked(client, session, idp, monkeypatch):
     query = await start_login(client)
     await finish_login(client, idp, query)
@@ -191,8 +247,15 @@ async def test_role_of_sso_users_set_by_idp_is_locked(client, session, idp, monk
     response = await client.patch(f"/api/users/{bob_id}", json={"role": "admin"}, headers=admin)
     assert response.status_code == 200
 
-    # Without admin groups, the IdP leaves roles to Zukan's administrators.
-    configure(monkeypatch, admin_groups=[])
+    # The provider's admin groups only seeded the Administrators group: unlinked in
+    # Admin > Groups, the IdP leaves roles to Zukan's administrators.
+    configure(monkeypatch, admin_groups=["ignored-now"])
+    admins = (await client.get("/api/admin/groups", headers=admin)).json()[0]
+    assert (admins["builtin"], admins["idp_groups"]) == ("admins", ["tcg-admins"])
+    unlinked = await client.patch(
+        f"/api/admin/groups/{admins['id']}", json={"idp_groups": []}, headers=admin
+    )
+    assert unlinked.status_code == 200 and unlinked.json()["idp_groups"] == []
     users = {u["username"]: u for u in (await client.get("/api/users", headers=admin)).json()}
     assert users["sso.alice"]["sso"] and not users["sso.alice"]["role_managed_by_sso"]
     response = await client.patch(f"/api/users/{sso_id}", json={"role": "admin"}, headers=admin)

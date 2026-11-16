@@ -69,20 +69,72 @@ async def test_modules_setting_and_server_switch(client, session, catalog):
     assert (await client.get("/api/binder", headers=alice)).status_code == 200
 
     # Turned off server-wide: hidden and refused, the user's choice kept.
-    assert (
-        await client.put("/api/admin/modules", json={"disabled": []}, headers=alice)
-    ).status_code == 403
-    assert (
-        await client.put("/api/admin/modules", json={"disabled": ["chess"]}, headers=root)
-    ).status_code == 422
-    off = await client.put("/api/admin/modules", json={"disabled": ["binder"]}, headers=root)
-    assert off.json() == {"modules": ["binder"], "disabled": ["binder"]}
+    everyone = [{"id": "binder", "mode": "everyone"}]
+    assert (await client.put("/api/admin/modules", json=everyone, headers=alice)).status_code == 403
+    for bad in ([{"id": "chess", "mode": "off"}], [{"id": "binder", "mode": "maybe"}]):
+        response = await client.put("/api/admin/modules", json=bad, headers=root)
+        assert response.status_code == 422, bad
+    off = await client.put(
+        "/api/admin/modules", json=[{"id": "binder", "mode": "off"}], headers=root
+    )
+    assert off.json() == [{"id": "binder", "mode": "off", "groups": []}]
     me = (await client.get("/api/auth/me", headers=alice)).json()
     assert (me["modules"], me["available_modules"]) == ([], [])
     assert (await client.get("/api/binder", headers=alice)).status_code == 403
-    await client.put("/api/admin/modules", json={"disabled": []}, headers=root)
+    await client.put("/api/admin/modules", json=everyone, headers=root)
     assert (await client.get("/api/auth/me", headers=alice)).json()["modules"] == ["binder"]
-    assert (await client.get("/api/admin/modules", headers=root)).json()["disabled"] == []
+    assert (await client.get("/api/admin/modules", headers=root)).json()[0]["mode"] == "everyone"
+
+
+async def test_module_given_by_groups(client, session, catalog):
+    await make_user(session)
+    await make_user(session, "bob")
+    await make_user(session, "root", role=Role.admin)
+    alice = await bearer(client, "alice")
+    bob = await bearer(client, "bob")
+    root = await bearer(client, "root")
+    # Bob's own choice is kept but gives nothing while groups decide.
+    await client.patch("/api/auth/me", json={"modules": ["binder"]}, headers=bob)
+
+    group = await client.post("/api/admin/groups", json={"name": "Collectors"}, headers=root)
+    assert group.status_code == 201, group.text
+    group_id = group.json()["id"]
+    unknown = [{"id": "binder", "mode": "groups", "groups": [999]}]
+    assert (await client.put("/api/admin/modules", json=unknown, headers=root)).status_code == 422
+    given = [{"id": "binder", "mode": "groups", "groups": [group_id]}]
+    response = await client.put("/api/admin/modules", json=given, headers=root)
+    assert response.json() == [{"id": "binder", "mode": "groups", "groups": [group_id]}]
+
+    alice_id = (await client.get("/api/auth/me", headers=alice)).json()["id"]
+    added = await client.put(f"/api/admin/groups/{group_id}/members/{alice_id}", headers=root)
+    assert [m["username"] for m in added.json()["members"]] == ["alice"]
+
+    # Members get it without turning it on; others neither see nor reach it.
+    me = (await client.get("/api/auth/me", headers=alice)).json()
+    assert (me["modules"], me["available_modules"], me["managed_modules"]) == (
+        ["binder"],
+        [],
+        ["binder"],
+    )
+    assert [g["name"] for g in me["groups"]] == ["Collectors"]
+    assert (await client.get("/api/binder", headers=alice)).status_code == 200
+    me = (await client.get("/api/auth/me", headers=bob)).json()
+    assert (me["modules"], me["available_modules"], me["managed_modules"]) == ([], [], [])
+    assert (await client.get("/api/binder", headers=bob)).status_code == 403
+    # Administrators always have it.
+    assert (await client.get("/api/auth/me", headers=root)).json()["managed_modules"] == ["binder"]
+    assert (await client.get("/api/binder", headers=root)).status_code == 200
+
+    # A deleted group gives nothing any more.
+    removed = await client.delete(f"/api/admin/groups/{group_id}", headers=root)
+    assert removed.status_code == 204
+    assert (await client.get("/api/admin/modules", headers=root)).json()[0]["groups"] == []
+    assert (await client.get("/api/binder", headers=alice)).status_code == 403
+    # Back to everyone: Bob's choice applies again.
+    await client.put(
+        "/api/admin/modules", json=[{"id": "binder", "mode": "everyone"}], headers=root
+    )
+    assert (await client.get("/api/binder", headers=bob)).status_code == 200
 
 
 async def test_follow_sets(client, session, alice):
