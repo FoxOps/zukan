@@ -26,6 +26,7 @@ from app.models import (
     JobTrigger,
     Printing,
     SyncRun,
+    UserGroup,
 )
 from app.services import catalog, crosscheck, images, jobs, prices, refresh, schedule
 
@@ -79,18 +80,10 @@ async def list_jobs(
     return [_job_out(run, now) for run in await session.scalars(query)]
 
 
-class LastRunOut(BaseModel):
-    kind: JobKind
-    status: JobStatus
-    started_at: datetime
-    finished_at: datetime | None
-    error: str | None
-
-
 class GameStatusOut(BaseModel):
     game_id: str
-    # Latest run of each job kind.
-    runs: list[LastRunOut]
+    # Latest run of each job kind, however old (the jobs list only holds recent runs).
+    runs: list[JobOut]
 
 
 class QuotaOut(BaseModel):
@@ -128,10 +121,11 @@ async def overview(_: AdminUser, session: SessionDep) -> OverviewOut:
         .ext(distinct_on(SyncRun.game_id, SyncRun.kind))
         .order_by(SyncRun.game_id, SyncRun.kind, SyncRun.started_at.desc())
     )
-    runs: dict[str, list[LastRunOut]] = {game_id: [] for game_id in registry()}
+    runs: dict[str, list[JobOut]] = {game_id: [] for game_id in registry()}
+    now = datetime.now(UTC)
     for run in await session.scalars(latest):
         if run.game_id in runs:
-            runs[run.game_id].append(LastRunOut.model_validate(run, from_attributes=True))
+            runs[run.game_id].append(_job_out(run, now))
     quotas = []
     for source, period, limit in _quotas():
         used = await session.scalar(
@@ -215,34 +209,50 @@ def _validated(body: SyncScheduleIn) -> schedule.SyncSchedule:
     return rules.model_copy(update={"jobs": {**default.jobs, **rules.jobs}})
 
 
-class ModulesOut(BaseModel):
-    # Every optional module (`app.modules`), and those turned off for the whole server.
-    modules: list[str]
-    disabled: list[str]
+class ModuleAccessOut(BaseModel):
+    id: str
+    # off: hidden for everyone; everyone: each user turns it on; groups: on for the
+    # members of `groups` (and administrators).
+    mode: modules.Mode
+    groups: list[int]
 
 
-class ModulesIn(BaseModel):
-    disabled: list[str]
+class ModuleAccessIn(BaseModel):
+    id: str
+    mode: modules.Mode
+    groups: list[int] = []
+
+
+def _modules_out(rules: dict[str, modules.Access]) -> list[ModuleAccessOut]:
+    return [ModuleAccessOut(id=m, mode=a.mode, groups=a.groups) for m, a in rules.items()]
 
 
 @router.get("/modules")
-async def get_modules(_: AdminUser, session: SessionDep) -> ModulesOut:
-    """Optional modules users can turn on, and those turned off server-wide."""
-    return ModulesOut(
-        modules=list(modules.MODULES), disabled=await modules.disabled_modules(session)
-    )
+async def get_modules(_: AdminUser, session: SessionDep) -> list[ModuleAccessOut]:
+    """Optional modules and who can use them."""
+    return _modules_out(await modules.access(session))
 
 
 @router.put("/modules")
-async def set_modules(body: ModulesIn, _: AdminUser, session: SessionDep) -> ModulesOut:
-    """Turn modules off (hidden and refused) or back on for every user; users keep
-    their own choice for when a module comes back."""
-    unknown = sorted(set(body.disabled) - set(modules.MODULES))
+async def set_modules(
+    body: list[ModuleAccessIn], _: AdminUser, session: SessionDep
+) -> list[ModuleAccessOut]:
+    """Set the access of the modules given; users keep their own choice for when a
+    module goes back to everyone."""
+    unknown = sorted({m.id for m in body} - set(modules.MODULES))
     if unknown:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown modules: {unknown}")
-    disabled = await modules.save_disabled(session, body.disabled)
+    wanted = {g for m in body for g in m.groups}
+    found = set(await session.scalars(select(UserGroup.id).where(UserGroup.id.in_(wanted))))
+    if wanted - found:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown groups: {sorted(wanted - found)}"
+        )
+    await modules.save_access(
+        session, {m.id: modules.Access(m.mode, list(dict.fromkeys(m.groups))) for m in body}
+    )
     await session.commit()
-    return ModulesOut(modules=list(modules.MODULES), disabled=disabled)
+    return _modules_out(await modules.access(session))
 
 
 @router.get("/sync-schedule")

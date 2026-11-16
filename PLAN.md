@@ -89,7 +89,7 @@ Standard OpenID Connect only, so Keycloak, Authentik, Authelia, Zitadel, Google 
 - **Config** (`.env` only): `TCG_LOCAL_LOGIN_ENABLED`, `TCG_OIDC_PROVIDERS` (JSON list of names), each provider set by `TCG_OIDC_<NAME>_*`: `name`, `display_name`, `issuer` (discovery via `/.well-known/openid-configuration`), `client_id`, `client_secret`, `scopes` (`openid profile email groups`), `groups_claim`, `admin_groups`, `allowed_groups`, `auto_create_users`.
 - **Web flow**: backend is confidential client. `GET /auth/oidc/{provider}/login` → IdP (authorization code + PKCE + state + nonce) → `GET /auth/oidc/{provider}/callback` → validate ID token (JWKS, iss, aud, nonce, exp) → find/create user by (issuer, sub) → issue app session (httpOnly secure cookie with short-lived access JWT + rotating refresh token).
 - **Android flow**: AppAuth-Android, public client, authorization code + PKCE, redirect via app custom scheme / app link. App sends IdP ID token to `POST /auth/oidc/{provider}/exchange`; backend validates same way and returns app access + refresh token. App never holds client secret. `GET /auth/providers` tells app/web which login buttons to show.
-- **Provisioning**: first SSO login auto-creates user if allowed (username from `preferred_username`, email). Role from group claim on each login (admin group → admin). Not in `allowed_groups` → refused. Local and SSO accounts are separate (since 0.19.0; linking from settings removed), never matched by email (avoids account takeover); the IdP manages SSO users' email and password.
+- **Provisioning**: first SSO login auto-creates user if allowed (username from `preferred_username`, email). Role from group claim on each login (member of a group linked to the Administrators group → admin; since 0.26.0 set in Admin › Groups, `ADMIN_GROUPS` only seeds it). Not in `allowed_groups` → refused. Local and SSO accounts are separate (since 0.19.0; linking from settings removed), never matched by email (avoids account takeover); the IdP manages SSO users' email and password.
 - **Logout**: revoke app refresh token; optional RP-initiated logout via IdP `end_session_endpoint`.
 - Local accounts stay available (bootstrap admin, fallback if IdP down); admin can disable local login once SSO works.
 - Docs: IdP setup (Keycloak, Authentik, Authelia: redirect URIs, group claim mapping) in the GitHub wiki, page Single-sign-on.
@@ -123,10 +123,19 @@ icons used copied as vector drawables (no material-icons-extended).
 
 ## Web UI
 Collection browser per game (filters: set, color, finish, condition, lang, owned/missing), card detail with all printings + price history chart, stock edit, collection value dashboard (total + over time), manual price entry, CSV import/export (generic format: game, set_code, collector_number, lang, finish, condition, quantity, price), admin: users, sync status, trigger sync.
-Optional modules (0.25.0, `app/modules.py`): extra features each user turns on in Settings (`User.modules`,
-`PATCH /api/auth/me {modules}`); plain Zukan without them. Administrators turn a module off for the whole
-server (`AppSetting` `modules_disabled`, `GET/PUT /api/admin/modules`): hidden, routes refused (403), users'
-choices kept. `MeOut.modules` (effective) / `available_modules`. Web only so far (the app ignores them).
+Optional modules (0.25.0, `app/modules.py`): extra features on top of plain Zukan. Access per module (0.26.0,
+Admin › Groups, `GET/PUT /api/admin/modules` `[{id, mode, groups}]`): **off** (hidden, routes refused 403,
+`AppSetting` `modules_disabled`), **everyone** (each user turns it on in Settings, `User.modules`,
+`PATCH /api/auth/me {modules}`), **groups** (on for members of the chosen groups, hidden for the others, no
+user toggle; `AppSetting` `modules_access`). Administrators can always use a module that is not off. Users'
+own choices are kept whatever the access. `MeOut.modules` (effective) / `available_modules` (toggleable) /
+`managed_modules` (given by a group) / `groups`. Web only so far (the app ignores them).
+User groups (0.26.0, `user_group`, `user_group_member`, `app/services/groups.py`, `/api/admin/groups`): a group
+may list identity provider groups; SSO users' membership of such a group follows the groups claim at each
+sign-in (not editable by hand), local users are added by hand, groups without links are manual for everyone.
+Built-in Administrators group (`builtin="admins"`, created on first use, seeded from the providers'
+`ADMIN_GROUPS`): no member rows, its members are the users with the admin role (role stays the one check);
+cannot be renamed/deleted, an admin cannot remove themself. With several providers, its IdP groups apply to all.
 - Binder (first module, `binder_set`, `/api/binder`): sets a user follows (optional language / finish
   filter), one checklist row per printing in collector number order. Progress is read from the collection
   (no copy of data), so cards added anywhere count. Ticking a row opens the stock dialog (filters
@@ -2192,6 +2201,29 @@ Report against server 0.25.0 / app 0.17.0. Branch `2026-11-10-002-mtg-scan-missi
   agent 0.25.1, no new variables. API schema unchanged.
 - [ ] User: scan TDM 269 FR (expected Thornwood Falls TDM 269, French), CMM 408 / 417 FR (French
   offered in the language choice; once added, the printing shows French in search).
+
+## Report 2026-11-16 (server 0.26.0, Android 0.17.0)
+- [x] Server: catalog sync jobs shown "never run" after ~24h / after an update. Runs were never lost: the
+  Data sync page looked up each job's last run among the 50 newest runs of every game, which a weekly catalog
+  run leaves within a day (faster with hourly retries of a failing job, or jobs queued again after a
+  redeploy). It now falls back to `/api/admin/overview` (latest run per game and kind, DISTINCT ON), whose
+  runs carry the full job fields (`trigger`, `elapsed_seconds`, ...). Test `test_overview_keeps_old_runs`.
+- [x] Server: access rights for optional modules by groups (local auth and IdP/SSO alike).
+  - Groups (`user_group`, `user_group_member`, migration `b8d0f2a4c367`), Admin › Groups page: create,
+    rename, delete, members, linked identity provider groups (SSO members synced at each sign-in, read-only),
+    module access section (Off / Everyone / Groups).
+  - Admins and users on the same level: built-in Administrators group; `ADMIN_GROUPS` env seeds its IdP
+    groups once, then the UI is the source of truth (env deprecated, `.env.example`).
+  - Groups mode: no toggle for users, members get the module automatically, others don't see it (routes 403
+    for direct API calls). Admins always allowed. Everyone mode keeps the previous behaviour.
+  - Settings: toggles only for modules open to everyone, "Given by your group" badge; admin switch moved to
+    Admin › Groups. Users page: groups column.
+- [x] Versions: server 0.26.0 (new tables, new API, changed `/api/admin/modules` shape), Android unchanged
+  0.17.0 (ignores modules, unknown JSON fields ignored).
+- [x] Dependabot: no open PR.
+- [ ] User: Admin › Groups on a real IdP — link a group to an IdP group, sign in with an SSO user, check
+  membership and Binder access; check the Administrators group shows the former `ADMIN_GROUPS` values.
+- [ ] User: Data sync page shows the last catalog run a few days after it ran.
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.

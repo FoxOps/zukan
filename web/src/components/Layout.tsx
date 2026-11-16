@@ -12,7 +12,7 @@ import { Logo, Mascot } from './Logo'
 import { applyTheme, savedDark } from '../lib/theme'
 import { useTypeToSearch } from '../lib/typeToSearch'
 
-// `module`: shown to users who turned that optional module on.
+// `module`: shown to users who can use that optional module (turned on or given by a group).
 const NAV: { to: string; label: string; end?: boolean; module?: string }[] = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/collection', label: 'Collection' },
@@ -24,6 +24,7 @@ const NAV: { to: string; label: string; end?: boolean; module?: string }[] = [
 ]
 const ADMIN_NAV = [
   { to: '/admin/users', label: 'Users' },
+  { to: '/admin/groups', label: 'Groups' },
   { to: '/admin/jobs', label: 'Data sync' },
   { to: '/admin/checks', label: 'Data checks' },
 ]

@@ -7,7 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.oidc import OidcError, OidcProviderConfig, extract_groups
-from app.models import Role, User, UserIdentity
+from app.models import User, UserIdentity
+from app.services.groups import sync_sso_groups
 
 _USERNAME_CHARS = re.compile(r"[^A-Za-z0-9._@-]+")
 
@@ -67,8 +68,9 @@ async def resolve_sso_user(
     if email:
         user.email = email
 
-    if provider.admin_groups:
-        user.role = Role.admin if groups & set(provider.admin_groups) else Role.user
+    # Groups linked to identity provider groups (Administrators included) follow the
+    # groups claim at every sign-in.
+    await sync_sso_groups(session, user, groups)
 
     await session.flush()
     return user
