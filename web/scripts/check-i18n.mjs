@@ -17,7 +17,10 @@ const DYNAMIC = [
   'catalog', 'prices', 'images', 'running', 'success', 'failed', 'user', 'admin', 'web', 'scan', 'import',
   'cancelled', 'queued', 'auto', 'manual',
   // Optional modules and binder tabs.
-  'Binder', 'All', 'Missing', 'Owned',
+  'Binder', 'All', 'Missing', 'Owned', 'Decks',
+  // Deck card groups, copy states, legality and import line states.
+  'Creature', 'Planeswalker', 'Battle', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Other',
+  'Allocated', 'Banned', 'Not legal', 'Restricted', 'Found', 'Ambiguous', 'Unknown',
   // Collection views and trend periods.
   'List', 'Images', '24h', '7d', '30d',
   // Finance periods.

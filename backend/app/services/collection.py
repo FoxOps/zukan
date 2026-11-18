@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.games.base import get_provider
 from app.models import CardSet, CollectionItem, Condition, PriceSnapshot, Printing, StockTransaction
 from app.prices.base import preferred_source, price_sources
+from app.services import decks
 
 
 class StockError(Exception):
@@ -144,6 +145,7 @@ async def adjust(
         )
         if item_id is None:
             raise StockError("Not enough copies to remove")
+        await decks.fit_allocations(session, [item_id])
     transaction = StockTransaction(user_id=user_id, item_id=item_id, delta=delta, source=source)
     session.add(transaction)
     await session.flush()
@@ -165,6 +167,8 @@ async def set_quantity(
     )
     if result.rowcount != 1:
         raise StockError("Quantity changed meanwhile, reload and retry")
+    if delta < 0:
+        await decks.fit_allocations(session, [item.id])
     transaction = StockTransaction(
         user_id=item.user_id, item_id=item.id, delta=delta, source=source
     )
@@ -200,6 +204,8 @@ async def undo(session: AsyncSession, user_id: int, transaction_id: int) -> Coll
     )
     if reverted.rowcount != 1:
         raise StockError("Copies were removed since, cannot undo this addition")
+    if transaction.delta > 0:
+        await decks.fit_allocations(session, [transaction.item_id])
     item = await session.get(CollectionItem, transaction.item_id, populate_existing=True)
     return item
 

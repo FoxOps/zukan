@@ -153,6 +153,14 @@ cannot be renamed/deleted, an admin cannot remove themself. With several provide
   (no copy of data), so cards added anywhere count. Ticking a row opens the stock dialog (filters
   preselected); unticking asks, then removes one copy (undo toast). Followed sets are never deleted with the
   catalog: reset and empty set pruning skip them, FK `RESTRICT`; the sync fills them again (same source id).
+- Decks (experimental, branch `experiment-decks`, `deck` / `deck_card` / `deck_allocation`, `/api/decks`):
+  Magic only (Commander, Standard). Decklist by card (not printing), sections commander / main / sideboard;
+  rules in `services/deck_rules.py` from card attributes (`legalities` from Scryfall since this branch,
+  "not verified" until the next MtG catalog sync). Text import (`services/deck_import.py`): preview, then
+  import of the cards picked. Allocation (`services/decks.py`): owned copies of a collection item set aside
+  for one deck, owned quantity unchanged; allocations grow only under a row lock on the collection items;
+  collection decreases (adjust, set quantity, undo, item delete, catalog printing merge) trim allocations,
+  latest first. Cards in decks are never pruned with the catalog.
 
 ## Progress
 - [x] Phase 0 — plan copied, git init (2026-10-12)
@@ -2249,6 +2257,34 @@ Branch `2026-11-20-000-dev-branch-workflow` from `origin/dev`, pull request into
 - [ ] User: merge the pull request into `dev`, then the `dev` -> `main` pull request with a merge commit
   (no new version: no server or Android files changed) so visitors see the new CONTRIBUTING.md.
 - [ ] User: retarget Dependabot security pull requests (they open against `main`) to `dev`.
+
+## Report 2026-11-19 — experimental Decks module (server unreleased, Android unchanged 0.17.0)
+Branch `experiment-decks` (name chosen by the user), from main at 0.25.1. No version bump, no changelog.
+- [x] Module `decks` (user setting, server switch as for Binder). Web: `/decks` list + new deck (game
+  selector with Magic only, format Commander / Standard), `/decks/:id` editor: rename, format change,
+  delete, catalog search to add a card to a section, quantity steppers, groups by type (Commander,
+  Creature, Planeswalker, Battle, Instant, Sorcery, Artifact, Enchantment, Land, Other, Sideboard), totals.
+- [x] Rules (never block saving): Standard 60+ main, sideboard 15 max, 4 copies across main and sideboard;
+  Commander exactly 100 with commanders, singleton, sideboard not counted (info), commander legendary
+  creature or "can be your commander", two commanders with Partner / Partner—X / Partner with /
+  Friends forever / Choose a Background + Background / Doctor's companion (rules text), color identity.
+  Basic lands and "any number of cards named" unlimited, "up to seven / nine" limits. Legality from
+  Scryfall `legalities` (banned / not legal / restricted); cards without data listed as not verified.
+- [x] Import: "4 Lightning Bolt", "4x", "(SET) 123", "[SET]", "*CMDR*", tags, headers Commander / Deck /
+  Main / Sideboard / Companion (to sideboard) / Maybeboard (skipped), "SB:" lines, comments. Names: full,
+  front face, other languages (`card_name`), case and accents ignored; tokens and art cards left out;
+  ambiguous names list their cards, unknown ones close names (trigram). Add or replace the list.
+- [x] Allocation per card: requested, owned, available (owned minus every deck's allocations), allocated
+  here, in other decks, missing; status missing / owned / allocated. Allocate / release one, or per
+  collection item ("Choose copies"). Refused beyond the deck's request or the free copies (concurrent
+  requests serialized by `SELECT ... FOR UPDATE` on the items; test with 4 parallel requests).
+- [x] Verified: 289 backend tests (9 new), web build, lint, i18n (EN/FR/DE/ES). Live (isolated DB, port
+  8010, Playwright): import with ambiguous and unknown lines, Commander checks, Bolt shared by a
+  Commander and a Standard deck, over-allocation refused, collection 3 to 1 trimmed both decks.
+- Gaps: legality needs a new MtG catalog sync; companions, Partner variants beyond keywords, banned as
+  commander only, restricted lists, other formats not modelled; MTGO blank-line sideboard not read (needs
+  a header); allocation counted per card over all sections (a Commander sideboard asks for copies too);
+  web only (Android ignores decks); allocations are not shown on collection pages yet.
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.

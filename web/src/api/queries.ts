@@ -106,3 +106,32 @@ export function useBinder(binderId: number) {
     queryFn: () => call(api.GET('/api/binder/{binder_id}', { params: { path: { binder_id: binderId } } })),
   })
 }
+
+export type Deck = Schemas['DeckOut']
+export type DeckDetail = Schemas['DeckDetailOut']
+
+/** Decks of the Decks module, last changed first. */
+export function useDecks(enabled = true) {
+  return useQuery({
+    queryKey: ['decks'],
+    queryFn: () => call(api.GET('/api/decks')),
+    enabled,
+  })
+}
+
+export function useDeck(deckId: number) {
+  return useQuery({
+    queryKey: ['decks', deckId],
+    queryFn: () => call(api.GET('/api/decks/{deck_id}', { params: { path: { deck_id: deckId } } })),
+  })
+}
+
+/** Games and formats decks can be built for. */
+export function useDeckFormats(enabled = true) {
+  return useQuery({
+    queryKey: ['deck-formats'],
+    queryFn: () => call(api.GET('/api/decks/formats')),
+    staleTime: Infinity,
+    enabled,
+  })
+}

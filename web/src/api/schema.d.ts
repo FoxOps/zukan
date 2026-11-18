@@ -719,6 +719,202 @@ export interface paths {
         patch: operations["update_binder_api_binder__binder_id__patch"];
         trace?: never;
     };
+    "/api/decks/formats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Formats
+         * @description Games and formats decks can be built for.
+         */
+        get: operations["list_formats_api_decks_formats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Decks
+         * @description The user's decks, last changed first.
+         */
+        get: operations["list_decks_api_decks_get"];
+        put?: never;
+        /** Create Deck */
+        post: operations["create_deck_api_decks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decks/{deck_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Deck
+         * @description Cards by type with their copies (asked for, owned, allocated, available), and the
+         *     format check.
+         */
+        get: operations["get_deck_api_decks__deck_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Deck
+         * @description Delete the deck; its allocated copies become available again (the collection
+         *     keeps them).
+         */
+        delete: operations["delete_deck_api_decks__deck_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Deck
+         * @description Rename or change the format (cards and allocations kept).
+         */
+        patch: operations["update_deck_api_decks__deck_id__patch"];
+        trace?: never;
+    };
+    "/api/decks/{deck_id}/cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Card
+         * @description Set the copies of a card in a section (0 removes it). Copies allocated beyond the
+         *     deck's new total are released; the collection is not changed.
+         */
+        put: operations["set_card_api_decks__deck_id__cards_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decks/{deck_id}/allocate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Allocate
+         * @description Set owned copies aside for this deck (no more than the deck asks for, nor than
+         *     the copies no deck holds). Owned quantities do not change.
+         */
+        post: operations["allocate_api_decks__deck_id__allocate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decks/{deck_id}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Release
+         * @description Give allocated copies back to the collection's available copies.
+         */
+        post: operations["release_api_decks__deck_id__release_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decks/{deck_id}/cards/{card_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Card Items
+         * @description The user's copies of a card (every printing), with what decks hold of them.
+         */
+        get: operations["card_items_api_decks__deck_id__cards__card_id__items_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decks/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Preview
+         * @description Read a plain-text decklist ("4 Lightning Bolt", "Commander" / "Sideboard"
+         *     headers): the card each line names, the cards an ambiguous name could be, close
+         *     names for unknown ones. Nothing is saved.
+         */
+        post: operations["import_preview_api_decks_import_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decks/{deck_id}/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Cards
+         * @description Add the previewed cards (same card and section added up), or replace the
+         *     decklist with them. Only the decklist changes: no copy is allocated.
+         */
+        post: operations["import_cards_api_decks__deck_id__import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/scan/identify": {
         parameters: {
             query?: never;
@@ -1459,6 +1655,291 @@ export interface components {
             currency: string;
             /** Total */
             total: string;
+        };
+        /** DeckAllocationIn */
+        DeckAllocationIn: {
+            /** Card Id */
+            card_id: number;
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity: number;
+            /** Item Id */
+            item_id?: number | null;
+        };
+        /** DeckCandidateOut */
+        DeckCandidateOut: {
+            /** Card Id */
+            card_id: number;
+            /** Name */
+            name: string;
+            /** Type Line */
+            type_line: string | null;
+        };
+        /** DeckCardIn */
+        DeckCardIn: {
+            /** Card Id */
+            card_id: number;
+            /**
+             * Section
+             * @default main
+             * @enum {string}
+             */
+            section: "main" | "sideboard" | "commander";
+            /** Quantity */
+            quantity: number;
+        };
+        /** DeckDetailOut */
+        DeckDetailOut: {
+            deck: components["schemas"]["DeckOut"];
+            /** Entries */
+            entries: components["schemas"]["DeckEntryOut"][];
+            validation: components["schemas"]["DeckValidationOut"];
+        };
+        /** DeckEntryOut */
+        DeckEntryOut: {
+            /** Card Id */
+            card_id: number;
+            /** Name */
+            name: string;
+            /** Translation */
+            translation?: string | null;
+            /** Image */
+            image: string | null;
+            /** Colors */
+            colors: string[];
+            /** Mana Cost */
+            mana_cost: string | null;
+            /** Type Line */
+            type_line: string | null;
+            /** Group */
+            group: string;
+            /** Quantities */
+            quantities: {
+                [key: string]: number;
+            };
+            /** Requested */
+            requested: number;
+            /** Owned */
+            owned: number;
+            /** Allocated */
+            allocated: number;
+            /** Available */
+            available: number;
+            /** Allocated Elsewhere */
+            allocated_elsewhere: number;
+            /** Missing */
+            missing: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "missing" | "owned" | "allocated";
+            /**
+             * Legal
+             * @enum {string}
+             */
+            legal: "legal" | "banned" | "not_legal" | "restricted" | "unknown";
+        };
+        /** DeckFormatOut */
+        DeckFormatOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Size */
+            size: number;
+            /** Exact Size */
+            exact_size: boolean;
+            /** Sideboard Max */
+            sideboard_max: number | null;
+            /** Copies */
+            copies: number;
+            /** Commander */
+            commander: boolean;
+        };
+        /** DeckGameOut */
+        DeckGameOut: {
+            /** Game Id */
+            game_id: string;
+            /** Formats */
+            formats: components["schemas"]["DeckFormatOut"][];
+        };
+        /** DeckImportEntryIn */
+        DeckImportEntryIn: {
+            /** Card Id */
+            card_id: number;
+            /**
+             * Section
+             * @default main
+             * @enum {string}
+             */
+            section: "main" | "sideboard" | "commander";
+            /** Quantity */
+            quantity: number;
+        };
+        /** DeckImportIn */
+        DeckImportIn: {
+            /** Entries */
+            entries: components["schemas"]["DeckImportEntryIn"][];
+            /**
+             * Replace
+             * @default false
+             */
+            replace: boolean;
+        };
+        /** DeckImportLineOut */
+        DeckImportLineOut: {
+            /** Line */
+            line: number;
+            /** Text */
+            text: string;
+            /** Quantity */
+            quantity: number;
+            /** Name */
+            name: string;
+            /**
+             * Section
+             * @enum {string}
+             */
+            section: "main" | "sideboard" | "commander";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "resolved" | "ambiguous" | "unknown";
+            card?: components["schemas"]["DeckCandidateOut"] | null;
+            /**
+             * Candidates
+             * @default []
+             */
+            candidates: components["schemas"]["DeckCandidateOut"][];
+        };
+        /** DeckImportPreviewIn */
+        DeckImportPreviewIn: {
+            /** Text */
+            text: string;
+            /**
+             * Game Id
+             * @default mtg
+             * @constant
+             */
+            game_id: "mtg";
+        };
+        /** DeckImportPreviewOut */
+        DeckImportPreviewOut: {
+            /** Lines */
+            lines: components["schemas"]["DeckImportLineOut"][];
+            /** Skipped */
+            skipped: string[];
+        };
+        /** DeckIn */
+        DeckIn: {
+            /** Name */
+            name: string;
+            /**
+             * Game Id
+             * @default mtg
+             * @constant
+             */
+            game_id: "mtg";
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "standard" | "commander";
+        };
+        /** DeckIssueOut */
+        DeckIssueOut: {
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "error" | "warning" | "info";
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Card Id */
+            card_id?: number | null;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * DeckItemOut
+         * @description A collection item of the card, for picking the copies to allocate.
+         */
+        DeckItemOut: {
+            /** Id */
+            id: number;
+            /** Printing Id */
+            printing_id: number;
+            /** Set Code */
+            set_code: string;
+            /** Set Name */
+            set_name: string;
+            /** Collector Number */
+            collector_number: string | null;
+            /** Finish */
+            finish: string;
+            /** Condition */
+            condition: string;
+            /** Language */
+            language: string;
+            /** Quantity */
+            quantity: number;
+            /** Allocated */
+            allocated: number;
+            /** Allocated Elsewhere */
+            allocated_elsewhere: number;
+            /** Free */
+            free: number;
+        };
+        /** DeckOut */
+        DeckOut: {
+            /** Id */
+            id: number;
+            /** Game Id */
+            game_id: string;
+            /** Name */
+            name: string;
+            /** Format */
+            format: string;
+            /** Card Count */
+            card_count: number;
+            /** Sideboard Count */
+            sideboard_count: number;
+            /** Errors */
+            errors: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** DeckUpdateIn */
+        DeckUpdateIn: {
+            /** Name */
+            name?: string | null;
+            /** Format */
+            format?: ("standard" | "commander") | null;
+        };
+        /** DeckValidationOut */
+        DeckValidationOut: {
+            /** Valid */
+            valid: boolean;
+            /** Issues */
+            issues: components["schemas"]["DeckIssueOut"][];
+            /** Unverified */
+            unverified: components["schemas"]["DeckIssueOut"][];
         };
         /** DiscrepancyCountOut */
         DiscrepancyCountOut: {
@@ -4006,6 +4487,379 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BinderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_formats_api_decks_formats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckGameOut"][];
+                };
+            };
+        };
+    };
+    list_decks_api_decks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckOut"][];
+                };
+            };
+        };
+    };
+    create_deck_api_decks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeckIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_deck_api_decks__deck_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_deck_api_decks__deck_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_deck_api_decks__deck_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeckUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_card_api_decks__deck_id__cards_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeckCardIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    allocate_api_decks__deck_id__allocate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeckAllocationIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_api_decks__deck_id__release_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeckAllocationIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    card_items_api_decks__deck_id__cards__card_id__items_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckItemOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_preview_api_decks_import_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeckImportPreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckImportPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_cards_api_decks__deck_id__import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeckImportIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckDetailOut"];
                 };
             };
             /** @description Validation Error */

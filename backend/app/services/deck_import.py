@@ -1,0 +1,179 @@
+"""Plain-text decklists ("4 Lightning Bolt"), as exported by most deck sites and MTG
+Arena / MTGO: sections given by header lines ("Commander", "Deck", "Sideboard",
+"SB: 2 Duress"), set and collector number suffixes ("(M10) 146", "[M10]") ignored, as
+the deck holds cards, not printings."""
+
+import re
+from dataclasses import dataclass, field
+
+from sqlalchemy import func, select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models import Card, CardName
+from app.services.deck_rules import Section
+
+MAX_LINES = 600
+MAX_QUANTITY = 250
+
+_HEADERS: dict[str, Section | None] = {
+    "commander": "commander",
+    "commanders": "commander",
+    "deck": "main",
+    "main": "main",
+    "maindeck": "main",
+    "main deck": "main",
+    "mainboard": "main",
+    "sideboard": "sideboard",
+    "side": "sideboard",
+    "companion": "sideboard",
+    # Cards being considered: not part of the deck.
+    "maybeboard": None,
+    "maybe": None,
+    "considering": None,
+    "tokens": None,
+}
+_HEADER = re.compile(r"^(?://|#)?\s*([a-z ]+?)\s*(?:\(\d+\))?\s*:?\s*$", re.IGNORECASE)
+_LINE = re.compile(r"^(?:(\d+)\s*x?\s+)?(.+)$", re.IGNORECASE)
+_SUFFIXES = (
+    re.compile(r"\s+\*[^*]+\*\s*$"),  # *CMDR*, *F*
+    re.compile(r"\s+\^[^^]*\^\s*$"),  # Archidekt tags ^Ramp^
+    re.compile(r"\s+#\S.*$"),  # tags
+    re.compile(r"\s+\[[^\]]+\]\s*$"),  # [M10] or [Category]
+    re.compile(r"\s+\([A-Za-z0-9]{2,6}\)(\s+\S+)?\s*$"),  # (M10) 146
+)
+# Layouts that are not deck cards (tokens, art cards).
+_NOT_DECK = ("token", "double_faced_token", "art_series", "emblem")
+
+
+@dataclass
+class Line:
+    number: int
+    text: str
+    quantity: int
+    name: str
+    section: Section
+
+
+@dataclass
+class Parsed:
+    lines: list[Line] = field(default_factory=list)
+    # Line numbers and text that are neither headers nor cards.
+    errors: list[tuple[int, str, str]] = field(default_factory=list)
+
+
+def _clean_name(name: str) -> tuple[str, bool]:
+    """Name without set / tag suffixes, and whether it was marked as commander."""
+    commander = "*cmdr*" in name.lower()
+    changed = True
+    while changed:
+        changed = False
+        for suffix in _SUFFIXES:
+            stripped = suffix.sub("", name)
+            if stripped != name:
+                name, changed = stripped, True
+    name = re.sub(r"\s+/{1,2}\s+", " // ", name.strip())
+    return name, commander
+
+
+def parse(text: str) -> Parsed:
+    parsed = Parsed()
+    section: Section | None = "main"
+    for number, raw in enumerate(text.splitlines()[:MAX_LINES], start=1):
+        line = raw.strip()
+        if not line:
+            continue
+        header = _HEADER.match(line)
+        if header and header.group(1).strip().lower() in _HEADERS:
+            section = _HEADERS[header.group(1).strip().lower()]
+            continue
+        if line.startswith(("//", "#")) or line.lower().startswith(("name ", "about")):
+            continue
+        line_section = section
+        if line.upper().startswith("SB:"):
+            line, line_section = line[3:].strip(), "sideboard"
+        found = _LINE.match(line)
+        quantity = int(found.group(1)) if found and found.group(1) else 1
+        name, commander = _clean_name(found.group(2) if found else line)
+        if not name or not 0 < quantity <= MAX_QUANTITY:
+            parsed.errors.append((number, raw, "Not a card line"))
+            continue
+        if line_section is None:
+            continue
+        parsed.lines.append(
+            Line(number, raw, quantity, name, "commander" if commander else line_section)
+        )
+    return parsed
+
+
+def _key(name):
+    return func.lower(func.f_unaccent(name))
+
+
+@dataclass
+class Match:
+    # Matching cards (one: resolved, several: ambiguous, none: unknown) and close names.
+    cards: list[Card]
+    suggestions: list[Card]
+
+
+async def resolve(session: AsyncSession, game_id: str, names: list[str]) -> dict[str, Match]:
+    """Cards named so (case and accents ignored): full name, front face name, then a
+    name in another language. Unknown names get close names as suggestions."""
+    wanted = sorted(set(names))
+    if not wanted:
+        return {}
+    keys: dict[str, str] = dict(
+        (
+            await session.execute(
+                text("SELECT n, lower(f_unaccent(n)) FROM unnest(CAST(:names AS text[])) AS n"),
+                {"names": wanted},
+            )
+        ).all()
+    )
+    by_key: dict[str, list[Card]] = {}
+    lookups = [_key(Card.name), _key(func.split_part(Card.name, " // ", 1))]
+    cards_game = select(Card).where(Card.game_id == game_id)
+    found: dict[str, list[Card]] = {}
+    remaining = set(keys.values())
+    for column in lookups:
+        if not remaining:
+            break
+        rows = await session.execute(
+            cards_game.add_columns(column.label("key")).where(column.in_(remaining))
+        )
+        for card, key in rows:
+            by_key.setdefault(key, []).append(card)
+        for key in list(remaining):
+            if key in by_key:
+                found[key] = by_key.pop(key)
+                remaining.discard(key)
+    if remaining:
+        rows = await session.execute(
+            cards_game.add_columns(CardName.search_name)
+            .join(CardName, CardName.card_id == Card.id)
+            .where(CardName.search_name.in_(remaining))
+            .distinct()
+        )
+        for card, key in rows:
+            found.setdefault(key, []).append(card)
+    result: dict[str, Match] = {}
+    for name, key in keys.items():
+        cards = list({c.id: c for c in found.get(key, [])}.values())
+        playable = [c for c in cards if c.attributes.get("layout") not in _NOT_DECK]
+        cards = playable or cards
+        suggestions = [] if cards else await _close_names(session, game_id, key)
+        result[name] = Match(sorted(cards, key=lambda c: c.name), suggestions)
+    return result
+
+
+async def _close_names(session: AsyncSession, game_id: str, key: str) -> list[Card]:
+    similarity = func.max(func.similarity(CardName.search_name, key))
+    rows = await session.execute(
+        select(Card, similarity)
+        .join(CardName, CardName.card_id == Card.id)
+        .where(Card.game_id == game_id, CardName.search_name.op("%")(key))
+        .group_by(Card.id)
+        .order_by(similarity.desc(), Card.name)
+        .limit(5)
+    )
+    return [card for card, _ in rows if card.attributes.get("layout") not in _NOT_DECK]
