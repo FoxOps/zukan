@@ -54,6 +54,18 @@ android/             Kotlin app
 docker-compose.yml
 ```
 
+## Branches (since 2026-11-20)
+Two permanent branches (CONTRIBUTING.md, "Branches and releases"):
+- `main`: release branch, current stable release. Stays the GitHub default branch (what visitors see).
+- `dev`: integration branch, changes for the next release.
+- Work branches (`DATE-NUMBER-NAME`) start from `origin/dev`; pull requests go into `dev`; delete the
+  branch once merged. Both permanent branches are protected (pull request required).
+- Release: pull request `dev` -> `main`, merged with a merge commit (never squash / rebase), then
+  Docker prod / Android prod from `main` with the version; the Release workflow tags `server-vX.Y.Z` /
+  `android-vX.Y.Z`. `dev` stays for the next cycle.
+- CI: PR checks and CodeQL run on pull requests into `dev` and `main`; Dependabot version updates
+  target `dev` (security updates target `main`: change their base to `dev`).
+
 ## Game plugin system (modularity core)
 `backend/app/games/base.py`:
 ```python
@@ -2224,6 +2236,19 @@ Report against server 0.25.0 / app 0.17.0. Branch `2026-11-10-002-mtg-scan-missi
 - [ ] User: Admin › Groups on a real IdP — link a group to an IdP group, sign in with an SSO user, check
   membership and Binder access; check the Administrators group shows the former `ADMIN_GROUPS` values.
 - [ ] User: Data sync page shows the last catalog run a few days after it ran.
+
+## Report 2026-11-20 (branching workflow, versions unchanged)
+Branch `2026-11-20-000-dev-branch-workflow` from `origin/dev`, pull request into `dev`.
+- [x] CONTRIBUTING.md: "Branches and releases" (`main` release, `dev` integration, work branches from
+  `dev`, release pull request merged with a merge commit, existing version tags); pull requests against `dev`.
+- [x] CI: `pr-checks.yml` and `codeql.yml` also run on pull requests into `dev`; `dependabot.yml`
+  `target-branch: dev` for version updates. No change needed in `guard.sh`, `release.yml`,
+  `changelog.sh`, `release.sh` (prod stays main-only; `dev` dev builds are `dev-dev`).
+- [x] Repository: `dev` protected like `main`; default branch stays `main`.
+- [x] Wiki Development page: pointer to CONTRIBUTING "Branches and releases".
+- [ ] User: merge the pull request into `dev`, then the `dev` -> `main` pull request with a merge commit
+  (no new version: no server or Android files changed) so visitors see the new CONTRIBUTING.md.
+- [ ] User: retarget Dependabot security pull requests (they open against `main`) to `dev`.
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
