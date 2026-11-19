@@ -156,7 +156,11 @@ cannot be renamed/deleted, an admin cannot remove themself. With several provide
 - Decks (experimental, branch `experiment-decks`, `deck` / `deck_card` / `deck_allocation`, `/api/decks`):
   Magic (paper formats with Scryfall legalities: Commander, Standard, Modern... `deck_rules.FORMATS`) and
   Pokémon, all three markets (`pokemon_standard` / `_expanded` / `_unlimited` / `_glc`, `deck_rules.GAMES`;
-  legality from TCGdex `legal` per international printing, Pokémon catalog version 11). Decklist by card (not printing), sections commander / main / sideboard (Pokémon: main only);
+  legality from TCGdex `legal` per international printing, Pokémon catalog version 11) and Lorcana
+  (`lorcana_core` / `_infinity` / `_unrestricted`, legality and copy limits from LorcanaJSON, Lorcana
+  catalog version 3). Decklist by card, a line per printing asked for or any (`deck_card.printing_id`,
+  rules and allocations count a card's lines together), sections commander / main / sideboard
+  (Pokémon, Lorcana: main only); text export per game (`services/deck_export.py`);
   rules in `services/deck_rules.py` from card attributes (`legalities` from Scryfall since this branch,
   "not verified" until the next MtG catalog sync). Text import (`services/deck_import.py`): preview, then
   import of the cards picked. Allocation (`services/decks.py`): owned copies of a collection item set aside
@@ -2329,6 +2333,41 @@ Branch `experiment-decks` (name chosen by the user), from main at 0.25.1. No ver
 - Gaps: legality is "not verified" until the next Pokémon catalog sync (version 11, full resync); Asian and
   Chinese cards have no legality (TCGdex marks them all not legal), Japanese Standard not modelled; GLC
   ban list not checked; a French-only card and its English card are different cards for the copy count.
+
+## Report 2026-11-19 (4) — Decks: search, printings, export, Lorcana (server unreleased, Android unchanged 0.17.0)
+User report: search like Catalog / Collection; one card from several sets; export; Lorcana. Choices
+(user): optional printing per deck line, catalog-style panel, text export, Lorcana Core + Infinity +
+Unrestricted.
+- [x] Several sets of one card: before, allocations already took copies of any printing (2 Bolt M10 +
+  2 Bolt 2XM worked) but the deck could not say which printing it wants. Now `deck_card.printing_id`
+  (nullable, `SET NULL` when the printing leaves the catalog; unique with NULLS NOT DISTINCT, migration
+  `d5f8b2c6e731`): several lines per card and section. Rules and stock sum a card's lines. Lines of a
+  printing take its allocated copies first (`decks.line_allocations`); "Allocate" fills the printings
+  lines ask for first. `POST /api/decks/{id}/cards/move` (whole line or one copy split off),
+  `GET .../cards/{card}/printings` (owned first). Catalog merges move lines (`decks.move_lines`), reset
+  keeps printings deck lines ask for. Import keeps "(M10) 146", "[M10]", Pokémon "PAF 7" (set aliases,
+  leading zeros); unknown printing: any. Web: printing badge per row (chooser with pictures, owned / free),
+  "Choose the printing…" / "Split off one copy…", per-line allocated count, Images view one tile per line,
+  copies chooser marks printings asked for.
+- [x] Add cards panel (`pages/decks/AddCards.tsx`, replaces the 10-result dropdown): name in any language,
+  set, colors (include / exact), game filters, "Owned cards only" (`/api/cards?owned=`, new
+  `CardSummaryOut.owned_copies`), List / Images, pages of 24, section; a chosen set adds that printing.
+- [x] Export (`GET /api/decks/{id}/export?sets=`, dialog: copy, .txt): Magic Moxfield / MTGO blocks with
+  "(SET) 123", Pokémon TCG Live blocks + "Total Cards", Lorcana Dreamborn "4 Elsa - Snow Queen". Lines of
+  any printing use their allocated copies' printings (Pokémon: newest printing for the rest). Read back by
+  the import (tested).
+- [x] Lorcana: LorcanaJSON `allowedInFormats` (Core, Infinity: legal / not legal / banned; a card is
+  legal when one printing is, banned when any is) and `maxCopiesInDeck` (99, 2, any) in card attributes
+  (`catalog_version` 3). Rules: 60+, 4 per full name (or the card's limit), at most 2 inks (dual-ink
+  cards bring both; off-ink cards listed), legality per format. Groups Character / Action / Song / Item /
+  Location, type line with classifications and ink cost.
+- [x] Verified: 308 backend tests (12 new deck / Lorcana tests), ruff, web build, oxlint, i18n (EN/FR/DE/ES).
+  Migration up / down / up. Live (copy of a full catalog DB, Lorcana synced, port 8011, Playwright):
+  printing lines and allocation preference, chooser move, owned filter, Magic and Lorcana export,
+  Lorcana Core deck with ink, legality and size errors.
+- Test server: `alembic upgrade head`, then a Lorcana catalog sync (full, version 3) for legality.
+- Gaps: Magic lines without printing and no allocated copy export without set; Lorcana Format Coconut
+  not offered; per-line "missing" not shown (card level only).
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.

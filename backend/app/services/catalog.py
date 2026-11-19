@@ -283,6 +283,7 @@ class CatalogWriter:
                 self.report.moved += len(gone)
 
     async def _move_items(self, from_id: int, to_id: int) -> None:
+        await decks.move_lines(self.session, from_id, to_id)
         items = await self.session.scalars(
             select(CollectionItem).where(CollectionItem.printing_id == from_id)
         )
@@ -607,6 +608,8 @@ async def reset_catalog(session: AsyncSession, game_id: str) -> ResetReport:
     report = ResetReport()
     in_game = select(Printing.id).join(CardSet).where(CardSet.game_id == game_id)
     owned = select(CollectionItem.printing_id).where(CollectionItem.printing_id.in_(in_game))
+    # Printings deck lines ask for are kept too.
+    owned = owned.union(select(DeckCard.printing_id).where(DeckCard.printing_id.in_(in_game)))
     await session.execute(delete(CatalogDiscrepancy).where(CatalogDiscrepancy.game_id == game_id))
     removed = await session.execute(
         delete(Printing).where(Printing.id.in_(in_game), Printing.id.not_in(owned))

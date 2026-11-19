@@ -1,8 +1,9 @@
 """Plain-text decklists ("4 Lightning Bolt"), as exported by most deck sites and MTG
 Arena / MTGO: sections given by header lines ("Commander", "Deck", "Sideboard",
-"SB: 2 Duress"), set and collector number suffixes ("(M10) 146", "[M10]") ignored, as
-the deck holds cards, not printings. Pokémon: Pokémon TCG Live and Limitless exports
-("Pokémon: 12", "4 Charmander PAF 7", "Basic {R} Energy")."""
+"SB: 2 Duress"), set and collector number suffixes ("(M10) 146", "[M10]") naming the
+printing a line asks for (`resolve_printings`; unknown ones leave it at any printing).
+Pokémon: Pokémon TCG Live and Limitless exports ("Pokémon: 12", "4 Charmander PAF 7",
+"Basic {R} Energy"). Lorcana: Dreamborn / Inktable lists ("4 Elsa - Snow Queen")."""
 
 import re
 from dataclasses import dataclass, field
@@ -10,7 +11,8 @@ from dataclasses import dataclass, field
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Card, CardName
+from app.games.base import registry
+from app.models import Card, CardName, CardSet, Printing
 from app.services.deck_rules import Section
 
 MAX_LINES = 600
@@ -51,12 +53,16 @@ _SUFFIXES = (
     re.compile(r"\s+\*[^*]+\*\s*$"),  # *CMDR*, *F*
     re.compile(r"\s+\^[^^]*\^\s*$"),  # Archidekt tags ^Ramp^
     re.compile(r"\s+#\S.*$"),  # tags
-    re.compile(r"\s+\[[^\]]+\]\s*$"),  # [M10] or [Category]
-    re.compile(r"\s+\([A-Za-z0-9]{2,6}\)(\s+\S+)?\s*$"),  # (M10) 146
+)
+# Set code and collector number: "(M10) 146", "(M10)", "[M10]" (or an Archidekt
+# "[Category]", then no set of that code is found).
+_SET_SUFFIXES = (
+    re.compile(r"\s+\[(?P<set>[^\]]+)\]\s*$"),
+    re.compile(r"\s+\((?P<set>[A-Za-z0-9]{2,6})\)(?:\s+(?P<number>\S+))?\s*$"),
 )
 # Pokémon set code and collector number: "PAF 7", "PR-SV 12", "SVP 085", "CRZ GG05".
 _POKEMON_SUFFIX = re.compile(
-    r"\s+[A-Z][A-Za-z0-9]{1,4}(?:-[A-Z0-9]{1,4})?\s+[A-Z]{0,3}\d+[a-z]?\s*$"
+    r"\s+(?P<set>[A-Z][A-Za-z0-9]{1,4}(?:-[A-Z0-9]{1,4})?)\s+(?P<number>[A-Z]{0,3}\d+[a-z]?)\s*$"
 )
 # Pokémon TCG Live energy symbols ("Basic {R} Energy").
 _ENERGY_SYMBOLS = {
@@ -81,6 +87,9 @@ class Line:
     quantity: int
     name: str
     section: Section
+    # The printing named after the card ("(M10) 146"), None: any.
+    set_code: str | None = None
+    collector_number: str | None = None
 
 
 @dataclass
@@ -90,21 +99,36 @@ class Parsed:
     errors: list[tuple[int, str, str]] = field(default_factory=list)
 
 
-def _clean_name(name: str, pokemon: bool = False) -> tuple[str, bool]:
-    """Name without set / tag suffixes, and whether it was marked as commander."""
-    commander = "*cmdr*" in name.lower()
-    suffixes = (*_SUFFIXES, _POKEMON_SUFFIX) if pokemon else _SUFFIXES
+@dataclass
+class Cleaned:
+    name: str
+    commander: bool
+    set_code: str | None = None
+    collector_number: str | None = None
+
+
+def _clean_name(name: str, pokemon: bool = False) -> Cleaned:
+    """Name without set / tag suffixes, whether it was marked as commander, and the set
+    code and collector number it names."""
+    found = Cleaned(name, "*cmdr*" in name.lower())
+    set_suffixes = (*_SET_SUFFIXES, _POKEMON_SUFFIX) if pokemon else _SET_SUFFIXES
     if pokemon:
         name = re.sub(r"\{([A-Z])\}", lambda m: _ENERGY_SYMBOLS.get(m.group(1), m.group(0)), name)
     changed = True
     while changed:
         changed = False
-        for suffix in suffixes:
+        for suffix in _SUFFIXES:
             stripped = suffix.sub("", name)
             if stripped != name:
                 name, changed = stripped, True
-    name = re.sub(r"\s+/{1,2}\s+", " // ", name.strip())
-    return name, commander
+        for suffix in set_suffixes:
+            if match := suffix.search(name):
+                name, changed = name[: match.start()], True
+                if found.set_code is None:
+                    found.set_code = match.group("set").strip()
+                    found.collector_number = match.groupdict().get("number")
+    found.name = re.sub(r"\s+/{1,2}\s+", " // ", name.strip())
+    return found
 
 
 def parse(text: str, game_id: str = "mtg") -> Parsed:
@@ -128,16 +152,61 @@ def parse(text: str, game_id: str = "mtg") -> Parsed:
             line, line_section = line[3:].strip(), "sideboard"
         found = _LINE.match(line)
         quantity = int(found.group(1)) if found and found.group(1) else 1
-        name, commander = _clean_name(found.group(2) if found else line, pokemon)
-        if not name or not 0 < quantity <= MAX_QUANTITY:
+        cleaned = _clean_name(found.group(2) if found else line, pokemon)
+        if not cleaned.name or not 0 < quantity <= MAX_QUANTITY:
             parsed.errors.append((number, raw, "Not a card line"))
             continue
         if line_section is None:
             continue
         parsed.lines.append(
-            Line(number, raw, quantity, name, "commander" if commander else line_section)
+            Line(
+                number,
+                raw,
+                quantity,
+                cleaned.name,
+                "commander" if cleaned.commander else line_section,
+                cleaned.set_code,
+                cleaned.collector_number,
+            )
         )
     return parsed
+
+
+def _number(value: str | None) -> str:
+    """Collector number compared without case or leading zeros ("085" is "85")."""
+    return (value or "").upper().lstrip("0")
+
+
+async def resolve_printings(
+    session: AsyncSession, game_id: str, wanted: list[tuple[int, str, str | None]]
+) -> dict[tuple[int, str, str | None], Printing]:
+    """The printing of a card (id) a set code and collector number name: the set's
+    printing with that number, or its only printing of the card without a number. Set
+    codes also match the game's aliases ("ALP" for Sorcery's Alpha)."""
+    if not wanted:
+        return {}
+    aliases: dict[str, str] = {}
+    for code, others in (getattr(registry().get(game_id), "set_aliases", {}) or {}).items():
+        for other in others:
+            aliases[other.casefold()] = code.casefold()
+    rows = await session.execute(
+        select(Printing, CardSet.code)
+        .join(CardSet, Printing.set_id == CardSet.id)
+        .where(Printing.card_id.in_({card_id for card_id, _, _ in wanted}))
+    )
+    by_card_set: dict[tuple[int, str], list[Printing]] = {}
+    for printing, code in rows:
+        by_card_set.setdefault((printing.card_id, code.casefold()), []).append(printing)
+    result = {}
+    for key in wanted:
+        card_id, code, number = key
+        code = code.casefold()
+        printings = by_card_set.get((card_id, aliases.get(code, code)), [])
+        if number is not None:
+            printings = [p for p in printings if _number(p.collector_number) == _number(number)]
+        if len(printings) == 1:
+            result[key] = printings[0]
+    return result
 
 
 def _key(name):

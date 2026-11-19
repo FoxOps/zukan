@@ -9,7 +9,7 @@ allocations to it (`fit_allocations`), so concurrent edits cannot allocate more 
 than owned."""
 
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
@@ -34,6 +34,9 @@ class CardStock:
     # Collection items (printing, finish, condition, language) with free copies: the
     # user chooses one when there are several.
     free_items: int = 0
+    # Per printing: copies allocated to this deck, and owned copies no deck holds.
+    allocated_by_printing: dict[int, int] = field(default_factory=dict)
+    available_by_printing: dict[int, int] = field(default_factory=dict)
 
     @property
     def available(self) -> int:
@@ -88,14 +91,16 @@ async def stock(session: AsyncSession, deck: Deck, card_ids: Iterable[int]) -> d
     if not card_ids:
         return result
     owned = await session.execute(
-        select(CollectionItem.id, Printing.card_id, CollectionItem.quantity)
+        select(CollectionItem.id, Printing.card_id, Printing.id, CollectionItem.quantity)
         .join(Printing)
         .where(CollectionItem.user_id == deck.user_id, Printing.card_id.in_(card_ids))
     )
     card_of: dict[int, int] = {}
+    printing_of: dict[int, int] = {}
     free: dict[int, int] = {}
-    for item_id, card_id, quantity in owned:
+    for item_id, card_id, printing_id, quantity in owned:
         card_of[item_id] = card_id
+        printing_of[item_id] = printing_id
         free[item_id] = quantity
         result[card_id].owned += quantity
     allocations = await session.execute(
@@ -109,9 +114,62 @@ async def stock(session: AsyncSession, deck: Deck, card_ids: Iterable[int]) -> d
         free[item_id] -= quantity
         if deck_id == deck.id:
             card.allocated += quantity
+            by_printing = card.allocated_by_printing
+            by_printing[printing_of[item_id]] = by_printing.get(printing_of[item_id], 0) + quantity
     for item_id, left in free.items():
+        card = result[card_of[item_id]]
         if left > 0:
-            result[card_of[item_id]].free_items += 1
+            card.free_items += 1
+            available = card.available_by_printing
+            available[printing_of[item_id]] = available.get(printing_of[item_id], 0) + left
+    return result
+
+
+def line_allocations(
+    lines: list[tuple[int | None, int]], allocated_by_printing: dict[int, int]
+) -> list[int]:
+    """Copies allocated to each line (printing or None for any, quantity) of one card:
+    lines of a printing take its allocated copies first, lines of any printing share
+    what is left (copies of other printings included), in order."""
+    left = dict(allocated_by_printing)
+    result = [0] * len(lines)
+    for i, (printing_id, quantity) in enumerate(lines):
+        if printing_id is not None:
+            result[i] = min(quantity, left.get(printing_id, 0))
+            left[printing_id] = left.get(printing_id, 0) - result[i]
+    rest = sum(max(0, n) for n in left.values())
+    for i, (printing_id, quantity) in enumerate(lines):
+        if printing_id is None:
+            result[i] = min(quantity, rest)
+            rest -= result[i]
+    return result
+
+
+def line_printings(
+    lines: list[tuple[int | None, int]], allocated_by_printing: dict[int, int]
+) -> list[list[tuple[int | None, int]]]:
+    """Each line's copies by printing: a line of a printing is all of that printing; a
+    line of any printing gets the allocated copies lines of their printing leave (as in
+    `line_allocations`), then None for the copies not allocated."""
+    left = dict(allocated_by_printing)
+    for printing_id, quantity in lines:
+        if printing_id is not None:
+            left[printing_id] = left.get(printing_id, 0) - quantity
+    result: list[list[tuple[int | None, int]]] = []
+    for printing_id, quantity in lines:
+        if printing_id is not None:
+            result.append([(printing_id, quantity)])
+            continue
+        parts: list[tuple[int | None, int]] = []
+        for other in sorted(left):
+            take = min(quantity, left[other])
+            if take > 0:
+                parts.append((other, take))
+                left[other] -= take
+                quantity -= take
+        if quantity:
+            parts.append((None, quantity))
+        result.append(parts)
     return result
 
 
@@ -175,22 +233,52 @@ async def allocate(
     free = sum(max(0, s.free) for s in held)
     if count > free:
         raise AllocationError(f"Only {free} owned copies are available")
+    # Copies of the printings deck lines ask for, still to allocate: taken first.
+    short = await _printings_short(session, deck.id, card_id, held)
+    taken: dict[int, int] = {}
     left = count
-    for s in sorted(held, key=lambda s: -s.free):
-        take = min(left, s.free)
-        if take <= 0:
-            continue
-        stmt = insert(DeckAllocation).values(deck_id=deck.id, item_id=s.item.id, quantity=take)
+    ordered = sorted(held, key=lambda s: -s.free)
+    # Copies of the printings lines ask for (up to what they lack), then any copies.
+    for preferred in (True, False):
+        for s in ordered:
+            room = s.free - taken.get(s.item.id, 0)
+            if preferred:
+                room = min(room, short.get(s.item.printing_id, 0))
+            take = min(left, room)
+            if take <= 0:
+                continue
+            taken[s.item.id] = taken.get(s.item.id, 0) + take
+            short[s.item.printing_id] = short.get(s.item.printing_id, 0) - take
+            left -= take
+    for item_id, take in taken.items():
+        stmt = insert(DeckAllocation).values(deck_id=deck.id, item_id=item_id, quantity=take)
         await session.execute(
             stmt.on_conflict_do_update(
                 index_elements=[DeckAllocation.deck_id, DeckAllocation.item_id],
                 set_={"quantity": DeckAllocation.quantity + take},
             )
         )
-        left -= take
-        if left == 0:
-            break
     return here + count
+
+
+async def _printings_short(
+    session: AsyncSession, deck_id: int, card_id: int, held: list[ItemStock]
+) -> dict[int, int]:
+    """Per printing deck lines ask for: copies not allocated here yet."""
+    rows = await session.execute(
+        select(DeckCard.printing_id, func.sum(DeckCard.quantity))
+        .where(
+            DeckCard.deck_id == deck_id,
+            DeckCard.card_id == card_id,
+            DeckCard.printing_id.is_not(None),
+        )
+        .group_by(DeckCard.printing_id)
+    )
+    short = {printing_id: int(total) for printing_id, total in rows}
+    for s in held:
+        if s.item.printing_id in short:
+            short[s.item.printing_id] -= s.allocated
+    return short
 
 
 async def _allocated_here(session: AsyncSession, deck_id: int, card_id: int) -> int:
@@ -295,3 +383,36 @@ async def move_allocations(session: AsyncSession, from_item: int, to_item: int) 
                 set_={"quantity": DeckAllocation.quantity + quantity},
             )
         )
+
+
+async def move_lines(session: AsyncSession, from_printing: int, to_printing: int) -> None:
+    """Deck lines asking for a printing merged into another (catalog printing merge):
+    they ask for the new one, added to a line already asking for it; a printing of
+    another card turns them into "any printing". Does not commit."""
+    to_card = await session.scalar(select(Printing.card_id).where(Printing.id == to_printing))
+    rows = await session.execute(
+        select(
+            DeckCard.id, DeckCard.deck_id, DeckCard.card_id, DeckCard.section, DeckCard.quantity
+        ).where(DeckCard.printing_id == from_printing)
+    )
+    for line_id, deck_id, card_id, section, quantity in rows.all():
+        target = to_printing if card_id == to_card else None
+        same = await session.scalar(
+            select(DeckCard.id).where(
+                DeckCard.deck_id == deck_id,
+                DeckCard.card_id == card_id,
+                DeckCard.section == section,
+                DeckCard.printing_id.is_not_distinct_from(target),
+            )
+        )
+        if same is None:
+            await session.execute(
+                update(DeckCard).where(DeckCard.id == line_id).values(printing_id=target)
+            )
+        else:
+            await session.execute(
+                update(DeckCard)
+                .where(DeckCard.id == same)
+                .values(quantity=DeckCard.quantity + quantity)
+            )
+            await session.execute(delete(DeckCard).where(DeckCard.id == line_id))

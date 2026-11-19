@@ -354,6 +354,7 @@ export interface paths {
          *     filters (GameOut.filters); it needs `game`.
          *
          *     `color_mode=exact`: cards of exactly the chosen colors (default: at least them).
+         *     `owned`: only cards the user has copies of.
          *     `sort=name` orders by shown name, `sort=number` by collector number in `set_id`
          *     (ignored without a set); `order` gives the direction.
          */
@@ -800,11 +801,33 @@ export interface paths {
         get?: never;
         /**
          * Set Card
-         * @description Set the copies of a card in a section (0 removes it). Copies allocated beyond the
-         *     deck's new total are released; the collection is not changed.
+         * @description Set the copies of a card in a section, of one printing or any (0 removes the
+         *     line). Copies allocated beyond the deck's new total are released; the collection is
+         *     not changed.
          */
         put: operations["set_card_api_decks__deck_id__cards_put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decks/{deck_id}/cards/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move Line
+         * @description Ask for another printing (or any) for copies of a line: the whole line, or some
+         *     copies split off into their own line. Allocations are kept.
+         */
+        post: operations["move_line_api_decks__deck_id__cards_move_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -864,6 +887,50 @@ export interface paths {
          * @description The user's copies of a card (every printing), with what decks hold of them.
          */
         get: operations["card_items_api_decks__deck_id__cards__card_id__items_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decks/{deck_id}/cards/{card_id}/printings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Card Printings
+         * @description The card's printings (owned ones, then newest sets first), with the user's copies
+         *     of each.
+         */
+        get: operations["card_printings_api_decks__deck_id__cards__card_id__printings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decks/{deck_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Deck
+         * @description The decklist as text in the game's usual format (`services.deck_export`), read
+         *     back by the import. With `sets`: each line's printing (set code and number); lines of
+         *     any printing take their allocated copies' printings, Pokémon ones the newest printing
+         *     for the copies not allocated (Pokémon TCG Live needs one).
+         */
+        get: operations["export_deck_api_decks__deck_id__export_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1622,6 +1689,11 @@ export interface components {
             price_max: string | null;
             /** Currency */
             currency?: string | null;
+            /**
+             * Owned Copies
+             * @default 0
+             */
+            owned_copies: number;
         };
         /** ChangeOut */
         ChangeOut: {
@@ -1687,6 +1759,8 @@ export interface components {
              * @enum {string}
              */
             section: "main" | "sideboard" | "commander";
+            /** Printing Id */
+            printing_id?: number | null;
             /** Quantity */
             quantity: number;
         };
@@ -1721,6 +1795,8 @@ export interface components {
             quantities: {
                 [key: string]: number;
             };
+            /** Lines */
+            lines: components["schemas"]["DeckLineOut"][];
             /** Requested */
             requested: number;
             /** Owned */
@@ -1746,6 +1822,13 @@ export interface components {
              */
             legal: "legal" | "banned" | "not_legal" | "restricted" | "unknown";
         };
+        /** DeckExportOut */
+        DeckExportOut: {
+            /** Text */
+            text: string;
+            /** Filename */
+            filename: string;
+        };
         /** DeckFormatOut */
         DeckFormatOut: {
             /** Id */
@@ -1768,7 +1851,7 @@ export interface components {
              * Rules
              * @enum {string}
              */
-            rules: "mtg" | "pokemon";
+            rules: "mtg" | "pokemon" | "lorcana";
         };
         /** DeckGameOut */
         DeckGameOut: {
@@ -1787,6 +1870,8 @@ export interface components {
              * @enum {string}
              */
             section: "main" | "sideboard" | "commander";
+            /** Printing Id */
+            printing_id?: number | null;
             /** Quantity */
             quantity: number;
         };
@@ -1815,6 +1900,11 @@ export interface components {
              * @enum {string}
              */
             section: "main" | "sideboard" | "commander";
+            /** Set Code */
+            set_code?: string | null;
+            /** Collector Number */
+            collector_number?: string | null;
+            printing?: components["schemas"]["DeckImportPrintingOut"] | null;
             /**
              * Status
              * @enum {string}
@@ -1836,7 +1926,7 @@ export interface components {
              * @default mtg
              * @enum {string}
              */
-            game_id: "mtg" | "pokemon" | "pokemon-asia" | "pokemon-china";
+            game_id: "mtg" | "pokemon" | "pokemon-asia" | "pokemon-china" | "lorcana";
         };
         /** DeckImportPreviewOut */
         DeckImportPreviewOut: {
@@ -1844,6 +1934,15 @@ export interface components {
             lines: components["schemas"]["DeckImportLineOut"][];
             /** Skipped */
             skipped: string[];
+        };
+        /** DeckImportPrintingOut */
+        DeckImportPrintingOut: {
+            /** Id */
+            id: number;
+            /** Set Code */
+            set_code: string;
+            /** Collector Number */
+            collector_number: string | null;
         };
         /** DeckIn */
         DeckIn: {
@@ -1854,12 +1953,12 @@ export interface components {
              * @default mtg
              * @enum {string}
              */
-            game_id: "mtg" | "pokemon" | "pokemon-asia" | "pokemon-china";
+            game_id: "mtg" | "pokemon" | "pokemon-asia" | "pokemon-china" | "lorcana";
             /**
              * Format
              * @enum {string}
              */
-            format: "commander" | "standard" | "pioneer" | "modern" | "legacy" | "vintage" | "pauper" | "premodern" | "oldschool" | "penny" | "duel" | "predh" | "paupercommander" | "oathbreaker" | "pokemon_standard" | "pokemon_expanded" | "pokemon_unlimited" | "pokemon_glc";
+            format: "commander" | "standard" | "pioneer" | "modern" | "legacy" | "vintage" | "pauper" | "premodern" | "oldschool" | "penny" | "duel" | "predh" | "paupercommander" | "oathbreaker" | "pokemon_standard" | "pokemon_expanded" | "pokemon_unlimited" | "pokemon_glc" | "lorcana_core" | "lorcana_infinity" | "lorcana_unrestricted";
         };
         /** DeckIssueOut */
         DeckIssueOut: {
@@ -1911,6 +2010,54 @@ export interface components {
             /** Free */
             free: number;
         };
+        /**
+         * DeckLineMoveIn
+         * @description Move copies of a line to another printing (or any), merged with that line when
+         *     the deck has it.
+         */
+        DeckLineMoveIn: {
+            /** Card Id */
+            card_id: number;
+            /**
+             * Section
+             * @default main
+             * @enum {string}
+             */
+            section: "main" | "sideboard" | "commander";
+            /** Printing Id */
+            printing_id?: number | null;
+            /** To Printing Id */
+            to_printing_id?: number | null;
+            /** Quantity */
+            quantity?: number | null;
+        };
+        /**
+         * DeckLineOut
+         * @description Copies of the card asked for in one section, of one printing or any.
+         */
+        DeckLineOut: {
+            /**
+             * Section
+             * @enum {string}
+             */
+            section: "main" | "sideboard" | "commander";
+            /** Printing Id */
+            printing_id: number | null;
+            /** Set Code */
+            set_code?: string | null;
+            /** Set Name */
+            set_name?: string | null;
+            /** Collector Number */
+            collector_number?: string | null;
+            /** Quantity */
+            quantity: number;
+            /** Image */
+            image?: string | null;
+            /** Allocated */
+            allocated: number;
+            /** Available */
+            available?: number | null;
+        };
         /** DeckOut */
         DeckOut: {
             /** Id */
@@ -1938,12 +2085,34 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * DeckPrintingOut
+         * @description A printing of the card, to pick the one a deck line asks for.
+         */
+        DeckPrintingOut: {
+            /** Id */
+            id: number;
+            /** Set Code */
+            set_code: string;
+            /** Set Name */
+            set_name: string;
+            /** Collector Number */
+            collector_number: string | null;
+            /** Release Date */
+            release_date: string | null;
+            /** Image */
+            image: string | null;
+            /** Owned */
+            owned: number;
+            /** Available */
+            available: number;
+        };
         /** DeckUpdateIn */
         DeckUpdateIn: {
             /** Name */
             name?: string | null;
             /** Format */
-            format?: ("commander" | "standard" | "pioneer" | "modern" | "legacy" | "vintage" | "pauper" | "premodern" | "oldschool" | "penny" | "duel" | "predh" | "paupercommander" | "oathbreaker" | "pokemon_standard" | "pokemon_expanded" | "pokemon_unlimited" | "pokemon_glc") | null;
+            format?: ("commander" | "standard" | "pioneer" | "modern" | "legacy" | "vintage" | "pauper" | "premodern" | "oldschool" | "penny" | "duel" | "predh" | "paupercommander" | "oathbreaker" | "pokemon_standard" | "pokemon_expanded" | "pokemon_unlimited" | "pokemon_glc" | "lorcana_core" | "lorcana_infinity" | "lorcana_unrestricted") | null;
         };
         /** DeckValidationOut */
         DeckValidationOut: {
@@ -3800,6 +3969,7 @@ export interface operations {
                 lang?: string | null;
                 attr?: string[] | null;
                 color_mode?: "include" | "exact";
+                owned?: boolean;
                 sort?: "relevance" | "name" | "number";
                 order?: "asc" | "desc";
                 page?: number;
@@ -4730,6 +4900,41 @@ export interface operations {
             };
         };
     };
+    move_line_api_decks__deck_id__cards_move_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeckLineMoveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     allocate_api_decks__deck_id__allocate_post: {
         parameters: {
             query?: never;
@@ -4819,6 +5024,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeckItemOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    card_printings_api_decks__deck_id__cards__card_id__printings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckPrintingOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_deck_api_decks__deck_id__export_get: {
+        parameters: {
+            query?: {
+                sets?: boolean;
+            };
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckExportOut"];
                 };
             };
             /** @description Validation Error */

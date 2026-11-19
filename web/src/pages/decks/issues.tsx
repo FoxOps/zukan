@@ -75,6 +75,11 @@ function useIssueText() {
         return t('{{name}}: Rule Box Pokémon are banned in this format', { name: p.name })
       case 'single_type':
         return t("{{name}} is not of the deck's type ({{type}})", { name: p.name, type: p.type })
+      // Lorcana.
+      case 'inks_max':
+        return t('The deck has {{n}} inks ({{inks}}), at most 2 allowed', { n, inks: ((p.inks as string[]) ?? []).map((i) => t(i[0].toUpperCase() + i.slice(1))).join(', ') })
+      case 'off_ink':
+        return t("{{name}} is not of the deck's inks ({{inks}})", { name: p.name, inks: ((p.inks as string[]) ?? []).map((i) => t(i[0].toUpperCase() + i.slice(1))).join(', ') })
       case 'glc_bans':
         return t('Not checked: the Gym Leader Challenge ban list')
       case 'special_rules':

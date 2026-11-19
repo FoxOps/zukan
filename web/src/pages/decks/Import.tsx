@@ -21,6 +21,7 @@ const STATUS = { resolved: 'badge-success', ambiguous: 'badge-warning', unknown:
 export function ImportDialog({ deckId, gameId, open, onClose }: { deckId: number; gameId: string; open: boolean; onClose: () => void }) {
   const { t } = useTranslation()
   const pokemon = gameId.startsWith('pokemon')
+  const lorcana = gameId === 'lorcana'
   const toast = useToast()
   const client = useQueryClient()
   const [text, setText] = useState('')
@@ -51,7 +52,13 @@ export function ImportDialog({ deckId, gameId, open, onClose }: { deckId: number
   })
   const entries = (lines ?? [])
     .filter((l) => picked[l.line])
-    .map((l) => ({ card_id: Number(picked[l.line]), quantity: l.quantity, section: sections[l.line] ?? l.section }))
+    .map((l) => ({
+      card_id: Number(picked[l.line]),
+      quantity: l.quantity,
+      section: sections[l.line] ?? l.section,
+      // The printing the line names, for the card it was found as.
+      printing_id: l.printing && l.card && String(l.card.card_id) === picked[l.line] ? l.printing.id : null,
+    }))
   const save = useMutation({
     mutationFn: () =>
       call(api.POST('/api/decks/{deck_id}/import', { params: { path: { deck_id: deckId } }, body: { entries, replace } })),
@@ -73,8 +80,10 @@ export function ImportDialog({ deckId, gameId, open, onClose }: { deckId: number
             <div className="mt-3 flex flex-col gap-2">
               <p className="text-sm text-base-content/70">
                 {pokemon
-                  ? t('One card per line ("4 Charmander PAF 7"), as Pokémon TCG Live exports them; set codes are ignored.')
-                  : t('One card per line ("4 Lightning Bolt"). "Commander" and "Sideboard" lines start those sections; set codes are ignored.')}
+                  ? t('One card per line ("4 Charmander PAF 7"), as Pokémon TCG Live exports them; the set code and number choose the printing.')
+                  : lorcana
+                    ? t('One card per line with its full name ("4 Elsa - Snow Queen"), as Dreamborn and Inktable export them.')
+                    : t('One card per line ("4 Lightning Bolt"). "Commander" and "Sideboard" lines start those sections; a set code and number ("(M10) 146") choose the printing.')}
               </p>
               <textarea
                 className="textarea h-64 w-full font-mono text-sm"
@@ -83,7 +92,9 @@ export function ImportDialog({ deckId, gameId, open, onClose }: { deckId: number
                 placeholder={
                   pokemon
                     ? 'Pokémon: 8\n4 Charmander PAF 7\n4 Charizard ex OBF 125\n\nTrainer: 4\n4 Professor\'s Research SVI 189\n\nEnergy: 1\n10 Basic {R} Energy SVE 2'
-                    : 'Commander\n1 Krenko, Mob Boss\n\nDeck\n4 Lightning Bolt\n30 Mountain\n\nSideboard\n2 Pyroblast'
+                    : lorcana
+                      ? '4 Elsa - Snow Queen\n4 Friends on the Other Side\n2 Dalmatian Puppy - Tail Wagger'
+                      : 'Commander\n1 Krenko, Mob Boss\n\nDeck\n4 Lightning Bolt (M10) 146\n30 Mountain\n\nSideboard\n2 Pyroblast'
                 }
                 aria-label={t('Decklist')}
               />
@@ -119,7 +130,20 @@ export function ImportDialog({ deckId, gameId, open, onClose }: { deckId: number
                         <td className="text-right">{l.quantity}</td>
                         <td>
                           {l.status === 'resolved' && l.card ? (
-                            <span className="text-sm">{l.card.name}</span>
+                            <span className="flex flex-wrap items-center gap-1 text-sm">
+                              {l.card.name}
+                              {l.printing ? (
+                                <span className="badge badge-xs badge-outline font-mono">
+                                  {l.printing.set_code} {l.printing.collector_number}
+                                </span>
+                              ) : (
+                                l.set_code && (
+                                  <span className="badge badge-xs badge-ghost" title={t('No printing of this card has that set code and number: any printing')}>
+                                    {t('{{set}} not found', { set: [l.set_code, l.collector_number].filter(Boolean).join(' ') })}
+                                  </span>
+                                )
+                              )}
+                            </span>
                           ) : (
                             <Select
                               className="w-full min-w-48"
@@ -136,6 +160,7 @@ export function ImportDialog({ deckId, gameId, open, onClose }: { deckId: number
                         <td>
                           <Select
                             className="w-36"
+                            disabled={pokemon || lorcana}
                             value={sections[l.line] ?? l.section}
                             onChange={(v) => setSections((s) => ({ ...s, [l.line]: v as Section }))}
                             aria-label={t('Section')}

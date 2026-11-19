@@ -12,7 +12,7 @@ import { useFormatName } from './decks/formats'
 
 type Body = Schemas['DeckIn']
 
-/** New deck: a name, the game (Magic, Pokémon) and one of its formats. */
+/** New deck: a name, the game (Magic, Pokémon, Lorcana) and one of its formats. */
 function CreateDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation()
   const toast = useToast()

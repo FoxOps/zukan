@@ -21,6 +21,7 @@ const DYNAMIC = [
   // Deck card groups, copy states, legality and import line states.
   'Creature', 'Planeswalker', 'Battle', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Other',
   'Pokémon', 'Supporter', 'Item', 'Pokémon Tool', 'Stadium', 'Trainer', 'Energy',
+  'Character', 'Action', 'Song', 'Location',
   'Allocated', 'Banned', 'Not legal', 'Restricted', 'Found', 'Ambiguous', 'Unknown',
   // Collection views and trend periods.
   'List', 'Images', '24h', '7d', '30d',

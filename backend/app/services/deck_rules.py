@@ -1,9 +1,12 @@
-"""Format rules of the Decks module: Magic: The Gathering and the Pokémon TCG.
+"""Format rules of the Decks module: Magic: The Gathering, the Pokémon TCG and Disney
+Lorcana.
 
 Pure functions over the cards' catalog attributes. Magic (`games.mtg.provider.parse_card`):
 `types`, `subtypes`, `oracle_text` (or `faces`), `color_identity`, `legalities`. Pokémon
 (`games.pokemon.provider.parse_card`): `category`, `stage`, `energyType`, the colors (its
-types), and per printing the rarity and TCGdex's `legal`. Results never block saving a
+types), and per printing the rarity and TCGdex's `legal`. Lorcana
+(`games.lorcana.provider`): the colors (inks), `legalities` and `max_copies` from
+LorcanaJSON. Results never block saving a
 deck: a draft is shown with its issues. Rules the data cannot settle are listed as not
 verified instead of passing silently."""
 
@@ -20,7 +23,7 @@ Level = Literal["error", "warning", "info"]
 # your commander"), "pauper" any creature (Pauper Commander: printed uncommon, not
 # checked), "oathbreaker" a planeswalker with one instant or sorcery as signature spell.
 Leader = Literal["commander", "pauper", "oathbreaker"]
-Rules = Literal["mtg", "pokemon"]
+Rules = Literal["mtg", "pokemon", "lorcana"]
 
 
 @dataclass(frozen=True)
@@ -36,7 +39,8 @@ class Format:
     commander: bool
     leader: Leader | None = None
     rules: Rules = "mtg"
-    # Pokémon: TCGdex's legality key ("standard", "expanded"), None: every card legal.
+    # Pokémon: TCGdex's legality key ("standard", "expanded"); Lorcana: the card's
+    # `legalities` key ("core", "infinity"). None: every card legal.
     legality: str | None = None
 
 
@@ -87,13 +91,30 @@ POKEMON_FORMATS = {
         _pokemon("pokemon_glc", "Gym Leader Challenge", "expanded", copies=1),
     )
 }
+
+
+def _lorcana(id: str, name: str, legality: str | None) -> Format:
+    return Format(id, name, 60, False, None, 4, False, rules="lorcana", legality=legality)
+
+
+# Lorcana constructed formats (LorcanaJSON's `allowedInFormats`); Unrestricted: the
+# deck building rules without a card pool.
+LORCANA_FORMATS = {
+    f.id: f
+    for f in (
+        _lorcana("lorcana_core", "Core Constructed", "core"),
+        _lorcana("lorcana_infinity", "Infinity Constructed", "infinity"),
+        _lorcana("lorcana_unrestricted", "Unrestricted", None),
+    )
+}
 GAMES = {
     "mtg": tuple(FORMATS),
     "pokemon": tuple(POKEMON_FORMATS),
     "pokemon-asia": tuple(POKEMON_FORMATS),
     "pokemon-china": tuple(POKEMON_FORMATS),
+    "lorcana": tuple(LORCANA_FORMATS),
 }
-FORMATS |= POKEMON_FORMATS
+FORMATS |= POKEMON_FORMATS | LORCANA_FORMATS
 
 
 @dataclass
@@ -236,10 +257,12 @@ def legality(card: RuleCard, fmt: Format) -> str:
             return "unknown"
         # A card is legal when any of its printings is (reprints share the card's name).
         return "legal" if any(legal.get(fmt.legality) for legal in known) else "not_legal"
+    if fmt.rules == "lorcana" and fmt.legality is None:
+        return "legal"
     legalities = card.attributes.get("legalities")
     if legalities is None:
         return "unknown"
-    return legalities.get(fmt.id, "not_legal")
+    return legalities.get(fmt.legality if fmt.rules == "lorcana" else fmt.id, "not_legal")
 
 
 def check(format_id: str, entries: list[Entry]) -> Report:
@@ -250,6 +273,9 @@ def check(format_id: str, entries: list[Entry]) -> Report:
         return report
     if fmt.rules == "pokemon":
         _check_pokemon(report, fmt, entries)
+        return report
+    if fmt.rules == "lorcana":
+        _check_lorcana(report, fmt, entries)
         return report
     by_section: dict[str, list[Entry]] = {s: [] for s in SECTIONS}
     for entry in entries:
@@ -627,3 +653,98 @@ def _check_glc(report: Report, pokemon: list[RuleCard], copies: dict[int, int]) 
                     type=main_type,
                 )
     report.note("glc_bans", "Not checked: the Gym Leader Challenge ban list")
+
+
+def lorcana_copy_limit(card: RuleCard, fmt: Format) -> int | None:
+    """Copies allowed (None: any number): the card's own limit, else the format's."""
+    limit = card.attributes.get("max_copies")
+    if limit == "any":
+        return None
+    return limit if isinstance(limit, int) else fmt.copies
+
+
+def _check_lorcana(report: Report, fmt: Format, entries: list[Entry]) -> None:
+    """60 cards or more, 4 copies of a full name (name and version), one or two inks."""
+    main = [e for e in entries if e.section == "main"]
+    others = sum(e.quantity for e in entries if e.section != "main")
+    deck_size = sum(e.quantity for e in main)
+    if deck_size < fmt.size:
+        report.add(
+            "error",
+            "deck_size_min",
+            f"The deck has {_plural(deck_size, 'card')}, it needs at least {fmt.size}",
+            count=deck_size,
+            size=fmt.size,
+        )
+    if others:
+        report.add(
+            "info",
+            "section_unused",
+            f"{fmt.name} decks have no sideboard nor commander: "
+            f"{_plural(others, 'card')} not counted",
+            count=others,
+        )
+
+    copies: dict[int, int] = {}
+    cards: dict[int, RuleCard] = {}
+    for entry in main:
+        copies[entry.card.card_id] = copies.get(entry.card.card_id, 0) + entry.quantity
+        cards[entry.card.card_id] = entry.card
+    for card_id, count in copies.items():
+        card = cards[card_id]
+        limit = lorcana_copy_limit(card, fmt)
+        if limit is not None and count > limit:
+            report.add(
+                "error",
+                "copy_limit",
+                f"{card.name}: {count} copies, at most {limit} allowed",
+                card,
+                count=count,
+                limit=limit,
+            )
+
+    # Inks: at most two; a dual-ink card brings both of its inks.
+    inks: dict[str, int] = {}
+    for card in cards.values():
+        for ink in card.colors:
+            inks[ink] = inks.get(ink, 0) + copies[card.card_id]
+    if len(inks) > 2:
+        # The two inks most copies have are the deck's; cards of the others are off ink.
+        kept = sorted(inks, key=lambda ink: (-inks[ink], ink))[:2]
+        report.add(
+            "error",
+            "inks_max",
+            f"The deck has {len(inks)} inks ({', '.join(sorted(inks))}), at most 2 allowed",
+            count=len(inks),
+            inks=sorted(inks),
+        )
+        for card in cards.values():
+            if not set(card.colors) <= set(kept):
+                report.add(
+                    "error",
+                    "off_ink",
+                    f"{card.name} is not of the deck's inks ({', '.join(sorted(kept))})",
+                    card,
+                    inks=sorted(kept),
+                )
+
+    if fmt.legality is not None:
+        unknown = []
+        for card in cards.values():
+            status = legality(card, fmt)
+            if status == "unknown":
+                unknown.append(card.name)
+            elif status == "banned":
+                report.add("error", "banned", f"{card.name} is banned in {fmt.name}", card)
+            elif status == "not_legal":
+                report.add("error", "not_legal", f"{card.name} is not legal in {fmt.name}", card)
+        if unknown:
+            report.note(
+                "legality_unknown",
+                f"Legality of {_plural(len(unknown), 'card')} not known (sync the Lorcana "
+                "catalog again): "
+                + ", ".join(sorted(unknown)[:10])
+                + ("…" if len(unknown) > 10 else ""),
+                count=len(unknown),
+                names=sorted(unknown),
+            )

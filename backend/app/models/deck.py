@@ -4,7 +4,7 @@ from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, UniqueCons
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
-from app.models.catalog import Card
+from app.models.catalog import Card, Printing
 from app.models.collection import CollectionItem
 
 
@@ -30,12 +30,16 @@ class Deck(TimestampMixin, Base):
 
 
 class DeckCard(Base):
-    """Copies of a card the decklist asks for, in one section. Says nothing about the
+    """Copies of a card the decklist asks for, in one section, of one printing or any
+    (`printing_id` None). A card can have several lines in a section, one per printing;
+    format rules and allocations count the card's lines together. Says nothing about the
     collection: owned copies are set aside with `DeckAllocation`."""
 
     __tablename__ = "deck_card"
     __table_args__ = (
-        UniqueConstraint("deck_id", "card_id", "section"),
+        UniqueConstraint(
+            "deck_id", "card_id", "section", "printing_id", postgresql_nulls_not_distinct=True
+        ),
         CheckConstraint("quantity > 0", name="quantity_positive"),
     )
 
@@ -47,10 +51,16 @@ class DeckCard(Base):
     card_id: Mapped[int] = mapped_column(ForeignKey("card.id", ondelete="RESTRICT"), index=True)
     # main | sideboard | commander
     section: Mapped[str] = mapped_column(String(16))
+    # The printing asked for (set and number), None: any. A printing that leaves the
+    # catalog turns the line into "any"; catalog merges move it (`services.decks`).
+    printing_id: Mapped[int | None] = mapped_column(
+        ForeignKey("printing.id", ondelete="SET NULL"), index=True
+    )
     quantity: Mapped[int]
 
     deck: Mapped[Deck] = relationship(back_populates="cards")
     card: Mapped[Card] = relationship()
+    printing: Mapped[Printing | None] = relationship()
 
 
 class DeckAllocation(TimestampMixin, Base):

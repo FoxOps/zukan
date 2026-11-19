@@ -1,11 +1,12 @@
 """Decks module (`app.modules`): decklists checked against their format's rules
 (`services.deck_rules`), plain-text import (`services.deck_import`), and owned copies
-allocated to decks (`services.decks`). Magic: The Gathering and the Pokémon TCG.
+allocated to decks (`services.decks`). Magic: The Gathering, the Pokémon TCG and
+Disney Lorcana.
 
 Editing a decklist or importing one never changes the collection or its availability:
 only allocating does, and allocating never changes owned quantities."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, status
@@ -19,7 +20,7 @@ from app.api.collection import copy_image
 from app.api.deps import SessionDep
 from app.models import Card, CollectionItem, Deck, DeckAllocation, DeckCard, Printing, User
 from app.modules import require_module
-from app.services import deck_import, deck_rules, decks
+from app.services import deck_export, deck_import, deck_rules, decks
 from app.services.deck_rules import FORMATS, GAMES, Leader, Rules, Section
 
 router = APIRouter(prefix="/decks", tags=["decks"])
@@ -97,6 +98,26 @@ class DeckUpdateIn(BaseModel):
     format: FormatId | None = None
 
 
+class DeckLineOut(BaseModel):
+    """Copies of the card asked for in one section, of one printing or any."""
+
+    section: Section
+    # None: any printing.
+    printing_id: int | None
+    set_code: str | None = None
+    set_name: str | None = None
+    collector_number: str | None = None
+    quantity: int
+    # The printing's picture (its allocated copy's, else the catalog's); any printing:
+    # the card's (`DeckEntryOut.image`).
+    image: str | None = None
+    # Copies allocated to this line: copies of its printing first, then lines of any
+    # printing take the rest.
+    allocated: int
+    # Owned copies of the printing no deck holds (None: any printing, see the card).
+    available: int | None = None
+
+
 class DeckEntryOut(BaseModel):
     card_id: int
     name: str
@@ -108,8 +129,10 @@ class DeckEntryOut(BaseModel):
     type_line: str | None
     # Card type group shown in the list (Creature, Land... / Pokémon, Supporter...).
     group: str
-    # Copies asked for per section.
+    # Copies asked for per section (every printing).
     quantities: dict[str, int]
+    # The same copies line by line (printing asked for, or any), sections in order.
+    lines: list[DeckLineOut]
     # All sections together; owned; allocated to this deck; free in the collection
     # (owned by the user, no deck holds them); allocated to the user's other decks.
     requested: int
@@ -135,8 +158,36 @@ class DeckDetailOut(BaseModel):
 class DeckCardIn(BaseModel):
     card_id: int
     section: Section = "main"
-    # 0 removes the card from the section.
+    # The printing asked for, None: any.
+    printing_id: int | None = None
+    # 0 removes the line.
     quantity: int = Field(ge=0, le=MAX_COPIES)
+
+
+class DeckLineMoveIn(BaseModel):
+    """Move copies of a line to another printing (or any), merged with that line when
+    the deck has it."""
+
+    card_id: int
+    section: Section = "main"
+    printing_id: int | None = None
+    to_printing_id: int | None = None
+    # Copies moved, None: the whole line.
+    quantity: int | None = Field(default=None, ge=1, le=MAX_COPIES)
+
+
+class DeckPrintingOut(BaseModel):
+    """A printing of the card, to pick the one a deck line asks for."""
+
+    id: int
+    set_code: str
+    set_name: str
+    collector_number: str | None
+    release_date: date | None
+    image: str | None
+    # The user's copies of the printing, and those no deck holds.
+    owned: int
+    available: int
 
 
 class DeckAllocationIn(BaseModel):
@@ -175,12 +226,23 @@ class DeckCandidateOut(BaseModel):
     type_line: str | None
 
 
+class DeckImportPrintingOut(BaseModel):
+    id: int
+    set_code: str
+    collector_number: str | None
+
+
 class DeckImportLineOut(BaseModel):
     line: int
     text: str
     quantity: int
     name: str
     section: Section
+    # Set code and collector number the line names ("(M10) 146", "PAF 7").
+    set_code: str | None = None
+    collector_number: str | None = None
+    # The printing they name, among the resolved card's (None: any printing).
+    printing: DeckImportPrintingOut | None = None
     status: Literal["resolved", "ambiguous", "unknown"]
     # The card (resolved), the cards it could be (ambiguous), close names (unknown).
     card: DeckCandidateOut | None = None
@@ -196,6 +258,7 @@ class DeckImportPreviewOut(BaseModel):
 class DeckImportEntryIn(BaseModel):
     card_id: int
     section: Section = "main"
+    printing_id: int | None = None
     quantity: int = Field(ge=1, le=MAX_COPIES)
 
 
@@ -229,11 +292,21 @@ _TRAINER_GROUPS = {
 }
 
 
+# Lorcana card types; songs are actions.
+LORCANA_GROUPS = ("Character", "Action", "Song", "Item", "Location")
+
+
 def _groups(game_id: str) -> tuple[str, ...]:
-    return (*(GROUPS if game_id == "mtg" else POKEMON_GROUPS), "Other")
+    groups = {"mtg": GROUPS, "lorcana": LORCANA_GROUPS}.get(game_id, POKEMON_GROUPS)
+    return (*groups, "Other")
 
 
 def _group(card: Card) -> str:
+    if card.game_id == "lorcana":
+        kind = card.attributes.get("type")
+        if kind == "Action" and "Song" in (card.attributes.get("classifications") or []):
+            return "Song"
+        return kind if kind in LORCANA_GROUPS else "Other"
     if card.game_id != "mtg":
         category = card.attributes.get("category")
         if category in ("Pokemon", "Pokémon"):
@@ -248,10 +321,19 @@ def _group(card: Card) -> str:
     return next((g for g in GROUPS if g in types), "Other")
 
 
+def _type_line(card: Card) -> str | None:
+    """Magic's type line; Lorcana: type, classifications and ink cost."""
+    if card.game_id == "lorcana" and (kind := card.attributes.get("type")):
+        classes = ", ".join(card.attributes.get("classifications") or [])
+        cost = card.attributes.get("cost")
+        return " — ".join(
+            p for p in (kind, classes, f"{cost} ink" if cost is not None else "") if p
+        )
+    return card.attributes.get("type_line")
+
+
 def _candidate(card: Card) -> DeckCandidateOut:
-    return DeckCandidateOut(
-        card_id=card.id, name=card.name, type_line=card.attributes.get("type_line")
-    )
+    return DeckCandidateOut(card_id=card.id, name=card.name, type_line=_type_line(card))
 
 
 async def _rule_printings(
@@ -274,8 +356,14 @@ async def _rule_printings(
 def _rule_entries(
     deck: Deck, printings: dict[int, list[deck_rules.RulePrinting]]
 ) -> list[deck_rules.Entry]:
-    return [
-        deck_rules.Entry(
+    """One entry per card and section: lines of several printings added up."""
+    entries: dict[tuple[int, str], deck_rules.Entry] = {}
+    for e in deck.cards:
+        entry = entries.get((e.card_id, e.section))
+        if entry is not None:
+            entry.quantity += e.quantity
+            continue
+        entries[e.card_id, e.section] = deck_rules.Entry(
             deck_rules.RuleCard(
                 e.card_id,
                 e.card.name,
@@ -286,8 +374,7 @@ def _rule_entries(
             e.section,
             e.quantity,
         )
-        for e in deck.cards
-    ]
+    return list(entries.values())
 
 
 async def _check(
@@ -303,8 +390,11 @@ def _item_image(printing: Printing, language: str, ui_lang: str) -> str | None:
     return copy_image(printing, language, picked)
 
 
-async def _allocated_images(session: SessionDep, deck: Deck, ui_lang: str) -> dict[int, str]:
-    """Per card, the picture of the copy most of its allocated copies come from."""
+async def _allocated_images(
+    session: SessionDep, deck: Deck, ui_lang: str
+) -> tuple[dict[int, str], dict[int, str]]:
+    """Per card, and per printing, the picture of the copy most of its allocated copies
+    come from."""
     allocations = await session.scalars(
         select(DeckAllocation)
         .where(DeckAllocation.deck_id == deck.id, DeckAllocation.quantity > 0)
@@ -316,12 +406,37 @@ async def _allocated_images(session: SessionDep, deck: Deck, ui_lang: str) -> di
         )
     )
     shown: dict[int, str] = {}
+    by_printing: dict[int, str] = {}
     for allocation in allocations:
         item = allocation.item
         card_id = item.printing.card_id
-        if card_id not in shown and (image := _item_image(item.printing, item.language, ui_lang)):
-            shown[card_id] = image
-    return shown
+        if item.printing_id in by_printing:
+            continue
+        if image := _item_image(item.printing, item.language, ui_lang):
+            by_printing[item.printing_id] = image
+            shown.setdefault(card_id, image)
+    return shown, by_printing
+
+
+SECTION_ORDER = ("commander", "main", "sideboard")
+
+
+def _sorted_lines(lines: list[DeckCard]) -> list[DeckCard]:
+    """Sections in order; in a section, printings by set code and number, any last."""
+    return sorted(
+        lines,
+        key=lambda e: (
+            SECTION_ORDER.index(e.section),
+            e.printing is None,
+            e.printing.set.code if e.printing else "",
+            _number_key(e.printing.collector_number if e.printing else None),
+        ),
+    )
+
+
+def _number_key(number: str | None) -> tuple[int, str]:
+    digits = "".join(c for c in number or "" if c.isdigit())
+    return (int(digits) if digits else 0, number or "")
 
 
 def _deck_out(deck: Deck, report: deck_rules.Report) -> DeckOut:
@@ -353,7 +468,10 @@ async def _own(session: SessionDep, user: User, deck_id: int, lock: bool = False
     query = (
         select(Deck)
         .where(Deck.id == deck_id, Deck.user_id == user.id)
-        .options(selectinload(Deck.cards).selectinload(DeckCard.card))
+        .options(
+            selectinload(Deck.cards).selectinload(DeckCard.card),
+            selectinload(Deck.cards).selectinload(DeckCard.printing).selectinload(Printing.set),
+        )
         .execution_options(populate_existing=True)
     )
     if lock:
@@ -381,13 +499,37 @@ async def _detail(session: SessionDep, user: User, deck_id: int) -> DeckDetailOu
     }
     stock = await decks.stock(session, deck, card_ids)
     card_names, printing_names = await load_names(session, card_ids)
-    allocated_images = await _allocated_images(session, deck, user.language)
+    allocated_images, printing_images = await _allocated_images(session, deck, user.language)
     entries = []
     for card_id in card_ids:
         card = cards[card_id]
         shown = show_card(card, card_names, printing_names, user.language)
         counts = stock[card_id]
-        quantities = {e.section: e.quantity for e in deck.cards if e.card_id == card_id}
+        quantities: dict[str, int] = {}
+        card_lines = _sorted_lines([e for e in deck.cards if e.card_id == card_id])
+        for e in card_lines:
+            quantities[e.section] = quantities.get(e.section, 0) + e.quantity
+        allocated = decks.line_allocations(
+            [(e.printing_id, e.quantity) for e in card_lines], counts.allocated_by_printing
+        )
+        lines = []
+        for e, line_allocated in zip(card_lines, allocated, strict=True):
+            line = DeckLineOut(
+                section=e.section,
+                printing_id=e.printing_id,
+                quantity=e.quantity,
+                allocated=line_allocated,
+            )
+            if e.printing is not None:
+                line.set_code = e.printing.set.code
+                line.set_name = e.printing.set.name
+                line.collector_number = e.printing.collector_number
+                line.image = (
+                    printing_images.get(e.printing_id)
+                    or (show_printing(e.printing, card_names, printing_names, user.language)[1])
+                )
+                line.available = counts.available_by_printing.get(e.printing_id, 0)
+            lines.append(line)
         entries.append(
             DeckEntryOut(
                 card_id=card_id,
@@ -400,9 +542,10 @@ async def _detail(session: SessionDep, user: User, deck_id: int) -> DeckDetailOu
                     f["mana_cost"] for f in card.attributes.get("faces", []) if f.get("mana_cost")
                 )
                 or None,
-                type_line=card.attributes.get("type_line"),
+                type_line=_type_line(card),
                 group=_group(card),
                 quantities=quantities,
+                lines=lines,
                 requested=counts.requested,
                 owned=counts.owned,
                 allocated=counts.allocated,
@@ -510,19 +653,79 @@ async def _card(session: SessionDep, deck: Deck, card_id: int) -> Card:
 async def set_card(
     deck_id: int, body: DeckCardIn, user: DecksUser, session: SessionDep
 ) -> DeckDetailOut:
-    """Set the copies of a card in a section (0 removes it). Copies allocated beyond the
-    deck's new total are released; the collection is not changed."""
+    """Set the copies of a card in a section, of one printing or any (0 removes the
+    line). Copies allocated beyond the deck's new total are released; the collection is
+    not changed."""
     deck = await _own(session, user, deck_id, lock=True)
     await _card(session, deck, body.card_id)
-    await _set_quantity(session, deck, body.card_id, body.section, body.quantity)
+    await _check_printing(session, body.card_id, body.printing_id)
+    await _set_quantity(session, deck, body.card_id, body.section, body.printing_id, body.quantity)
     await decks.release_excess(session, deck, [body.card_id])
     deck.updated_at = func.now()
     await session.commit()
     return await _detail(session, user, deck_id)
 
 
+@router.post("/{deck_id}/cards/move")
+async def move_line(
+    deck_id: int, body: DeckLineMoveIn, user: DecksUser, session: SessionDep
+) -> DeckDetailOut:
+    """Ask for another printing (or any) for copies of a line: the whole line, or some
+    copies split off into their own line. Allocations are kept."""
+    deck = await _own(session, user, deck_id, lock=True)
+    await _check_printing(session, body.card_id, body.to_printing_id)
+    line = _line(deck, body.card_id, body.section, body.printing_id)
+    if line is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Deck line not found")
+    moved = min(body.quantity or line.quantity, line.quantity)
+    if body.to_printing_id != body.printing_id:
+        target = _line(deck, body.card_id, body.section, body.to_printing_id)
+        current = target.quantity if target else 0
+        await _set_quantity(
+            session, deck, body.card_id, body.section, body.printing_id, line.quantity - moved
+        )
+        await _set_quantity(
+            session,
+            deck,
+            body.card_id,
+            body.section,
+            body.to_printing_id,
+            min(MAX_COPIES, current + moved),
+        )
+        await decks.release_excess(session, deck, [body.card_id])
+        deck.updated_at = func.now()
+        await session.commit()
+    return await _detail(session, user, deck_id)
+
+
+def _line(deck: Deck, card_id: int, section: str, printing_id: int | None) -> DeckCard | None:
+    return next(
+        (
+            e
+            for e in deck.cards
+            if e.card_id == card_id and e.section == section and e.printing_id == printing_id
+        ),
+        None,
+    )
+
+
+async def _check_printing(session: SessionDep, card_id: int, printing_id: int | None) -> None:
+    if printing_id is None:
+        return
+    found = await session.scalar(
+        select(Printing.id).where(Printing.id == printing_id, Printing.card_id == card_id)
+    )
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Printing not found for this card")
+
+
 async def _set_quantity(
-    session: SessionDep, deck: Deck, card_id: int, section: str, quantity: int
+    session: SessionDep,
+    deck: Deck,
+    card_id: int,
+    section: str,
+    printing_id: int | None,
+    quantity: int,
 ) -> None:
     if quantity == 0:
         await session.execute(
@@ -530,15 +733,20 @@ async def _set_quantity(
                 DeckCard.deck_id == deck.id,
                 DeckCard.card_id == card_id,
                 DeckCard.section == section,
+                DeckCard.printing_id.is_not_distinct_from(printing_id),
             )
         )
         return
     stmt = insert(DeckCard).values(
-        deck_id=deck.id, card_id=card_id, section=section, quantity=quantity
+        deck_id=deck.id,
+        card_id=card_id,
+        section=section,
+        printing_id=printing_id,
+        quantity=quantity,
     )
     await session.execute(
         stmt.on_conflict_do_update(
-            index_elements=[DeckCard.deck_id, DeckCard.card_id, DeckCard.section],
+            constraint="uq_deck_card_deck_id_card_id_section_printing_id",
             set_={"quantity": quantity},
         )
     )
@@ -611,6 +819,125 @@ async def card_items(
     ]
 
 
+@router.get("/{deck_id}/cards/{card_id}/printings")
+async def card_printings(
+    deck_id: int, card_id: int, user: DecksUser, session: SessionDep
+) -> list[DeckPrintingOut]:
+    """The card's printings (owned ones, then newest sets first), with the user's copies
+    of each."""
+    deck = await _own(session, user, deck_id)
+    await _card(session, deck, card_id)
+    printings = list(
+        await session.scalars(
+            select(Printing).where(Printing.card_id == card_id).options(selectinload(Printing.set))
+        )
+    )
+    held = await decks.items(session, deck, card_id)
+    owned: dict[int, int] = {}
+    free: dict[int, int] = {}
+    for s in held:
+        owned[s.item.printing_id] = owned.get(s.item.printing_id, 0) + s.item.quantity
+        free[s.item.printing_id] = free.get(s.item.printing_id, 0) + max(0, s.free)
+    card_names, printing_names = await load_names(session, {card_id})
+    printings.sort(
+        key=lambda p: (
+            p.id not in owned,
+            -(p.set.release_date or date.min).toordinal(),
+            p.set.code,
+            _number_key(p.collector_number),
+        )
+    )
+    return [
+        DeckPrintingOut(
+            id=p.id,
+            set_code=p.set.code,
+            set_name=p.set.name,
+            collector_number=p.collector_number,
+            release_date=p.set.release_date,
+            image=show_printing(p, card_names, printing_names, user.language)[1],
+            owned=owned.get(p.id, 0),
+            available=free.get(p.id, 0),
+        )
+        for p in printings
+    ]
+
+
+class DeckExportOut(BaseModel):
+    text: str
+    # Suggested file name ("Burn.txt").
+    filename: str
+
+
+@router.get("/{deck_id}/export")
+async def export_deck(
+    deck_id: int, user: DecksUser, session: SessionDep, sets: bool = True
+) -> DeckExportOut:
+    """The decklist as text in the game's usual format (`services.deck_export`), read
+    back by the import. With `sets`: each line's printing (set code and number); lines of
+    any printing take their allocated copies' printings, Pokémon ones the newest printing
+    for the copies not allocated (Pokémon TCG Live needs one)."""
+    deck = await _own(session, user, deck_id)
+    card_ids = {e.card_id for e in deck.cards}
+    cards = {
+        c.id: c
+        for c in await session.scalars(
+            select(Card)
+            .where(Card.id.in_(card_ids))
+            .options(selectinload(Card.printings).selectinload(Printing.set))
+        )
+    }
+    printings = {p.id: p for c in cards.values() for p in c.printings}
+    stock = await decks.stock(session, deck, card_ids)
+    pokemon = deck.game_id.startswith("pokemon")
+    order = _groups(deck.game_id)
+    lines = []
+    for card_id in sorted(
+        card_ids, key=lambda c: (order.index(_group(cards[c])), cards[c].name.casefold())
+    ):
+        card = cards[card_id]
+        card_lines = _sorted_lines([e for e in deck.cards if e.card_id == card_id])
+        parts = decks.line_printings(
+            [(e.printing_id, e.quantity) for e in card_lines],
+            stock[card_id].allocated_by_printing,
+        )
+        newest = max(
+            card.printings,
+            key=lambda p: (p.set.release_date or date.min, p.id),
+            default=None,
+        )
+        for e, line_parts in zip(card_lines, parts, strict=True):
+            merged: dict[int | None, int] = {}
+            for printing_id, quantity in line_parts:
+                if printing_id is None and pokemon and newest is not None:
+                    printing_id = newest.id
+                merged[printing_id] = merged.get(printing_id, 0) + quantity
+            for printing_id, quantity in merged.items():
+                printing = printings.get(printing_id) if printing_id is not None else None
+                lines.append(
+                    deck_export.ExportLine(
+                        name=card.name,
+                        section=e.section,
+                        group=_group(card),
+                        quantity=quantity,
+                        set_code=printing.set.code if printing else None,
+                        collector_number=printing.collector_number if printing else None,
+                    )
+                )
+    if not sets:
+        # One line per card and section.
+        joined: dict[tuple[str, str], deck_export.ExportLine] = {}
+        for line in lines:
+            if (found := joined.get((line.name, line.section))) is not None:
+                found.quantity += line.quantity
+            else:
+                joined[line.name, line.section] = line
+        lines = list(joined.values())
+    safe = "".join(c if c.isalnum() or c in " -_" else "_" for c in deck.name).strip()
+    return DeckExportOut(
+        text=deck_export.export_text(deck.game_id, lines, sets), filename=f"{safe or 'deck'}.txt"
+    )
+
+
 @router.post("/import/preview")
 async def import_preview(
     body: DeckImportPreviewIn, _: DecksUser, session: SessionDep
@@ -620,11 +947,28 @@ async def import_preview(
     names for unknown ones. Nothing is saved."""
     parsed = deck_import.parse(body.text, body.game_id)
     matches = await deck_import.resolve(session, body.game_id, [line.name for line in parsed.lines])
+    printings = await deck_import.resolve_printings(
+        session,
+        body.game_id,
+        [
+            (matches[line.name].cards[0].id, line.set_code, line.collector_number)
+            for line in parsed.lines
+            if line.set_code and len(matches[line.name].cards) == 1
+        ],
+    )
     lines = []
     for line in parsed.lines:
         match = matches[line.name]
+        printing = None
         if len(match.cards) == 1:
             status_, card, candidates = "resolved", _candidate(match.cards[0]), []
+            found = printings.get((card.card_id, line.set_code or "", line.collector_number))
+            if found is not None:
+                printing = DeckImportPrintingOut(
+                    id=found.id,
+                    set_code=line.set_code or "",
+                    collector_number=found.collector_number,
+                )
         elif match.cards:
             status_, card, candidates = "ambiguous", None, [_candidate(c) for c in match.cards]
         else:
@@ -636,6 +980,9 @@ async def import_preview(
                 quantity=line.quantity,
                 name=line.name,
                 section=line.section,
+                set_code=line.set_code,
+                collector_number=line.collector_number,
+                printing=printing,
                 status=status_,
                 card=card,
                 candidates=candidates,
@@ -651,11 +998,11 @@ async def import_cards(
     """Add the previewed cards (same card and section added up), or replace the
     decklist with them. Only the decklist changes: no copy is allocated."""
     deck = await _own(session, user, deck_id, lock=True)
-    wanted: dict[tuple[int, str], int] = {}
+    wanted: dict[tuple[int, str, int | None], int] = {}
     for entry in body.entries:
-        key = (entry.card_id, entry.section)
+        key = (entry.card_id, entry.section, entry.printing_id)
         wanted[key] = wanted.get(key, 0) + entry.quantity
-    card_ids = {card_id for card_id, _ in wanted}
+    card_ids = {card_id for card_id, _, _ in wanted}
     known = set(
         await session.scalars(
             select(Card.id).where(Card.id.in_(card_ids), Card.game_id == deck.game_id)
@@ -663,14 +1010,24 @@ async def import_cards(
     )
     if card_ids - known:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Card not found")
+    printing_ids = {p for _, _, p in wanted if p is not None}
+    printing_cards = dict(
+        (
+            await session.execute(
+                select(Printing.id, Printing.card_id).where(Printing.id.in_(printing_ids))
+            )
+        ).all()
+    )
+    if any(p is not None and printing_cards.get(p) != c for c, _, p in wanted):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Printing not found for this card")
     before = {e.card_id for e in deck.cards}
-    current = {(e.card_id, e.section): e.quantity for e in deck.cards}
+    current = {(e.card_id, e.section, e.printing_id): e.quantity for e in deck.cards}
     if body.replace:
         await session.execute(delete(DeckCard).where(DeckCard.deck_id == deck.id))
         current = {}
-    for (card_id, section), quantity in wanted.items():
-        total = min(MAX_COPIES, current.get((card_id, section), 0) + quantity)
-        await _set_quantity(session, deck, card_id, section, total)
+    for (card_id, section, printing_id), quantity in wanted.items():
+        total = min(MAX_COPIES, current.get((card_id, section, printing_id), 0) + quantity)
+        await _set_quantity(session, deck, card_id, section, printing_id, total)
     if body.replace:
         await decks.release_excess(session, deck, before | card_ids)
     deck.updated_at = func.now()

@@ -160,6 +160,8 @@ class CardSummaryOut(BaseModel):
     price_min: Decimal | None
     price_max: Decimal | None
     currency: str | None = None
+    # The user's copies of the card (every printing).
+    owned_copies: int = 0
 
 
 class CardPageOut(BaseModel):
@@ -449,6 +451,7 @@ async def search_cards(
     lang: Annotated[str | None, Query(max_length=8)] = None,
     attr: Annotated[list[str] | None, Query(max_length=200)] = None,
     color_mode: Literal["include", "exact"] = "include",
+    owned: bool = False,
     sort: Literal["relevance", "name", "number"] = "relevance",
     order: Literal["asc", "desc"] = "asc",
     page: Annotated[int, Query(ge=1)] = 1,
@@ -462,6 +465,7 @@ async def search_cards(
     filters (GameOut.filters); it needs `game`.
 
     `color_mode=exact`: cards of exactly the chosen colors (default: at least them).
+    `owned`: only cards the user has copies of.
     `sort=name` orders by shown name, `sort=number` by collector number in `set_id`
     (ignored without a set); `order` gives the direction."""
     # Cards without printings cannot be collected (left over by older catalog syncs).
@@ -523,6 +527,14 @@ async def search_cards(
                     status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown filter {item!r}"
                 )
             query = query.where(_filter_condition(filters[key], value))
+    if owned:
+        query = query.where(
+            Card.id.in_(
+                select(Printing.card_id)
+                .join(CollectionItem, CollectionItem.printing_id == Printing.id)
+                .where(CollectionItem.user_id == user.id, CollectionItem.quantity > 0)
+            )
+        )
     if lang:
         # Printed in that language.
         query = query.where(
@@ -580,6 +592,19 @@ async def search_cards(
     languages = await set_languages(
         session, (shown.printing.set_id for _, shown in shown_cards if shown.printing)
     )
+    copies = dict(
+        (
+            await session.execute(
+                select(Printing.card_id, func.sum(CollectionItem.quantity))
+                .join(CollectionItem, CollectionItem.printing_id == Printing.id)
+                .where(
+                    CollectionItem.user_id == user.id,
+                    Printing.card_id.in_([c.id for c in cards]),
+                )
+                .group_by(Printing.card_id)
+            )
+        ).all()
+    )
     items = []
     for card, shown in shown_cards:
         items.append(
@@ -601,6 +626,7 @@ async def search_cards(
                 price_min=min(card_prices.get(card.id, []), default=None),
                 price_max=max(card_prices.get(card.id, []), default=None),
                 currency=_currency(card.game_id, user.price_source),
+                owned_copies=copies.get(card.id) or 0,
             )
         )
     return CardPageOut(items=items, total=total or 0, page=page, page_size=page_size)

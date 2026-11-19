@@ -783,3 +783,372 @@ async def test_deck_cards_survive_catalog_pruning(session, alice, client, catalo
     await reset_catalog(session, "mtg")
     assert await session.get(Card, bolt) is not None
     assert await session.scalar(select(func.count()).select_from(Card)) == 1
+
+
+async def _second_printing(session, card_id: int, code="M10", number="146") -> int:
+    card_set = CardSet(game_id="mtg", external_id=code.lower(), code=code, name=code, lang="en")
+    session.add(card_set)
+    await session.flush()
+    printing = Printing(
+        card_id=card_id,
+        set_id=card_set.id,
+        external_id=f"{code}-{number}",
+        collector_number=number,
+        finishes=["nonfoil"],
+        languages=["en"],
+    )
+    session.add(printing)
+    await session.commit()
+    return printing.id
+
+
+async def put_line(client, headers, deck_id, card_id, quantity, printing_id, section="main"):
+    response = await client.put(
+        f"/api/decks/{deck_id}/cards",
+        json={
+            "card_id": card_id,
+            "quantity": quantity,
+            "section": section,
+            "printing_id": printing_id,
+        },
+        headers=headers,
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+async def test_printing_lines(client, session, alice, catalog):
+    bolt, tst = catalog["Lightning Bolt"]
+    m10 = await _second_printing(session, bolt)
+    deck = (await new_deck(client, alice))["deck"]["id"]
+    await put_line(client, alice, deck, bolt, 2, m10)
+    await put_line(client, alice, deck, bolt, 2, tst)
+    detail = await put_line(client, alice, deck, bolt, 1, None)
+    card = entry(detail, bolt)
+    # One card, three lines: rules and copies count them together.
+    assert card["requested"] == 5 and card["quantities"] == {"main": 5}
+    assert [(line["set_code"], line["quantity"]) for line in card["lines"]] == [
+        ("M10", 2),
+        ("TST", 2),
+        (None, 1),
+    ]
+    assert any(i["code"] == "copy_limit" for i in detail["validation"]["issues"])
+
+    # A printing of another card is refused.
+    other = catalog["Shock"][1]
+    refused = await client.put(
+        f"/api/decks/{deck}/cards",
+        json={"card_id": bolt, "quantity": 1, "printing_id": other},
+        headers=alice,
+    )
+    assert refused.status_code == 404
+
+    # Allocating takes the printings lines ask for first, then any.
+    await own(client, alice, tst, 3)
+    await own(client, alice, m10, 1)
+    allocated = await client.post(
+        f"/api/decks/{deck}/allocate", json={"card_id": bolt, "quantity": 3}, headers=alice
+    )
+    assert allocated.status_code == 200, allocated.text
+    lines = entry(allocated.json(), bolt)["lines"]
+    assert [(line["set_code"], line["allocated"]) for line in lines] == [
+        ("M10", 1),
+        ("TST", 2),
+        (None, 0),
+    ]
+    assert lines[0]["available"] == 0 and lines[1]["available"] == 1
+
+    # Moving the "any" line to M10, then one TST copy to any.
+    moved = await client.post(
+        f"/api/decks/{deck}/cards/move",
+        json={"card_id": bolt, "printing_id": None, "to_printing_id": m10},
+        headers=alice,
+    )
+    assert moved.status_code == 200, moved.text
+    moved = await client.post(
+        f"/api/decks/{deck}/cards/move",
+        json={"card_id": bolt, "printing_id": tst, "to_printing_id": None, "quantity": 1},
+        headers=alice,
+    )
+    lines = entry(moved.json(), bolt)["lines"]
+    assert [(line["set_code"], line["quantity"]) for line in lines] == [
+        ("M10", 3),
+        ("TST", 1),
+        (None, 1),
+    ]
+    assert entry(moved.json(), bolt)["allocated"] == 3
+
+    # Printings of the card for the chooser, with the user's copies.
+    printings = await client.get(f"/api/decks/{deck}/cards/{bolt}/printings", headers=alice)
+    assert {p["set_code"]: (p["owned"], p["available"]) for p in printings.json()} == {
+        "M10": (1, 0),
+        "TST": (3, 1),
+    }
+
+    # A catalog merge moves the lines to the new printing (added to its line).
+    from app.services.catalog import CatalogWriter
+
+    writer = CatalogWriter(session, "mtg")
+    await writer._move_items(m10, tst)
+    await session.commit()
+    detail = (await client.get(f"/api/decks/{deck}", headers=alice)).json()
+    lines = entry(detail, bolt)["lines"]
+    assert [(line["set_code"], line["quantity"]) for line in lines] == [("TST", 4), (None, 1)]
+
+
+async def test_printing_line_falls_back_to_any(client, session, alice, catalog):
+    bolt, _ = catalog["Lightning Bolt"]
+    m10 = await _second_printing(session, bolt)
+    deck = (await new_deck(client, alice))["deck"]["id"]
+    await put_line(client, alice, deck, bolt, 2, m10)
+    await session.execute(Printing.__table__.delete().where(Printing.id == m10))
+    await session.commit()
+    detail = (await client.get(f"/api/decks/{deck}", headers=alice)).json()
+    assert [(line["printing_id"], line["quantity"]) for line in entry(detail, bolt)["lines"]] == [
+        (None, 2)
+    ]
+
+
+async def test_import_keeps_printings(client, session, alice, catalog):
+    bolt, _ = catalog["Lightning Bolt"]
+    m10 = await _second_printing(session, bolt)
+    text = "4 Lightning Bolt (M10) 146\n2 Lightning Bolt (XXX) 1\n1 Shock [TST]\n"
+    preview = await client.post("/api/decks/import/preview", json={"text": text}, headers=alice)
+    lines = preview.json()["lines"]
+    assert [(line["set_code"], line["collector_number"]) for line in lines] == [
+        ("M10", "146"),
+        ("XXX", "1"),
+        ("TST", None),
+    ]
+    assert lines[0]["printing"]["id"] == m10
+    # Unknown set: any printing.
+    assert lines[1]["printing"] is None
+    assert lines[2]["printing"]["id"] == catalog["Shock"][1]
+    deck = (await new_deck(client, alice))["deck"]["id"]
+    entries = [
+        {
+            "card_id": line["card"]["card_id"],
+            "quantity": line["quantity"],
+            "printing_id": line["printing"] and line["printing"]["id"],
+        }
+        for line in lines
+    ]
+    imported = await client.post(
+        f"/api/decks/{deck}/import", json={"entries": entries}, headers=alice
+    )
+    assert imported.status_code == 200, imported.text
+    lines = entry(imported.json(), bolt)["lines"]
+    assert [(line["set_code"], line["quantity"]) for line in lines] == [("M10", 4), (None, 2)]
+
+
+def _lorcana(card_id, name, inks, legal=None, **attributes):
+    if legal is not None:
+        attributes["legalities"] = legal
+    return RuleCard(card_id, name, attributes, inks)
+
+
+def test_lorcana_rules():
+    core = {"core": "legal", "infinity": "legal"}
+    elsa = _lorcana(1, "Elsa - Snow Queen", ["amethyst"], core)
+    mickey = _lorcana(2, "Mickey Mouse - Wayward Sorcerer", ["amethyst"], core)
+    puppy = _lorcana(3, "Dalmatian Puppy - Tail Wagger", ["sapphire"], core, max_copies=99)
+    rotated = _lorcana(
+        4, "Ariel - On Human Legs", ["sapphire"], {"core": "not_legal", "infinity": "legal"}
+    )
+    banned = _lorcana(
+        5, "Hiram Flaversham - Toymaker", ["sapphire"], {"core": "legal", "infinity": "banned"}
+    )
+    dual = _lorcana(6, "Rhino - Motivational Speaker", ["amethyst", "sapphire"], core)
+    ruby = _lorcana(7, "Maui - Hero to All", ["ruby"], core)
+
+    def codes(fmt, entries):
+        report = deck_rules.check(fmt, entries)
+        return {i.code for i in report.issues}, report
+
+    found, _ = codes(
+        "lorcana_core",
+        [
+            Entry(elsa, "main", 4),
+            Entry(mickey, "main", 4),
+            Entry(puppy, "main", 50),
+            Entry(dual, "main", 2),
+        ],
+    )
+    assert found == set()
+    found, report = codes("lorcana_core", [Entry(elsa, "main", 5), Entry(rotated, "main", 4)])
+    assert found == {"deck_size_min", "copy_limit", "not_legal"}
+    found, _ = codes("lorcana_infinity", [Entry(rotated, "main", 4), Entry(banned, "main", 1)])
+    assert found == {"deck_size_min", "banned"}
+    # Three inks: the two most played stay, the others are off ink.
+    found, report = codes(
+        "lorcana_unrestricted",
+        [
+            Entry(elsa, "main", 4),
+            Entry(puppy, "main", 56),
+            Entry(ruby, "main", 1),
+            Entry(banned, "main", 1),
+        ],
+    )
+    assert found == {"inks_max", "off_ink"}
+    assert [i.params["name"] for i in report.issues if i.code == "off_ink"] == [
+        "Maui - Hero to All"
+    ]
+    # Unknown legality is listed, not an error.
+    unknown = _lorcana(8, "Stitch - New Dog", ["amber"])
+    found, report = codes("lorcana_core", [Entry(unknown, "main", 60)])
+    assert "legality_unknown" in {i.code for i in report.unverified}
+    assert deck_rules.GAMES["lorcana"] == (
+        "lorcana_core",
+        "lorcana_infinity",
+        "lorcana_unrestricted",
+    )
+
+
+async def test_export_and_import_back(client, session, alice, catalog):
+    bolt, tst = catalog["Lightning Bolt"]
+    krenko = catalog["Krenko, Mob Boss"][0]
+    m10 = await _second_printing(session, bolt)
+    deck = (await new_deck(client, alice, "Goblins: v2", "commander"))["deck"]["id"]
+    await put_card(client, alice, deck, krenko, 1, "commander")
+    await put_line(client, alice, deck, bolt, 2, m10)
+    await put_line(client, alice, deck, bolt, 2, None)
+    await put_card(client, alice, deck, catalog["Shock"][0], 1, "sideboard")
+    # One "any" copy allocated from TST: exported with that printing.
+    await own(client, alice, tst, 1)
+    await client.post(
+        f"/api/decks/{deck}/allocate", json={"card_id": bolt, "quantity": 1}, headers=alice
+    )
+    exported = await client.get(f"/api/decks/{deck}/export", headers=alice)
+    assert exported.status_code == 200, exported.text
+    assert exported.json()["filename"] == "Goblins_ v2.txt"
+    text = exported.json()["text"]
+    # Magic lines of any printing with no copy allocated keep no set.
+    assert text == (
+        "Commander\n1 Krenko, Mob Boss\n\n"
+        "Deck\n2 Lightning Bolt (M10) 146\n1 Lightning Bolt (TST) 0\n1 Lightning Bolt\n\n"
+        "Sideboard\n1 Shock\n"
+    )
+    plain = await client.get(f"/api/decks/{deck}/export?sets=false", headers=alice)
+    assert plain.json()["text"] == (
+        "Commander\n1 Krenko, Mob Boss\n\nDeck\n4 Lightning Bolt\n\nSideboard\n1 Shock\n"
+    )
+    # Read back: same cards, sections and printings.
+    preview = await client.post("/api/decks/import/preview", json={"text": text}, headers=alice)
+    lines = preview.json()["lines"]
+    assert all(line["status"] == "resolved" for line in lines)
+    assert [(line["section"], line["printing"] and line["printing"]["id"]) for line in lines] == [
+        ("commander", None),
+        ("main", m10),
+        ("main", tst),
+        ("main", None),
+        ("sideboard", None),
+    ]
+
+
+def test_export_formats():
+    from app.services.deck_export import ExportLine, export_text
+
+    pokemon = [
+        ExportLine("Charmander", "main", "Pokémon", 4, "PAF", "7"),
+        ExportLine("Professor's Research", "main", "Supporter", 4, "SVI", "189"),
+        ExportLine("Basic Fire Energy", "main", "Energy", 52, "SVE", "2"),
+    ]
+    assert export_text("pokemon", pokemon) == (
+        "Pokémon: 4\n4 Charmander PAF 7\n\n"
+        "Trainer: 4\n4 Professor's Research SVI 189\n\n"
+        "Energy: 52\n52 Basic Fire Energy SVE 2\n\n"
+        "Total Cards: 60\n"
+    )
+    parsed = deck_import.parse(export_text("pokemon", pokemon), "pokemon")
+    assert [(line.quantity, line.name, line.set_code) for line in parsed.lines] == [
+        (4, "Charmander", "PAF"),
+        (4, "Professor's Research", "SVI"),
+        (52, "Basic Fire Energy", "SVE"),
+    ]
+    lorcana = [ExportLine("Elsa - Snow Queen", "main", "Character", 4, "1", "41")]
+    assert export_text("lorcana", lorcana) == "4 Elsa - Snow Queen\n"
+    assert deck_import.parse("4 Elsa - Snow Queen\n", "lorcana").lines[0].name == (
+        "Elsa - Snow Queen"
+    )
+
+
+async def test_lorcana_deck(client, session, alice):
+    card_set = CardSet(game_id="lorcana", external_id="1", code="1", name="The First Chapter")
+    session.add(card_set)
+    await session.flush()
+    elsa = Card(
+        game_id="lorcana",
+        external_id="elsa - snow queen",
+        name="Elsa - Snow Queen",
+        colors=["amethyst"],
+        attributes={
+            "type": "Character",
+            "classifications": ["Floodborn", "Hero", "Queen", "Sorcerer"],
+            "cost": 6,
+            "legalities": {"core": "not_legal", "infinity": "legal"},
+        },
+    )
+    song = Card(
+        game_id="lorcana",
+        external_id="friends on the other side",
+        name="Friends on the Other Side",
+        colors=["amethyst"],
+        attributes={"type": "Action", "classifications": ["Song"], "cost": 3},
+    )
+    session.add_all([elsa, song])
+    await session.flush()
+    for number, card in enumerate((elsa, song), start=41):
+        printing = Printing(card_id=card.id, set_id=card_set.id, external_id=str(number))
+        printing.collector_number, printing.finishes = str(number), ["normal"]
+        printing.languages = ["en"]
+        session.add(printing)
+        session.add(CardName(card_id=card.id, lang="en", name=card.name))
+    await session.commit()
+    created = await client.post(
+        "/api/decks",
+        json={"name": "Elsa", "game_id": "lorcana", "format": "lorcana_core"},
+        headers=alice,
+    )
+    assert created.status_code == 201, created.text
+    deck = created.json()["deck"]["id"]
+    wrong = await client.post(
+        "/api/decks", json={"name": "x", "game_id": "lorcana", "format": "standard"}, headers=alice
+    )
+    assert wrong.status_code == 422
+    await put_card(client, alice, deck, elsa.id, 4)
+    detail = await put_card(client, alice, deck, song.id, 2)
+    assert detail["groups"] == ["Character", "Action", "Song", "Item", "Location", "Other"]
+    assert {e["name"]: (e["group"], e["type_line"]) for e in detail["entries"]} == {
+        "Elsa - Snow Queen": ("Character", "Character — Floodborn, Hero, Queen, Sorcerer — 6 ink"),
+        "Friends on the Other Side": ("Song", "Action — Song — 3 ink"),
+    }
+    issues = {i["code"] for i in detail["validation"]["issues"]}
+    assert issues == {"deck_size_min", "not_legal"}
+    assert {i["code"] for i in detail["validation"]["unverified"]} == {"legality_unknown"}
+    exported = (await client.get(f"/api/decks/{deck}/export", headers=alice)).json()["text"]
+    assert exported == "4 Elsa - Snow Queen\n2 Friends on the Other Side\n"
+    preview = await client.post(
+        "/api/decks/import/preview", json={"text": exported, "game_id": "lorcana"}, headers=alice
+    )
+    assert [line["card"]["card_id"] for line in preview.json()["lines"]] == [elsa.id, song.id]
+
+
+async def test_card_search_owned_filter(client, alice, catalog):
+    bolt, printing = catalog["Lightning Bolt"]
+    await own(client, alice, printing, 2)
+    found = await client.get("/api/cards", params={"game": "mtg", "owned": True}, headers=alice)
+    assert [(c["id"], c["owned_copies"]) for c in found.json()["items"]] == [(bolt, 2)]
+    every = await client.get("/api/cards", params={"game": "mtg", "q": "shock"}, headers=alice)
+    assert every.json()["items"][0]["owned_copies"] == 0
+
+
+def test_parse_set_suffixes():
+    parsed = deck_import.parse("4 Lightning Bolt (M10) 146 *F*\n1 Shock (M19)\n2 Jolt [M19]\n")
+    assert [(line.name, line.set_code, line.collector_number) for line in parsed.lines] == [
+        ("Lightning Bolt", "M10", "146"),
+        ("Shock", "M19", None),
+        ("Jolt", "M19", None),
+    ]
+    parsed = deck_import.parse("4 Charmander PAF 7\n", "pokemon")
+    line = parsed.lines[0]
+    assert (line.name, line.set_code, line.collector_number) == ("Charmander", "PAF", "7")

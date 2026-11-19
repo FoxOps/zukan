@@ -1,5 +1,5 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { type CSSProperties, useEffect, useRef, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type CSSProperties, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useNavigate, useParams } from 'react-router'
 import { api, call, type Schemas } from '../../api/client'
@@ -11,14 +11,19 @@ import { CardImage } from '../../components/CardImage'
 import { ShownName } from '../../components/ShownName'
 import { Select } from '../../components/Select'
 import { useToast } from '../../components/toast'
+import { AddCards } from './AddCards'
 import { DeckCount } from './common'
+import { ExportDialog } from './Export'
 import { useFormatName } from './formats'
 import { ImportDialog } from './Import'
 import { Validation } from './issues'
 
 type Detail = Schemas['DeckDetailOut']
 type Entry = Schemas['DeckEntryOut']
+type Line = Schemas['DeckLineOut']
 type Section = Schemas['DeckCardIn']['section']
+// One line of a card in a section: a printing asked for, or any.
+type Row = { entry: Entry; line: Line }
 
 // Cards as rows with their copies, or as pictures (like the collection).
 const DECK_VIEWS: ViewChoice[] = [
@@ -58,101 +63,92 @@ function useDeckMutation<T>(deckId: number, fn: (body: T) => Promise<Detail>) {
   })
 }
 
-/** Search the game's catalog and add a card to a section (one copy, or one more). Without
- * `sections` (Pokémon), cards go to the main deck. */
-function AddCard({ deck, entries, onAdd, commander, sections }: { deck: Schemas['DeckOut']; entries: Entry[]; onAdd: (cardId: number, section: Section, quantity: number) => void; commander: string | null; sections: boolean }) {
+/** The card's page, on the line's printing when it asks for one. */
+const cardPage = ({ entry, line }: Row) => `/cards/${entry.card_id}${line.printing_id ? `/${line.printing_id}` : ''}`
+
+/** "M10 146", or "Any printing": opens the printing chooser. */
+function PrintingBadge({ line, onClick }: { line: Line; onClick: () => void }) {
   const { t } = useTranslation()
-  const [text, setText] = useState('')
-  const [q, setQ] = useState('')
-  const [open, setOpen] = useState(false)
-  const [section, setSection] = useState<Section>('main')
-  const box = useRef<HTMLDivElement>(null)
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
-  const results = useQuery({
-    queryKey: ['card-search', deck.game_id, q],
-    enabled: q.trim().length >= 2,
-    placeholderData: keepPreviousData,
-    queryFn: () => call(api.GET('/api/cards', { params: { query: { q, game: deck.game_id, page_size: 10 } } })),
+  return (
+    <button
+      type="button"
+      className={`badge badge-sm cursor-pointer font-mono ${line.printing_id ? 'badge-outline' : 'badge-ghost'}`}
+      onClick={onClick}
+      title={line.set_name ? `${line.set_name} · ${t('Choose the printing')}` : t('Choose the printing')}
+    >
+      {line.printing_id ? `${line.set_code} ${line.collector_number ?? ''}`.trim() : t('Any printing')}
+    </button>
+  )
+}
+
+/** The card's printings, to ask for one in a deck line (all its copies, or one copy split
+ * off into its own line), or any printing. */
+function PrintingDialog({ deckId, gameId, row, split, onClose }: { deckId: number; gameId: string; row: Row | null; split: boolean; onClose: () => void }) {
+  const { t } = useTranslation()
+  const printings = useQuery({
+    queryKey: ['deck-printings', deckId, row?.entry.card_id],
+    enabled: !!row,
+    queryFn: () => call(api.GET('/api/decks/{deck_id}/cards/{card_id}/printings', { params: { path: { deck_id: deckId, card_id: row!.entry.card_id } } })),
   })
-  const cards = q.trim().length >= 2 ? (results.data?.items ?? []) : []
-  useEffect(() => {
-    const outside = (e: MouseEvent) => {
-      if (!box.current?.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', outside)
-    return () => document.removeEventListener('mousedown', outside)
-  }, [])
-  const add = (card: Schemas['CardSummaryOut']) => {
-    const current = entries.find((e) => e.card_id === card.id)?.quantities[section] ?? 0
-    onAdd(card.id, section, current + 1)
-  }
+  const move = useDeckMutation(deckId, (to: number | null) =>
+    call(
+      api.POST('/api/decks/{deck_id}/cards/move', {
+        params: { path: { deck_id: deckId } },
+        body: { card_id: row!.entry.card_id, section: row!.line.section, printing_id: row!.line.printing_id, to_printing_id: to, quantity: split ? 1 : null },
+      }),
+    ),
+  )
+  const choose = (to: number | null) => move.mutate(to, { onSuccess: onClose })
+  const current = row?.line.printing_id ?? null
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div ref={box} className="relative w-full sm:w-96">
-        <label className="input w-full">
-          <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2 opacity-60" aria-hidden>
-            <circle cx="11" cy="11" r="7" />
-            <path d="m20 20-3.5-3.5" />
-          </svg>
-          <input
-            type="text"
-            placeholder={t('Search the catalog to add a card')}
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value)
-              setOpen(true)
-              clearTimeout(timer.current)
-              const next = e.target.value
-              timer.current = setTimeout(() => setQ(next), 250)
-            }}
-            onFocus={() => setOpen(true)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && cards[0]) {
-                e.preventDefault()
-                add(cards[0])
-              } else if (e.key === 'Escape') setOpen(false)
-            }}
-          />
-          {results.isFetching && <span className="loading loading-spinner loading-xs" />}
-        </label>
-        {open && q.trim().length >= 2 && (
-          <ul className="absolute z-30 mt-1 max-h-96 w-full overflow-y-auto rounded-box border border-base-300 bg-base-100 shadow-lg">
-            {cards.length === 0 && <li className="px-3 py-3 text-sm text-base-content/60">{results.isFetching ? t('Searching…') : t('No cards found')}</li>}
-            {cards.map((card) => {
-              const inDeck = entries.find((e) => e.card_id === card.id)
-              return (
-                <li key={card.id}>
-                  <button type="button" className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-base-200" onClick={() => add(card)}>
-                    <span className="block w-8 shrink-0">
-                      <CardImage thumb src={card.image} alt="" landscape={card.orientation === 'landscape'} />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-sm">
-                      <ShownName name={card.name} translation={card.translation} />
-                    </span>
-                    {inDeck && <span className="badge badge-sm badge-ghost">× {inDeck.requested}</span>}
-                    <span className="badge badge-sm badge-primary">+1</span>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </div>
-      {sections && (
-        <Select
-          className="w-40"
-          value={section}
-          onChange={(v) => setSection(v as Section)}
-          aria-label={t('Section')}
-          options={[
-            ...(commander ? [{ value: 'commander', label: commander }] : []),
-            { value: 'main', label: t('Main deck') },
-            { value: 'sideboard', label: t('Sideboard') },
-          ]}
-        />
+    <dialog className={`modal ${row ? 'modal-open' : ''}`} onClose={onClose}>
+      {row && (
+        <div className="modal-box max-w-3xl animate-in fade-in zoom-in-95 duration-200">
+          <h3 className="text-lg font-bold">{split ? t('Split off one copy of {{name}}', { name: row.entry.name }) : t('Printing of {{name}}', { name: row.entry.name })}</h3>
+          <p className="py-1 text-sm text-base-content/70">
+            {split
+              ? t('One copy gets its own line, asking for the printing chosen.')
+              : t('The {{n}} copies of this line ask for the printing chosen; format rules count every printing of the card together.', { n: row.line.quantity })}
+          </p>
+          <button type="button" className={`btn btn-sm mt-2 ${current === null && !split ? 'btn-primary' : 'btn-ghost'}`} disabled={move.isPending || (current === null && !split)} onClick={() => choose(null)}>
+            {t('Any printing')}
+          </button>
+          {printings.isPending ? (
+            <span className="loading loading-spinner m-auto block" />
+          ) : (
+            <div className="mt-3 grid max-h-[60vh] grid-cols-3 gap-3 overflow-y-auto sm:grid-cols-4 md:grid-cols-5">
+              {(printings.data ?? []).map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`flex flex-col gap-1 rounded-box p-1 text-left transition hover:bg-base-200 ${p.id === current ? 'ring-2 ring-primary' : ''}`}
+                  disabled={move.isPending || (p.id === current && !split)}
+                  onClick={() => choose(p.id)}
+                >
+                  <CardImage thumb src={p.image} alt="" game={gameId} />
+                  <span className="font-mono text-xs">
+                    {p.set_code} {p.collector_number}
+                  </span>
+                  <span className="truncate text-xs text-base-content/70" title={p.set_name}>
+                    {p.set_name}
+                  </span>
+                  {p.owned > 0 && <span className="badge badge-xs badge-info badge-soft">{t('Owned {{n}} · free {{free}}', { n: p.owned, free: p.available })}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="modal-action">
+            <button className="btn" onClick={onClose}>
+              {t('Close')}
+            </button>
+          </div>
+        </div>
       )}
-    </div>
+      <form method="dialog" className="modal-backdrop">
+        <button onClick={onClose}>{t('Close')}</button>
+      </form>
+    </dialog>
   )
 }
 
@@ -178,6 +174,8 @@ function CopiesDialog({ deckId, entry, onClose }: { deckId: number; entry: Entry
   const run = (path: 'allocate' | 'release', itemId: number) =>
     change.mutate({ path, itemId }, { onSettled: () => client.invalidateQueries({ queryKey: ['deck-items', deckId] }) })
   const current = detail?.entries.find((e) => e.card_id === entry?.card_id) ?? entry
+  // Printings the deck's lines ask for.
+  const asked = new Set((current?.lines ?? []).map((l) => l.printing_id).filter((p) => p !== null))
 
   return (
     <dialog className={`modal ${entry ? 'modal-open' : ''}`} onClose={onClose}>
@@ -202,6 +200,7 @@ function CopiesDialog({ deckId, entry, onClose }: { deckId: number; entry: Entry
                   <span className="font-mono text-xs">
                     {item.set_code} {item.collector_number}
                   </span>
+                  {asked.has(item.printing_id) && <span className="badge badge-xs badge-primary badge-soft">{t('Asked for')}</span>}
                   <FinishBadge game={game} finish={item.finish} />
                   <ConditionBadge condition={item.condition} />
                   <LangFlag lang={item.language} />
@@ -321,6 +320,8 @@ export default function DeckDetail() {
   const [importing, setImporting] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [copies, setCopies] = useState<Entry | null>(null)
+  const [printing, setPrinting] = useState<{ row: Row; split: boolean } | null>(null)
+  const [exporting, setExporting] = useState(false)
   const [view, chooseView] = useView(DECK_VIEWS, 'tcg.deckView')
   const game = useGame(query.data?.deck.game_id)
 
@@ -349,31 +350,43 @@ export default function DeckDetail() {
   const { deck, groups, entries, validation } = query.data
   const format = gameFormats.flatMap((g) => g.formats).find((f) => f.id === deck.format)
   // Magic decks have a sideboard (and a commander section in some formats).
-  const sections = format?.rules !== 'pokemon'
+  const sections = format?.rules === 'mtg'
   const commanderFormat = !!format?.commander
   const oathbreaker = format?.leader === 'oathbreaker'
   const leaders = oathbreaker ? t('Oathbreaker and signature spell') : t('Commander')
-  const put = (cardId: number, section: Section, quantity: number) => setCard.mutate({ card_id: cardId, section, quantity })
-  // Copies moved between sections: added first, so the allocated copies stay (lowering
-  // the deck's total first would release them).
-  const move = async (e: Entry, from: Section, to: Section, count: number) => {
-    await setCard.mutateAsync({ card_id: e.card_id, section: to, quantity: (e.quantities[to] ?? 0) + count })
-    setCard.mutate({ card_id: e.card_id, section: from, quantity: (e.quantities[from] ?? 0) - count })
+  const put = (cardId: number, section: Section, printingId: number | null, quantity: number) =>
+    setCard.mutate({ card_id: cardId, section, printing_id: printingId, quantity })
+  // One more copy from the search: on the line of that printing (or any) in the section.
+  const add = (cardId: number, section: Section, printingId: number | null) => {
+    const line = entries.find((e) => e.card_id === cardId)?.lines.find((l) => l.section === section && l.printing_id === printingId)
+    put(cardId, section, printingId, (line?.quantity ?? 0) + 1)
+  }
+  // Copies of a line moved to another section (same printing): added first, so the
+  // allocated copies stay (lowering the deck's total first would release them).
+  const move = async ({ entry, line }: Row, to: Section, count: number) => {
+    const target = entry.lines.find((l) => l.section === to && l.printing_id === line.printing_id)
+    await setCard.mutateAsync({ card_id: entry.card_id, section: to, printing_id: line.printing_id, quantity: (target?.quantity ?? 0) + count })
+    setCard.mutate({ card_id: entry.card_id, section: line.section, printing_id: line.printing_id, quantity: line.quantity - count })
   }
 
-  // Rows per section; main deck rows grouped by card type.
-  const inSection = (section: Section) => entries.filter((e) => (e.quantities[section] ?? 0) > 0)
-  const blocks: { key: string; title: string; section: Section; rows: Entry[] }[] = [
+  // Rows (card lines) per section; main deck rows grouped by card type.
+  const inSection = (section: Section, group?: string) =>
+    entries.filter((e) => group === undefined || e.group === group).flatMap((entry) => entry.lines.filter((l) => l.section === section).map((line) => ({ entry, line })))
+  const blocks: { key: string; title: string; section: Section; rows: Row[] }[] = [
     { key: 'commander', title: leaders, section: 'commander' as Section, rows: inSection('commander') },
-    ...groups.map((g) => ({ key: g, title: t(g), section: 'main' as Section, rows: inSection('main').filter((e) => e.group === g) })),
+    ...groups.map((g) => ({ key: g, title: t(g), section: 'main' as Section, rows: inSection('main', g) })),
     { key: 'sideboard', title: t('Sideboard'), section: 'sideboard' as Section, rows: inSection('sideboard') },
   ].filter((b) => b.rows.length > 0)
+  const rowKey = (block: { key: string }, { entry, line }: Row) => `${block.key}-${entry.card_id}-${line.printing_id ?? 'any'}`
+  // The card's first line in a block shows its copies; its other lines only theirs.
+  const firstLine = (rows: Row[], row: Row) => rows.find((r) => r.entry.card_id === row.entry.card_id) === row
   const busy = setCard.isPending || allocate.isPending
-  const stepper = (e: Entry, section: Section) => {
-    const quantity = e.quantities[section] ?? 0
+  const stepper = ({ entry, line }: Row) => {
+    const quantity = line.quantity
+    const set = (next: number) => put(entry.card_id, line.section, line.printing_id, next)
     return (
       <div className="join">
-        <button className="btn btn-xs join-item" disabled={busy} onClick={() => put(e.card_id, section, quantity - 1)} aria-label={t('One less')}>
+        <button className="btn btn-xs join-item" disabled={busy} onClick={() => set(quantity - 1)} aria-label={t('One less')}>
           −
         </button>
         <input
@@ -384,18 +397,25 @@ export default function DeckDetail() {
           aria-label={t('Quantity')}
           onBlur={(ev) => {
             const next = Number(ev.target.value)
-            if (Number.isInteger(next) && next >= 0 && next !== quantity) put(e.card_id, section, next)
+            if (Number.isInteger(next) && next >= 0 && next !== quantity) set(next)
           }}
           onKeyDown={(ev) => ev.key === 'Enter' && (ev.target as HTMLInputElement).blur()}
         />
-        <button className="btn btn-xs join-item" disabled={busy} onClick={() => put(e.card_id, section, quantity + 1)} aria-label={t('One more')}>
+        <button className="btn btn-xs join-item" disabled={busy} onClick={() => set(quantity + 1)} aria-label={t('One more')}>
           +
         </button>
       </div>
     )
   }
-  const actions = (e: Entry, block: { key: string; section: Section }) => {
-    const quantity = e.quantities[block.section] ?? 0
+  // Copies allocated to a line of a card split by printing ("2 / 3").
+  const lineAllocated = ({ entry, line }: Row) =>
+    entry.lines.length > 1 && (
+      <span className={`badge badge-xs ${line.allocated >= line.quantity ? 'badge-success' : 'badge-ghost'}`} title={t('Copies allocated to this line')}>
+        {line.allocated} / {line.quantity}
+      </span>
+    )
+  const actions = (row: Row, block: { key: string; section: Section }) => {
+    const { entry: e, line } = row
     return (
       <div className="flex justify-end gap-1">
         <button
@@ -412,15 +432,17 @@ export default function DeckDetail() {
           {t('Release')}
         </button>
         <RowMenu
-          id={`${block.key}-${e.card_id}`}
+          id={rowKey(block, row)}
           actions={[
             { label: t('Choose copies…'), run: () => setCopies(e) },
+            { label: t('Choose the printing…'), run: () => setPrinting({ row, split: false }) },
+            ...(line.quantity > 1 ? [{ label: t('Split off one copy…'), run: () => setPrinting({ row, split: true }) }] : []),
             ...(commanderFormat && block.section !== 'commander'
-              ? [{ label: oathbreaker ? t('Move to oathbreaker / signature spell') : t('Make commander'), run: () => move(e, block.section, 'commander', 1) }]
+              ? [{ label: oathbreaker ? t('Move to oathbreaker / signature spell') : t('Make commander'), run: () => move(row, 'commander', 1) }]
               : []),
-            ...(sections && block.section !== 'sideboard' ? [{ label: t('Move to sideboard'), run: () => move(e, block.section, 'sideboard', quantity) }] : []),
-            ...(block.section !== 'main' ? [{ label: t('Move to main deck'), run: () => move(e, block.section, 'main', quantity) }] : []),
-            { label: t('Remove'), run: () => put(e.card_id, block.section, 0), danger: true },
+            ...(sections && block.section !== 'sideboard' ? [{ label: t('Move to sideboard'), run: () => move(row, 'sideboard', line.quantity) }] : []),
+            ...(block.section !== 'main' ? [{ label: t('Move to main deck'), run: () => move(row, 'main', line.quantity) }] : []),
+            { label: t('Remove'), run: () => put(e.card_id, block.section, line.printing_id, 0), danger: true },
           ]}
         />
       </div>
@@ -472,7 +494,7 @@ export default function DeckDetail() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Select
-              className="w-36"
+              className="w-52"
               value={deck.format}
               disabled={update.isPending}
               onChange={(v) => update.mutate({ format: v as Schemas['DeckUpdateIn']['format'] })}
@@ -482,6 +504,9 @@ export default function DeckDetail() {
             <button className="btn btn-sm" onClick={() => setImporting(true)}>
               {t('Import a decklist')}
             </button>
+            <button className="btn btn-sm" onClick={() => setExporting(true)} disabled={entries.length === 0}>
+              {t('Export')}
+            </button>
             <button className="btn btn-ghost btn-sm text-error" onClick={() => setDeleting(true)}>
               {t('Delete')}
             </button>
@@ -489,8 +514,8 @@ export default function DeckDetail() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <AddCard deck={deck} entries={entries} onAdd={put} commander={commanderFormat ? leaders : null} sections={sections} />
+      <AddCards deck={deck} entries={entries} onAdd={add} commander={commanderFormat ? leaders : null} sections={sections} busy={busy} />
+      <div className="flex justify-end">
         <ViewToggle views={DECK_VIEWS} value={view.id} onChange={chooseView} />
       </div>
 
@@ -502,7 +527,7 @@ export default function DeckDetail() {
             </div>
           )}
           {blocks.map((block) => {
-            const count = block.rows.reduce((n, e) => n + (e.quantities[block.section] ?? 0), 0)
+            const count = block.rows.reduce((n, r) => n + r.line.quantity, 0)
             if (view.id === 'images')
               return (
                 <section key={block.key} className="flex flex-col gap-2">
@@ -510,32 +535,36 @@ export default function DeckDetail() {
                     {block.title} ({count})
                   </h2>
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 2xl:grid-cols-5">
-                    {block.rows.map((e) => {
+                    {block.rows.map((row) => {
+                      const { entry: e, line } = row
                       const status = STATUS[e.status]
+                      const link = cardPage(row)
                       return (
-                        <div key={`${block.key}-${e.card_id}`} className="flex flex-col gap-1">
-                          <Link to={`/cards/${e.card_id}`} className="group relative">
-                            <CardImage thumb src={e.image} alt={e.name} game={deck.game_id} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
-                            <span className="badge badge-neutral absolute bottom-[3%] left-[3%] font-semibold shadow">×{e.quantities[block.section] ?? 0}</span>
+                        <div key={rowKey(block, row)} className="flex flex-col gap-1">
+                          <Link to={link} className="group relative">
+                            <CardImage thumb src={line.image ?? e.image} alt={e.name} game={deck.game_id} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
+                            <span className="badge badge-neutral absolute bottom-[3%] left-[3%] font-semibold shadow">×{line.quantity}</span>
                             <span className={`badge badge-sm absolute right-[3%] top-[3%] shadow ${status.badge}`}>
                               {t(status.label)}
                               {e.status === 'missing' && ` ${e.missing}`}
                             </span>
                           </Link>
-                          <Link to={`/cards/${e.card_id}`} className="link-hover break-words text-sm font-medium">
+                          <Link to={link} className="link-hover break-words text-sm font-medium">
                             <ShownName name={e.name} translation={e.translation} />
                           </Link>
                           <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/60">
+                            <PrintingBadge line={line} onClick={() => setPrinting({ row, split: false })} />
                             <span className="tooltip" data-tip={t('{{n}} allocated to other decks', { n: e.allocated_elsewhere })}>
                               <span className={`badge badge-sm ${e.allocated >= e.requested ? 'badge-success' : 'badge-ghost'}`}>
                                 {t('Here')} {e.allocated} / {e.requested}
                               </span>
                             </span>
+                            {lineAllocated(row)}
                             <Legality entry={e} />
                           </div>
                           <div className="flex flex-wrap items-center justify-between gap-1">
-                            {stepper(e, block.section)}
-                            {actions(e, block)}
+                            {stepper(row)}
+                            {actions(row, block)}
                           </div>
                         </div>
                       )
@@ -554,31 +583,37 @@ export default function DeckDetail() {
                     </tr>
                   </thead>
                   <tbody>
-                    {block.rows.map((e) => (
-                      <tr key={`${block.key}-${e.card_id}`} className="hover:bg-base-200">
-                        <td className="w-28">{stepper(e, block.section)}</td>
-                        <td>
-                          <div className="flex items-center gap-2">
-                            <Link to={`/cards/${e.card_id}`} className="block w-8 shrink-0" tabIndex={-1} aria-hidden>
-                              <CardImage thumb src={e.image} alt={e.name} game={deck.game_id} />
-                            </Link>
-                            <div className="min-w-0">
-                              <Link to={`/cards/${e.card_id}`} className="link-hover font-medium">
-                                <ShownName name={e.name} translation={e.translation} />
+                    {block.rows.map((row) => {
+                      const { entry: e, line } = row
+                      const link = cardPage(row)
+                      const first = firstLine(block.rows, row)
+                      return (
+                        <tr key={rowKey(block, row)} className={`hover:bg-base-200 ${first ? '' : 'border-t-0'}`}>
+                          <td className="w-28">{stepper(row)}</td>
+                          <td>
+                            <div className="flex items-center gap-2">
+                              <Link to={link} className="block w-8 shrink-0" tabIndex={-1} aria-hidden>
+                                <CardImage thumb src={line.image ?? e.image} alt={e.name} game={deck.game_id} />
                               </Link>
-                              <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/60">
-                                {e.mana_cost && <span className="font-mono">{e.mana_cost}</span>}
-                                <Legality entry={e} />
+                              <div className="min-w-0">
+                                <Link to={link} className={`link-hover font-medium ${first ? '' : 'text-base-content/60'}`}>
+                                  <ShownName name={e.name} translation={e.translation} />
+                                </Link>
+                                <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/60">
+                                  <PrintingBadge line={line} onClick={() => setPrinting({ row, split: false })} />
+                                  {lineAllocated(row)}
+                                  {first && e.mana_cost && <span className="font-mono">{e.mana_cost}</span>}
+                                  {first && !e.mana_cost && e.type_line && deck.game_id === 'lorcana' && <span>{e.type_line}</span>}
+                                  {first && <Legality entry={e} />}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </td>
-                        <td>
-                          <Stock entry={e} />
-                        </td>
-                        <td className="w-1 whitespace-nowrap text-right">{actions(e, block)}</td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td>{first && <Stock entry={e} />}</td>
+                          <td className="w-1 whitespace-nowrap text-right">{actions(row, block)}</td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -592,6 +627,8 @@ export default function DeckDetail() {
 
       <ImportDialog deckId={deckId} gameId={deck.game_id} open={importing} onClose={() => setImporting(false)} />
       <CopiesDialog deckId={deckId} entry={copies} onClose={() => setCopies(null)} />
+      <PrintingDialog deckId={deckId} gameId={deck.game_id} row={printing?.row ?? null} split={printing?.split ?? false} onClose={() => setPrinting(null)} />
+      <ExportDialog deck={deck} open={exporting} onClose={() => setExporting(false)} />
 
       <dialog className={`modal ${deleting ? 'modal-open' : ''}`} onClose={() => setDeleting(false)}>
         {deleting && (
