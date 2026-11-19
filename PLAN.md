@@ -154,7 +154,9 @@ cannot be renamed/deleted, an admin cannot remove themself. With several provide
   preselected); unticking asks, then removes one copy (undo toast). Followed sets are never deleted with the
   catalog: reset and empty set pruning skip them, FK `RESTRICT`; the sync fills them again (same source id).
 - Decks (experimental, branch `experiment-decks`, `deck` / `deck_card` / `deck_allocation`, `/api/decks`):
-  Magic only (paper formats with Scryfall legalities: Commander, Standard, Modern... `deck_rules.FORMATS`). Decklist by card (not printing), sections commander / main / sideboard;
+  Magic (paper formats with Scryfall legalities: Commander, Standard, Modern... `deck_rules.FORMATS`) and
+  Pokémon, all three markets (`pokemon_standard` / `_expanded` / `_unlimited` / `_glc`, `deck_rules.GAMES`;
+  legality from TCGdex `legal` per international printing, Pokémon catalog version 11). Decklist by card (not printing), sections commander / main / sideboard (Pokémon: main only);
   rules in `services/deck_rules.py` from card attributes (`legalities` from Scryfall since this branch,
   "not verified" until the next MtG catalog sync). Text import (`services/deck_import.py`): preview, then
   import of the cards picked. Allocation (`services/decks.py`): owned copies of a collection item set aside
@@ -2306,6 +2308,27 @@ Branch `experiment-decks` (name chosen by the user), from main at 0.25.1. No ver
   color identity). Left out: Historic, Timeless, Alchemy, Gladiator, Brawl, Standard Brawl, Competitive
   Brawl (Arena), `future` (Standard preview), `tlr` (unknown key).
 - Gaps: collection pages still do not show allocations; format-specific ban lists come from Scryfall.
+
+## Report 2026-11-19 (3) — Decks: user report, Pokémon TCG (server unreleased, Android unchanged 0.17.0)
+- [x] Long selects (filter box, `SearchableSelect`) clipped inside dialogs (daisyUI `.modal-box` scrolls):
+  the list is a popover (top layer), placed under the button with `position: fixed` (above it without room
+  below), follows scroll and resize. Fixes every searchable select, the New deck Format one included. New
+  deck: changing the game picks its first format.
+- [x] Deck card picture: the allocated copy's (the collection item most allocated copies come from, its
+  language as in the collection, `copy_image`), else the card's; the copies chooser shows each copy's.
+- [x] Deck page List / Images toggle (`useView`, `tcg.deckView`, `?view=`): images grid by section and
+  group, quantity, copy state, here / requested, stepper, Allocate / Release and the "⋯" menu.
+- [x] Pokémon decks (user: Standard, Expanded, Unlimited, Gym Leader Challenge; legality stored from
+  TCGdex; all three markets). 60 cards exactly, 4 copies by name (one catalog card per name and language),
+  basic Energy unlimited, at least one Basic Pokémon, 1 ACE SPEC (rarity), 1 Radiant (name or rarity),
+  Prism Star 1 per name, legal when any printing is (reprints). GLC: singleton, one shared type (off-type
+  Pokémon listed), no Rule Box Pokémon (name / stage), no ACE SPEC. Groups Pokémon / Supporter / Item /
+  Pokémon Tool / Stadium / Trainer / Energy (`DeckDetailOut.groups`). Import reads Pokémon TCG Live and
+  Limitless lists ("Pokémon: 12", "4 Charmander PAF 7", "Basic {R} Energy", "Total Cards"). Format must be
+  of the deck's game (422).
+- Gaps: legality is "not verified" until the next Pokémon catalog sync (version 11, full resync); Asian and
+  Chinese cards have no legality (TCGdex marks them all not legal), Japanese Standard not modelled; GLC
+  ban list not checked; a French-only card and its English card are different cards for the copy count.
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.

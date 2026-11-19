@@ -1,7 +1,8 @@
 """Plain-text decklists ("4 Lightning Bolt"), as exported by most deck sites and MTG
 Arena / MTGO: sections given by header lines ("Commander", "Deck", "Sideboard",
 "SB: 2 Duress"), set and collector number suffixes ("(M10) 146", "[M10]") ignored, as
-the deck holds cards, not printings."""
+the deck holds cards, not printings. Pokémon: Pokémon TCG Live and Limitless exports
+("Pokémon: 12", "4 Charmander PAF 7", "Basic {R} Energy")."""
 
 import re
 from dataclasses import dataclass, field
@@ -31,8 +32,20 @@ _HEADERS: dict[str, Section | None] = {
     "maybe": None,
     "considering": None,
     "tokens": None,
+    # Pokémon TCG Live: card kinds, all in the deck.
+    "pokemon": "main",
+    "pokémon": "main",
+    "trainer": "main",
+    "trainers": "main",
+    "energy": "main",
+    "energies": "main",
 }
-_HEADER = re.compile(r"^(?://|#)?\s*([a-z ]+?)\s*(?:\(\d+\))?\s*:?\s*$", re.IGNORECASE)
+# Header lines that change nothing ("Total Cards: 60").
+_IGNORED = {"total cards", "total"}
+# "Sideboard", "Sideboard (15)", "Pokémon: 12".
+_HEADER = re.compile(
+    r"^(?://|#)?\s*([^\W\d_][^\W\d]*(?: [^\W\d_][^\W\d]*)*?)\s*(?:\(\d+\))?\s*(?::\s*\d*)?\s*$"
+)
 _LINE = re.compile(r"^(?:(\d+)\s*x?\s+)?(.+)$", re.IGNORECASE)
 _SUFFIXES = (
     re.compile(r"\s+\*[^*]+\*\s*$"),  # *CMDR*, *F*
@@ -41,6 +54,22 @@ _SUFFIXES = (
     re.compile(r"\s+\[[^\]]+\]\s*$"),  # [M10] or [Category]
     re.compile(r"\s+\([A-Za-z0-9]{2,6}\)(\s+\S+)?\s*$"),  # (M10) 146
 )
+# Pokémon set code and collector number: "PAF 7", "PR-SV 12", "SVP 085", "CRZ GG05".
+_POKEMON_SUFFIX = re.compile(
+    r"\s+[A-Z][A-Za-z0-9]{1,4}(?:-[A-Z0-9]{1,4})?\s+[A-Z]{0,3}\d+[a-z]?\s*$"
+)
+# Pokémon TCG Live energy symbols ("Basic {R} Energy").
+_ENERGY_SYMBOLS = {
+    "G": "Grass",
+    "R": "Fire",
+    "W": "Water",
+    "L": "Lightning",
+    "P": "Psychic",
+    "F": "Fighting",
+    "D": "Darkness",
+    "M": "Metal",
+    "Y": "Fairy",
+}
 # Layouts that are not deck cards (tokens, art cards).
 _NOT_DECK = ("token", "double_faced_token", "art_series", "emblem")
 
@@ -61,13 +90,16 @@ class Parsed:
     errors: list[tuple[int, str, str]] = field(default_factory=list)
 
 
-def _clean_name(name: str) -> tuple[str, bool]:
+def _clean_name(name: str, pokemon: bool = False) -> tuple[str, bool]:
     """Name without set / tag suffixes, and whether it was marked as commander."""
     commander = "*cmdr*" in name.lower()
+    suffixes = (*_SUFFIXES, _POKEMON_SUFFIX) if pokemon else _SUFFIXES
+    if pokemon:
+        name = re.sub(r"\{([A-Z])\}", lambda m: _ENERGY_SYMBOLS.get(m.group(1), m.group(0)), name)
     changed = True
     while changed:
         changed = False
-        for suffix in _SUFFIXES:
+        for suffix in suffixes:
             stripped = suffix.sub("", name)
             if stripped != name:
                 name, changed = stripped, True
@@ -75,16 +107,19 @@ def _clean_name(name: str) -> tuple[str, bool]:
     return name, commander
 
 
-def parse(text: str) -> Parsed:
+def parse(text: str, game_id: str = "mtg") -> Parsed:
     parsed = Parsed()
+    pokemon = game_id.startswith("pokemon")
     section: Section | None = "main"
     for number, raw in enumerate(text.splitlines()[:MAX_LINES], start=1):
         line = raw.strip()
         if not line:
             continue
         header = _HEADER.match(line)
-        if header and header.group(1).strip().lower() in _HEADERS:
-            section = _HEADERS[header.group(1).strip().lower()]
+        if header and (title := header.group(1).strip().lower()) in _HEADERS:
+            section = _HEADERS[title]
+            continue
+        if header and title in _IGNORED:
             continue
         if line.startswith(("//", "#")) or line.lower().startswith(("name ", "about")):
             continue
@@ -93,7 +128,7 @@ def parse(text: str) -> Parsed:
             line, line_section = line[3:].strip(), "sideboard"
         found = _LINE.match(line)
         quantity = int(found.group(1)) if found and found.group(1) else 1
-        name, commander = _clean_name(found.group(2) if found else line)
+        name, commander = _clean_name(found.group(2) if found else line, pokemon)
         if not name or not 0 < quantity <= MAX_QUANTITY:
             parsed.errors.append((number, raw, "Not a card line"))
             continue

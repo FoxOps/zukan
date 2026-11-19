@@ -1,9 +1,11 @@
-"""Format rules of the Decks module (Magic: The Gathering only so far).
+"""Format rules of the Decks module: Magic: The Gathering and the Pokémon TCG.
 
-Pure functions over the cards' catalog attributes (`games.mtg.provider.parse_card`):
-`types`, `subtypes`, `oracle_text` (or `faces`), `color_identity`, `legalities`. Results
-never block saving a deck: a draft is shown with its issues. Rules the data cannot settle
-are listed as not verified instead of passing silently."""
+Pure functions over the cards' catalog attributes. Magic (`games.mtg.provider.parse_card`):
+`types`, `subtypes`, `oracle_text` (or `faces`), `color_identity`, `legalities`. Pokémon
+(`games.pokemon.provider.parse_card`): `category`, `stage`, `energyType`, the colors (its
+types), and per printing the rarity and TCGdex's `legal`. Results never block saving a
+deck: a draft is shown with its issues. Rules the data cannot settle are listed as not
+verified instead of passing silently."""
 
 import re
 from dataclasses import dataclass, field
@@ -18,11 +20,12 @@ Level = Literal["error", "warning", "info"]
 # your commander"), "pauper" any creature (Pauper Commander: printed uncommon, not
 # checked), "oathbreaker" a planeswalker with one instant or sorcery as signature spell.
 Leader = Literal["commander", "pauper", "oathbreaker"]
+Rules = Literal["mtg", "pokemon"]
 
 
 @dataclass(frozen=True)
 class Format:
-    # Scryfall's legality key.
+    # Stored in `Deck.format`, unique across games. Magic: Scryfall's legality key.
     id: str
     name: str
     # Cards in the deck (main deck, with the commanders): exact or minimum size.
@@ -32,6 +35,9 @@ class Format:
     copies: int
     commander: bool
     leader: Leader | None = None
+    rules: Rules = "mtg"
+    # Pokémon: TCGdex's legality key ("standard", "expanded"), None: every card legal.
+    legality: str | None = None
 
 
 def _constructed(id: str, name: str) -> Format:
@@ -64,7 +70,37 @@ FORMATS = {
         _led("oathbreaker", "Oathbreaker", 60, "oathbreaker"),
     )
 }
-GAMES = {"mtg": tuple(FORMATS)}
+
+
+def _pokemon(id: str, name: str, legality: str | None, copies: int = 4) -> Format:
+    return Format(id, name, 60, True, None, copies, False, rules="pokemon", legality=legality)
+
+
+# Pokémon formats, for the three markets (international, Asia, China). Gym Leader
+# Challenge: the community singleton format on the Expanded card pool.
+POKEMON_FORMATS = {
+    f.id: f
+    for f in (
+        _pokemon("pokemon_standard", "Standard", "standard"),
+        _pokemon("pokemon_expanded", "Expanded", "expanded"),
+        _pokemon("pokemon_unlimited", "Unlimited", None),
+        _pokemon("pokemon_glc", "Gym Leader Challenge", "expanded", copies=1),
+    )
+}
+GAMES = {
+    "mtg": tuple(FORMATS),
+    "pokemon": tuple(POKEMON_FORMATS),
+    "pokemon-asia": tuple(POKEMON_FORMATS),
+    "pokemon-china": tuple(POKEMON_FORMATS),
+}
+FORMATS |= POKEMON_FORMATS
+
+
+@dataclass
+class RulePrinting:
+    rarity: str | None
+    # TCGdex's {"standard": bool, "expanded": bool} (Pokémon), None: not known.
+    legal: dict[str, bool] | None = None
 
 
 @dataclass
@@ -72,6 +108,9 @@ class RuleCard:
     card_id: int
     name: str
     attributes: dict[str, Any]
+    colors: list[str] = field(default_factory=list)
+    # Pokémon only (rarity and legality are per printing).
+    printings: list[RulePrinting] = field(default_factory=list)
 
     @property
     def types(self) -> list[str]:
@@ -187,11 +226,30 @@ def _plural(count: int, word: str) -> str:
     return f"{count} {word}{'' if count == 1 else 's'}"
 
 
+def legality(card: RuleCard, fmt: Format) -> str:
+    """ "legal", "banned", "not_legal", "restricted" or "unknown" (no data)."""
+    if fmt.rules == "pokemon":
+        if fmt.legality is None:
+            return "legal"
+        known = [p.legal for p in card.printings if p.legal is not None]
+        if not known:
+            return "unknown"
+        # A card is legal when any of its printings is (reprints share the card's name).
+        return "legal" if any(legal.get(fmt.legality) for legal in known) else "not_legal"
+    legalities = card.attributes.get("legalities")
+    if legalities is None:
+        return "unknown"
+    return legalities.get(fmt.id, "not_legal")
+
+
 def check(format_id: str, entries: list[Entry]) -> Report:
     report = Report()
     fmt = FORMATS.get(format_id)
     if fmt is None:
         report.note("unknown_format", f"No rules known for format '{format_id}'", format=format_id)
+        return report
+    if fmt.rules == "pokemon":
+        _check_pokemon(report, fmt, entries)
         return report
     by_section: dict[str, list[Entry]] = {s: [] for s in SECTIONS}
     for entry in entries:
@@ -271,11 +329,10 @@ def check(format_id: str, entries: list[Entry]) -> Report:
     for card in cards.values():
         if card.card_id in leading:
             continue
-        legalities = card.attributes.get("legalities")
-        if legalities is None:
+        status = legality(card, fmt)
+        if status == "unknown":
             unknown.append(card.name)
             continue
-        status = legalities.get(fmt.id, "not_legal")
         if status == "banned":
             report.add("error", "banned", f"{card.name} is banned in {fmt.name}", card)
         elif status == "not_legal":
@@ -406,3 +463,167 @@ def _check_identity(report: Report, identity: set[str], main: list[Entry]) -> No
                 entry.card,
                 colors=colors,
             )
+
+
+# Pokémon card kinds. Category, stage and energy type are TCGdex's English values (a few
+# cards keep their French ones); Asian names are matched too.
+_BASIC_ENERGY = re.compile(
+    r"^(basic )?(grass|fire|water|lightning|psychic|fighting|darkness|metal|fairy) energy$"
+    r"|基本|기본",
+    re.IGNORECASE,
+)
+_RULE_BOX = re.compile(
+    r"(\s|-)(ex|EX|GX|V|VMAX|VSTAR|V-UNION|BREAK|LEGEND)\b|◇|★|^(Radiant|M|Mega) |^かがやく"
+)
+_RULE_BOX_STAGES = {"VMAX", "VSTAR", "V-UNION", "BREAK", "LEGEND", "MEGA"}
+
+
+def _category(card: RuleCard) -> str | None:
+    category = card.attributes.get("category")
+    return "Pokemon" if category == "Pokémon" else category
+
+
+def is_basic_energy(card: RuleCard) -> bool:
+    if _category(card) != "Energy":
+        return False
+    kind = card.attributes.get("energyType")
+    return kind == "Normal" or (kind is None and bool(_BASIC_ENERGY.search(card.name)))
+
+
+def is_basic_pokemon(card: RuleCard) -> bool:
+    return _category(card) == "Pokemon" and card.attributes.get("stage") in ("Basic", "Base")
+
+
+def is_ace_spec(card: RuleCard) -> bool:
+    return any(p.rarity and "ACE" in p.rarity.upper() for p in card.printings)
+
+
+def is_radiant(card: RuleCard) -> bool:
+    return card.name.startswith(("Radiant ", "かがやく")) or any(
+        p.rarity and "Radiant" in p.rarity for p in card.printings
+    )
+
+
+def is_prism_star(card: RuleCard) -> bool:
+    return "◇" in card.name
+
+
+def has_rule_box(card: RuleCard) -> bool:
+    """Pokémon ex, EX, GX, V, VMAX, VSTAR, Radiant, Prism Star, BREAK, LEGEND..."""
+    if _category(card) != "Pokemon":
+        return False
+    return bool(_RULE_BOX.search(card.name)) or card.attributes.get("stage") in _RULE_BOX_STAGES
+
+
+def _check_pokemon(report: Report, fmt: Format, entries: list[Entry]) -> None:
+    main = [e for e in entries if e.section == "main"]
+    others = sum(e.quantity for e in entries if e.section != "main")
+    deck_size = sum(e.quantity for e in main)
+    if deck_size != fmt.size:
+        report.add(
+            "error",
+            "deck_size",
+            f"The deck has {_plural(deck_size, 'card')}, it needs exactly {fmt.size}",
+            count=deck_size,
+            size=fmt.size,
+        )
+    if others:
+        report.add(
+            "info",
+            "section_unused",
+            f"{fmt.name} decks have no sideboard nor commander: "
+            f"{_plural(others, 'card')} not counted",
+            count=others,
+        )
+
+    copies: dict[int, int] = {}
+    cards: dict[int, RuleCard] = {}
+    for entry in main:
+        copies[entry.card.card_id] = copies.get(entry.card.card_id, 0) + entry.quantity
+        cards[entry.card.card_id] = entry.card
+    # Copies by name: the catalog has one card per name (and language).
+    for card_id, count in copies.items():
+        card = cards[card_id]
+        limit = 1 if is_prism_star(card) else fmt.copies
+        if not is_basic_energy(card) and count > limit:
+            report.add(
+                "error",
+                "copy_limit",
+                f"{card.name}: {count} copies, at most {limit} allowed",
+                card,
+                count=count,
+                limit=limit,
+            )
+
+    if main and not any(is_basic_pokemon(c) for c in cards.values()):
+        if any(_category(c) == "Pokemon" and not c.attributes.get("stage") for c in cards.values()):
+            report.note("basic_unknown", "The stage of some Pokémon is not known")
+        else:
+            report.add("error", "no_basic", "The deck needs at least one Basic Pokémon")
+
+    glc = fmt.copies == 1
+    ace_specs = [c for c in cards.values() if is_ace_spec(c)]
+    if glc:
+        for card in ace_specs:
+            report.add("error", "ace_spec_banned", f"{card.name}: ACE SPEC cards are banned", card)
+    elif (count := sum(copies[c.card_id] for c in ace_specs)) > 1:
+        report.add(
+            "error",
+            "ace_spec_max",
+            f"{_plural(count, 'ACE SPEC card')}, at most 1 allowed",
+            count=count,
+        )
+    radiants = sum(copies[c.card_id] for c in cards.values() if is_radiant(c))
+    if radiants > 1 and not glc:
+        report.add(
+            "error",
+            "radiant_max",
+            f"{radiants} Radiant Pokémon, at most 1 allowed",
+            count=radiants,
+        )
+    if glc:
+        _check_glc(report, [c for c in cards.values() if _category(c) == "Pokemon"], copies)
+
+    if fmt.legality is not None:
+        unknown = []
+        for card in cards.values():
+            status = legality(card, fmt)
+            if status == "unknown":
+                unknown.append(card.name)
+            elif status == "not_legal":
+                report.add("error", "not_legal", f"{card.name} is not legal in {fmt.name}", card)
+        if unknown:
+            report.note(
+                "legality_unknown",
+                f"Legality of {_plural(len(unknown), 'card')} not known (sync the Pokémon "
+                "catalog again; Asian and Chinese cards have none): "
+                + ", ".join(sorted(unknown)[:10])
+                + ("…" if len(unknown) > 10 else ""),
+                count=len(unknown),
+                names=sorted(unknown),
+            )
+    report.note("special_rules", "Not checked: cards with special deck rules")
+
+
+def _check_glc(report: Report, pokemon: list[RuleCard], copies: dict[int, int]) -> None:
+    """Gym Leader Challenge: no Rule Box Pokémon, every Pokémon of one shared type."""
+    for card in pokemon:
+        if has_rule_box(card):
+            report.add("error", "rule_box", f"{card.name}: Rule Box Pokémon are banned", card)
+    if pokemon and not set.intersection(*(set(c.colors) for c in pokemon)):
+        # The type most copies have is the deck's; the others are off type.
+        counts: dict[str, int] = {}
+        for card in pokemon:
+            for color in card.colors:
+                counts[color] = counts.get(color, 0) + copies[card.card_id]
+        main_type = max(counts, key=lambda c: counts[c]) if counts else ""
+        for card in pokemon:
+            if main_type not in card.colors:
+                report.add(
+                    "error",
+                    "single_type",
+                    f"{card.name} is not of the deck's type ({main_type})",
+                    card,
+                    type=main_type,
+                )
+    report.note("glc_bans", "Not checked: the Gym Leader Challenge ban list")

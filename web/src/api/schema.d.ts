@@ -1693,6 +1693,8 @@ export interface components {
         /** DeckDetailOut */
         DeckDetailOut: {
             deck: components["schemas"]["DeckOut"];
+            /** Groups */
+            groups: string[];
             /** Entries */
             entries: components["schemas"]["DeckEntryOut"][];
             validation: components["schemas"]["DeckValidationOut"];
@@ -1762,6 +1764,11 @@ export interface components {
             commander: boolean;
             /** Leader */
             leader: ("commander" | "pauper" | "oathbreaker") | null;
+            /**
+             * Rules
+             * @enum {string}
+             */
+            rules: "mtg" | "pokemon";
         };
         /** DeckGameOut */
         DeckGameOut: {
@@ -1827,9 +1834,9 @@ export interface components {
             /**
              * Game Id
              * @default mtg
-             * @constant
+             * @enum {string}
              */
-            game_id: "mtg";
+            game_id: "mtg" | "pokemon" | "pokemon-asia" | "pokemon-china";
         };
         /** DeckImportPreviewOut */
         DeckImportPreviewOut: {
@@ -1845,14 +1852,14 @@ export interface components {
             /**
              * Game Id
              * @default mtg
-             * @constant
+             * @enum {string}
              */
-            game_id: "mtg";
+            game_id: "mtg" | "pokemon" | "pokemon-asia" | "pokemon-china";
             /**
              * Format
              * @enum {string}
              */
-            format: "commander" | "standard" | "pioneer" | "modern" | "legacy" | "vintage" | "pauper" | "premodern" | "oldschool" | "penny" | "duel" | "predh" | "paupercommander" | "oathbreaker";
+            format: "commander" | "standard" | "pioneer" | "modern" | "legacy" | "vintage" | "pauper" | "premodern" | "oldschool" | "penny" | "duel" | "predh" | "paupercommander" | "oathbreaker" | "pokemon_standard" | "pokemon_expanded" | "pokemon_unlimited" | "pokemon_glc";
         };
         /** DeckIssueOut */
         DeckIssueOut: {
@@ -1881,6 +1888,8 @@ export interface components {
             id: number;
             /** Printing Id */
             printing_id: number;
+            /** Image */
+            image: string | null;
             /** Set Code */
             set_code: string;
             /** Set Name */
@@ -1934,7 +1943,7 @@ export interface components {
             /** Name */
             name?: string | null;
             /** Format */
-            format?: ("commander" | "standard" | "pioneer" | "modern" | "legacy" | "vintage" | "pauper" | "premodern" | "oldschool" | "penny" | "duel" | "predh" | "paupercommander" | "oathbreaker") | null;
+            format?: ("commander" | "standard" | "pioneer" | "modern" | "legacy" | "vintage" | "pauper" | "premodern" | "oldschool" | "penny" | "duel" | "predh" | "paupercommander" | "oathbreaker" | "pokemon_standard" | "pokemon_expanded" | "pokemon_unlimited" | "pokemon_glc") | null;
         };
         /** DeckValidationOut */
         DeckValidationOut: {

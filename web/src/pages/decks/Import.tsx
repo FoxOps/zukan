@@ -18,8 +18,9 @@ const STATUS = { resolved: 'badge-success', ambiguous: 'badge-warning', unknown:
 /** Paste a plain-text decklist, check what each line resolves to (pick a card for
  * ambiguous or unknown names), then add the cards to the deck or replace its list.
  * Nothing is allocated: the collection's available copies do not change. */
-export function ImportDialog({ deckId, open, onClose }: { deckId: number; open: boolean; onClose: () => void }) {
+export function ImportDialog({ deckId, gameId, open, onClose }: { deckId: number; gameId: string; open: boolean; onClose: () => void }) {
   const { t } = useTranslation()
+  const pokemon = gameId.startsWith('pokemon')
   const toast = useToast()
   const client = useQueryClient()
   const [text, setText] = useState('')
@@ -39,7 +40,7 @@ export function ImportDialog({ deckId, open, onClose }: { deckId: number; open: 
     onClose()
   }
   const preview = useMutation({
-    mutationFn: () => call(api.POST('/api/decks/import/preview', { body: { text, game_id: 'mtg' } })),
+    mutationFn: () => call(api.POST('/api/decks/import/preview', { body: { text, game_id: gameId as Schemas['DeckImportPreviewIn']['game_id'] } })),
     onSuccess: (result) => {
       setLines(result.lines)
       setSkipped(result.skipped)
@@ -71,13 +72,19 @@ export function ImportDialog({ deckId, open, onClose }: { deckId: number; open: 
           {lines === null ? (
             <div className="mt-3 flex flex-col gap-2">
               <p className="text-sm text-base-content/70">
-                {t('One card per line ("4 Lightning Bolt"). "Commander" and "Sideboard" lines start those sections; set codes are ignored.')}
+                {pokemon
+                  ? t('One card per line ("4 Charmander PAF 7"), as Pokémon TCG Live exports them; set codes are ignored.')
+                  : t('One card per line ("4 Lightning Bolt"). "Commander" and "Sideboard" lines start those sections; set codes are ignored.')}
               </p>
               <textarea
                 className="textarea h-64 w-full font-mono text-sm"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder={'Commander\n1 Krenko, Mob Boss\n\nDeck\n4 Lightning Bolt\n30 Mountain\n\nSideboard\n2 Pyroblast'}
+                placeholder={
+                  pokemon
+                    ? 'Pokémon: 8\n4 Charmander PAF 7\n4 Charizard ex OBF 125\n\nTrainer: 4\n4 Professor\'s Research SVI 189\n\nEnergy: 1\n10 Basic {R} Energy SVE 2'
+                    : 'Commander\n1 Krenko, Mob Boss\n\nDeck\n4 Lightning Bolt\n30 Mountain\n\nSideboard\n2 Pyroblast'
+                }
                 aria-label={t('Decklist')}
               />
             </div>

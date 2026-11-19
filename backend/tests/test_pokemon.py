@@ -353,6 +353,16 @@ def test_tcgplayer_prices_and_product_ids():
     assert card.printings[0].attributes["market_ids"] == {"tcgplayer": 219333}
 
 
+def test_parse_card_legality():
+    """TCGdex's Standard / Expanded legality is kept for the Decks module, except for
+    Asian cards (all marked not legal)."""
+    legal = {"standard": True, "expanded": True, "unlimited": True}
+    raw = {"localId": "25", "name": "Pikachu", "category": "Pokemon", "legal": legal}
+    card = parse_card(raw, "swsh3", "en")
+    assert card.printings[0].attributes["legal"] == {"standard": True, "expanded": True}
+    assert "legal" not in parse_card(raw, "SV1a", "ja").printings[0].attributes
+
+
 def _neo2(monkeypatch):
     """Neo Discovery (English) and the Japanese "neo2", another set with the same id."""
     symbol = "https://assets.tcgdex.net/univ/neo/neo2/symbol"

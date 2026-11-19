@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useNavigate } from 'react-router'
-import { api, call } from '../api/client'
+import { api, call, type Schemas } from '../api/client'
 import { useDeckFormats, useDecks, useGames, useMe } from '../api/queries'
 import { Select } from '../components/Select'
 import { useToast } from '../components/toast'
@@ -10,7 +10,9 @@ import { formatDate } from '../lib/format'
 import { DeckCount } from './decks/common'
 import { useFormatName } from './decks/formats'
 
-/** New deck: a name, the game (Magic only so far) and one of its formats. */
+type Body = Schemas['DeckIn']
+
+/** New deck: a name, the game (Magic, Pokémon) and one of its formats. */
 function CreateDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation()
   const toast = useToast()
@@ -21,10 +23,17 @@ function CreateDialog({ open, onClose }: { open: boolean; onClose: () => void })
   const [name, setName] = useState('')
   const [gameId, setGameId] = useState('mtg')
   const [format, setFormat] = useState('commander')
+  // Games of this server that decks can be built for.
+  const deckGames = gameFormats.filter((g) => games.some((x) => x.id === g.game_id))
   const formats = gameFormats.find((g) => g.game_id === gameId)?.formats ?? []
+  const chooseGame = (id: string) => {
+    setGameId(id)
+    setFormat(gameFormats.find((g) => g.game_id === id)?.formats[0]?.id ?? '')
+  }
 
   const create = useMutation({
-    mutationFn: () => call(api.POST('/api/decks', { body: { name: name.trim(), game_id: gameId as 'mtg', format: format as 'commander' } })),
+    mutationFn: () =>
+      call(api.POST('/api/decks', { body: { name: name.trim(), game_id: gameId as Body['game_id'], format: format as Body['format'] } })),
     onSuccess: async (detail) => {
       await client.invalidateQueries({ queryKey: ['decks'] })
       onClose()
@@ -56,9 +65,9 @@ function CreateDialog({ open, onClose }: { open: boolean; onClose: () => void })
                 <Select
                   className="w-full"
                   value={gameId}
-                  onChange={setGameId}
+                  onChange={chooseGame}
                   aria-label={t('Game')}
-                  options={gameFormats.map((g) => ({ value: g.game_id, label: games.find((x) => x.id === g.game_id)?.name ?? g.game_id }))}
+                  options={deckGames.map((g) => ({ value: g.game_id, label: games.find((x) => x.id === g.game_id)?.name ?? g.game_id }))}
                 />
               </label>
               <label className="fieldset py-0">
@@ -71,7 +80,7 @@ function CreateDialog({ open, onClose }: { open: boolean; onClose: () => void })
             <button type="button" className="btn btn-ghost" onClick={onClose}>
               {t('Cancel')}
             </button>
-            <button type="submit" className="btn btn-primary" disabled={!name.trim() || create.isPending}>
+            <button type="submit" className="btn btn-primary" disabled={!name.trim() || !format || create.isPending}>
               {create.isPending && <span className="loading loading-spinner loading-sm" />}
               {t('Create')}
             </button>
@@ -92,6 +101,8 @@ export default function DecksPage() {
   const enabled = !!me?.modules?.includes('decks')
   const decks = useDecks(enabled)
   const formatName = useFormatName()
+  const { data: games = [] } = useGames()
+  const gameName = (id: string) => games.find((g) => g.id === id)?.name ?? id
   const [creating, setCreating] = useState(false)
   if (me && !enabled) return <Navigate to="/settings" replace />
   const list = decks.data ?? []
@@ -103,7 +114,7 @@ export default function DecksPage() {
           <h1 className="text-2xl font-bold">
             {t('Decks')} <span className="badge badge-sm badge-outline align-middle">{t('Experimental')}</span>
           </h1>
-          <p className="text-sm text-base-content/60">{t('Build Magic decks, check format rules and set owned copies aside for each deck.')}</p>
+          <p className="text-sm text-base-content/60">{t('Build Magic and Pokémon decks, check format rules and set owned copies aside for each deck.')}</p>
         </div>
         <button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
           {t('New deck')}
@@ -127,7 +138,7 @@ export default function DecksPage() {
               <div className="card-body gap-2">
                 <h2 className="card-title text-base leading-tight">{d.name}</h2>
                 <div className="text-xs text-base-content/60">
-                  {formatName(d.format)} · {t('Changed {{date}}', { date: formatDate(d.updated_at) })}
+                  {gameName(d.game_id)} · {formatName(d.format)} · {t('Changed {{date}}', { date: formatDate(d.updated_at) })}
                 </div>
                 <DeckCount deck={d} />
               </div>

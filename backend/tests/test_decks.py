@@ -163,7 +163,7 @@ async def test_module_and_deck_editing(client, session, catalog):
 
     formats = (await client.get("/api/decks/formats", headers=alice)).json()
     assert [(g["game_id"], [f["id"] for f in g["formats"]]) for g in formats] == [
-        ("mtg", list(deck_rules.FORMATS))
+        (game_id, list(ids)) for game_id, ids in deck_rules.GAMES.items()
     ]
     bad = await client.post("/api/decks", json={"name": "X", "format": "historic"}, headers=alice)
     assert bad.status_code == 422
@@ -171,6 +171,18 @@ async def test_module_and_deck_editing(client, session, catalog):
         "/api/decks", json={"name": "X", "format": "standard", "game_id": "pokemon"}, headers=alice
     )
     assert other_game.status_code == 422
+    pokemon = await client.post(
+        "/api/decks",
+        json={"name": "Pika", "format": "pokemon_standard", "game_id": "pokemon"},
+        headers=alice,
+    )
+    assert pokemon.status_code == 201, pokemon.text
+    assert pokemon.json()["groups"][0] == "Pokémon"
+    to_magic = await client.patch(
+        f"/api/decks/{pokemon.json()['deck']['id']}", json={"format": "modern"}, headers=alice
+    )
+    assert to_magic.status_code == 422
+    await client.delete(f"/api/decks/{pokemon.json()['deck']['id']}", headers=alice)
 
     deck = (await new_deck(client, alice))["deck"]
     bolt, _ = catalog["Lightning Bolt"]
@@ -363,6 +375,178 @@ banana
         (1, "Sol Ring", "sideboard"),
     ]
     assert parsed.lines[0].number == 3
+
+
+def test_parse_pokemon_decklist():
+    parsed = deck_import.parse(
+        """Pokémon: 3
+4 Charmander PAF 7
+2 Charizard ex OBF 125
+1 Pikachu PR-SV 27
+
+Trainer: 2
+4 Professor's Research SVI 189
+Energy (1)
+10 Basic {R} Energy SVE 2
+
+Total Cards: 60
+""",
+        "pokemon",
+    )
+    assert [(line.quantity, line.name, line.section) for line in parsed.lines] == [
+        (4, "Charmander", "main"),
+        (2, "Charizard ex", "main"),
+        (1, "Pikachu", "main"),
+        (4, "Professor's Research", "main"),
+        (10, "Basic Fire Energy", "main"),
+    ]
+    assert parsed.errors == []
+    # Magic names keep a trailing word and number.
+    assert deck_import.parse("1 Lightning Bolt M10 146").lines[0].name == "Lightning Bolt M10 146"
+
+
+def pokemon(
+    card_id: int,
+    name: str,
+    category: str = "Pokemon",
+    stage: str | None = "Basic",
+    types: tuple[str, ...] = ("fire",),
+    rarity: str | None = "Common",
+    legal: dict | None = None,
+    **attributes,
+) -> RuleCard:
+    attributes = {"category": category, **({"stage": stage} if stage else {}), **attributes}
+    if legal is None:
+        legal = {"standard": True, "expanded": True}
+    return RuleCard(
+        card_id,
+        name,
+        attributes,
+        list(types),
+        [deck_rules.RulePrinting(rarity, legal or None)],
+    )
+
+
+def test_pokemon_standard_rules():
+    charmander = pokemon(1, "Charmander")
+    research = pokemon(2, "Professor's Research", "Trainer", None, (), trainerType="Supporter")
+    fire = pokemon(3, "Basic Fire Energy", "Energy", None, (), energyType="Normal")
+    deck = [Entry(charmander, "main", 4), Entry(research, "main", 4), Entry(fire, "main", 52)]
+    report = deck_rules.check("pokemon_standard", deck)
+    assert report.valid, report.issues
+
+    # Old printing not legal, a reprint is: the card is legal.
+    reprinted = pokemon(4, "Switch", "Trainer", None, (), trainerType="Item")
+    reprinted.printings = [
+        deck_rules.RulePrinting("Common", {"standard": False, "expanded": True}),
+        deck_rules.RulePrinting("Common", {"standard": True, "expanded": True}),
+    ]
+    assert deck_rules.legality(reprinted, deck_rules.FORMATS["pokemon_standard"]) == "legal"
+
+    old = pokemon(5, "Old Pikachu", legal={"standard": False, "expanded": True})
+    ace = pokemon(6, "Prime Catcher", "Trainer", None, (), "ACE SPEC Rare", trainerType="Item")
+    ace2 = pokemon(7, "Master Ball", "Trainer", None, (), "ACE SPEC Rare", trainerType="Item")
+    radiant = pokemon(8, "Radiant Charizard", rarity="Radiant Rare")
+    radiant2 = pokemon(9, "Radiant Greninja", types=("water",))
+    asian = pokemon(10, "ピカチュウ", legal={})
+    report = deck_rules.check(
+        "pokemon_standard",
+        [
+            Entry(charmander, "main", 5),
+            Entry(old, "main", 1),
+            Entry(ace, "main", 1),
+            Entry(ace2, "main", 1),
+            Entry(radiant, "main", 1),
+            Entry(radiant2, "main", 1),
+            Entry(asian, "main", 1),
+            Entry(fire, "main", 40),
+            Entry(fire, "sideboard", 2),
+        ],
+    )
+    assert codes(report) == {
+        "deck_size",
+        "copy_limit",
+        "not_legal",
+        "ace_spec_max",
+        "radiant_max",
+        "section_unused",
+    }
+    assert {i.code: i for i in report.unverified}["legality_unknown"].params["names"] == [
+        "ピカチュウ"
+    ]
+    # Expanded: the old printing is legal there; Unlimited checks no legality.
+    expanded = deck_rules.check("pokemon_expanded", [Entry(old, "main", 4), *deck[1:]])
+    assert "not_legal" not in codes(expanded)
+    assert "no_basic" in codes(deck_rules.check("pokemon_unlimited", deck[1:]))
+
+
+def test_pokemon_glc_rules():
+    charmander = pokemon(1, "Charmander")
+    vulpix = pokemon(2, "Vulpix")
+    squirtle = pokemon(3, "Squirtle", types=("water",))
+    charizard_ex = pokemon(4, "Charizard ex", stage="Stage2")
+    ace = pokemon(5, "Prime Catcher", "Trainer", None, (), "ACE SPEC Rare", trainerType="Item")
+    fire = pokemon(6, "Fire Energy", "Energy", None, ())
+    deck = [Entry(charmander, "main", 1), Entry(vulpix, "main", 1), Entry(fire, "main", 58)]
+    report = deck_rules.check("pokemon_glc", deck)
+    assert report.valid, report.issues
+    assert "glc_bans" in {i.code for i in report.unverified}
+
+    report = deck_rules.check(
+        "pokemon_glc",
+        [
+            Entry(charmander, "main", 2),
+            Entry(vulpix, "main", 1),
+            Entry(squirtle, "main", 1),
+            Entry(charizard_ex, "main", 1),
+            Entry(ace, "main", 1),
+            Entry(fire, "main", 54),
+        ],
+    )
+    assert codes(report) == {"copy_limit", "rule_box", "single_type", "ace_spec_banned"}
+    off_type = [i for i in report.issues if i.code == "single_type"]
+    assert [(i.params["name"], i.params["type"]) for i in off_type] == [("Squirtle", "fire")]
+
+
+async def test_allocated_copy_image(client, session, alice, catalog):
+    bolt, first = catalog["Lightning Bolt"]
+    card_set = await session.scalar(select(CardSet).where(CardSet.code == "TST"))
+    second = Printing(
+        card_id=bolt,
+        set_id=card_set.id,
+        external_id="bolt-2",
+        collector_number="99",
+        finishes=["nonfoil"],
+        languages=["en"],
+        image_paths={"en": "bolt-2.jpg"},
+    )
+    session.add(second)
+    await session.flush()
+    printing = await session.get(Printing, first)
+    printing.image_paths = {"en": "bolt-1.jpg"}
+    await session.commit()
+    deck = (await new_deck(client, alice))["deck"]["id"]
+    await put_card(client, alice, deck, bolt, 2)
+    one = (await own(client, alice, first, 1))["item"]["id"]
+    two = (await own(client, alice, second.id, 1))["item"]["id"]
+
+    async def allocate(path, item_id):
+        response = await client.post(
+            f"/api/decks/{deck}/{path}",
+            json={"card_id": bolt, "item_id": item_id},
+            headers=alice,
+        )
+        assert response.status_code == 200, response.text
+        return entry(response.json(), bolt)["image"]
+
+    assert f"/printings/{second.id}/" in await allocate("allocate", two)
+    await allocate("release", two)
+    assert f"/printings/{first}/" in await allocate("allocate", one)
+    items = (await client.get(f"/api/decks/{deck}/cards/{bolt}/items", headers=alice)).json()
+    assert {i["id"]: i["image"] for i in items} == {
+        one: f"/api/printings/{first}/image?lang=en",
+        two: f"/api/printings/{second.id}/image?lang=en",
+    }
 
 
 async def test_import_preview_and_import(client, session, alice):

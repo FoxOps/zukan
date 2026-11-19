@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useNavigate, useParams } from 'react-router'
 import { api, call, type Schemas } from '../../api/client'
 import { useDeck, useDeckFormats, useGame, useMe } from '../../api/queries'
+import { ViewToggle } from '../../components/ViewToggle'
+import { gridIcon, listIcon, useView, type ViewChoice } from '../../lib/views'
 import { ConditionBadge, FinishBadge, LangFlag } from '../../components/Badges'
 import { CardImage } from '../../components/CardImage'
 import { ShownName } from '../../components/ShownName'
@@ -18,14 +20,30 @@ type Detail = Schemas['DeckDetailOut']
 type Entry = Schemas['DeckEntryOut']
 type Section = Schemas['DeckCardIn']['section']
 
-// Card type groups, in the server's order (`api.decks.GROUPS`).
-const GROUPS = ['Creature', 'Planeswalker', 'Battle', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Other']
+// Cards as rows with their copies, or as pictures (like the collection).
+const DECK_VIEWS: ViewChoice[] = [
+  { id: 'list', label: 'List', icon: listIcon },
+  { id: 'images', label: 'Images', icon: gridIcon },
+]
 const STATUS = {
   missing: { badge: 'badge-error', label: 'Missing' },
   owned: { badge: 'badge-info', label: 'Owned' },
   allocated: { badge: 'badge-success', label: 'Allocated' },
 } as const
 const LEGAL_BADGE: Record<string, string | null> = { legal: null, unknown: null, banned: 'Banned', not_legal: 'Not legal', restricted: 'Restricted' }
+
+/** "Banned" / "Not legal" badge, "?" when legality is not known. */
+function Legality({ entry }: { entry: Entry }) {
+  const { t } = useTranslation()
+  const legal = LEGAL_BADGE[entry.legal]
+  if (legal) return <span className="badge badge-xs badge-error">{t(legal)}</span>
+  if (entry.legal !== 'unknown') return null
+  return (
+    <span className="badge badge-xs badge-ghost" title={t('Legality not known yet')}>
+      ?
+    </span>
+  )
+}
 
 function useDeckMutation<T>(deckId: number, fn: (body: T) => Promise<Detail>) {
   const client = useQueryClient()
@@ -40,8 +58,9 @@ function useDeckMutation<T>(deckId: number, fn: (body: T) => Promise<Detail>) {
   })
 }
 
-/** Search the Magic catalog and add a card to a section (one copy, or one more). */
-function AddCard({ deck, entries, onAdd, commander }: { deck: Schemas['DeckOut']; entries: Entry[]; onAdd: (cardId: number, section: Section, quantity: number) => void; commander: string | null }) {
+/** Search the game's catalog and add a card to a section (one copy, or one more). Without
+ * `sections` (Pokémon), cards go to the main deck. */
+function AddCard({ deck, entries, onAdd, commander, sections }: { deck: Schemas['DeckOut']; entries: Entry[]; onAdd: (cardId: number, section: Section, quantity: number) => void; commander: string | null; sections: boolean }) {
   const { t } = useTranslation()
   const [text, setText] = useState('')
   const [q, setQ] = useState('')
@@ -120,17 +139,19 @@ function AddCard({ deck, entries, onAdd, commander }: { deck: Schemas['DeckOut']
           </ul>
         )}
       </div>
-      <Select
-        className="w-40"
-        value={section}
-        onChange={(v) => setSection(v as Section)}
-        aria-label={t('Section')}
-        options={[
-          ...(commander ? [{ value: 'commander', label: commander }] : []),
-          { value: 'main', label: t('Main deck') },
-          { value: 'sideboard', label: t('Sideboard') },
-        ]}
-      />
+      {sections && (
+        <Select
+          className="w-40"
+          value={section}
+          onChange={(v) => setSection(v as Section)}
+          aria-label={t('Section')}
+          options={[
+            ...(commander ? [{ value: 'commander', label: commander }] : []),
+            { value: 'main', label: t('Main deck') },
+            { value: 'sideboard', label: t('Sideboard') },
+          ]}
+        />
+      )}
     </div>
   )
 }
@@ -175,6 +196,9 @@ function CopiesDialog({ deckId, entry, onClose }: { deckId: number; entry: Entry
             <ul className="mt-2 flex flex-col gap-2">
               {(items.data ?? []).map((item) => (
                 <li key={item.id} className="flex flex-wrap items-center gap-2 rounded-box bg-base-200 px-3 py-2">
+                  <span className="block w-8 shrink-0">
+                    <CardImage thumb src={item.image} alt="" game={detail?.deck.game_id} />
+                  </span>
                   <span className="font-mono text-xs">
                     {item.set_code} {item.collector_number}
                   </span>
@@ -297,6 +321,8 @@ export default function DeckDetail() {
   const [importing, setImporting] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [copies, setCopies] = useState<Entry | null>(null)
+  const [view, chooseView] = useView(DECK_VIEWS, 'tcg.deckView')
+  const game = useGame(query.data?.deck.game_id)
 
   const update = useDeckMutation(deckId, (body: Schemas['DeckUpdateIn']) => call(api.PATCH('/api/decks/{deck_id}', { params: { path: { deck_id: deckId } }, body })))
   const setCard = useDeckMutation(deckId, (body: Schemas['DeckCardIn']) => call(api.PUT('/api/decks/{deck_id}/cards', { params: { path: { deck_id: deckId } }, body })))
@@ -320,8 +346,10 @@ export default function DeckDetail() {
   if (me && !me.modules?.includes('decks')) return <Navigate to="/settings" replace />
   if (query.isPending) return <span className="loading loading-spinner loading-lg m-auto block" />
   if (!query.data) return null
-  const { deck, entries, validation } = query.data
+  const { deck, groups, entries, validation } = query.data
   const format = gameFormats.flatMap((g) => g.formats).find((f) => f.id === deck.format)
+  // Magic decks have a sideboard (and a commander section in some formats).
+  const sections = format?.rules !== 'pokemon'
   const commanderFormat = !!format?.commander
   const oathbreaker = format?.leader === 'oathbreaker'
   const leaders = oathbreaker ? t('Oathbreaker and signature spell') : t('Commander')
@@ -337,9 +365,67 @@ export default function DeckDetail() {
   const inSection = (section: Section) => entries.filter((e) => (e.quantities[section] ?? 0) > 0)
   const blocks: { key: string; title: string; section: Section; rows: Entry[] }[] = [
     { key: 'commander', title: leaders, section: 'commander' as Section, rows: inSection('commander') },
-    ...GROUPS.map((g) => ({ key: g, title: t(g), section: 'main' as Section, rows: inSection('main').filter((e) => e.group === g) })),
+    ...groups.map((g) => ({ key: g, title: t(g), section: 'main' as Section, rows: inSection('main').filter((e) => e.group === g) })),
     { key: 'sideboard', title: t('Sideboard'), section: 'sideboard' as Section, rows: inSection('sideboard') },
   ].filter((b) => b.rows.length > 0)
+  const busy = setCard.isPending || allocate.isPending
+  const stepper = (e: Entry, section: Section) => {
+    const quantity = e.quantities[section] ?? 0
+    return (
+      <div className="join">
+        <button className="btn btn-xs join-item" disabled={busy} onClick={() => put(e.card_id, section, quantity - 1)} aria-label={t('One less')}>
+          −
+        </button>
+        <input
+          key={quantity}
+          className="input input-xs join-item w-10 text-center"
+          defaultValue={quantity}
+          inputMode="numeric"
+          aria-label={t('Quantity')}
+          onBlur={(ev) => {
+            const next = Number(ev.target.value)
+            if (Number.isInteger(next) && next >= 0 && next !== quantity) put(e.card_id, section, next)
+          }}
+          onKeyDown={(ev) => ev.key === 'Enter' && (ev.target as HTMLInputElement).blur()}
+        />
+        <button className="btn btn-xs join-item" disabled={busy} onClick={() => put(e.card_id, section, quantity + 1)} aria-label={t('One more')}>
+          +
+        </button>
+      </div>
+    )
+  }
+  const actions = (e: Entry, block: { key: string; section: Section }) => {
+    const quantity = e.quantities[block.section] ?? 0
+    return (
+      <div className="flex justify-end gap-1">
+        <button
+          className="btn btn-primary btn-xs"
+          disabled={busy || e.available === 0 || e.allocated >= e.requested}
+          // Several printings / finishes / conditions / languages free: the user picks one.
+          onClick={() => (e.free_items > 1 ? setCopies(e) : allocate.mutate({ path: 'allocate', cardId: e.card_id }))}
+          title={e.free_items > 1 ? t('Choose which owned copy to set aside for this deck') : t('Set one owned copy aside for this deck')}
+        >
+          {t('Allocate')}
+          {e.free_items > 1 && '…'}
+        </button>
+        <button className="btn btn-ghost btn-xs" disabled={busy || e.allocated === 0} onClick={() => allocate.mutate({ path: 'release', cardId: e.card_id })} title={t('Give one allocated copy back')}>
+          {t('Release')}
+        </button>
+        <RowMenu
+          id={`${block.key}-${e.card_id}`}
+          actions={[
+            { label: t('Choose copies…'), run: () => setCopies(e) },
+            ...(commanderFormat && block.section !== 'commander'
+              ? [{ label: oathbreaker ? t('Move to oathbreaker / signature spell') : t('Make commander'), run: () => move(e, block.section, 'commander', 1) }]
+              : []),
+            ...(sections && block.section !== 'sideboard' ? [{ label: t('Move to sideboard'), run: () => move(e, block.section, 'sideboard', quantity) }] : []),
+            ...(block.section !== 'main' ? [{ label: t('Move to main deck'), run: () => move(e, block.section, 'main', quantity) }] : []),
+            { label: t('Remove'), run: () => put(e.card_id, block.section, 0), danger: true },
+          ]}
+        />
+      </div>
+    )
+  }
   const totals = { allocated: entries.reduce((n, e) => n + e.allocated, 0), requested: entries.reduce((n, e) => n + e.requested, 0), missing: entries.reduce((n, e) => n + e.missing, 0) }
 
   return (
@@ -375,7 +461,9 @@ export default function DeckDetail() {
               </form>
             )}
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-base-content/60">
-              <span>Magic: The Gathering · {formatName(deck.format)}</span>
+              <span>
+                {game?.name ?? deck.game_id} · {formatName(deck.format)}
+              </span>
               <DeckCount deck={deck} />
             </div>
             <div className="mt-1 text-xs text-base-content/60">
@@ -387,7 +475,7 @@ export default function DeckDetail() {
               className="w-36"
               value={deck.format}
               disabled={update.isPending}
-              onChange={(v) => update.mutate({ format: v as 'standard' })}
+              onChange={(v) => update.mutate({ format: v as Schemas['DeckUpdateIn']['format'] })}
               aria-label={t('Format')}
               options={(gameFormats.find((g) => g.game_id === deck.game_id)?.formats ?? []).map((f) => ({ value: f.id, label: f.name }))}
             />
@@ -401,7 +489,10 @@ export default function DeckDetail() {
         </div>
       </div>
 
-      <AddCard deck={deck} entries={entries} onAdd={put} commander={commanderFormat ? leaders : null} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <AddCard deck={deck} entries={entries} onAdd={put} commander={commanderFormat ? leaders : null} sections={sections} />
+        <ViewToggle views={DECK_VIEWS} value={view.id} onChange={chooseView} />
+      </div>
 
       <div className="grid gap-4 xl:grid-cols-[1fr_22rem]">
         <div className="flex flex-col gap-4">
@@ -410,49 +501,66 @@ export default function DeckDetail() {
               <div className="card-body items-center text-center text-sm text-base-content/70">{t('No card yet: search the catalog above or import a decklist.')}</div>
             </div>
           )}
-          {blocks.map((block) => (
-            <div key={block.key} className="overflow-x-auto rounded-box border border-base-300">
-              <table className="table table-sm">
-                <thead>
-                  <tr>
-                    <th colSpan={4}>
-                      {block.title} ({block.rows.reduce((n, e) => n + (e.quantities[block.section] ?? 0), 0)})
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {block.rows.map((e) => {
-                    const quantity = e.quantities[block.section] ?? 0
-                    const legal = LEGAL_BADGE[e.legal]
-                    const busy = setCard.isPending || allocate.isPending
-                    return (
-                      <tr key={`${block.key}-${e.card_id}`} className="hover:bg-base-200">
-                        <td className="w-28">
-                          <div className="join">
-                            <button className="btn btn-xs join-item" disabled={busy} onClick={() => put(e.card_id, block.section, quantity - 1)} aria-label={t('One less')}>
-                              −
-                            </button>
-                            <input
-                              key={quantity}
-                              className="input input-xs join-item w-10 text-center"
-                              defaultValue={quantity}
-                              inputMode="numeric"
-                              aria-label={t('Quantity')}
-                              onBlur={(ev) => {
-                                const next = Number(ev.target.value)
-                                if (Number.isInteger(next) && next >= 0 && next !== quantity) put(e.card_id, block.section, next)
-                              }}
-                              onKeyDown={(ev) => ev.key === 'Enter' && (ev.target as HTMLInputElement).blur()}
-                            />
-                            <button className="btn btn-xs join-item" disabled={busy} onClick={() => put(e.card_id, block.section, quantity + 1)} aria-label={t('One more')}>
-                              +
-                            </button>
+          {blocks.map((block) => {
+            const count = block.rows.reduce((n, e) => n + (e.quantities[block.section] ?? 0), 0)
+            if (view.id === 'images')
+              return (
+                <section key={block.key} className="flex flex-col gap-2">
+                  <h2 className="font-semibold">
+                    {block.title} ({count})
+                  </h2>
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 2xl:grid-cols-5">
+                    {block.rows.map((e) => {
+                      const status = STATUS[e.status]
+                      return (
+                        <div key={`${block.key}-${e.card_id}`} className="flex flex-col gap-1">
+                          <Link to={`/cards/${e.card_id}`} className="group relative">
+                            <CardImage thumb src={e.image} alt={e.name} game={deck.game_id} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
+                            <span className="badge badge-neutral absolute bottom-[3%] left-[3%] font-semibold shadow">×{e.quantities[block.section] ?? 0}</span>
+                            <span className={`badge badge-sm absolute right-[3%] top-[3%] shadow ${status.badge}`}>
+                              {t(status.label)}
+                              {e.status === 'missing' && ` ${e.missing}`}
+                            </span>
+                          </Link>
+                          <Link to={`/cards/${e.card_id}`} className="link-hover break-words text-sm font-medium">
+                            <ShownName name={e.name} translation={e.translation} />
+                          </Link>
+                          <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/60">
+                            <span className="tooltip" data-tip={t('{{n}} allocated to other decks', { n: e.allocated_elsewhere })}>
+                              <span className={`badge badge-sm ${e.allocated >= e.requested ? 'badge-success' : 'badge-ghost'}`}>
+                                {t('Here')} {e.allocated} / {e.requested}
+                              </span>
+                            </span>
+                            <Legality entry={e} />
                           </div>
-                        </td>
+                          <div className="flex flex-wrap items-center justify-between gap-1">
+                            {stepper(e, block.section)}
+                            {actions(e, block)}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </section>
+              )
+            return (
+              <div key={block.key} className="overflow-x-auto rounded-box border border-base-300">
+                <table className="table table-sm">
+                  <thead>
+                    <tr>
+                      <th colSpan={4}>
+                        {block.title} ({count})
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {block.rows.map((e) => (
+                      <tr key={`${block.key}-${e.card_id}`} className="hover:bg-base-200">
+                        <td className="w-28">{stepper(e, block.section)}</td>
                         <td>
                           <div className="flex items-center gap-2">
                             <Link to={`/cards/${e.card_id}`} className="block w-8 shrink-0" tabIndex={-1} aria-hidden>
-                              <CardImage thumb src={e.image} alt={e.name} />
+                              <CardImage thumb src={e.image} alt={e.name} game={deck.game_id} />
                             </Link>
                             <div className="min-w-0">
                               <Link to={`/cards/${e.card_id}`} className="link-hover font-medium">
@@ -460,12 +568,7 @@ export default function DeckDetail() {
                               </Link>
                               <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/60">
                                 {e.mana_cost && <span className="font-mono">{e.mana_cost}</span>}
-                                {legal && <span className="badge badge-xs badge-error">{t(legal)}</span>}
-                                {e.legal === 'unknown' && (
-                                  <span className="badge badge-xs badge-ghost" title={t('Legality not known yet')}>
-                                    ?
-                                  </span>
-                                )}
+                                <Legality entry={e} />
                               </div>
                             </div>
                           </div>
@@ -473,54 +576,21 @@ export default function DeckDetail() {
                         <td>
                           <Stock entry={e} />
                         </td>
-                        <td className="w-1 whitespace-nowrap text-right">
-                          <div className="flex justify-end gap-1">
-                            <button
-                              className="btn btn-primary btn-xs"
-                              disabled={busy || e.available === 0 || e.allocated >= e.requested}
-                              // Several printings / finishes / conditions / languages free: the user picks one.
-                              onClick={() => (e.free_items > 1 ? setCopies(e) : allocate.mutate({ path: 'allocate', cardId: e.card_id }))}
-                              title={e.free_items > 1 ? t('Choose which owned copy to set aside for this deck') : t('Set one owned copy aside for this deck')}
-                            >
-                              {t('Allocate')}
-                              {e.free_items > 1 && '…'}
-                            </button>
-                            <button
-                              className="btn btn-ghost btn-xs"
-                              disabled={busy || e.allocated === 0}
-                              onClick={() => allocate.mutate({ path: 'release', cardId: e.card_id })}
-                              title={t('Give one allocated copy back')}
-                            >
-                              {t('Release')}
-                            </button>
-                            <RowMenu
-                              id={`${block.key}-${e.card_id}`}
-                              actions={[
-                                { label: t('Choose copies…'), run: () => setCopies(e) },
-                                ...(commanderFormat && block.section !== 'commander'
-                                  ? [{ label: oathbreaker ? t('Move to oathbreaker / signature spell') : t('Make commander'), run: () => move(e, block.section, 'commander', 1) }]
-                                  : []),
-                                ...(block.section !== 'sideboard' ? [{ label: t('Move to sideboard'), run: () => move(e, block.section, 'sideboard', quantity) }] : []),
-                                ...(block.section !== 'main' ? [{ label: t('Move to main deck'), run: () => move(e, block.section, 'main', quantity) }] : []),
-                                { label: t('Remove'), run: () => put(e.card_id, block.section, 0), danger: true },
-                              ]}
-                            />
-                          </div>
-                        </td>
+                        <td className="w-1 whitespace-nowrap text-right">{actions(e, block)}</td>
                       </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ))}
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          })}
         </div>
         <div>
           <Validation validation={validation} />
         </div>
       </div>
 
-      <ImportDialog deckId={deckId} open={importing} onClose={() => setImporting(false)} />
+      <ImportDialog deckId={deckId} gameId={deck.game_id} open={importing} onClose={() => setImporting(false)} />
       <CopiesDialog deckId={deckId} entry={copies} onClose={() => setCopies(null)} />
 
       <dialog className={`modal ${deleting ? 'modal-open' : ''}`} onClose={() => setDeleting(false)}>

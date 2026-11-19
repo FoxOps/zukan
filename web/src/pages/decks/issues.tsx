@@ -52,10 +52,33 @@ function useIssueText() {
       case 'color_identity':
         return t("{{name}} is outside the commander's color identity ({{colors}})", { name: p.name, colors: p.colors })
       case 'legality_unknown':
-        return t('Legality of {{n}} cards is not known yet (it comes with the next Magic catalog sync): {{names}}', {
+        return t('Legality of {{n}} cards is not known yet (it comes with the next catalog sync; Asian and Chinese Pokémon cards have none): {{names}}', {
           n,
           names: ((p.names as string[]) ?? []).slice(0, 10).join(', '),
         })
+      // Pokémon.
+      case 'deck_size':
+        return t('The deck has {{n}} cards, it needs exactly {{size}}', { n, size: p.size })
+      case 'section_unused':
+        return t('This format has no sideboard nor commander: {{n}} cards not counted', { n })
+      case 'no_basic':
+        return t('The deck needs at least one Basic Pokémon')
+      case 'basic_unknown':
+        return t('The stage of some Pokémon is not known')
+      case 'ace_spec_max':
+        return t('{{n}} ACE SPEC cards, at most 1 allowed', { n })
+      case 'ace_spec_banned':
+        return t('{{name}}: ACE SPEC cards are banned in this format', { name: p.name })
+      case 'radiant_max':
+        return t('{{n}} Radiant Pokémon, at most 1 allowed', { n })
+      case 'rule_box':
+        return t('{{name}}: Rule Box Pokémon are banned in this format', { name: p.name })
+      case 'single_type':
+        return t("{{name}} is not of the deck's type ({{type}})", { name: p.name, type: p.type })
+      case 'glc_bans':
+        return t('Not checked: the Gym Leader Challenge ban list')
+      case 'special_rules':
+        return t('Not checked: cards with special deck rules')
       case 'color_identity_unchecked':
         return t('Color identity is checked once a commander is set')
       case 'pair_by_text':

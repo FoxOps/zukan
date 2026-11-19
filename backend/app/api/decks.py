@@ -1,6 +1,6 @@
 """Decks module (`app.modules`): decklists checked against their format's rules
 (`services.deck_rules`), plain-text import (`services.deck_import`), and owned copies
-allocated to decks (`services.decks`). Magic: The Gathering only so far.
+allocated to decks (`services.decks`). Magic: The Gathering and the Pokémon TCG.
 
 Editing a decklist or importing one never changes the collection or its availability:
 only allocating does, and allocating never changes owned quantities."""
@@ -9,17 +9,18 @@ from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
-from app.api.catalog import load_names, show_card
+from app.api.catalog import load_names, show_card, show_printing
+from app.api.collection import copy_image
 from app.api.deps import SessionDep
-from app.models import Card, Deck, DeckCard, Printing, User
+from app.models import Card, CollectionItem, Deck, DeckAllocation, DeckCard, Printing, User
 from app.modules import require_module
 from app.services import deck_import, deck_rules, decks
-from app.services.deck_rules import FORMATS, GAMES, Leader, Section
+from app.services.deck_rules import FORMATS, GAMES, Leader, Rules, Section
 
 router = APIRouter(prefix="/decks", tags=["decks"])
 
@@ -27,7 +28,7 @@ DecksUser = require_module("decks")
 
 # Every key of `deck_rules.FORMATS` (a Literal so the OpenAPI schema lists them).
 FormatId = Literal[tuple(FORMATS)]  # type: ignore[valid-type]
-GameId = Literal["mtg"]
+GameId = Literal[tuple(GAMES)]  # type: ignore[valid-type]
 MAX_COPIES = 250
 
 
@@ -41,6 +42,8 @@ class DeckFormatOut(BaseModel):
     commander: bool
     # Who may lead (`deck_rules.Leader`), None without a commander section.
     leader: Leader | None
+    # Rule set: "mtg" (Magic) or "pokemon".
+    rules: Rules
 
 
 class DeckGameOut(BaseModel):
@@ -82,6 +85,12 @@ class DeckIn(BaseModel):
     game_id: GameId = "mtg"
     format: FormatId
 
+    @model_validator(mode="after")
+    def _format_of_game(self) -> "DeckIn":
+        if self.format not in GAMES[self.game_id]:
+            raise ValueError(f"Format '{self.format}' is not a format of {self.game_id}")
+        return self
+
 
 class DeckUpdateIn(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
@@ -92,11 +101,12 @@ class DeckEntryOut(BaseModel):
     card_id: int
     name: str
     translation: str | None = None
+    # The allocated copy's picture (the one most copies come from), else the card's.
     image: str | None
     colors: list[str]
     mana_cost: str | None
     type_line: str | None
-    # Card type group shown in the list (Creature, Land...).
+    # Card type group shown in the list (Creature, Land... / Pokémon, Supporter...).
     group: str
     # Copies asked for per section.
     quantities: dict[str, int]
@@ -116,6 +126,8 @@ class DeckEntryOut(BaseModel):
 
 class DeckDetailOut(BaseModel):
     deck: DeckOut
+    # Card type groups of the game, in the order shown.
+    groups: list[str]
     entries: list[DeckEntryOut]
     validation: DeckValidationOut
 
@@ -139,6 +151,7 @@ class DeckItemOut(BaseModel):
 
     id: int
     printing_id: int
+    image: str | None
     set_code: str
     set_name: str
     collector_number: str | None
@@ -192,7 +205,7 @@ class DeckImportIn(BaseModel):
     replace: bool = False
 
 
-# Order of card type groups in the list; the first type a card has wins.
+# Order of card type groups in the list; Magic: the first type a card has wins.
 GROUPS = (
     "Creature",
     "Planeswalker",
@@ -205,7 +218,29 @@ GROUPS = (
 )
 
 
+POKEMON_GROUPS = ("Pokémon", "Supporter", "Item", "Pokémon Tool", "Stadium", "Trainer", "Energy")
+# TCGdex trainer types; Technical Machines are Pokémon Tools.
+_TRAINER_GROUPS = {
+    "Supporter": "Supporter",
+    "Item": "Item",
+    "Tool": "Pokémon Tool",
+    "Technical Machine": "Pokémon Tool",
+    "Stadium": "Stadium",
+}
+
+
+def _groups(game_id: str) -> tuple[str, ...]:
+    return (*(GROUPS if game_id == "mtg" else POKEMON_GROUPS), "Other")
+
+
 def _group(card: Card) -> str:
+    if card.game_id != "mtg":
+        category = card.attributes.get("category")
+        if category in ("Pokemon", "Pokémon"):
+            return "Pokémon"
+        if category == "Trainer":
+            return _TRAINER_GROUPS.get(card.attributes.get("trainerType") or "", "Trainer")
+        return "Energy" if category == "Energy" else "Other"
     types = card.attributes.get("types") or []
     # Artifact creatures are creatures, artifact lands are lands.
     if "Land" in types and "Creature" not in types:
@@ -219,20 +254,74 @@ def _candidate(card: Card) -> DeckCandidateOut:
     )
 
 
-def _legal(card: Card, format_id: str) -> str:
-    legalities = card.attributes.get("legalities")
-    if legalities is None:
-        return "unknown"
-    return legalities.get(format_id, "not_legal")
+async def _rule_printings(
+    session: SessionDep, decks_: list[Deck]
+) -> dict[int, list[deck_rules.RulePrinting]]:
+    """Rarity and legality of the printings of Pokémon decks' cards (Magic needs none)."""
+    card_ids = {e.card_id for d in decks_ if d.game_id != "mtg" for e in d.cards}
+    found: dict[int, list[deck_rules.RulePrinting]] = {}
+    if card_ids:
+        rows = await session.execute(
+            select(Printing.card_id, Printing.rarity, Printing.attributes["legal"]).where(
+                Printing.card_id.in_(card_ids)
+            )
+        )
+        for card_id, rarity, legal in rows:
+            found.setdefault(card_id, []).append(deck_rules.RulePrinting(rarity, legal))
+    return found
 
 
-def _rule_entries(deck: Deck) -> list[deck_rules.Entry]:
+def _rule_entries(
+    deck: Deck, printings: dict[int, list[deck_rules.RulePrinting]]
+) -> list[deck_rules.Entry]:
     return [
         deck_rules.Entry(
-            deck_rules.RuleCard(e.card_id, e.card.name, e.card.attributes), e.section, e.quantity
+            deck_rules.RuleCard(
+                e.card_id,
+                e.card.name,
+                e.card.attributes,
+                e.card.colors,
+                printings.get(e.card_id, []),
+            ),
+            e.section,
+            e.quantity,
         )
         for e in deck.cards
     ]
+
+
+async def _check(
+    session: SessionDep, deck: Deck
+) -> tuple[deck_rules.Report, list[deck_rules.Entry]]:
+    entries = _rule_entries(deck, await _rule_printings(session, [deck]))
+    return deck_rules.check(deck.format, entries), entries
+
+
+def _item_image(printing: Printing, language: str, ui_lang: str) -> str | None:
+    """Picture of a collection copy (set loaded), as the collection shows it."""
+    _, picked = show_printing(printing, {}, {}, ui_lang)
+    return copy_image(printing, language, picked)
+
+
+async def _allocated_images(session: SessionDep, deck: Deck, ui_lang: str) -> dict[int, str]:
+    """Per card, the picture of the copy most of its allocated copies come from."""
+    allocations = await session.scalars(
+        select(DeckAllocation)
+        .where(DeckAllocation.deck_id == deck.id, DeckAllocation.quantity > 0)
+        .order_by(DeckAllocation.quantity.desc(), DeckAllocation.id)
+        .options(
+            selectinload(DeckAllocation.item)
+            .selectinload(CollectionItem.printing)
+            .selectinload(Printing.set)
+        )
+    )
+    shown: dict[int, str] = {}
+    for allocation in allocations:
+        item = allocation.item
+        card_id = item.printing.card_id
+        if card_id not in shown and (image := _item_image(item.printing, item.language, ui_lang)):
+            shown[card_id] = image
+    return shown
 
 
 def _deck_out(deck: Deck, report: deck_rules.Report) -> DeckOut:
@@ -278,7 +367,9 @@ async def _own(session: SessionDep, user: User, deck_id: int, lock: bool = False
 
 async def _detail(session: SessionDep, user: User, deck_id: int) -> DeckDetailOut:
     deck = await _own(session, user, deck_id)
-    report = deck_rules.check(deck.format, _rule_entries(deck))
+    report, rule_entries = await _check(session, deck)
+    rule_cards = {e.card.card_id: e.card for e in rule_entries}
+    fmt = FORMATS.get(deck.format)
     card_ids = {e.card_id for e in deck.cards}
     cards = {
         c.id: c
@@ -290,6 +381,7 @@ async def _detail(session: SessionDep, user: User, deck_id: int) -> DeckDetailOu
     }
     stock = await decks.stock(session, deck, card_ids)
     card_names, printing_names = await load_names(session, card_ids)
+    allocated_images = await _allocated_images(session, deck, user.language)
     entries = []
     for card_id in card_ids:
         card = cards[card_id]
@@ -301,7 +393,7 @@ async def _detail(session: SessionDep, user: User, deck_id: int) -> DeckDetailOu
                 card_id=card_id,
                 name=shown.name.name,
                 translation=shown.name.translation,
-                image=shown.image,
+                image=allocated_images.get(card_id, shown.image),
                 colors=card.colors,
                 mana_cost=card.attributes.get("mana_cost")
                 or " // ".join(
@@ -319,13 +411,14 @@ async def _detail(session: SessionDep, user: User, deck_id: int) -> DeckDetailOu
                 free_items=counts.free_items,
                 missing=counts.missing,
                 status=counts.status,
-                legal=_legal(card, deck.format),
+                legal=deck_rules.legality(rule_cards[card_id], fmt) if fmt else "unknown",
             )
         )
-    order = (*GROUPS, "Other")
+    order = _groups(deck.game_id)
     entries.sort(key=lambda e: (order.index(e.group), e.name.casefold()))
     return DeckDetailOut(
         deck=_deck_out(deck, report),
+        groups=list(order),
         entries=entries,
         validation=DeckValidationOut(
             valid=report.valid,
@@ -360,7 +453,9 @@ async def list_decks(user: DecksUser, session: SessionDep) -> list[DeckOut]:
         .order_by(Deck.updated_at.desc(), Deck.id.desc())
         .options(selectinload(Deck.cards).selectinload(DeckCard.card))
     )
-    return [_deck_out(d, deck_rules.check(d.format, _rule_entries(d))) for d in found]
+    found = list(found)
+    printings = await _rule_printings(session, found)
+    return [_deck_out(d, deck_rules.check(d.format, _rule_entries(d, printings))) for d in found]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -387,6 +482,10 @@ async def update_deck(
     if body.name is not None:
         deck.name = body.name.strip()
     if body.format is not None:
+        if body.format not in GAMES.get(deck.game_id, ()):
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, "Not a format of the deck's game"
+            )
         deck.format = body.format
     await session.commit()
     return await _detail(session, user, deck_id)
@@ -495,6 +594,7 @@ async def card_items(
         DeckItemOut(
             id=s.item.id,
             printing_id=s.item.printing_id,
+            image=_item_image(printings[s.item.printing_id], s.item.language, user.language),
             set_code=printings[s.item.printing_id].set.code,
             set_name=printings[s.item.printing_id].set.name,
             collector_number=printings[s.item.printing_id].collector_number,
@@ -518,7 +618,7 @@ async def import_preview(
     """Read a plain-text decklist ("4 Lightning Bolt", "Commander" / "Sideboard"
     headers): the card each line names, the cards an ambiguous name could be, close
     names for unknown ones. Nothing is saved."""
-    parsed = deck_import.parse(body.text)
+    parsed = deck_import.parse(body.text, body.game_id)
     matches = await deck_import.resolve(session, body.game_id, [line.name for line in parsed.lines])
     lines = []
     for line in parsed.lines:
