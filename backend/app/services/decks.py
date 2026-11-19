@@ -31,6 +31,9 @@ class CardStock:
     # Allocated to this deck, and to all the user's decks (this one included).
     allocated: int = 0
     allocated_all: int = 0
+    # Collection items (printing, finish, condition, language) with free copies: the
+    # user chooses one when there are several.
+    free_items: int = 0
 
     @property
     def available(self) -> int:
@@ -90,8 +93,10 @@ async def stock(session: AsyncSession, deck: Deck, card_ids: Iterable[int]) -> d
         .where(CollectionItem.user_id == deck.user_id, Printing.card_id.in_(card_ids))
     )
     card_of: dict[int, int] = {}
+    free: dict[int, int] = {}
     for item_id, card_id, quantity in owned:
         card_of[item_id] = card_id
+        free[item_id] = quantity
         result[card_id].owned += quantity
     allocations = await session.execute(
         select(DeckAllocation.item_id, DeckAllocation.deck_id, DeckAllocation.quantity).where(
@@ -101,8 +106,12 @@ async def stock(session: AsyncSession, deck: Deck, card_ids: Iterable[int]) -> d
     for item_id, deck_id, quantity in allocations:
         card = result[card_of[item_id]]
         card.allocated_all += quantity
+        free[item_id] -= quantity
         if deck_id == deck.id:
             card.allocated += quantity
+    for item_id, left in free.items():
+        if left > 0:
+            result[card_of[item_id]].free_items += 1
     return result
 
 

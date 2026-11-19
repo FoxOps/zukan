@@ -596,7 +596,6 @@
   "The deck has {{n}} cards (commanders included), it needs exactly {{size}}": "El mazo tiene {{n}} carta(s) (comandantes incluidos), necesita exactamente {{size}}",
   "The main deck has {{n}} cards, it needs at least {{size}}": "El mazo principal tiene {{n}} carta(s), necesita al menos {{size}}",
   "The sideboard has {{n}} cards, at most {{size}} allowed": "El banquillo tiene {{n}} carta(s), se permiten {{size}} como máximo",
-  "Commander has no sideboard: {{n}} cards not counted": "Commander no tiene banquillo: {{n}} carta(s) sin contar",
   "This format has no commander: those cards count as main deck": "Este formato no tiene comandante: esas cartas cuentan en el mazo principal",
   "{{name}}: {{n}} copies, at most {{limit}} allowed": "{{name}}: {{n}} copias, se permiten {{limit}} como máximo",
   "{{name}} is banned in this format": "{{name}} está prohibida en este formato",
@@ -640,5 +639,18 @@
   "Delete this group?": "¿Eliminar este grupo?",
   "Group {{name}} created": "Grupo {{name}} creado",
   "New group": "Nuevo grupo",
-  "Identity provider groups (optional, comma-separated)": "Grupos del proveedor de identidad (opcional, separados por comas)"
+  "Identity provider groups (optional, comma-separated)": "Grupos del proveedor de identidad (opcional, separados por comas)",
+  "Allocated to the deck {{name}}": "Reservada para el mazo {{name}}",
+  "{{n}} in {{name}}": "{{n}} en {{name}}",
+  "{{n}} free": "{{n}} libre(s)",
+  "Oathbreaker and signature spell": "Oathbreaker y hechizo distintivo",
+  "Choose which owned copy to set aside for this deck": "Elegir qué copia propia reservar para este mazo",
+  "Move to oathbreaker / signature spell": "Mover a oathbreaker / hechizo distintivo",
+  "This format has no sideboard: {{n}} cards not counted": "Este formato no tiene banquillo: {{n}} carta(s) sin contar",
+  "{{name}} cannot be a commander (not a creature)": "{{name}} no puede ser comandante (no es una criatura)",
+  "Choose an oathbreaker (a planeswalker)": "Elige un oathbreaker (un planeswalker)",
+  "{{n}} oathbreakers: one, or two with partner": "{{n}} oathbreakers: uno, o dos con compañero",
+  "{{n}} signature spells for {{size}} oathbreakers: one instant or sorcery each": "{{n}} hechizo(s) distintivo(s) para {{size}} oathbreaker(s): un instantáneo o conjuro cada uno",
+  "{{name}} is neither a planeswalker nor an instant or sorcery": "{{name}} no es ni un planeswalker ni un instantáneo o conjuro",
+  "Commanders printed at uncommon are not checked": "No se comprueba si los comandantes se imprimieron como infrecuentes"
 }

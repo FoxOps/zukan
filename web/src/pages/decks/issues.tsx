@@ -18,7 +18,7 @@ function useIssueText() {
       case 'sideboard_max':
         return t('The sideboard has {{n}} cards, at most {{size}} allowed', { n, size: p.size })
       case 'sideboard_ignored':
-        return t('Commander has no sideboard: {{n}} cards not counted', { n })
+        return t('This format has no sideboard: {{n}} cards not counted', { n })
       case 'commander_unused':
         return t('This format has no commander: those cards count as main deck')
       case 'copy_limit':
@@ -37,6 +37,18 @@ function useIssueText() {
         return t('These two commanders cannot lead a deck together')
       case 'invalid_commander':
         return t('{{name}} cannot be a commander (not a legendary creature)', { name: p.name })
+      case 'invalid_commander_creature':
+        return t('{{name}} cannot be a commander (not a creature)', { name: p.name })
+      case 'no_oathbreaker':
+        return t('Choose an oathbreaker (a planeswalker)')
+      case 'too_many_oathbreakers':
+        return t('{{n}} oathbreakers: one, or two with partner', { n })
+      case 'signature_spells':
+        return t('{{n}} signature spells for {{size}} oathbreakers: one instant or sorcery each', { n, size: p.size })
+      case 'invalid_oathbreaker':
+        return t('{{name}} is neither a planeswalker nor an instant or sorcery', { name: p.name })
+      case 'commander_rarity':
+        return t('Commanders printed at uncommon are not checked')
       case 'color_identity':
         return t("{{name}} is outside the commander's color identity ({{colors}})", { name: p.name, colors: p.colors })
       case 'legality_unknown':

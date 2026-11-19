@@ -1729,6 +1729,8 @@ export interface components {
             available: number;
             /** Allocated Elsewhere */
             allocated_elsewhere: number;
+            /** Free Items */
+            free_items: number;
             /** Missing */
             missing: number;
             /**
@@ -1758,6 +1760,8 @@ export interface components {
             copies: number;
             /** Commander */
             commander: boolean;
+            /** Leader */
+            leader: ("commander" | "pauper" | "oathbreaker") | null;
         };
         /** DeckGameOut */
         DeckGameOut: {
@@ -1848,7 +1852,7 @@ export interface components {
              * Format
              * @enum {string}
              */
-            format: "standard" | "commander";
+            format: "commander" | "standard" | "pioneer" | "modern" | "legacy" | "vintage" | "pauper" | "premodern" | "oldschool" | "penny" | "duel" | "predh" | "paupercommander" | "oathbreaker";
         };
         /** DeckIssueOut */
         DeckIssueOut: {
@@ -1930,7 +1934,7 @@ export interface components {
             /** Name */
             name?: string | null;
             /** Format */
-            format?: ("standard" | "commander") | null;
+            format?: ("commander" | "standard" | "pioneer" | "modern" | "legacy" | "vintage" | "pauper" | "premodern" | "oldschool" | "penny" | "duel" | "predh" | "paupercommander" | "oathbreaker") | null;
         };
         /** DeckValidationOut */
         DeckValidationOut: {
@@ -2578,6 +2582,15 @@ export interface components {
             /** Quotas */
             quotas: components["schemas"]["QuotaOut"][];
         };
+        /** OwnedDeckOut */
+        OwnedDeckOut: {
+            /** Deck Id */
+            deck_id: number;
+            /** Name */
+            name: string;
+            /** Quantity */
+            quantity: number;
+        };
         /** OwnedOut */
         OwnedOut: {
             /** Item Id */
@@ -2590,6 +2603,11 @@ export interface components {
             language: string;
             /** Quantity */
             quantity: number;
+            /**
+             * Decks
+             * @default []
+             */
+            decks: components["schemas"]["OwnedDeckOut"][];
         };
         /** PasswordChangeIn */
         PasswordChangeIn: {

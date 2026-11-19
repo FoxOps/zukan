@@ -19,13 +19,14 @@ from app.api.deps import SessionDep
 from app.models import Card, Deck, DeckCard, Printing, User
 from app.modules import require_module
 from app.services import deck_import, deck_rules, decks
-from app.services.deck_rules import FORMATS, GAMES, Section
+from app.services.deck_rules import FORMATS, GAMES, Leader, Section
 
 router = APIRouter(prefix="/decks", tags=["decks"])
 
 DecksUser = require_module("decks")
 
-FormatId = Literal["standard", "commander"]
+# Every key of `deck_rules.FORMATS` (a Literal so the OpenAPI schema lists them).
+FormatId = Literal[tuple(FORMATS)]  # type: ignore[valid-type]
 GameId = Literal["mtg"]
 MAX_COPIES = 250
 
@@ -38,6 +39,8 @@ class DeckFormatOut(BaseModel):
     sideboard_max: int | None
     copies: int
     commander: bool
+    # Who may lead (`deck_rules.Leader`), None without a commander section.
+    leader: Leader | None
 
 
 class DeckGameOut(BaseModel):
@@ -104,6 +107,8 @@ class DeckEntryOut(BaseModel):
     allocated: int
     available: int
     allocated_elsewhere: int
+    # Collection items with free copies (several: the user picks which to allocate).
+    free_items: int
     missing: int
     status: Literal["missing", "owned", "allocated"]
     legal: Literal["legal", "banned", "not_legal", "restricted", "unknown"]
@@ -311,6 +316,7 @@ async def _detail(session: SessionDep, user: User, deck_id: int) -> DeckDetailOu
                 allocated=counts.allocated,
                 available=counts.available,
                 allocated_elsewhere=counts.allocated_all - counts.allocated,
+                free_items=counts.free_items,
                 missing=counts.missing,
                 status=counts.status,
                 legal=_legal(card, deck.format),

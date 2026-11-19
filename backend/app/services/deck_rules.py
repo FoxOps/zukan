@@ -14,8 +14,15 @@ SECTIONS: tuple[Section, ...] = ("commander", "main", "sideboard")
 Level = Literal["error", "warning", "info"]
 
 
+# Who leads a deck with a commander section: "commander" legendary creatures (or "can be
+# your commander"), "pauper" any creature (Pauper Commander: printed uncommon, not
+# checked), "oathbreaker" a planeswalker with one instant or sorcery as signature spell.
+Leader = Literal["commander", "pauper", "oathbreaker"]
+
+
 @dataclass(frozen=True)
 class Format:
+    # Scryfall's legality key.
     id: str
     name: str
     # Cards in the deck (main deck, with the commanders): exact or minimum size.
@@ -24,11 +31,38 @@ class Format:
     sideboard_max: int | None
     copies: int
     commander: bool
+    leader: Leader | None = None
 
 
+def _constructed(id: str, name: str) -> Format:
+    return Format(id, name, 60, False, 15, 4, False)
+
+
+def _led(id: str, name: str, size: int, leader: Leader = "commander") -> Format:
+    return Format(id, name, size, True, None, 1, True, leader)
+
+
+# Formats played outside MTG Arena that Scryfall gives legalities for, in the order
+# shown. Arena-only formats (Historic, Timeless, Alchemy, Gladiator, the Brawls), the
+# "future" Standard preview and the unknown "tlr" are left out.
 FORMATS = {
-    "standard": Format("standard", "Standard", 60, False, 15, 4, False),
-    "commander": Format("commander", "Commander", 100, True, None, 1, True),
+    f.id: f
+    for f in (
+        _led("commander", "Commander", 100),
+        _constructed("standard", "Standard"),
+        _constructed("pioneer", "Pioneer"),
+        _constructed("modern", "Modern"),
+        _constructed("legacy", "Legacy"),
+        _constructed("vintage", "Vintage"),
+        _constructed("pauper", "Pauper"),
+        _constructed("premodern", "Premodern"),
+        _constructed("oldschool", "Old School"),
+        _constructed("penny", "Penny Dreadful"),
+        _led("duel", "Duel Commander", 100),
+        _led("predh", "PreDH", 100),
+        _led("paupercommander", "Pauper Commander", 100, "pauper"),
+        _led("oathbreaker", "Oathbreaker", 60, "oathbreaker"),
+    )
 }
 GAMES = {"mtg": tuple(FORMATS)}
 
@@ -115,10 +149,12 @@ def copy_limit(card: RuleCard, fmt: Format) -> int | None:
     return fmt.copies
 
 
-def _can_lead(card: RuleCard) -> bool:
-    return ("Legendary" in card.types and "Creature" in card.types) or (
-        "can be your commander" in card.text.lower()
-    )
+def _can_lead(card: RuleCard, leader: Leader = "commander") -> bool:
+    if "can be your commander" in card.text.lower():
+        return True
+    if leader == "pauper":
+        return "Creature" in card.types
+    return "Legendary" in card.types and "Creature" in card.types
 
 
 def _partner_kind(text: str) -> str | None:
@@ -194,7 +230,7 @@ def check(format_id: str, entries: list[Entry]) -> Report:
         report.add(
             "info",
             "sideboard_ignored",
-            f"Commander has no sideboard: {_plural(side_size, 'card')} not counted",
+            f"{fmt.name} has no sideboard: {_plural(side_size, 'card')} not counted",
             count=side_size,
         )
     if not fmt.commander and commanders:
@@ -225,9 +261,16 @@ def check(format_id: str, entries: list[Entry]) -> Report:
                 limit=limit,
             )
 
-    # Legality.
+    # Legality. Pauper Commander's commanders are uncommons, not legal in the deck itself
+    # (their rarity is not in the card data: not checked).
+    leading: set[int] = set()
+    if fmt.leader == "pauper":
+        leading = {e.card.card_id for e in commanders}
+        report.note("commander_rarity", "Commanders printed at uncommon are not checked")
     unknown = []
     for card in cards.values():
+        if card.card_id in leading:
+            continue
         legalities = card.attributes.get("legalities")
         if legalities is None:
             unknown.append(card.name)
@@ -250,8 +293,10 @@ def check(format_id: str, entries: list[Entry]) -> Report:
             names=sorted(unknown),
         )
 
-    if fmt.commander:
-        _check_commanders(report, commanders, by_section["main"])
+    if fmt.leader == "oathbreaker":
+        _check_oathbreaker(report, commanders, by_section["main"])
+    elif fmt.leader is not None:
+        _check_commanders(report, fmt.leader, commanders, by_section["main"])
     report.note(
         "not_modelled",
         "Not checked: companion deck conditions, cards with other special deck rules",
@@ -259,14 +304,21 @@ def check(format_id: str, entries: list[Entry]) -> Report:
     return report
 
 
-def _check_commanders(report: Report, commanders: list[Entry], main: list[Entry]) -> None:
+def _check_commanders(
+    report: Report, leader: Leader, commanders: list[Entry], main: list[Entry]
+) -> None:
     leaders = [e.card for e in commanders for _ in range(e.quantity)]
     if not leaders:
         report.add("error", "no_commander", "Choose a commander")
         report.note("color_identity_unchecked", "Color identity is checked once a commander is set")
         return
     if len(leaders) > 2:
-        report.add("error", "too_many_commanders", f"{len(leaders)} commanders, at most 2 allowed")
+        report.add(
+            "error",
+            "too_many_commanders",
+            f"{len(leaders)} commanders, at most 2 allowed",
+            count=len(leaders),
+        )
     elif len(leaders) == 2:
         first, second = leaders
         if first.card_id == second.card_id or not _pair_ok(first, second):
@@ -282,15 +334,67 @@ def _check_commanders(report: Report, commanders: list[Entry], main: list[Entry]
         )
     backgrounds_allowed = any("choose a background" in c.text.lower() for c in leaders)
     for card in leaders:
-        if _can_lead(card) or (backgrounds_allowed and "Background" in card.subtypes):
+        if _can_lead(card, leader) or (backgrounds_allowed and "Background" in card.subtypes):
             continue
+        if leader == "pauper":
+            report.add(
+                "error", "invalid_commander_creature", f"{card.name} is not a creature", card
+            )
+        else:
+            report.add(
+                "error",
+                "invalid_commander",
+                f"{card.name} cannot be a commander (not a legendary creature)",
+                card,
+            )
+    _check_identity(report, set().union(*(c.color_identity for c in leaders)), main)
+
+
+def _is_spell(card: RuleCard) -> bool:
+    return "Instant" in card.types or "Sorcery" in card.types
+
+
+def _check_oathbreaker(report: Report, commanders: list[Entry], main: list[Entry]) -> None:
+    """Oathbreaker: a planeswalker (two with partner) leads, each with one instant or
+    sorcery of its colors as signature spell, all in the commander section."""
+    cards = [e.card for e in commanders for _ in range(e.quantity)]
+    walkers = [c for c in cards if "Planeswalker" in c.types]
+    spells = [c for c in cards if "Planeswalker" not in c.types and _is_spell(c)]
+    for entry in commanders:
+        if "Planeswalker" not in entry.card.types and not _is_spell(entry.card):
+            report.add(
+                "error",
+                "invalid_oathbreaker",
+                f"{entry.card.name} is neither a planeswalker nor an instant or sorcery",
+                entry.card,
+            )
+    if not walkers:
+        report.add("error", "no_oathbreaker", "Choose an oathbreaker (a planeswalker)")
+        report.note("color_identity_unchecked", "Color identity is checked once a commander is set")
+        return
+    if len(walkers) > 2 or (
+        len(walkers) == 2 and (walkers[0].card_id == walkers[1].card_id or not _pair_ok(*walkers))
+    ):
         report.add(
             "error",
-            "invalid_commander",
-            f"{card.name} cannot be a commander (not a legendary creature)",
-            card,
+            "too_many_oathbreakers",
+            f"{len(walkers)} oathbreakers: one, or two with partner",
+            count=len(walkers),
         )
-    identity = set().union(*(c.color_identity for c in leaders))
+    if len(spells) != len(walkers):
+        report.add(
+            "error",
+            "signature_spells",
+            f"{_plural(len(spells), 'signature spell')} for "
+            f"{_plural(len(walkers), 'oathbreaker')}: one instant or sorcery each",
+            count=len(spells),
+            size=len(walkers),
+        )
+    identity = set().union(*(c.color_identity for c in walkers))
+    _check_identity(report, identity, [e for e in commanders if e.card in spells] + main)
+
+
+def _check_identity(report: Report, identity: set[str], main: list[Entry]) -> None:
     for entry in main:
         outside = entry.card.color_identity - identity
         if outside:

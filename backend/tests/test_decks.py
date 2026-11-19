@@ -163,9 +163,9 @@ async def test_module_and_deck_editing(client, session, catalog):
 
     formats = (await client.get("/api/decks/formats", headers=alice)).json()
     assert [(g["game_id"], [f["id"] for f in g["formats"]]) for g in formats] == [
-        ("mtg", ["standard", "commander"])
+        ("mtg", list(deck_rules.FORMATS))
     ]
-    bad = await client.post("/api/decks", json={"name": "X", "format": "modern"}, headers=alice)
+    bad = await client.post("/api/decks", json={"name": "X", "format": "historic"}, headers=alice)
     assert bad.status_code == 422
     other_game = await client.post(
         "/api/decks", json={"name": "X", "format": "standard", "game_id": "pokemon"}, headers=alice
@@ -286,6 +286,51 @@ def test_commander_rules():
     assert "commander_pair" not in codes(deck_rules.check("commander", partners))
     no_pair = [Entry(krenko, "commander", 1), *partners[1:]]
     assert "commander_pair" in codes(deck_rules.check("commander", no_pair))
+
+
+def card(card_id: int, name: str, types: list[str], identity: list[str], legal: dict, text=""):
+    attributes = {"types": types, "subtypes": [], "color_identity": identity}
+    attributes |= {"oracle_text": text, "legalities": legal}
+    return RuleCard(card_id, name, attributes)
+
+
+def test_other_formats():
+    # Every format is a Scryfall legality key; no Arena-only format.
+    assert {"modern", "vintage", "paupercommander", "oathbreaker"} <= set(deck_rules.FORMATS)
+    assert not {"historic", "alchemy", "brawl", "gladiator"} & set(deck_rules.FORMATS)
+
+    swamps = card(1, "Swamp", ["Basic", "Land"], [], {f: "legal" for f in deck_rules.FORMATS})
+    vintage = {"vintage": "restricted", "legacy": "banned"}
+    lotus = card(2, "Black Lotus", ["Artifact"], [], vintage)
+    report = deck_rules.check("vintage", [Entry(lotus, "main", 2), Entry(swamps, "main", 58)])
+    assert codes(report) == {"restricted"}
+    assert deck_rules.check("vintage", [Entry(lotus, "main", 1), Entry(swamps, "main", 59)]).valid
+    assert "banned" in codes(deck_rules.check("legacy", [Entry(lotus, "main", 1)]))
+
+    # Pauper Commander: any creature leads (an uncommon: not legal in the 99 itself).
+    rats = card(3, "Chittering Rats", ["Creature"], ["B"], {})
+    pdh = [Entry(rats, "commander", 1), Entry(swamps, "main", 99)]
+    report = deck_rules.check("paupercommander", pdh)
+    assert report.valid, report.issues
+    assert "commander_rarity" in {i.code for i in report.unverified}
+    sorin = card(4, "Sorin", ["Legendary", "Planeswalker"], ["B"], {})
+    report = deck_rules.check("paupercommander", [Entry(sorin, "commander", 1), *pdh[1:]])
+    assert "invalid_commander_creature" in codes(report)
+
+    # Oathbreaker: a planeswalker and its signature spell, 60 cards.
+    oath = {"oathbreaker": "legal"}
+    liliana = card(5, "Liliana", ["Legendary", "Planeswalker"], ["B"], oath)
+    edict = card(6, "Diabolic Edict", ["Instant"], ["B"], oath)
+    bolt = card(7, "Lightning Bolt", ["Instant"], ["R"], oath)
+    deck = [Entry(liliana, "commander", 1), Entry(edict, "commander", 1), Entry(swamps, "main", 58)]
+    report = deck_rules.check("oathbreaker", deck)
+    assert report.valid, report.issues
+    assert "signature_spells" in codes(deck_rules.check("oathbreaker", deck[::2]))
+    off_color = deck_rules.check("oathbreaker", [deck[0], Entry(bolt, "commander", 1), deck[2]])
+    assert "color_identity" in codes(off_color)
+    assert "no_oathbreaker" in codes(deck_rules.check("oathbreaker", deck[1:]))
+    rats_too = deck_rules.check("oathbreaker", [*deck, Entry(rats, "commander", 1)])
+    assert "invalid_oathbreaker" in codes(rats_too)
 
 
 def test_parse_decklist():
@@ -420,6 +465,8 @@ async def test_allocation_across_two_decks(client, session, alice, catalog):
         "available": 3,
     }
     assert entry(detail, bolt)["status"] == "owned"
+    # Two items (NM, LP) to choose from: the web asks which one.
+    assert entry(detail, bolt)["free_items"] == 2
 
     async def allocate(deck_id, count, item_id=None, path="allocate"):
         return await client.post(
@@ -440,8 +487,17 @@ async def test_allocation_across_two_decks(client, session, alice, catalog):
     refused = await allocate(izzet, 2)
     assert refused.status_code == 409
     assert "Only 1 owned copies are available" in refused.json()["detail"]
+    assert entry(other, bolt)["free_items"] == 1  # NM taken by Burn, LP left
     detail = (await allocate(izzet, 1, item_id=lp)).json()
     assert (entry(detail, bolt)["allocated"], entry(detail, bolt)["available"]) == (1, 0)
+    assert entry(detail, bolt)["free_items"] == 0
+    # The card page tells where each copy is.
+    card = (await client.get(f"/api/cards/{bolt}", headers=alice)).json()
+    assert {
+        o["condition"]: [(d["name"], d["quantity"]) for d in o["decks"]]
+        for p in card["printings"]
+        for o in p["owned"]
+    } == {"NM": [("Burn", 2)], "LP": [("Izzet", 1)]}
     assert (await allocate(burn, 1)).status_code == 409  # none left
     # Owned quantities never change.
     assert (await quantity(session, nm), await quantity(session, lp)) == (2, 1)

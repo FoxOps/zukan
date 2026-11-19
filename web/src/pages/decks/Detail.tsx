@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useNavigate, useParams } from 'react-router'
 import { api, call, type Schemas } from '../../api/client'
@@ -41,7 +41,7 @@ function useDeckMutation<T>(deckId: number, fn: (body: T) => Promise<Detail>) {
 }
 
 /** Search the Magic catalog and add a card to a section (one copy, or one more). */
-function AddCard({ deck, entries, onAdd, commander }: { deck: Schemas['DeckOut']; entries: Entry[]; onAdd: (cardId: number, section: Section, quantity: number) => void; commander: boolean }) {
+function AddCard({ deck, entries, onAdd, commander }: { deck: Schemas['DeckOut']; entries: Entry[]; onAdd: (cardId: number, section: Section, quantity: number) => void; commander: string | null }) {
   const { t } = useTranslation()
   const [text, setText] = useState('')
   const [q, setQ] = useState('')
@@ -126,7 +126,7 @@ function AddCard({ deck, entries, onAdd, commander }: { deck: Schemas['DeckOut']
         onChange={(v) => setSection(v as Section)}
         aria-label={t('Section')}
         options={[
-          ...(commander ? [{ value: 'commander', label: t('Commander') }] : []),
+          ...(commander ? [{ value: 'commander', label: commander }] : []),
           { value: 'main', label: t('Main deck') },
           { value: 'sideboard', label: t('Sideboard') },
         ]}
@@ -219,6 +219,38 @@ function CopiesDialog({ deckId, entry, onClose }: { deckId: number; entry: Entry
   )
 }
 
+/** A row's "⋯" menu, opened as a popover anchored to its button: in the top layer, so
+ * the scrolling table around it never clips it. */
+function RowMenu({ id, actions }: { id: string; actions: { label: string; run: () => void; danger?: boolean }[] }) {
+  const { t } = useTranslation()
+  const menu = useRef<HTMLUListElement>(null)
+  const popover = `deck-menu-${id}`
+  const anchor = `--deck-menu-${id}`
+  return (
+    <>
+      <button type="button" className="btn btn-ghost btn-xs" popoverTarget={popover} style={{ anchorName: anchor } as CSSProperties} aria-label={t('More')}>
+        ⋯
+      </button>
+      <ul ref={menu} popover="auto" id={popover} className="dropdown dropdown-end menu w-56 rounded-box bg-base-100 p-2 shadow" style={{ positionAnchor: anchor } as CSSProperties}>
+        {actions.map((a) => (
+          <li key={a.label}>
+            <button
+              type="button"
+              className={a.danger ? 'text-error' : undefined}
+              onClick={() => {
+                menu.current?.hidePopover()
+                a.run()
+              }}
+            >
+              {a.label}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
+  )
+}
+
 /** Requested / owned / available / allocated here, and the card's state. */
 function Stock({ entry }: { entry: Entry }) {
   const { t } = useTranslation()
@@ -291,6 +323,8 @@ export default function DeckDetail() {
   const { deck, entries, validation } = query.data
   const format = gameFormats.flatMap((g) => g.formats).find((f) => f.id === deck.format)
   const commanderFormat = !!format?.commander
+  const oathbreaker = format?.leader === 'oathbreaker'
+  const leaders = oathbreaker ? t('Oathbreaker and signature spell') : t('Commander')
   const put = (cardId: number, section: Section, quantity: number) => setCard.mutate({ card_id: cardId, section, quantity })
   // Copies moved between sections: added first, so the allocated copies stay (lowering
   // the deck's total first would release them).
@@ -302,7 +336,7 @@ export default function DeckDetail() {
   // Rows per section; main deck rows grouped by card type.
   const inSection = (section: Section) => entries.filter((e) => (e.quantities[section] ?? 0) > 0)
   const blocks: { key: string; title: string; section: Section; rows: Entry[] }[] = [
-    { key: 'commander', title: t('Commander'), section: 'commander' as Section, rows: inSection('commander') },
+    { key: 'commander', title: leaders, section: 'commander' as Section, rows: inSection('commander') },
     ...GROUPS.map((g) => ({ key: g, title: t(g), section: 'main' as Section, rows: inSection('main').filter((e) => e.group === g) })),
     { key: 'sideboard', title: t('Sideboard'), section: 'sideboard' as Section, rows: inSection('sideboard') },
   ].filter((b) => b.rows.length > 0)
@@ -367,7 +401,7 @@ export default function DeckDetail() {
         </div>
       </div>
 
-      <AddCard deck={deck} entries={entries} onAdd={put} commander={commanderFormat} />
+      <AddCard deck={deck} entries={entries} onAdd={put} commander={commanderFormat ? leaders : null} />
 
       <div className="grid gap-4 xl:grid-cols-[1fr_22rem]">
         <div className="flex flex-col gap-4">
@@ -444,10 +478,12 @@ export default function DeckDetail() {
                             <button
                               className="btn btn-primary btn-xs"
                               disabled={busy || e.available === 0 || e.allocated >= e.requested}
-                              onClick={() => allocate.mutate({ path: 'allocate', cardId: e.card_id })}
-                              title={t('Set one owned copy aside for this deck')}
+                              // Several printings / finishes / conditions / languages free: the user picks one.
+                              onClick={() => (e.free_items > 1 ? setCopies(e) : allocate.mutate({ path: 'allocate', cardId: e.card_id }))}
+                              title={e.free_items > 1 ? t('Choose which owned copy to set aside for this deck') : t('Set one owned copy aside for this deck')}
                             >
                               {t('Allocate')}
+                              {e.free_items > 1 && '…'}
                             </button>
                             <button
                               className="btn btn-ghost btn-xs"
@@ -457,48 +493,18 @@ export default function DeckDetail() {
                             >
                               {t('Release')}
                             </button>
-                            <div className="dropdown dropdown-end">
-                              <button tabIndex={0} className="btn btn-ghost btn-xs" aria-label={t('More')}>
-                                ⋯
-                              </button>
-                              <ul tabIndex={0} className="menu dropdown-content z-20 w-52 rounded-box bg-base-100 p-2 shadow">
-                                <li>
-                                  <button onClick={() => setCopies(e)}>{t('Choose copies…')}</button>
-                                </li>
-                                {commanderFormat && block.section !== 'commander' && (
-                                  <li>
-                                    <button
-                                      onClick={() => move(e, block.section, 'commander', 1)}
-                                    >
-                                      {t('Make commander')}
-                                    </button>
-                                  </li>
-                                )}
-                                {block.section !== 'sideboard' && (
-                                  <li>
-                                    <button
-                                      onClick={() => move(e, block.section, 'sideboard', quantity)}
-                                    >
-                                      {t('Move to sideboard')}
-                                    </button>
-                                  </li>
-                                )}
-                                {block.section !== 'main' && (
-                                  <li>
-                                    <button
-                                      onClick={() => move(e, block.section, 'main', quantity)}
-                                    >
-                                      {t('Move to main deck')}
-                                    </button>
-                                  </li>
-                                )}
-                                <li>
-                                  <button className="text-error" onClick={() => put(e.card_id, block.section, 0)}>
-                                    {t('Remove')}
-                                  </button>
-                                </li>
-                              </ul>
-                            </div>
+                            <RowMenu
+                              id={`${block.key}-${e.card_id}`}
+                              actions={[
+                                { label: t('Choose copies…'), run: () => setCopies(e) },
+                                ...(commanderFormat && block.section !== 'commander'
+                                  ? [{ label: oathbreaker ? t('Move to oathbreaker / signature spell') : t('Make commander'), run: () => move(e, block.section, 'commander', 1) }]
+                                  : []),
+                                ...(block.section !== 'sideboard' ? [{ label: t('Move to sideboard'), run: () => move(e, block.section, 'sideboard', quantity) }] : []),
+                                ...(block.section !== 'main' ? [{ label: t('Move to main deck'), run: () => move(e, block.section, 'main', quantity) }] : []),
+                                { label: t('Remove'), run: () => put(e.card_id, block.section, 0), danger: true },
+                              ]}
+                            />
                           </div>
                         </td>
                       </tr>

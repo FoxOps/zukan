@@ -154,7 +154,7 @@ cannot be renamed/deleted, an admin cannot remove themself. With several provide
   preselected); unticking asks, then removes one copy (undo toast). Followed sets are never deleted with the
   catalog: reset and empty set pruning skip them, FK `RESTRICT`; the sync fills them again (same source id).
 - Decks (experimental, branch `experiment-decks`, `deck` / `deck_card` / `deck_allocation`, `/api/decks`):
-  Magic only (Commander, Standard). Decklist by card (not printing), sections commander / main / sideboard;
+  Magic only (paper formats with Scryfall legalities: Commander, Standard, Modern... `deck_rules.FORMATS`). Decklist by card (not printing), sections commander / main / sideboard;
   rules in `services/deck_rules.py` from card attributes (`legalities` from Scryfall since this branch,
   "not verified" until the next MtG catalog sync). Text import (`services/deck_import.py`): preview, then
   import of the cards picked. Allocation (`services/decks.py`): owned copies of a collection item set aside
@@ -2285,6 +2285,27 @@ Branch `experiment-decks` (name chosen by the user), from main at 0.25.1. No ver
   commander only, restricted lists, other formats not modelled; MTGO blank-line sideboard not read (needs
   a header); allocation counted per card over all sections (a Commander sideboard asks for copies too);
   web only (Android ignores decks); allocations are not shown on collection pages yet.
+
+## Report 2026-11-19 (2) — Decks on 0.26.0, user report (server unreleased, Android unchanged 0.17.0)
+- [x] Branch on main 0.26.0: `origin/main` merged (branch was cut at 0.25.1 before PR #48). Decks follows
+  the 0.26.0 module access (off / everyone / groups, Admin > Groups). Decks migration had the same revision
+  id as the groups migration (`b8d0f2a4c367`): now `c4e7a19d5b20`, after groups. Test server repaired
+  (stamp `a7c9e1f3b256`, upgrade `b8d0f2a4c367`, stamp `c4e7a19d5b20`: deck tables and data kept).
+- [x] "⋯" row menu clipped in the commander block (table in `overflow-x-auto`): popover menu (top
+  layer, CSS anchor positioning), closed after each action.
+- [x] "Allocate" with several collection items of the card (printing / finish / condition / language)
+  with free copies (`DeckEntryOut.free_items`) opens the copies chooser instead of picking one; one item:
+  allocates directly. API `item_id` stays optional.
+- [x] Card page: owned copies list the decks holding them (`OwnedOut.decks`, link to the deck) and the
+  free count; only for users with the Decks module.
+- [x] Formats: every Scryfall legality key played outside MTG Arena (user: no Arena-only formats):
+  Commander, Standard, Pioneer, Modern, Legacy, Vintage, Pauper, Premodern, Old School, Penny Dreadful
+  (60+, 15 sideboard, 4 copies, restricted = 1), Duel Commander, PreDH (as Commander), Pauper Commander
+  (any creature leads, commander rarity not checked, commanders skip the legality check), Oathbreaker
+  (60, a planeswalker, two with partner, one signature instant / sorcery each in the commander section,
+  color identity). Left out: Historic, Timeless, Alchemy, Gladiator, Brawl, Standard Brawl, Competitive
+  Brawl (Arena), `future` (Standard preview), `tlr` (unknown key).
+- Gaps: collection pages still do not show allocations; format-specific ban lists come from Scryfall.
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
