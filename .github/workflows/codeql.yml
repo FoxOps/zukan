@@ -1,12 +1,12 @@
 # CodeQL code scanning (advanced setup; GitHub's "default setup" must be switched off).
-#   Pull requests to main: every language, results shown on the PR.
+#   Pull requests to main or dev: every language, results shown on the PR.
 #   Weekly on main: keeps the Security tab current (closes fixed alerts) and gives pull
 #   requests a baseline. Nothing runs when a pull request is merged.
 name: CodeQL
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   schedule:
     - cron: "17 3 * * 1"
   workflow_dispatch:

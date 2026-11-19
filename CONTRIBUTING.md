@@ -124,9 +124,43 @@ respond to review. An agent's statement that a change works does not replace you
 own verification. If you need help understanding part of a change, ask before
 presenting it as ready to merge.
 
+## Branches and releases
+
+Zukan has two permanent branches:
+
+- `main` is the release branch. It contains the current stable release.
+- `dev` is the integration branch. It contains the changes being prepared for the
+  next release.
+
+For each feature, bug fix, documentation change, or other change, create a
+temporary work branch from the latest `dev`:
+
+```sh
+git fetch origin
+git switch -c my-change origin/dev
+```
+
+If you work from a fork, start from the `dev` branch of `FoxOps/zukan` in the same
+way. Open your pull request into `dev`, not `main`. GitHub proposes `main` because
+it is the default branch, so change the base branch before you create the pull
+request. Delete the work branch once its pull request is merged.
+
+When the next version is ready, the maintainer releases it:
+
+1. Open a pull request from `dev` into `main`.
+2. Merge it with **Create a merge commit**. Do not squash or rebase it: the merge
+   commit preserves the history that `main` and `dev` share, so the next release
+   pull request contains only the new changes.
+3. Tag the release on `main` with the existing version tags, `server-vX.Y.Z` and
+   `android-vX.Y.Z`. The server and the Android app are versioned independently.
+   Run the **Docker prod** or **Android prod** workflow from `main` with the new
+   version; the **Release** workflow then creates the tag and the GitHub release.
+4. Keep `dev` and continue the next development cycle from it.
+
 ## Opening a pull request
 
 Keep each pull request focused on one problem or a coherent set of related changes.
+Open it against `dev`, as described in [Branches and releases](#branches-and-releases).
 Use a draft pull request when you want early feedback or still have work to do.
 
 Include:

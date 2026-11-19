@@ -1,4 +1,4 @@
-# Tests of every pull request to main, before it is merged (the Docker and Android
+# Tests of every pull request to dev or main, before it is merged (the Docker and Android
 # workflows only run by hand, at build time). Nothing is built or published here.
 #   Backend and web: the full checks of Docker prod (_checks.yml, full: true).
 #   Android: unit tests and lint, without signing secrets.
@@ -6,7 +6,7 @@ name: PR checks
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 concurrency:
   group: pr-checks-${{ github.event.pull_request.number }}

@@ -2,11 +2,14 @@
 # updates grouped; major updates come one by one, they may need code changes).
 # Security updates (Settings -> Code security -> Dependabot security updates) open
 # their own pull requests as soon as an advisory is published, whatever this schedule.
+# Version updates target dev (see CONTRIBUTING.md, "Branches and releases"); security
+# updates always target the default branch, main: change their base to dev.
 version: 2
 
 updates:
   - package-ecosystem: pip
     directory: /backend
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -19,6 +22,7 @@ updates:
 
   - package-ecosystem: npm
     directory: /web
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -33,6 +37,7 @@ updates:
   # API, gone from TypeScript 7, so TypeScript stays on 5 there.
   - package-ecosystem: npm
     directory: /web/tools/openapi
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -47,6 +52,7 @@ updates:
 
   - package-ecosystem: gradle
     directory: /android
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -59,6 +65,7 @@ updates:
 
   - package-ecosystem: docker
     directory: /
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
@@ -67,6 +74,7 @@ updates:
 
   - package-ecosystem: github-actions
     directory: /
+    target-branch: dev
     schedule:
       interval: weekly
       day: monday
