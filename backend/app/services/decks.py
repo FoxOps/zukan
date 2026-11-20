@@ -416,3 +416,37 @@ async def move_lines(session: AsyncSession, from_printing: int, to_printing: int
                 .values(quantity=DeckCard.quantity + quantity)
             )
             await session.execute(delete(DeckCard).where(DeckCard.id == line_id))
+
+
+async def set_line(
+    session: AsyncSession,
+    deck: Deck,
+    card_id: int,
+    section: str,
+    printing_id: int | None,
+    quantity: int,
+) -> None:
+    """Set a deck line's quantity (0 removes it). Does not commit."""
+    if quantity == 0:
+        await session.execute(
+            delete(DeckCard).where(
+                DeckCard.deck_id == deck.id,
+                DeckCard.card_id == card_id,
+                DeckCard.section == section,
+                DeckCard.printing_id.is_not_distinct_from(printing_id),
+            )
+        )
+        return
+    stmt = insert(DeckCard).values(
+        deck_id=deck.id,
+        card_id=card_id,
+        section=section,
+        printing_id=printing_id,
+        quantity=quantity,
+    )
+    await session.execute(
+        stmt.on_conflict_do_update(
+            constraint="uq_deck_card_deck_id_card_id_section_printing_id",
+            set_={"quantity": quantity},
+        )
+    )

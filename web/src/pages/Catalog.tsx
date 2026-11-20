@@ -67,7 +67,7 @@ export default function Catalog() {
       {only?.length === 0 ? (
         <div className="alert">{t('No game is selected in your settings.')}</div>
       ) : (
-        <GameTabs value={game} only={only} onChange={(id) => url.set({ game: id, set: null, color: null, colormode: null, attr: null, sort: null })} />
+        <GameTabs value={game} onChange={(id) => url.set({ game: id, set: null, color: null, colormode: null, attr: null, sort: null })} />
       )}
       <SearchInput value={q} onChange={(v) => url.set({ q: v })} placeholder={t('Name in any language')} />
       {gameInfo && (

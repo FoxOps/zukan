@@ -262,6 +262,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/games/{game_id}/symbols/{key}/icon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Text Symbol Icon */
+        get: operations["text_symbol_icon_api_games__game_id__symbols__key__icon_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/games/{game_id}/rarities/{code}/icon": {
         parameters: {
             query?: never;
@@ -557,7 +574,7 @@ export interface paths {
         };
         /**
          * Value
-         * @description Current collection value, per game and overall.
+         * @description Current collection value, per game and overall (games shown in the settings).
          */
         get: operations["value_api_collection_value_get"];
         put?: never;
@@ -622,7 +639,8 @@ export interface paths {
         /**
          * Value History
          * @description Daily value of current holdings over the last `days` days. Without a game, games
-         *     priced in another currency than the user's price source are left out.
+         *     priced in another currency than the user's price source, and games hidden in the
+         *     settings, are left out.
          */
         get: operations["value_history_api_collection_value_history_get"];
         put?: never;
@@ -650,6 +668,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/collection/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export
+         * @description The cards alone as a CSV (as `export.csv`), or a zip of the chosen parts: cards,
+         *     followed sets (Binder), decks with their lines and allocated copies (Decks). `all`
+         *     takes every part the user can use; parts of modules not enabled are refused.
+         */
+        get: operations["export_api_collection_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/collection/import": {
         parameters: {
             query?: never;
@@ -661,8 +701,9 @@ export interface paths {
         put?: never;
         /**
          * Import Csv
-         * @description Import a CSV (see export format). Nothing is imported if any row is invalid.
-         *     `add` adds quantities; `set` makes stored quantities equal to the file's.
+         * @description Import a CSV (see export format) or a zip export bundle (`export`). Nothing is
+         *     imported if any row is invalid. `add` adds quantities (and deck lines); `set` makes
+         *     stored quantities equal to the file's (and replaces decks of the same game and name).
          */
         post: operations["import_csv_api_collection_import_post"];
         delete?: never;
@@ -2299,6 +2340,11 @@ export interface components {
              * @default []
              */
             rarities: components["schemas"]["RarityOut"][];
+            /**
+             * Symbols
+             * @default []
+             */
+            symbols: components["schemas"]["SymbolOut"][];
             /** Languages */
             languages: string[];
             /** Filters */
@@ -2472,6 +2518,8 @@ export interface components {
             line: number;
             /** Message */
             message: string;
+            /** File */
+            file?: string | null;
         };
         /** ImportOut */
         ImportOut: {
@@ -2483,6 +2531,13 @@ export interface components {
             dry_run: boolean;
             /** Errors */
             errors: components["schemas"]["ImportErrorOut"][];
+            /**
+             * Counts
+             * @default {}
+             */
+            counts: {
+                [key: string]: number;
+            };
         };
         /** ItemOut */
         ItemOut: {
@@ -3133,6 +3188,15 @@ export interface components {
             total: number;
             /** Refreshable */
             refreshable: string[];
+        };
+        /** SymbolOut */
+        SymbolOut: {
+            /** Token */
+            token: string;
+            /** Name */
+            name: string;
+            /** Icon */
+            icon: string | null;
         };
         /**
          * SyncScheduleIn
@@ -3852,6 +3916,38 @@ export interface operations {
             };
         };
     };
+    text_symbol_icon_api_games__game_id__symbols__key__icon_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     rarity_icon_api_games__game_id__rarities__code__icon_get: {
         parameters: {
             query?: {
@@ -4507,6 +4603,38 @@ export interface operations {
     export_csv_api_collection_export_csv_get: {
         parameters: {
             query?: {
+                game?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_api_collection_export_get: {
+        parameters: {
+            query?: {
+                parts?: ("cards" | "binder" | "decks" | "all")[];
                 game?: string | null;
             };
             header?: never;

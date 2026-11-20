@@ -169,7 +169,8 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
                         }
                         Tab.COLLECTION -> CollectionScreen(
                             client?.api,
-                            state.games,
+                            // Games shown in the settings, like scan and search.
+                            state.catalog,
                             state.games.flatMap { it.priceSources }.firstOrNull { it.id == state.priceSources.firstOrNull() },
                             scanState.stock,
                             settings,

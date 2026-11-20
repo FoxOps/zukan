@@ -34,6 +34,30 @@ class ColorDef:
     icon_file: Path | None = None
 
 
+_SYMBOL_KEYS = {"½": "HALF", "∞": "INFINITY"}
+
+
+@dataclass(frozen=True)
+class SymbolDef:
+    """A symbol card texts write as `token` ("{T}", "{2}", "{exhaust}"), shown as a
+    pictogram: an official one downloaded once (`icon_url`), one drawn for Zukan and
+    shipped with the provider (`icon_file`), or the symbol of one of the game's colors
+    (`color`, its code). Texts holding tokens are the `<attribute>_symbols` attributes
+    (the plain attribute keeps words, for search and cross-checks)."""
+
+    token: str
+    name: str
+    icon_url: str | None = None
+    icon_file: Path | None = None
+    color: str | None = None
+
+    @property
+    def key(self) -> str:
+        """File and URL name: "{W/U}" -> "WU", "{½}" -> "HALF" (Scryfall's names)."""
+        inner = "".join(_SYMBOL_KEYS.get(c, c) for c in self.token.strip("{}"))
+        return "".join(c for c in inner if c.isascii() and (c.isalnum() or c in "_-"))
+
+
 @dataclass(frozen=True)
 class FinishDef:
     code: str  # stored in Printing.finishes / CollectionItem.finish
@@ -428,6 +452,8 @@ class GameProvider(Protocol):
       e.g. {"tcgcsv": 89, "apitcg": "riftbound"}; overrides those sources' own tables.
     - `filters: list[FilterDef]`: advanced catalog search filters (types, rarity...).
     - `rarities: list[RarityDef]`: the game's rarities, lowest first, with pictograms.
+    - `symbols: list[SymbolDef]`: symbols card texts write as tokens ("{T}"), shown as
+      pictograms.
     - `rarity_in_printing = True`: a printing is one rarity of a collector number (Yu-Gi-Oh!):
       other sources' printings pair with ours by number and rarity.
     - `secondary_sources: list[CatalogSource]`: other sources of this game's catalog,

@@ -84,6 +84,31 @@ async def test_settings_language_and_catalog_games(client, alice):
     assert (await client.get("/api/auth/me", headers=alice)).json()["language"] == "fr"
 
 
+async def test_catalog_games_apply_to_the_collection(client, session, alice):
+    abundance = await printing(session, "001", "abundance-b")
+    body = {"printing_id": abundance.id, "finish": "standard", "language": "en", "delta": 2}
+    added = await client.post("/api/collection/adjust", json=body, headers=alice)
+    assert added.status_code == 200, added.text
+
+    async def figures():
+        items = (await client.get("/api/collection", headers=alice)).json()["total"]
+        value = (await client.get("/api/collection/value", headers=alice)).json()
+        finance = (await client.get("/api/collection/finance", headers=alice)).json()
+        return items, value["quantity"], finance["quantity"]
+
+    assert await figures() == (1, 2, 2)
+    # Sorcery hidden: left out without a game, still there when asked for.
+    await client.patch("/api/auth/me", json={"catalog_games": ["mtg"]}, headers=alice)
+    assert await figures() == (0, 0, 0)
+    asked = await client.get("/api/collection", params={"game": "sorcery"}, headers=alice)
+    assert asked.json()["total"] == 1
+    finance = await client.get("/api/collection/finance", params={"game": "sorcery"}, headers=alice)
+    assert finance.json()["quantity"] == 2
+    # A full backup: the export keeps every game.
+    export = await client.get("/api/collection/export.csv", headers=alice)
+    assert "abundance" in export.text.lower()
+
+
 async def test_search_ignores_case_and_accents(client, session, alice):
     abundance = await printing(session, "001", "abundance-b")
     session.add(CardName(card_id=abundance.card_id, lang="fr", name="Abondance Forêt"))
@@ -339,9 +364,12 @@ async def test_symbols_downloaded_once(client, alice):
             for c in p.colors
             if c.icon_url
         ]
-        assert stored == len(downloaded) - 2
+        # Magic's text symbols too ("{T}"; "{W}" is the White color's file).
+        mtg = registry()["mtg"]
+        texts = [s for s in mtg.symbols if s.key not in {c.code for c in mtg.colors}]
+        assert stored == len(downloaded) - 2 + len(texts)
         assert attributes.call_count == 7
-        assert (sprite.call_count, svg.call_count, elements.call_count) == (1, 6, 4)
+        assert (sprite.call_count, svg.call_count, elements.call_count) == (1, 84, 4)
         assert domains.call_count == 6
         # Meanwhile, the drawn Spell symbol.
         assert symbols.symbol_file("yugioh", "spell").suffix == ".svg"
@@ -372,6 +400,23 @@ async def test_symbols_downloaded_once(client, alice):
         shipped = await client.get(color["icon"], headers=alice)
         assert shipped.status_code == 200 and shipped.content.startswith(b"<svg"), code
     assert all(c["icon"] for c in games["lorcana"]["colors"])
+
+    # Text symbols: downloaded (Magic), drawn (Lorcana), or a color's (Riftbound runes).
+    by_token = {
+        game: {s["token"]: s for s in games[game]["symbols"]}
+        for game in ("mtg", "lorcana", "riftbound")
+    }
+    for game, token in [
+        ("mtg", "{T}"),
+        ("mtg", "{W/U}"),
+        ("lorcana", "{I}"),
+        ("riftbound", "{fury}"),
+    ]:
+        icon = await client.get(by_token[game][token]["icon"], headers=alice)
+        assert icon.status_code == 200, (game, token)
+    assert "/symbols/WU/icon" in by_token["mtg"]["{W/U}"]["icon"]
+    assert (await client.get("/api/games/mtg/symbols/NOPE/icon", headers=alice)).status_code == 404
+    assert games["pokemon"]["symbols"] == []
 
 
 def test_api_tokens_follow_the_naming_rule(monkeypatch):

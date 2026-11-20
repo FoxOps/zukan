@@ -36,11 +36,18 @@ from app.games.base import (
     PrintingData,
     RarityDef,
     SetData,
+    SymbolDef,
 )
 from app.games.cardmarket import name_key
 from app.games.ocr import bottom_part, by_position, clean, has_cjk, letter_ratio, script_language
 from app.games.riftbound import gallery, riftcodex, riot
-from app.games.riftbound.records import RiftCard, card_key, collector_number
+from app.games.riftbound.records import (
+    DOMAINS,
+    MAX_ENERGY_SYMBOL,
+    RiftCard,
+    card_key,
+    collector_number,
+)
 from app.models import Printing
 
 log = logging.getLogger(__name__)
@@ -121,6 +128,7 @@ def build_catalog(
                     "power": rc.power,
                     "tags": rc.tags,
                     "text": rc.text,
+                    "text_symbols": rc.text_symbols,
                 },
                 names={"en": rc.name},
             )
@@ -195,6 +203,18 @@ class RiftboundProvider:
         ColorDef("colorless", "Colorless", "#9CA3AF", icon_file=SYMBOLS / "colorless.svg"),
     ]
     finishes = [FinishDef("normal", "Normal"), FinishDef("foil", "Foil")]
+    # Runes of a domain are the domain's symbol; the others are drawn for Zukan
+    # (scripts/draw_color_symbols.py).
+    symbols = [
+        *(SymbolDef(f"{{{d}}}", d.capitalize(), color=d) for d in DOMAINS),
+        SymbolDef("{rainbow}", "Rune of any domain", icon_file=SYMBOLS / "rainbow.svg"),
+        SymbolDef("{exhaust}", "Exhaust", icon_file=SYMBOLS / "exhaust.svg"),
+        SymbolDef("{might}", "Might", icon_file=SYMBOLS / "might.svg"),
+        *(
+            SymbolDef(f"{{{n}}}", f"{n} energy", icon_file=SYMBOLS / f"{n}.svg")
+            for n in range(MAX_ENERGY_SYMBOL + 1)
+        ),
+    ]
     languages = ["en", "zh-hans"]
     price_sources = ["cardmarket"]
     rarities = [
@@ -217,6 +237,8 @@ class RiftboundProvider:
     cache_all_images = True
     legal_notice = LEGAL_NOTICE
     text_attribute = "text"
+    # 2: texts with symbol tokens (text_symbols).
+    catalog_version = 2
 
     async def _catalog(self, http: httpx.AsyncClient) -> tuple[CatalogBatch, dict[int, list[str]]]:
         sets: list[dict[str, Any]] = []

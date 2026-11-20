@@ -2388,6 +2388,60 @@ Branch `experiment-decks` rebased on `dev` (merge of main dropped, decks migrati
   on the `tcg_decks_live` test database.
 - Gaps: Riftbound and Sorcery ban lists not in the data; Signature cards' champion tag not checked.
 
+## Report 2026-11-20 #2 (server 0.27.0, Android 0.17.1)
+Report from server 0.26.0 + Android 0.17.0. Branch `2026-11-20-001-modules-export-symbols-game-filter` from
+`dev`, pull request into `dev`.
+- [x] Project: `experiment-decks` merged into `dev` (PR #54, merge commit) and deleted; its CodeQL failure
+  fixed first (3 polynomial ReDoS in `deck_import`: lines matched with whitespace collapsed, single optional
+  spaces in the regexes). Decks ship with this release (Beta).
+- [x] Dependabot #49 (i18next 27), #50 (react-i18next 18, failed alone: needs i18next 27), #51 (web group:
+  react-query, tailwind vite, plugin-react, daisyUI 5.8, oxlint, vite), #52 (kotlinx-serialization 1.13,
+  Gradle 9.9.1) retargeted to this branch and merged. react-i18next 18 breaking changes checked: no `Trans`,
+  `escapeValue: false` kept, `i18n.language` reads still right. Web build and Android test / lint / assemble pass.
+- [x] Import / export with modules. `GET /api/collection/export?parts=cards|binder|decks|all&game=`: cards
+  alone = the CSV (as `export.csv`, kept for Android); with other parts a zip (`services/export_bundle.py`):
+  `manifest.json` (format `zukan-export` v1, Zukan version, parts), `cards.csv`, `binder_sets.csv` (set,
+  language, finish), `decks.csv` (bundle-local deck ref, game, name, format), `deck_cards.csv` (card source
+  id, section, quantity, optional printing), `deck_allocations.csv` (collection item key, copies). Rows use
+  the sources' ids, never database ids, so bundles move between servers. Cards CSV gains optional `set_id` /
+  `printing_id` columns (sources' ids), used first on import (old files still import). `POST /import`
+  takes a CSV or a zip: names allowlisted, sizes counted on the bytes read (zip bombs), newer bundle
+  versions refused, parts of modules the user has not enabled refused (export: 403). All files checked
+  before writing; one transaction (cards, followed sets, decks, allocations re-linked to the collection
+  and capped by owned copies). `add` adds quantities and deck lines; `set` replaces quantities and the
+  decks of the same game and name. Web: Cards (always) + Followed sets + Decks checkboxes for enabled
+  modules, "Download zip", per-file counts and a File column in problems. Deck line writer moved to
+  `services.decks.set_line`.
+- [x] Card text symbols as pictograms. `SymbolDef` (token, name, downloaded `icon_url`, shipped `icon_file`
+  or a game `color`), provider `symbols`, `GameOut.symbols`, `GET /api/games/{id}/symbols/{key}/icon`,
+  downloaded by `ensure_symbols` like colors. Magic: Scryfall's 84 symbols (`games/mtg/text_symbols.py`,
+  `{2}{R}`, `{T}`, hybrids, Phyrexian...) in mana costs, rules texts, faces. Lorcana and Riftbound kept
+  words in `text` (search, TCGplayer cross-check) and now also store `text_symbols` with tokens (Lorcana
+  `{I}{S}{W}{L}{E}{IW}`; Riftbound `{0}`-`{12}` energy, domain runes = domain symbols, `{rainbow}`,
+  `{exhaust}`, `{might}`); pictograms drawn by `scripts/draw_color_symbols.py`; catalog versions Lorcana 4,
+  Riftbound 2 (full re-sync). Pokémon attack costs (type names in any card language) and Sorcery
+  thresholds shown with the game's color symbols. Yu-Gi-Oh!: no codes. Web `SymbolText`, `Attributes`
+  (`<attr>_symbols` shown in place of `<attr>`), deck list mana costs. Android shows no card text: unchanged.
+- [x] Game setting on every page: `useShownGames()`; `GameTabs` always follows it (Catalog, Collection,
+  Finance); Dashboard "Value over time", Import / export game select, Binder (list and follow dialog),
+  Decks (list and New deck). Server: collection list, value, value history, movers, finance leave hidden
+  games out without a `game` parameter; export "All games" stays a full backup. Hidden decks / binders:
+  "N more in games hidden in Settings" note. Settings card "Games shown". Admin pages, About, Settings keep
+  every game. Android: Collection screen follows it (Scan / Search already did).
+- [x] Decks page grouped by game (sections in the server's game order, regional games named with their
+  market, count per game).
+- [x] Versions: server 0.27.0 (new API, zip import, symbols, Decks), Android 0.17.1 (collection filter,
+  dependencies). `.env.example`: user agent example, import size comment. No new variable, no migration.
+- [x] Verified: 321+ backend tests (new: export bundles x4, symbols route / download, Lorcana and
+  Riftbound tokens, collection game filter), ruff, web tsc / oxlint / i18n (EN/FR/DE/ES) / build, Android
+  test / lint / assemble. Live (copy of a full catalog DB, port 8012, Lorcana and Riftbound re-synced,
+  Playwright): MtG / Lorcana / Riftbound pictograms inline, Pokémon costs, Sorcery thresholds, decks by
+  game, Lorcana hidden (decks note, collection tabs), zip export, dry run and `set` import round trip.
+- [ ] Test server: Lorcana and Riftbound catalog syncs run on their own (catalog versions) to fill
+  `text_symbols`; Magic symbols download on the first start.
+- Gaps: Riftbound energy above 12 stays a number; Lorcana / Riftbound symbols are Zukan drawings; deck
+  type lines ("3 ink") stay text; Android has no import or bundle export (CSV export unchanged).
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.

@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useNavigate } from 'react-router'
 import { api, call } from '../api/client'
-import { gameGroups, useBinders, useGames, useMe, useSets, type Binder } from '../api/queries'
+import { gameGroups, gameLabel, useBinders, useGames, useMe, useSets, useShownGames, type Binder } from '../api/queries'
+import { HiddenGamesNote } from '../components/HiddenGames'
 import { FinishBadge, LangFlag } from '../components/Badges'
 import { Select } from '../components/Select'
 import { useToast } from '../components/toast'
@@ -50,9 +51,7 @@ function FollowDialog({ open, followed, onClose }: { open: boolean; followed: nu
   const toast = useToast()
   const client = useQueryClient()
   const navigate = useNavigate()
-  const { data: me } = useMe()
-  const { data: allGames = [] } = useGames()
-  const games = allGames.filter((g) => !me?.catalog_games || me.catalog_games.includes(g.id))
+  const { shown: games } = useShownGames()
   const [gameId, setGameId] = useState('')
   const [setId, setSetId] = useState('')
   const [language, setLanguage] = useState('')
@@ -94,7 +93,7 @@ function FollowDialog({ open, followed, onClose }: { open: boolean; followed: nu
                 options={[
                   { value: '', label: t('Choose a game') },
                   ...gameGroups(games).flatMap((group) =>
-                    group.games.map((g) => ({ value: g.id, label: group.games.length > 1 ? `${group.name} · ${t(g.region_label ?? g.name)}` : g.name })),
+                    group.games.map((g) => ({ value: g.id, label: gameLabel(group, g, t) })),
                   ),
                 ]}
               />
@@ -167,10 +166,11 @@ export default function BinderPage() {
   const { data: me } = useMe()
   const enabled = !!me?.modules?.includes('binder')
   const binders = useBinders(enabled)
-  const { data: games = [] } = useGames()
+  const { games, isShown } = useShownGames()
   const [following, setFollowing] = useState(false)
   if (me && !enabled) return <Navigate to="/settings" replace />
-  const list = binders.data ?? []
+  const all = binders.data ?? []
+  const list = all.filter((b) => isShown(b.game_id))
 
   return (
     <div className="flex flex-col gap-4">
@@ -185,7 +185,7 @@ export default function BinderPage() {
       </div>
       {binders.isPending && enabled ? (
         <span className="loading loading-spinner loading-lg m-auto block" />
-      ) : list.length === 0 ? (
+      ) : all.length === 0 ? (
         <div className="card bg-base-200">
           <div className="card-body items-center text-center">
             <p>{t('No set followed yet. Follow one to see which of its cards you are missing.')}</p>
@@ -215,6 +215,7 @@ export default function BinderPage() {
           ))}
         </div>
       )}
+      <HiddenGamesNote count={all.length - list.length} />
       <FollowDialog open={following} followed={list.map((b) => b.set.id)} onClose={() => setFollowing(false)} />
     </div>
   )

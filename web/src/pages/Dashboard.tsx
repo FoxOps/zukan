@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { api, call } from '../api/client'
-import { useGames, useMe } from '../api/queries'
+import { useGames, useMe, useShownGames } from '../api/queries'
 import { ConditionBadge, FinishBadge, LangFlag } from '../components/Badges'
 import { useInvalidateStock } from '../api/stock'
 import { PriceChart } from '../components/PriceChart'
@@ -18,6 +18,7 @@ const RANGES = [30, 90, 365]
 export default function Dashboard() {
   const { t } = useTranslation()
   const { data: games = [] } = useGames()
+  const { shown } = useShownGames()
   const me = useMe()
   const [days, setDays] = useState(90)
   const [game, setGame] = useState('')
@@ -87,7 +88,7 @@ export default function Dashboard() {
                 className="select-sm w-40"
                 value={game}
                 onChange={setGame}
-                options={[{ value: '', label: t('All games') }, ...games.map((g) => ({ value: g.id, label: g.name }))]}
+                options={[{ value: '', label: t('All games') }, ...shown.map((g) => ({ value: g.id, label: g.name }))]}
               />
               <div className="join">
                 {RANGES.map((r) => (
