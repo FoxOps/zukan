@@ -92,7 +92,6 @@
   "For images that cannot be downloaded: put the image folder in the server's import directory": "Pour les images non téléchargeables : placez le dossier d’images dans le répertoire d’import du serveur",
   "from {{price}}": "dès {{price}}",
   "Game": "Jeu",
-  "Games shown in the catalog": "Jeux affichés dans le catalogue",
   "Good": "Bon",
   "Grass": "Plante",
   "Green": "Vert",
@@ -746,5 +745,10 @@
   "Domains are checked once a legend is set": "Les domaines sont vérifiés une fois la légende choisie",
   "Not checked: the banned and restricted cards list": "Non vérifié : la liste des cartes bannies et restreintes",
   "{{name}} cannot be played": "{{name}} ne peut pas être jouée",
-  "Rarity of {{n}} cards not known: copies not checked": "Rareté de {{n}} cartes inconnue : exemplaires non vérifiés"
+  "Rarity of {{n}} cards not known: copies not checked": "Rareté de {{n}} cartes inconnue : exemplaires non vérifiés",
+  "Games shown": "Jeux affichés",
+  "The catalog, collection, dashboard, finance, binder and decks only show these games.": "Le catalogue, la collection, le tableau de bord, les finances, le classeur et les decks n'affichent que ces jeux.",
+  "Choose games": "Choisir les jeux",
+  "{{count}} more in games hidden in Settings._one": "{{count}} de plus dans un jeu masqué dans les paramètres.",
+  "{{count}} more in games hidden in Settings._other": "{{count}} de plus dans des jeux masqués dans les paramètres."
 }

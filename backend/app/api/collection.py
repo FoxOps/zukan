@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, File, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel, Field
-from sqlalchemy import case, exists, func, select
+from sqlalchemy import case, exists, func, select, true
 from sqlalchemy.orm import contains_eager, selectinload
 
 from app.api.catalog import (
@@ -38,6 +38,13 @@ router = APIRouter(prefix="/collection", tags=["collection"])
 
 Source = Literal["web", "scan"]
 MAX_CSV_BYTES = 5 * 1024 * 1024
+
+
+def _in_games(games: list[str]):
+    """Items of these games (their printing's set)."""
+    return CollectionItem.printing_id.in_(
+        select(Printing.id).join(CardSet).where(CardSet.game_id.in_(games))
+    )
 
 
 class ItemSetOut(BaseModel):
@@ -313,6 +320,9 @@ async def list_items(
         query = query.where(CollectionItem.quantity > 0)
     if game:
         query = query.where(CardSet.game_id == game)
+    elif user.catalog_games is not None:
+        # Without a game: the games shown (user settings).
+        query = query.where(CardSet.game_id.in_(user.catalog_games))
     if q:
         query = query.where(exists().where(CardName.card_id == Card.id, name_matches(q)))
     if set_id is not None:
@@ -496,8 +506,8 @@ async def undo_transaction(transaction_id: int, user: CurrentUser, session: Sess
 
 @router.get("/value")
 async def value(user: CurrentUser, session: SessionDep) -> ValueOut:
-    """Current collection value, per game and overall."""
-    games = await collection.value_by_game(session, user.id, user.price_source)
+    """Current collection value, per game and overall (games shown in the settings)."""
+    games = await collection.value_by_game(session, user.id, user.price_source, user.catalog_games)
     totals: dict[str, Decimal] = {}
     for game in games:
         totals[game.currency] = totals.get(game.currency, Decimal(0)) + game.total
@@ -537,6 +547,7 @@ async def movers(
             _item_query()
             .join(Printing, CollectionItem.printing_id == Printing.id)
             .where(CollectionItem.user_id == user.id, CollectionItem.quantity > 0)
+            .where(_in_games(user.catalog_games) if user.catalog_games is not None else true())
         )
     ).all()
     games = {i.printing_id: i.printing.set.game_id for i in items}
@@ -622,7 +633,9 @@ async def finance(user: CurrentUser, session: SessionDep, game: str | None = Non
             .where(CollectionItem.user_id == user.id, CollectionItem.quantity > 0)
         )
     ).all()
-    report = await collection.finance(session, user.id, list(items), user.price_source, game)
+    report = await collection.finance(
+        session, user.id, list(items), user.price_source, game, shown=user.catalog_games
+    )
     described = {
         out.id: out
         for out in await _items_out(
@@ -671,10 +684,17 @@ async def value_history(
     days: Annotated[int, Query(ge=1, le=3650)] = 90,
 ) -> ValueHistoryOut:
     """Daily value of current holdings over the last `days` days. Without a game, games
-    priced in another currency than the user's price source are left out."""
+    priced in another currency than the user's price source, and games hidden in the
+    settings, are left out."""
     end = date.today()
     currency, history = await collection.value_history(
-        session, user.id, user.price_source, game, end - timedelta(days=days - 1), end
+        session,
+        user.id,
+        user.price_source,
+        game,
+        end - timedelta(days=days - 1),
+        end,
+        user.catalog_games,
     )
     return ValueHistoryOut(
         currency=currency, points=[ValuePointOut(date=d, value=v) for d, v in history]

@@ -84,6 +84,31 @@ async def test_settings_language_and_catalog_games(client, alice):
     assert (await client.get("/api/auth/me", headers=alice)).json()["language"] == "fr"
 
 
+async def test_catalog_games_apply_to_the_collection(client, session, alice):
+    abundance = await printing(session, "001", "abundance-b")
+    body = {"printing_id": abundance.id, "finish": "standard", "language": "en", "delta": 2}
+    added = await client.post("/api/collection/adjust", json=body, headers=alice)
+    assert added.status_code == 200, added.text
+
+    async def figures():
+        items = (await client.get("/api/collection", headers=alice)).json()["total"]
+        value = (await client.get("/api/collection/value", headers=alice)).json()
+        finance = (await client.get("/api/collection/finance", headers=alice)).json()
+        return items, value["quantity"], finance["quantity"]
+
+    assert await figures() == (1, 2, 2)
+    # Sorcery hidden: left out without a game, still there when asked for.
+    await client.patch("/api/auth/me", json={"catalog_games": ["mtg"]}, headers=alice)
+    assert await figures() == (0, 0, 0)
+    asked = await client.get("/api/collection", params={"game": "sorcery"}, headers=alice)
+    assert asked.json()["total"] == 1
+    finance = await client.get("/api/collection/finance", params={"game": "sorcery"}, headers=alice)
+    assert finance.json()["quantity"] == 2
+    # A full backup: the export keeps every game.
+    export = await client.get("/api/collection/export.csv", headers=alice)
+    assert "abundance" in export.text.lower()
+
+
 async def test_search_ignores_case_and_accents(client, session, alice):
     abundance = await printing(session, "001", "abundance-b")
     session.add(CardName(card_id=abundance.card_id, lang="fr", name="Abondance Forêt"))

@@ -27,6 +27,17 @@ export function useGames() {
   })
 }
 
+/** The games the user chose to show (Settings, `catalog_games`; none chosen: all), for
+ * every page listing games or their data. Admin pages, About and Settings keep `useGames`. */
+export function useShownGames() {
+  const { data: games = [] } = useGames()
+  const { data: me } = useMe()
+  const chosen = me?.catalog_games
+  const isShown = (gameId: string) => !chosen || chosen.includes(gameId)
+  const shown = chosen ? games.filter((g) => chosen.includes(g.id)) : games
+  return { games, shown, isShown, filtered: shown.length < games.length }
+}
+
 export type GameGroup = { id: string; name: string; games: Game[] }
 
 /** Games of one family split by market (Pokémon TCG / Asia / China) as one group, in the
@@ -41,6 +52,12 @@ export function gameGroups(games: Game[]): GameGroup[] {
   return [...groups.values()].map((group) =>
     group.games.length > 1 ? group : { ...group, name: group.games[0].name },
   )
+}
+
+/** A game's name, with its market when its family is split ("Pokémon TCG · Asia");
+ * `t` translates the market. */
+export function gameLabel(group: GameGroup, game: Game, t: (text: string) => string): string {
+  return group.games.length > 1 ? `${group.name} · ${t(game.region_label ?? game.name)}` : game.name
 }
 
 export function useGame(gameId: string | null | undefined): Game | undefined {
