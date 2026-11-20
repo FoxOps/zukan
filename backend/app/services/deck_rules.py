@@ -1,21 +1,48 @@
-"""Format rules of the Decks module: Magic: The Gathering, the Pokémon TCG and Disney
-Lorcana.
+"""Format rules of the Decks module: Magic: The Gathering, the Pokémon TCG, Disney
+Lorcana, Riftbound, Yu-Gi-Oh! (TCG and OCG) and Sorcery: Contested Realm.
 
 Pure functions over the cards' catalog attributes. Magic (`games.mtg.provider.parse_card`):
 `types`, `subtypes`, `oracle_text` (or `faces`), `color_identity`, `legalities`. Pokémon
 (`games.pokemon.provider.parse_card`): `category`, `stage`, `energyType`, the colors (its
 types), and per printing the rarity and TCGdex's `legal`. Lorcana
 (`games.lorcana.provider`): the colors (inks), `legalities` and `max_copies` from
-LorcanaJSON. Results never block saving a
+LorcanaJSON. Riftbound (`games.riftbound.provider`): `type`, `supertype`, `domains`, `tags`.
+Yu-Gi-Oh! (`games.yugioh.provider`): `frame` (or OCG-only cards' `card_type` and
+`classifications`), `banlist`, `tcg_date` / `ocg_date`. Sorcery (`games.sorcery.provider`):
+`type`, `category`, `rarity`. Results never block saving a
 deck: a draft is shown with its issues. Rules the data cannot settle are listed as not
 verified instead of passing silently."""
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-Section = Literal["main", "sideboard", "commander"]
-SECTIONS: tuple[Section, ...] = ("commander", "main", "sideboard")
+# Every game's deck sections. Spellbook (Sorcery) is "main", collection "sideboard".
+Section = Literal[
+    "commander",
+    "legend",
+    "champion",
+    "avatar",
+    "main",
+    "extra",
+    "atlas",
+    "battlefields",
+    "runes",
+    "sideboard",
+]
+SECTIONS: tuple[Section, ...] = (
+    "commander",
+    "legend",
+    "champion",
+    "avatar",
+    "main",
+    "extra",
+    "atlas",
+    "battlefields",
+    "runes",
+    "sideboard",
+)
 Level = Literal["error", "warning", "info"]
 
 
@@ -23,7 +50,15 @@ Level = Literal["error", "warning", "info"]
 # your commander"), "pauper" any creature (Pauper Commander: printed uncommon, not
 # checked), "oathbreaker" a planeswalker with one instant or sorcery as signature spell.
 Leader = Literal["commander", "pauper", "oathbreaker"]
-Rules = Literal["mtg", "pokemon", "lorcana"]
+Rules = Literal["mtg", "pokemon", "lorcana", "riftbound", "yugioh", "sorcery"]
+
+# Sections of a deck, in the order shown, with their English names.
+_MTG_SECTIONS: tuple[tuple[Section, str], ...] = (
+    ("commander", "Commander"),
+    ("main", "Main deck"),
+    ("sideboard", "Sideboard"),
+)
+_MAIN_ONLY: tuple[tuple[Section, str], ...] = (("main", "Main deck"),)
 
 
 @dataclass(frozen=True)
@@ -40,8 +75,12 @@ class Format:
     leader: Leader | None = None
     rules: Rules = "mtg"
     # Pokémon: TCGdex's legality key ("standard", "expanded"); Lorcana: the card's
-    # `legalities` key ("core", "infinity"). None: every card legal.
+    # `legalities` key ("core", "infinity"); Yu-Gi-Oh!: the ban list ("tcg", "ocg").
+    # None: every card legal.
     legality: str | None = None
+    sections: tuple[tuple[Section, str], ...] = _MTG_SECTIONS
+    # Sections `size` counts (the others are shown apart: sideboard, extra deck...).
+    counted: tuple[Section, ...] = ("commander", "main")
 
 
 def _constructed(id: str, name: str) -> Format:
@@ -77,7 +116,18 @@ FORMATS = {
 
 
 def _pokemon(id: str, name: str, legality: str | None, copies: int = 4) -> Format:
-    return Format(id, name, 60, True, None, copies, False, rules="pokemon", legality=legality)
+    return Format(
+        id,
+        name,
+        60,
+        True,
+        None,
+        copies,
+        False,
+        rules="pokemon",
+        legality=legality,
+        sections=_MAIN_ONLY,
+    )
 
 
 # Pokémon formats, for the three markets (international, Asia, China). Gym Leader
@@ -94,7 +144,9 @@ POKEMON_FORMATS = {
 
 
 def _lorcana(id: str, name: str, legality: str | None) -> Format:
-    return Format(id, name, 60, False, None, 4, False, rules="lorcana", legality=legality)
+    return Format(
+        id, name, 60, False, None, 4, False, rules="lorcana", legality=legality, sections=_MAIN_ONLY
+    )
 
 
 # Lorcana constructed formats (LorcanaJSON's `allowedInFormats`); Unrestricted: the
@@ -107,14 +159,108 @@ LORCANA_FORMATS = {
         _lorcana("lorcana_unrestricted", "Unrestricted", None),
     )
 }
+
+# Riftbound constructed (core rules 103): a Champion Legend, a chosen champion, a main
+# deck of 40 or more (champion included), 12 runes, 3 battlefields; sideboard of 8
+# (tournament rules).
+RIFTBOUND_FORMATS = {
+    "riftbound_constructed": Format(
+        "riftbound_constructed",
+        "Constructed",
+        40,
+        False,
+        8,
+        3,
+        False,
+        rules="riftbound",
+        sections=(
+            ("legend", "Legend"),
+            ("champion", "Chosen champion"),
+            ("main", "Main deck"),
+            ("battlefields", "Battlefields"),
+            ("runes", "Rune deck"),
+            ("sideboard", "Sideboard"),
+        ),
+        counted=("champion", "main"),
+    )
+}
+
+
+def _yugioh(id: str, name: str, legality: str | None) -> Format:
+    return Format(
+        id,
+        name,
+        40,
+        False,
+        15,
+        3,
+        False,
+        rules="yugioh",
+        legality=legality,
+        sections=(("main", "Main Deck"), ("extra", "Extra Deck"), ("sideboard", "Side Deck")),
+        counted=("main",),
+    )
+
+
+# Yu-Gi-Oh! Advanced (the ban list of the game: TCG or OCG), Traditional (forbidden
+# cards limited to one) and Unrestricted (deck rules without a ban list).
+YUGIOH_FORMATS = {
+    f.id: f
+    for f in (
+        _yugioh("yugioh_advanced", "Advanced", "tcg"),
+        _yugioh("yugioh_traditional", "Traditional", "tcg"),
+        _yugioh("yugioh_unrestricted", "Unrestricted", None),
+    )
+}
+YUGIOH_OCG_FORMATS = {
+    f.id: f
+    for f in (
+        _yugioh("ocg_advanced", "Advanced", "ocg"),
+        _yugioh("ocg_traditional", "Traditional", "ocg"),
+        _yugioh("ocg_unrestricted", "Unrestricted", None),
+    )
+}
+
+# Sorcery constructed (rulebook): an avatar, an atlas of 30 sites or more, a spellbook
+# of 60 or more, a 10-card collection; copies by rarity.
+SORCERY_FORMATS = {
+    "sorcery_constructed": Format(
+        "sorcery_constructed",
+        "Constructed",
+        60,
+        False,
+        10,
+        4,
+        False,
+        rules="sorcery",
+        sections=(
+            ("avatar", "Avatar"),
+            ("atlas", "Atlas"),
+            ("main", "Spellbook"),
+            ("sideboard", "Collection"),
+        ),
+        counted=("main",),
+    )
+}
 GAMES = {
     "mtg": tuple(FORMATS),
     "pokemon": tuple(POKEMON_FORMATS),
     "pokemon-asia": tuple(POKEMON_FORMATS),
     "pokemon-china": tuple(POKEMON_FORMATS),
     "lorcana": tuple(LORCANA_FORMATS),
+    "riftbound": tuple(RIFTBOUND_FORMATS),
+    "yugioh": tuple(YUGIOH_FORMATS),
+    "yugioh-ocg": tuple(YUGIOH_OCG_FORMATS),
+    "sorcery": tuple(SORCERY_FORMATS),
 }
-FORMATS |= POKEMON_FORMATS | LORCANA_FORMATS
+FORMATS |= (
+    POKEMON_FORMATS
+    | LORCANA_FORMATS
+    | RIFTBOUND_FORMATS
+    | YUGIOH_FORMATS
+    | YUGIOH_OCG_FORMATS
+    | SORCERY_FORMATS
+)
 
 
 @dataclass
@@ -257,6 +403,11 @@ def legality(card: RuleCard, fmt: Format) -> str:
             return "unknown"
         # A card is legal when any of its printings is (reprints share the card's name).
         return "legal" if any(legal.get(fmt.legality) for legal in known) else "not_legal"
+    if fmt.rules in ("riftbound", "sorcery"):
+        # No ban list in the data.
+        return "legal"
+    if fmt.rules == "yugioh":
+        return yugioh_legality(card, fmt)
     if fmt.rules == "lorcana" and fmt.legality is None:
         return "legal"
     legalities = card.attributes.get("legalities")
@@ -277,9 +428,13 @@ def check(format_id: str, entries: list[Entry]) -> Report:
     if fmt.rules == "lorcana":
         _check_lorcana(report, fmt, entries)
         return report
+    if fmt.rules in _CHECKS:
+        _CHECKS[fmt.rules](report, fmt, entries)
+        return report
     by_section: dict[str, list[Entry]] = {s: [] for s in SECTIONS}
     for entry in entries:
         by_section[entry.section].append(entry)
+    _unused_sections(report, fmt, by_section)
     commanders = by_section["commander"]
     deck_size = sum(e.quantity for e in by_section["main"] + commanders)
     side_size = sum(e.quantity for e in by_section["sideboard"])
@@ -748,3 +903,369 @@ def _check_lorcana(report: Report, fmt: Format, entries: list[Entry]) -> None:
                 count=len(unknown),
                 names=sorted(unknown),
             )
+
+
+def _by_section(entries: list[Entry]) -> dict[str, list[Entry]]:
+    found: dict[str, list[Entry]] = {s: [] for s in SECTIONS}
+    for entry in entries:
+        found[entry.section].append(entry)
+    return found
+
+
+def _count(entries: list[Entry]) -> int:
+    return sum(e.quantity for e in entries)
+
+
+def _copies(entries: list[Entry]) -> tuple[dict[int, int], dict[int, RuleCard]]:
+    """Copies of each card across the given lines (one card per name in these games)."""
+    copies: dict[int, int] = {}
+    cards: dict[int, RuleCard] = {}
+    for entry in entries:
+        copies[entry.card.card_id] = copies.get(entry.card.card_id, 0) + entry.quantity
+        cards[entry.card.card_id] = entry.card
+    return copies, cards
+
+
+def _unused_sections(report: Report, fmt: Format, by_section: dict[str, list[Entry]]) -> None:
+    names = dict(fmt.sections)
+    others = sum(_count(lines) for section, lines in by_section.items() if section not in names)
+    if others:
+        report.add(
+            "info",
+            "section_unused",
+            f"{fmt.name} decks have no such section: {_plural(others, 'card')} not counted",
+            count=others,
+        )
+
+
+def _size(
+    report: Report,
+    fmt: Format,
+    section: Section,
+    count: int,
+    minimum: int | None = None,
+    maximum: int | None = None,
+    level: Level = "error",
+) -> None:
+    """Size of one section: exact when `minimum == maximum`."""
+    name = dict(fmt.sections)[section]
+    if minimum is not None and minimum == maximum:
+        if count != minimum:
+            report.add(
+                level,
+                "section_size_exact",
+                f"{name}: {_plural(count, 'card')}, it needs exactly {minimum}",
+                section=name,
+                count=count,
+                size=minimum,
+            )
+        return
+    if minimum is not None and count < minimum:
+        report.add(
+            level,
+            "section_size_min",
+            f"{name}: {_plural(count, 'card')}, it needs at least {minimum}",
+            section=name,
+            count=count,
+            size=minimum,
+        )
+    if maximum is not None and count > maximum:
+        report.add(
+            level,
+            "section_size_max",
+            f"{name}: {_plural(count, 'card')}, at most {maximum} allowed",
+            section=name,
+            count=count,
+            size=maximum,
+        )
+
+
+def _wrong_section(report: Report, fmt: Format, entry: Entry) -> None:
+    name = dict(fmt.sections).get(entry.section, entry.section)
+    report.add(
+        "error",
+        "wrong_section",
+        f"{entry.card.name} cannot be in the {name}",
+        entry.card,
+        section=name,
+    )
+
+
+def _copy_limits(
+    report: Report,
+    copies: dict[int, int],
+    cards: dict[int, RuleCard],
+    limit_of: Callable[[RuleCard], int | None],
+) -> None:
+    for card_id, count in copies.items():
+        card = cards[card_id]
+        limit = limit_of(card)
+        if limit is not None and count > limit:
+            report.add(
+                "error",
+                "copy_limit",
+                f"{card.name}: {count} copies, at most {limit} allowed",
+                card,
+                count=count,
+                limit=limit,
+            )
+
+
+# Riftbound: card kinds (`type`: Legend, Unit, Spell, Gear, Rune, Battlefield),
+# champion units (`supertype`, missing from some sources).
+def rb_type(card: RuleCard) -> str | None:
+    return card.attributes.get("type")
+
+
+def _rb_domains(card: RuleCard) -> set[str]:
+    """The card's domains; colorless cards (some sources list "colorless") fit any."""
+    return {d.lower() for d in card.attributes.get("domains") or []} - {"colorless"}
+
+
+_RB_KINDS: dict[Section, str] = {"legend": "Legend", "runes": "Rune", "battlefields": "Battlefield"}
+
+
+def _check_riftbound(report: Report, fmt: Format, entries: list[Entry]) -> None:
+    by_section = _by_section(entries)
+    _unused_sections(report, fmt, by_section)
+    legends = [e.card for e in by_section["legend"] for _ in range(e.quantity)]
+    champions = [e.card for e in by_section["champion"] for _ in range(e.quantity)]
+    deck = by_section["champion"] + by_section["main"]
+    _size(report, fmt, "legend", len(legends), 1, 1)
+    _size(report, fmt, "champion", len(champions), 1, 1)
+    _size(report, fmt, "main", _count(deck), fmt.size)
+    _size(report, fmt, "runes", _count(by_section["runes"]), 12, 12)
+    _size(report, fmt, "battlefields", _count(by_section["battlefields"]), 3, 3)
+    _size(report, fmt, "sideboard", _count(by_section["sideboard"]), maximum=fmt.sideboard_max)
+
+    # Card kinds of each section.
+    for section, kind in _RB_KINDS.items():
+        for entry in by_section[section]:
+            if rb_type(entry.card) != kind:
+                _wrong_section(report, fmt, entry)
+    for entry in deck + by_section["sideboard"]:
+        if rb_type(entry.card) in _RB_KINDS.values():
+            _wrong_section(report, fmt, entry)
+
+    # The chosen champion: a champion unit with the legend's champion tag (its first).
+    legend = legends[0] if legends else None
+    tag = next(iter(legend.attributes.get("tags") or []), None) if legend else None
+    for card in champions:
+        if rb_type(card) != "Unit" or card.attributes.get("supertype") not in (None, "Champion"):
+            report.add("error", "invalid_champion", f"{card.name} is not a champion unit", card)
+        elif tag and tag not in (card.attributes.get("tags") or []):
+            report.add(
+                "error", "champion_tag", f"{card.name} is not a {tag} champion", card, tag=tag
+            )
+
+    # Three copies of a name (sideboard included), battlefields of different names.
+    copies, cards = _copies(deck + by_section["sideboard"])
+    _copy_limits(report, copies, cards, lambda _: fmt.copies)
+    for entry in by_section["battlefields"]:
+        if entry.quantity > 1:
+            report.add(
+                "error",
+                "battlefield_duplicate",
+                f"{entry.card.name}: one battlefield of each name",
+                entry.card,
+            )
+    signatures = sum(
+        copies[c.card_id] for c in cards.values() if c.attributes.get("supertype") == "Signature"
+    )
+    if signatures > 3:
+        report.add(
+            "error",
+            "signature_max",
+            f"{signatures} Signature cards, at most 3 allowed",
+            count=signatures,
+        )
+
+    # Domain identity: the legend's domains (cards of no domain fit any).
+    if legend is None:
+        report.note("domains_unchecked", "Domains are checked once a legend is set")
+    else:
+        identity = _rb_domains(legend)
+        others = by_section["runes"] + by_section["battlefields"] + by_section["sideboard"]
+        for entry in deck + others:
+            if _rb_domains(entry.card) - identity:
+                report.add(
+                    "error",
+                    "off_domain",
+                    f"{entry.card.name} is outside the legend's domains "
+                    f"({', '.join(sorted(identity))})",
+                    entry.card,
+                    domains=sorted(identity),
+                )
+    report.note("bans_unchecked", "Not checked: the banned and restricted cards list")
+
+
+# Yu-Gi-Oh!: Extra Deck monsters by frame (YGOPRODeck) or classification (YGOJSON).
+_EXTRA_FRAMES = {"fusion", "synchro", "xyz", "link"}
+_BAN_LIMITS = {"Forbidden": 0, "Limited": 1, "Semi-Limited": 2}
+
+
+def _yg_frame(card: RuleCard) -> str:
+    return (card.attributes.get("frame") or "").lower()
+
+
+def is_extra_deck(card: RuleCard) -> bool:
+    frame = _yg_frame(card).removesuffix("_pendulum")
+    if frame:
+        return frame in _EXTRA_FRAMES
+    return bool(_EXTRA_FRAMES & {c.lower() for c in card.attributes.get("classifications") or []})
+
+
+def _traditional(fmt: Format) -> bool:
+    return fmt.id.endswith("_traditional")
+
+
+def yugioh_legality(card: RuleCard, fmt: Format) -> str:
+    """Banned (Forbidden), restricted (Limited, Semi-Limited), not legal (not released
+    in that market), unknown (no ban list data: catalog not synced again)."""
+    if fmt.legality is None:
+        return "legal"
+    banlist = card.attributes.get("banlist")
+    if banlist is None:
+        return "unknown"
+    if not card.attributes.get(f"{fmt.legality}_date"):
+        return "not_legal"
+    status = banlist.get(fmt.legality)
+    if status == "Forbidden" and not _traditional(fmt):
+        return "banned"
+    return "restricted" if status in _BAN_LIMITS else "legal"
+
+
+def yugioh_copy_limit(card: RuleCard, fmt: Format) -> int:
+    if fmt.legality is None:
+        return fmt.copies
+    status = (card.attributes.get("banlist") or {}).get(fmt.legality)
+    limit = _BAN_LIMITS.get(status or "", fmt.copies)
+    # Traditional: forbidden cards are limited.
+    return max(limit, 1) if _traditional(fmt) else limit
+
+
+def _check_yugioh(report: Report, fmt: Format, entries: list[Entry]) -> None:
+    by_section = _by_section(entries)
+    _unused_sections(report, fmt, by_section)
+    _size(report, fmt, "main", _count(by_section["main"]), fmt.size, 60)
+    _size(report, fmt, "extra", _count(by_section["extra"]), maximum=15)
+    _size(report, fmt, "sideboard", _count(by_section["sideboard"]), maximum=fmt.sideboard_max)
+    played = by_section["main"] + by_section["extra"] + by_section["sideboard"]
+    for entry in played:
+        if _yg_frame(entry.card) in ("token", "skill"):
+            report.add("error", "not_playable", f"{entry.card.name} cannot be played", entry.card)
+        elif entry.section != "sideboard" and (entry.section == "extra") != is_extra_deck(
+            entry.card
+        ):
+            _wrong_section(report, fmt, entry)
+
+    # Three copies of a card (sideboard included), fewer on the ban list.
+    copies, cards = _copies(played)
+    unknown = []
+    for card_id, count in copies.items():
+        card = cards[card_id]
+        status = yugioh_legality(card, fmt)
+        if status == "unknown":
+            unknown.append(card.name)
+        if status == "not_legal":
+            report.add("error", "not_legal", f"{card.name} is not legal in {fmt.name}", card)
+            continue
+        if status == "banned":
+            report.add("error", "banned", f"{card.name} is banned in {fmt.name}", card)
+            continue
+        limit = fmt.copies if status == "unknown" else yugioh_copy_limit(card, fmt)
+        if count > limit:
+            report.add(
+                "error",
+                "copy_limit",
+                f"{card.name}: {count} copies, at most {limit} allowed",
+                card,
+                count=count,
+                limit=limit,
+            )
+    if unknown:
+        report.note(
+            "legality_unknown",
+            f"Ban list status of {_plural(len(unknown), 'card')} not known (sync the "
+            "Yu-Gi-Oh! catalog again; OCG cards without a password have none): "
+            + ", ".join(sorted(unknown)[:10])
+            + ("…" if len(unknown) > 10 else ""),
+            count=len(unknown),
+            names=sorted(unknown),
+        )
+    report.note("special_rules", "Not checked: cards with special deck rules")
+
+
+# Sorcery: card kinds (`category` Avatar / Site / Spell, `type`), copies by rarity.
+_SORCERY_COPIES = {"Ordinary": 4, "Exceptional": 3, "Elite": 2, "Unique": 1}
+
+
+def sorcery_kind(card: RuleCard) -> str | None:
+    """ "Avatar", "Site", or the spell's type (Minion, Magic, Aura, Artifact)."""
+    category = card.attributes.get("category")
+    if category in ("Avatar", "Site"):
+        return category
+    return card.attributes.get("type") or category
+
+
+def _check_sorcery(report: Report, fmt: Format, entries: list[Entry]) -> None:
+    by_section = _by_section(entries)
+    _unused_sections(report, fmt, by_section)
+    _size(report, fmt, "avatar", _count(by_section["avatar"]), 1, 1)
+    _size(report, fmt, "atlas", _count(by_section["atlas"]), 30)
+    _size(report, fmt, "main", _count(by_section["main"]), fmt.size)
+    # The 10-card collection is recommended for tournaments.
+    collection = _count(by_section["sideboard"])
+    _size(report, fmt, "sideboard", collection, maximum=fmt.sideboard_max, level="warning")
+    for entry in entries:
+        kind = sorcery_kind(entry.card)
+        allowed = {
+            "avatar": kind == "Avatar",
+            "atlas": kind == "Site",
+            "main": kind not in ("Avatar", "Site"),
+            "sideboard": kind != "Avatar",
+        }.get(entry.section, True)
+        if not allowed:
+            _wrong_section(report, fmt, entry)
+
+    copies, cards = _copies(by_section["atlas"] + by_section["main"] + by_section["sideboard"])
+    _copy_limits(
+        report, copies, cards, lambda c: _SORCERY_COPIES.get(c.attributes.get("rarity") or "")
+    )
+    unknown = sorted(
+        c.name for c in cards.values() if c.attributes.get("rarity") not in _SORCERY_COPIES
+    )
+    if unknown:
+        report.note(
+            "rarity_unknown",
+            f"Rarity of {_plural(len(unknown), 'card')} not known: copies not checked",
+            count=len(unknown),
+            names=unknown,
+        )
+    report.note("bans_unchecked", "Not checked: the banned and restricted cards list")
+
+
+_CHECKS: dict[Rules, Callable[[Report, Format, list[Entry]], None]] = {
+    "riftbound": _check_riftbound,
+    "yugioh": _check_yugioh,
+    "sorcery": _check_sorcery,
+}
+
+
+def home_section(fmt: Format, attributes: dict[str, Any], section: Section = "main") -> Section:
+    """The section a card added to `section` goes to: legends, runes, battlefields,
+    Extra Deck monsters, avatars and sites go to theirs. A sideboard keeps any card but
+    legends and avatars."""
+    card = RuleCard(0, "", attributes)
+    home: Section | None = None
+    if fmt.rules == "riftbound":
+        home = next((s for s, kind in _RB_KINDS.items() if rb_type(card) == kind), None)
+    elif fmt.rules == "yugioh" and is_extra_deck(card):
+        home = "extra"
+    elif fmt.rules == "sorcery":
+        home = {"Avatar": "avatar", "Site": "atlas"}.get(sorcery_kind(card) or "")
+    if home is None or section not in ("main", "sideboard"):
+        return section
+    if section == "sideboard" and home not in ("legend", "avatar"):
+        return section
+    return home

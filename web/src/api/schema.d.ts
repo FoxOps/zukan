@@ -1753,16 +1753,17 @@ export interface components {
         DeckCardIn: {
             /** Card Id */
             card_id: number;
-            /**
-             * Section
-             * @default main
-             * @enum {string}
-             */
-            section: "main" | "sideboard" | "commander";
+            /** Section */
+            section?: ("commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard") | null;
             /** Printing Id */
             printing_id?: number | null;
             /** Quantity */
             quantity: number;
+            /**
+             * Add
+             * @default false
+             */
+            add: boolean;
         };
         /** DeckDetailOut */
         DeckDetailOut: {
@@ -1783,6 +1784,11 @@ export interface components {
             translation?: string | null;
             /** Image */
             image: string | null;
+            /**
+             * Orientation
+             * @default portrait
+             */
+            orientation: string;
             /** Colors */
             colors: string[];
             /** Mana Cost */
@@ -1851,7 +1857,11 @@ export interface components {
              * Rules
              * @enum {string}
              */
-            rules: "mtg" | "pokemon" | "lorcana";
+            rules: "mtg" | "pokemon" | "lorcana" | "riftbound" | "yugioh" | "sorcery";
+            /** Sections */
+            sections: components["schemas"]["DeckSectionOut"][];
+            /** Counted */
+            counted: ("commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard")[];
         };
         /** DeckGameOut */
         DeckGameOut: {
@@ -1869,7 +1879,7 @@ export interface components {
              * @default main
              * @enum {string}
              */
-            section: "main" | "sideboard" | "commander";
+            section: "commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
             /** Printing Id */
             printing_id?: number | null;
             /** Quantity */
@@ -1899,7 +1909,7 @@ export interface components {
              * Section
              * @enum {string}
              */
-            section: "main" | "sideboard" | "commander";
+            section: "commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
             /** Set Code */
             set_code?: string | null;
             /** Collector Number */
@@ -1926,7 +1936,7 @@ export interface components {
              * @default mtg
              * @enum {string}
              */
-            game_id: "mtg" | "pokemon" | "pokemon-asia" | "pokemon-china" | "lorcana";
+            game_id: "mtg" | "pokemon" | "pokemon-asia" | "pokemon-china" | "lorcana" | "riftbound" | "yugioh" | "yugioh-ocg" | "sorcery";
         };
         /** DeckImportPreviewOut */
         DeckImportPreviewOut: {
@@ -1953,12 +1963,12 @@ export interface components {
              * @default mtg
              * @enum {string}
              */
-            game_id: "mtg" | "pokemon" | "pokemon-asia" | "pokemon-china" | "lorcana";
+            game_id: "mtg" | "pokemon" | "pokemon-asia" | "pokemon-china" | "lorcana" | "riftbound" | "yugioh" | "yugioh-ocg" | "sorcery";
             /**
              * Format
              * @enum {string}
              */
-            format: "commander" | "standard" | "pioneer" | "modern" | "legacy" | "vintage" | "pauper" | "premodern" | "oldschool" | "penny" | "duel" | "predh" | "paupercommander" | "oathbreaker" | "pokemon_standard" | "pokemon_expanded" | "pokemon_unlimited" | "pokemon_glc" | "lorcana_core" | "lorcana_infinity" | "lorcana_unrestricted";
+            format: "commander" | "standard" | "pioneer" | "modern" | "legacy" | "vintage" | "pauper" | "premodern" | "oldschool" | "penny" | "duel" | "predh" | "paupercommander" | "oathbreaker" | "pokemon_standard" | "pokemon_expanded" | "pokemon_unlimited" | "pokemon_glc" | "lorcana_core" | "lorcana_infinity" | "lorcana_unrestricted" | "riftbound_constructed" | "yugioh_advanced" | "yugioh_traditional" | "yugioh_unrestricted" | "ocg_advanced" | "ocg_traditional" | "ocg_unrestricted" | "sorcery_constructed";
         };
         /** DeckIssueOut */
         DeckIssueOut: {
@@ -2023,7 +2033,7 @@ export interface components {
              * @default main
              * @enum {string}
              */
-            section: "main" | "sideboard" | "commander";
+            section: "commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
             /** Printing Id */
             printing_id?: number | null;
             /** To Printing Id */
@@ -2040,7 +2050,7 @@ export interface components {
              * Section
              * @enum {string}
              */
-            section: "main" | "sideboard" | "commander";
+            section: "commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
             /** Printing Id */
             printing_id: number | null;
             /** Set Code */
@@ -2070,8 +2080,10 @@ export interface components {
             format: string;
             /** Card Count */
             card_count: number;
-            /** Sideboard Count */
-            sideboard_count: number;
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
             /** Errors */
             errors: number;
             /**
@@ -2107,12 +2119,22 @@ export interface components {
             /** Available */
             available: number;
         };
+        /** DeckSectionOut */
+        DeckSectionOut: {
+            /**
+             * Id
+             * @enum {string}
+             */
+            id: "commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
+            /** Name */
+            name: string;
+        };
         /** DeckUpdateIn */
         DeckUpdateIn: {
             /** Name */
             name?: string | null;
             /** Format */
-            format?: ("commander" | "standard" | "pioneer" | "modern" | "legacy" | "vintage" | "pauper" | "premodern" | "oldschool" | "penny" | "duel" | "predh" | "paupercommander" | "oathbreaker" | "pokemon_standard" | "pokemon_expanded" | "pokemon_unlimited" | "pokemon_glc" | "lorcana_core" | "lorcana_infinity" | "lorcana_unrestricted") | null;
+            format?: ("commander" | "standard" | "pioneer" | "modern" | "legacy" | "vintage" | "pauper" | "premodern" | "oldschool" | "penny" | "duel" | "predh" | "paupercommander" | "oathbreaker" | "pokemon_standard" | "pokemon_expanded" | "pokemon_unlimited" | "pokemon_glc" | "lorcana_core" | "lorcana_infinity" | "lorcana_unrestricted" | "riftbound_constructed" | "yugioh_advanced" | "yugioh_traditional" | "yugioh_unrestricted" | "ocg_advanced" | "ocg_traditional" | "ocg_unrestricted" | "sorcery_constructed") | null;
         };
         /** DeckValidationOut */
         DeckValidationOut: {

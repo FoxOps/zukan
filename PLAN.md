@@ -2369,6 +2369,25 @@ Unrestricted.
 - Gaps: Magic lines without printing and no allocated copy export without set; Lorcana Format Coconut
   not offered; per-line "missing" not shown (card level only).
 
+## Report 2026-11-20 — Decks: Riftbound, Yu-Gi-Oh!, Sorcery, Beta (server unreleased, Android unchanged 0.17.0)
+Branch `experiment-decks` rebased on `dev` (merge of main dropped, decks migration kept as `c4e7a19d5b20`).
+- [x] MtG "X // Land" cards grouped by their front face (`api.decks._front_types`).
+- [x] Neutral module text, "Beta" badge instead of "Experimental".
+- [x] Sections per format (`Format.sections` / `counted`, `DeckFormatOut.sections`, `DeckOut.counts`);
+  web blocks, move menu, add and import section pickers built from them. `PUT /cards` without a
+  section (`add: true` from the search) sends runes, sites, Extra Deck monsters... to their section.
+- [x] Riftbound Constructed (legend, chosen champion with the legend's tag, 40+ main, 3 copies by name,
+  12 runes, 3 battlefields of different names, sideboard 8, domains, 3 Signature cards).
+- [x] Yu-Gi-Oh! Advanced / Traditional / Unrestricted for TCG and OCG: 40-60 main, Extra 15, Side 15,
+  ban list from YGOPRODeck `banlist_info` (catalog_version 4: re-sync both games), Extra Deck kinds,
+  YDK import by password.
+- [x] Sorcery Constructed: avatar, atlas 30+ sites, spellbook 60+, collection 10 (warning), copies by
+  rarity. No separate Limited rules in the rulebook, so no Limited format.
+- [x] Verified: 315 backend tests (7 new), ruff, web tsc / lint / i18n / build.
+- [ ] Live browser check of the new games not done (usage limit); a Yu-Gi-Oh! catalog sync was started
+  on the `tcg_decks_live` test database.
+- Gaps: Riftbound and Sorcery ban lists not in the data; Signature cards' champion tag not checked.
+
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.
 1. Backend skeleton: config, DB, Alembic, local auth + OIDC SSO, users, plugin registry, docker-compose.

@@ -60,7 +60,7 @@ function useIssueText() {
       case 'deck_size':
         return t('The deck has {{n}} cards, it needs exactly {{size}}', { n, size: p.size })
       case 'section_unused':
-        return t('This format has no sideboard nor commander: {{n}} cards not counted', { n })
+        return t('This format does not have some of these sections: {{n}} cards not counted', { n })
       case 'no_basic':
         return t('The deck needs at least one Basic Pokémon')
       case 'basic_unknown':
@@ -80,6 +80,35 @@ function useIssueText() {
         return t('The deck has {{n}} inks ({{inks}}), at most 2 allowed', { n, inks: ((p.inks as string[]) ?? []).map((i) => t(i[0].toUpperCase() + i.slice(1))).join(', ') })
       case 'off_ink':
         return t("{{name}} is not of the deck's inks ({{inks}})", { name: p.name, inks: ((p.inks as string[]) ?? []).map((i) => t(i[0].toUpperCase() + i.slice(1))).join(', ') })
+      // Sections (Riftbound, Yu-Gi-Oh!, Sorcery).
+      case 'section_size_exact':
+        return t('{{section}}: {{n}} cards, it needs exactly {{size}}', { section: t(p.section as string), n, size: p.size })
+      case 'section_size_min':
+        return t('{{section}}: {{n}} cards, it needs at least {{size}}', { section: t(p.section as string), n, size: p.size })
+      case 'section_size_max':
+        return t('{{section}}: {{n}} cards, at most {{size}} allowed', { section: t(p.section as string), n, size: p.size })
+      case 'wrong_section':
+        return t('{{name}} cannot be in this section ({{section}})', { name: p.name, section: t(p.section as string) })
+      // Riftbound.
+      case 'invalid_champion':
+        return t('{{name}} is not a champion unit', { name: p.name })
+      case 'champion_tag':
+        return t('{{name}} is not a {{tag}} champion', { name: p.name, tag: p.tag })
+      case 'battlefield_duplicate':
+        return t('{{name}}: one battlefield of each name', { name: p.name })
+      case 'signature_max':
+        return t('{{n}} Signature cards, at most 3 allowed', { n })
+      case 'off_domain':
+        return t("{{name}} is outside the legend's domains ({{domains}})", { name: p.name, domains: ((p.domains as string[]) ?? []).map((d) => t(d[0].toUpperCase() + d.slice(1))).join(', ') })
+      case 'domains_unchecked':
+        return t('Domains are checked once a legend is set')
+      case 'bans_unchecked':
+        return t('Not checked: the banned and restricted cards list')
+      // Yu-Gi-Oh!, Sorcery.
+      case 'not_playable':
+        return t('{{name}} cannot be played', { name: p.name })
+      case 'rarity_unknown':
+        return t('Rarity of {{n}} cards not known: copies not checked', { n })
       case 'glc_bans':
         return t('Not checked: the Gym Leader Challenge ban list')
       case 'special_rules':

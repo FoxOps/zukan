@@ -190,7 +190,10 @@ async def test_module_and_deck_editing(client, session, catalog):
     detail = await put_card(client, alice, deck["id"], bolt, 4)
     detail = await put_card(client, alice, deck["id"], mountain, 20)
     detail = await put_card(client, alice, deck["id"], bolt, 2, "sideboard")
-    assert (detail["deck"]["card_count"], detail["deck"]["sideboard_count"]) == (24, 2)
+    assert (detail["deck"]["card_count"], detail["deck"]["counts"]) == (
+        24,
+        {"main": 24, "sideboard": 2},
+    )
     assert entry(detail, bolt)["quantities"] == {"main": 4, "sideboard": 2}
     assert [e["group"] for e in detail["entries"]] == ["Instant", "Land"]
     codes = {i["code"] for i in detail["validation"]["issues"]}
@@ -1152,3 +1155,23 @@ def test_parse_set_suffixes():
     parsed = deck_import.parse("4 Charmander PAF 7\n", "pokemon")
     line = parsed.lines[0]
     assert (line.name, line.set_code, line.collector_number) == ("Charmander", "PAF", "7")
+
+
+def test_magic_group_by_front_face():
+    from app.api.decks import _group
+
+    def card(type_line: str, faces: list[str] | None = None) -> Card:
+        types = [t for part in type_line.split(" // ") for t in part.split("—")[0].split()]
+        attributes = {"types": types, "type_line": type_line}
+        if faces:
+            attributes["faces"] = [{"type_line": f} for f in faces]
+        return Card(game_id="mtg", external_id=type_line, name=type_line, attributes=attributes)
+
+    # Modal double-faced spells with a land back are spells, not lands.
+    assert _group(card("Instant // Land", ["Instant", "Land"])) == "Instant"
+    assert _group(card("Sorcery // Land")) == "Sorcery"
+    assert _group(card("Legendary Creature — God // Legendary Land")) == "Creature"
+    # A land front stays a land; artifact lands too, land creatures are creatures.
+    assert _group(card("Land // Land", ["Land", "Land"])) == "Land"
+    assert _group(card("Artifact Land")) == "Land"
+    assert _group(card("Land Creature — Forest Dryad")) == "Creature"

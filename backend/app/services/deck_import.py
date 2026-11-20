@@ -3,7 +3,11 @@ Arena / MTGO: sections given by header lines ("Commander", "Deck", "Sideboard",
 "SB: 2 Duress"), set and collector number suffixes ("(M10) 146", "[M10]") naming the
 printing a line asks for (`resolve_printings`; unknown ones leave it at any printing).
 Pokémon: Pokémon TCG Live and Limitless exports ("Pokémon: 12", "4 Charmander PAF 7",
-"Basic {R} Energy"). Lorcana: Dreamborn / Inktable lists ("4 Elsa - Snow Queen")."""
+"Basic {R} Energy"). Lorcana: Dreamborn / Inktable lists ("4 Elsa - Snow Queen").
+Riftbound: "Legend:" / "Champion:" / "Main Deck:" / "Battlefields:" / "Runes:" blocks.
+Yu-Gi-Oh!: YDK files ("#main" / "#extra" / "!side", one password per line) and
+"Main Deck:" / "Extra Deck:" / "Side Deck:" lists. Sorcery (Curiosa): "Avatar" / "Atlas"
+/ "Spellbook" / "Collection" blocks."""
 
 import re
 from dataclasses import dataclass, field
@@ -30,6 +34,28 @@ _HEADERS: dict[str, Section | None] = {
     "side": "sideboard",
     "companion": "sideboard",
     # Cards being considered: not part of the deck.
+    # Riftbound.
+    "legend": "legend",
+    "champion": "champion",
+    "chosen champion": "champion",
+    "battlefield": "battlefields",
+    "battlefields": "battlefields",
+    "rune": "runes",
+    "runes": "runes",
+    "rune deck": "runes",
+    "units": "main",
+    "gear": "main",
+    # Yu-Gi-Oh! ("#main", "#extra", "!side" in YDK files).
+    "extra": "extra",
+    "extra deck": "extra",
+    "side deck": "sideboard",
+    # Sorcery: the spellbook is the main deck, the collection its sideboard.
+    "avatar": "avatar",
+    "atlas": "atlas",
+    "sites": "atlas",
+    "spellbook": "main",
+    "spells": "main",
+    "collection": "sideboard",
     "maybeboard": None,
     "maybe": None,
     "considering": None,
@@ -139,6 +165,9 @@ def parse(text: str, game_id: str = "mtg") -> Parsed:
         line = raw.strip()
         if not line:
             continue
+        if line.startswith("!"):
+            # YDK "!side".
+            line = line[1:]
         header = _HEADER.match(line)
         if header and (title := header.group(1).strip().lower()) in _HEADERS:
             section = _HEADERS[title]
@@ -236,6 +265,10 @@ async def resolve(session: AsyncSession, game_id: str, names: list[str]) -> dict
     )
     by_key: dict[str, list[Card]] = {}
     lookups = [_key(Card.name), _key(func.split_part(Card.name, " // ", 1))]
+    if game_id.startswith("yugioh"):
+        # YDK files list passwords (the cards' ids), without leading zeros.
+        lookups.insert(0, func.ltrim(Card.external_id, "0"))
+        keys = {name: key.lstrip("0") if key.isdigit() else key for name, key in keys.items()}
     cards_game = select(Card).where(Card.game_id == game_id)
     found: dict[str, list[Card]] = {}
     remaining = set(keys.values())

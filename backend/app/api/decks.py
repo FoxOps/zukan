@@ -1,7 +1,7 @@
 """Decks module (`app.modules`): decklists checked against their format's rules
 (`services.deck_rules`), plain-text import (`services.deck_import`), and owned copies
-allocated to decks (`services.decks`). Magic: The Gathering, the Pokémon TCG and
-Disney Lorcana.
+allocated to decks (`services.decks`). Magic: The Gathering, the Pokémon TCG, Disney
+Lorcana, Riftbound, Yu-Gi-Oh! (TCG and OCG) and Sorcery: Contested Realm.
 
 Editing a decklist or importing one never changes the collection or its availability:
 only allocating does, and allocating never changes owned quantities."""
@@ -15,13 +15,13 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
-from app.api.catalog import load_names, show_card, show_printing
+from app.api.catalog import load_names, orientation, show_card, show_printing
 from app.api.collection import copy_image
 from app.api.deps import SessionDep
 from app.models import Card, CollectionItem, Deck, DeckAllocation, DeckCard, Printing, User
 from app.modules import require_module
 from app.services import deck_export, deck_import, deck_rules, decks
-from app.services.deck_rules import FORMATS, GAMES, Leader, Rules, Section
+from app.services.deck_rules import FORMATS, GAMES, SECTIONS, Leader, Rules, Section
 
 router = APIRouter(prefix="/decks", tags=["decks"])
 
@@ -31,6 +31,12 @@ DecksUser = require_module("decks")
 FormatId = Literal[tuple(FORMATS)]  # type: ignore[valid-type]
 GameId = Literal[tuple(GAMES)]  # type: ignore[valid-type]
 MAX_COPIES = 250
+
+
+class DeckSectionOut(BaseModel):
+    id: Section
+    # English name ("Main deck", "Extra Deck", "Atlas"), translated by the web.
+    name: str
 
 
 class DeckFormatOut(BaseModel):
@@ -43,8 +49,11 @@ class DeckFormatOut(BaseModel):
     commander: bool
     # Who may lead (`deck_rules.Leader`), None without a commander section.
     leader: Leader | None
-    # Rule set: "mtg" (Magic) or "pokemon".
+    # Rule set of the game.
     rules: Rules
+    # Sections of its decks in the order shown, and those `size` counts.
+    sections: list[DeckSectionOut]
+    counted: list[Section]
 
 
 class DeckGameOut(BaseModel):
@@ -73,9 +82,10 @@ class DeckOut(BaseModel):
     game_id: str
     name: str
     format: str
-    # Main deck with commanders, and sideboard.
+    # Cards of the sections the format's size counts (main deck, commanders...).
     card_count: int
-    sideboard_count: int
+    # Cards per section.
+    counts: dict[str, int]
     errors: int
     created_at: datetime
     updated_at: datetime
@@ -124,6 +134,8 @@ class DeckEntryOut(BaseModel):
     translation: str | None = None
     # The allocated copy's picture (the one most copies come from), else the card's.
     image: str | None
+    # "landscape": Riftbound battlefields, Lorcana locations.
+    orientation: str = "portrait"
     colors: list[str]
     mana_cost: str | None
     type_line: str | None
@@ -157,11 +169,15 @@ class DeckDetailOut(BaseModel):
 
 class DeckCardIn(BaseModel):
     card_id: int
-    section: Section = "main"
+    # None: the card's section in the main deck (`deck_rules.home_section`: a rune goes
+    # to the rune deck, a site to the atlas...).
+    section: Section | None = None
     # The printing asked for, None: any.
     printing_id: int | None = None
     # 0 removes the line.
     quantity: int = Field(ge=0, le=MAX_COPIES)
+    # Add `quantity` copies to the line (adding from the catalog search).
+    add: bool = False
 
 
 class DeckLineMoveIn(BaseModel):
@@ -294,11 +310,50 @@ _TRAINER_GROUPS = {
 
 # Lorcana card types; songs are actions.
 LORCANA_GROUPS = ("Character", "Action", "Song", "Item", "Location")
+RIFTBOUND_GROUPS = ("Legend", "Unit", "Spell", "Gear", "Rune", "Battlefield")
+# Main Deck cards, then Extra Deck monsters by summoning kind.
+YUGIOH_GROUPS = ("Monster", "Spell", "Trap", "Fusion", "Synchro", "Xyz", "Link")
+SORCERY_GROUPS = ("Avatar", "Site", "Minion", "Magic", "Aura", "Artifact")
+_GAME_GROUPS = {
+    "mtg": GROUPS,
+    "lorcana": LORCANA_GROUPS,
+    "riftbound": RIFTBOUND_GROUPS,
+    "yugioh": YUGIOH_GROUPS,
+    "yugioh-ocg": YUGIOH_GROUPS,
+    "sorcery": SORCERY_GROUPS,
+}
 
 
 def _groups(game_id: str) -> tuple[str, ...]:
-    groups = {"mtg": GROUPS, "lorcana": LORCANA_GROUPS}.get(game_id, POKEMON_GROUPS)
-    return (*groups, "Other")
+    return (*_GAME_GROUPS.get(game_id, POKEMON_GROUPS), "Other")
+
+
+def _yugioh_group(card: Card) -> str:
+    """Spell, Trap, the Extra Deck kind (Fusion, Synchro, Xyz, Link) or Monster."""
+    frame = (card.attributes.get("frame") or "").lower().removesuffix("_pendulum")
+    if frame in ("token", "skill"):
+        return "Other"
+    kinds = (
+        [frame]
+        if frame
+        else [
+            (card.attributes.get("card_type") or "").lower(),
+            *(c.lower() for c in card.attributes.get("classifications") or []),
+        ]
+    )
+    for group in ("Spell", "Trap", "Fusion", "Synchro", "Xyz", "Link"):
+        if group.lower() in kinds:
+            return group
+    return "Monster" if frame or "monster" in kinds else "Other"
+
+
+def _front_types(card: Card) -> list[str]:
+    """Magic card types of the front face: an "Instant // Land" card is an instant."""
+    faces = card.attributes.get("faces") or []
+    line = (faces[0].get("type_line") if faces else None) or card.attributes.get("type_line")
+    if not line:
+        return card.attributes.get("types") or []
+    return line.split(" // ")[0].split("—")[0].split()
 
 
 def _group(card: Card) -> str:
@@ -307,6 +362,14 @@ def _group(card: Card) -> str:
         if kind == "Action" and "Song" in (card.attributes.get("classifications") or []):
             return "Song"
         return kind if kind in LORCANA_GROUPS else "Other"
+    if card.game_id == "riftbound":
+        kind = card.attributes.get("type")
+        return kind if kind in RIFTBOUND_GROUPS else "Other"
+    if card.game_id.startswith("yugioh"):
+        return _yugioh_group(card)
+    if card.game_id == "sorcery":
+        kind = deck_rules.sorcery_kind(_rule_card(card))
+        return kind if kind in SORCERY_GROUPS else "Other"
     if card.game_id != "mtg":
         category = card.attributes.get("category")
         if category in ("Pokemon", "Pokémon"):
@@ -314,22 +377,54 @@ def _group(card: Card) -> str:
         if category == "Trainer":
             return _TRAINER_GROUPS.get(card.attributes.get("trainerType") or "", "Trainer")
         return "Energy" if category == "Energy" else "Other"
-    types = card.attributes.get("types") or []
+    types = _front_types(card)
     # Artifact creatures are creatures, artifact lands are lands.
     if "Land" in types and "Creature" not in types:
         return "Land"
     return next((g for g in GROUPS if g in types), "Other")
 
 
+def _rule_card(card: Card) -> deck_rules.RuleCard:
+    return deck_rules.RuleCard(card.id, card.name, card.attributes, card.colors)
+
+
+def _joined(*parts: object) -> str | None:
+    return " — ".join(str(p) for p in parts if p not in (None, "")) or None
+
+
 def _type_line(card: Card) -> str | None:
-    """Magic's type line; Lorcana: type, classifications and ink cost."""
-    if card.game_id == "lorcana" and (kind := card.attributes.get("type")):
-        classes = ", ".join(card.attributes.get("classifications") or [])
-        cost = card.attributes.get("cost")
-        return " — ".join(
-            p for p in (kind, classes, f"{cost} ink" if cost is not None else "") if p
+    """Magic's type line; the other games: kind, subtypes and cost."""
+    a = card.attributes
+    if card.game_id == "lorcana" and (kind := a.get("type")):
+        cost = a.get("cost")
+        return _joined(
+            kind,
+            ", ".join(a.get("classifications") or []),
+            f"{cost} ink" if cost is not None else None,
         )
-    return card.attributes.get("type_line")
+    if card.game_id == "riftbound" and (kind := a.get("type")):
+        energy = a.get("energy")
+        return _joined(
+            " ".join(p for p in (a.get("supertype"), kind) if p),
+            ", ".join(d.capitalize() for d in a.get("domains") or []),
+            f"{energy} energy" if energy is not None else None,
+        )
+    if card.game_id.startswith("yugioh"):
+        level = a.get("level")
+        return _joined(
+            a.get("type") or (a.get("card_type") or "").capitalize(),
+            a.get("race"),
+            f"Link {a['link']}" if a.get("link") else (f"Level {level}" if level else None),
+        )
+    if card.game_id == "sorcery" and (kind := a.get("type")):
+        cost = a.get("cost")
+        return _joined(
+            kind,
+            ", ".join(a.get("subtypes") or []),
+            a.get("rarity"),
+            f"{cost} mana" if cost is not None else None,
+        )
+    return a.get("type_line")
 
 
 def _candidate(card: Card) -> DeckCandidateOut:
@@ -418,7 +513,7 @@ async def _allocated_images(
     return shown, by_printing
 
 
-SECTION_ORDER = ("commander", "main", "sideboard")
+SECTION_ORDER = SECTIONS
 
 
 def _sorted_lines(lines: list[DeckCard]) -> list[DeckCard]:
@@ -440,14 +535,18 @@ def _number_key(number: str | None) -> tuple[int, str]:
 
 
 def _deck_out(deck: Deck, report: deck_rules.Report) -> DeckOut:
-    count = sum(e.quantity for e in deck.cards if e.section != "sideboard")
+    counts: dict[str, int] = {}
+    for e in deck.cards:
+        counts[e.section] = counts.get(e.section, 0) + e.quantity
+    fmt = FORMATS.get(deck.format)
+    counted = fmt.counted if fmt else ("commander", "main")
     return DeckOut(
         id=deck.id,
         game_id=deck.game_id,
         name=deck.name,
         format=deck.format,
-        card_count=count,
-        sideboard_count=sum(e.quantity for e in deck.cards if e.section == "sideboard"),
+        card_count=sum(n for section, n in counts.items() if section in counted),
+        counts={s: counts[s] for s in SECTION_ORDER if s in counts},
         errors=sum(1 for i in report.issues if i.level == "error"),
         created_at=deck.created_at,
         updated_at=deck.updated_at,
@@ -536,6 +635,7 @@ async def _detail(session: SessionDep, user: User, deck_id: int) -> DeckDetailOu
                 name=shown.name.name,
                 translation=shown.name.translation,
                 image=allocated_images.get(card_id, shown.image),
+                orientation=orientation(shown.printing) if shown.printing else "portrait",
                 colors=card.colors,
                 mana_cost=card.attributes.get("mana_cost")
                 or " // ".join(
@@ -575,13 +675,21 @@ def _conflict(exc: Exception) -> HTTPException:
     return HTTPException(status.HTTP_409_CONFLICT, str(exc))
 
 
+def _format_out(fmt: deck_rules.Format) -> DeckFormatOut:
+    return DeckFormatOut(
+        **{k: v for k, v in fmt.__dict__.items() if k not in ("sections", "counted")},
+        sections=[DeckSectionOut(id=s, name=name) for s, name in fmt.sections],
+        counted=list(fmt.counted),
+    )
+
+
 @router.get("/formats")
 async def list_formats(_: DecksUser) -> list[DeckGameOut]:
     """Games and formats decks can be built for."""
     return [
         DeckGameOut(
             game_id=game_id,
-            formats=[DeckFormatOut(**FORMATS[f].__dict__) for f in formats],
+            formats=[_format_out(FORMATS[f]) for f in formats],
         )
         for game_id, formats in GAMES.items()
     ]
@@ -657,9 +765,16 @@ async def set_card(
     line). Copies allocated beyond the deck's new total are released; the collection is
     not changed."""
     deck = await _own(session, user, deck_id, lock=True)
-    await _card(session, deck, body.card_id)
+    card = await _card(session, deck, body.card_id)
     await _check_printing(session, body.card_id, body.printing_id)
-    await _set_quantity(session, deck, body.card_id, body.section, body.printing_id, body.quantity)
+    section = body.section
+    if section is None:
+        fmt = FORMATS.get(deck.format)
+        section = deck_rules.home_section(fmt, card.attributes) if fmt else "main"
+    quantity = body.quantity
+    if body.add and (line := _line(deck, body.card_id, section, body.printing_id)):
+        quantity = min(MAX_COPIES, line.quantity + quantity)
+    await _set_quantity(session, deck, body.card_id, section, body.printing_id, quantity)
     await decks.release_excess(session, deck, [body.card_id])
     deck.updated_at = func.now()
     await session.commit()
@@ -956,11 +1071,13 @@ async def import_preview(
             if line.set_code and len(matches[line.name].cards) == 1
         ],
     )
+    fmt = FORMATS[GAMES[body.game_id][0]]
     lines = []
     for line in parsed.lines:
         match = matches[line.name]
         printing = None
         if len(match.cards) == 1:
+            line.section = deck_rules.home_section(fmt, match.cards[0].attributes, line.section)
             status_, card, candidates = "resolved", _candidate(match.cards[0]), []
             found = printings.get((card.card_id, line.set_code or "", line.collector_number))
             if found is not None:

@@ -21,7 +21,7 @@ import { Validation } from './issues'
 type Detail = Schemas['DeckDetailOut']
 type Entry = Schemas['DeckEntryOut']
 type Line = Schemas['DeckLineOut']
-type Section = Schemas['DeckCardIn']['section']
+type Section = Schemas['DeckSectionOut']['id']
 // One line of a card in a section: a printing asked for, or any.
 type Row = { entry: Entry; line: Line }
 
@@ -35,6 +35,8 @@ const STATUS = {
   owned: { badge: 'badge-info', label: 'Owned' },
   allocated: { badge: 'badge-success', label: 'Allocated' },
 } as const
+// Sections of one card: moving a line there moves one copy.
+const SINGLE = new Set<Section>(['commander', 'legend', 'champion', 'avatar'])
 const LEGAL_BADGE: Record<string, string | null> = { legal: null, unknown: null, banned: 'Banned', not_legal: 'Not legal', restricted: 'Restricted' }
 
 /** "Banned" / "Not legal" badge, "?" when legality is not known. */
@@ -326,7 +328,9 @@ export default function DeckDetail() {
   const game = useGame(query.data?.deck.game_id)
 
   const update = useDeckMutation(deckId, (body: Schemas['DeckUpdateIn']) => call(api.PATCH('/api/decks/{deck_id}', { params: { path: { deck_id: deckId } }, body })))
-  const setCard = useDeckMutation(deckId, (body: Schemas['DeckCardIn']) => call(api.PUT('/api/decks/{deck_id}/cards', { params: { path: { deck_id: deckId } }, body })))
+  const setCard = useDeckMutation(deckId, (body: Omit<Schemas['DeckCardIn'], 'add'> & { add?: boolean }) =>
+    call(api.PUT('/api/decks/{deck_id}/cards', { params: { path: { deck_id: deckId } }, body: { add: false, ...body } })),
+  )
   const allocate = useDeckMutation(deckId, ({ path, cardId }: { path: 'allocate' | 'release'; cardId: number }) =>
     call(
       api.POST(path === 'allocate' ? '/api/decks/{deck_id}/allocate' : '/api/decks/{deck_id}/release', {
@@ -349,18 +353,20 @@ export default function DeckDetail() {
   if (!query.data) return null
   const { deck, groups, entries, validation } = query.data
   const format = gameFormats.flatMap((g) => g.formats).find((f) => f.id === deck.format)
-  // Magic decks have a sideboard (and a commander section in some formats).
-  const sections = format?.rules === 'mtg'
   const commanderFormat = !!format?.commander
   const oathbreaker = format?.leader === 'oathbreaker'
   const leaders = oathbreaker ? t('Oathbreaker and signature spell') : t('Commander')
+  // The format's sections (Magic: commander only in commander formats), names translated.
+  const sections = (format?.sections ?? [{ id: 'main' as Section, name: 'Main deck' }])
+    .filter((s) => s.id !== 'commander' || commanderFormat)
+    .map((s) => ({ id: s.id, name: s.id === 'commander' ? leaders : t(s.name) }))
+  const sectionName = (id: Section) => sections.find((s) => s.id === id)?.name ?? id
   const put = (cardId: number, section: Section, printingId: number | null, quantity: number) =>
     setCard.mutate({ card_id: cardId, section, printing_id: printingId, quantity })
-  // One more copy from the search: on the line of that printing (or any) in the section.
-  const add = (cardId: number, section: Section, printingId: number | null) => {
-    const line = entries.find((e) => e.card_id === cardId)?.lines.find((l) => l.section === section && l.printing_id === printingId)
-    put(cardId, section, printingId, (line?.quantity ?? 0) + 1)
-  }
+  // One more copy from the search, on the line of that printing (or any) in the section.
+  // To the main deck: the server puts runes, sites, Extra Deck monsters... in theirs.
+  const add = (cardId: number, section: Section, printingId: number | null) =>
+    setCard.mutate({ card_id: cardId, section: section === 'main' ? null : section, printing_id: printingId, quantity: 1, add: true })
   // Copies of a line moved to another section (same printing): added first, so the
   // allocated copies stay (lowering the deck's total first would release them).
   const move = async ({ entry, line }: Row, to: Section, count: number) => {
@@ -369,14 +375,20 @@ export default function DeckDetail() {
     setCard.mutate({ card_id: entry.card_id, section: line.section, printing_id: line.printing_id, quantity: line.quantity - count })
   }
 
-  // Rows (card lines) per section; main deck rows grouped by card type.
+  // Rows (card lines) per section in the format's order; main deck rows grouped by card
+  // type. Cards of a section the format lacks (format changed) are shown last.
   const inSection = (section: Section, group?: string) =>
     entries.filter((e) => group === undefined || e.group === group).flatMap((entry) => entry.lines.filter((l) => l.section === section).map((line) => ({ entry, line })))
-  const blocks: { key: string; title: string; section: Section; rows: Row[] }[] = [
-    { key: 'commander', title: leaders, section: 'commander' as Section, rows: inSection('commander') },
-    ...groups.map((g) => ({ key: g, title: t(g), section: 'main' as Section, rows: inSection('main', g) })),
-    { key: 'sideboard', title: t('Sideboard'), section: 'sideboard' as Section, rows: inSection('sideboard') },
-  ].filter((b) => b.rows.length > 0)
+  const used = [...new Set(entries.flatMap((e) => e.lines.map((l) => l.section)))]
+  const shown = [...sections.map((s) => s.id), ...used.filter((id) => !sections.some((s) => s.id === id))]
+  type Block = { key: string; title: string; section: Section; rows: Row[] }
+  const blocks = shown
+    .flatMap((section): Block[] =>
+      section === 'main'
+        ? groups.map((g) => ({ key: g, title: t(g), section, rows: inSection('main', g) }))
+        : [{ key: section, title: sectionName(section), section, rows: inSection(section) }],
+    )
+    .filter((b) => b.rows.length > 0)
   const rowKey = (block: { key: string }, { entry, line }: Row) => `${block.key}-${entry.card_id}-${line.printing_id ?? 'any'}`
   // The card's first line in a block shows its copies; its other lines only theirs.
   const firstLine = (rows: Row[], row: Row) => rows.find((r) => r.entry.card_id === row.entry.card_id) === row
@@ -440,8 +452,13 @@ export default function DeckDetail() {
             ...(commanderFormat && block.section !== 'commander'
               ? [{ label: oathbreaker ? t('Move to oathbreaker / signature spell') : t('Make commander'), run: () => move(row, 'commander', 1) }]
               : []),
-            ...(sections && block.section !== 'sideboard' ? [{ label: t('Move to sideboard'), run: () => move(row, 'sideboard', line.quantity) }] : []),
-            ...(block.section !== 'main' ? [{ label: t('Move to main deck'), run: () => move(row, 'main', line.quantity) }] : []),
+            // Other sections: every copy moves, one for single-card sections (legend, champion, avatar).
+            ...sections
+              .filter((s) => s.id !== block.section && s.id !== 'commander')
+              .map((s) => ({
+                label: t('Move to {{section}}', { section: s.name }),
+                run: () => move(row, s.id, SINGLE.has(s.id) ? 1 : line.quantity),
+              })),
             { label: t('Remove'), run: () => put(e.card_id, block.section, line.printing_id, 0), danger: true },
           ]}
         />
@@ -514,7 +531,7 @@ export default function DeckDetail() {
         </div>
       </div>
 
-      <AddCards deck={deck} entries={entries} onAdd={add} commander={commanderFormat ? leaders : null} sections={sections} busy={busy} />
+      <AddCards deck={deck} entries={entries} onAdd={add} sections={sections} busy={busy} />
       <div className="flex justify-end">
         <ViewToggle views={DECK_VIEWS} value={view.id} onChange={chooseView} />
       </div>
@@ -542,7 +559,7 @@ export default function DeckDetail() {
                       return (
                         <div key={rowKey(block, row)} className="flex flex-col gap-1">
                           <Link to={link} className="group relative">
-                            <CardImage thumb src={line.image ?? e.image} alt={e.name} game={deck.game_id} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
+                            <CardImage thumb src={line.image ?? e.image} alt={e.name} game={deck.game_id} landscape={e.orientation === 'landscape'} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
                             <span className="badge badge-neutral absolute bottom-[3%] left-[3%] font-semibold shadow">×{line.quantity}</span>
                             <span className={`badge badge-sm absolute right-[3%] top-[3%] shadow ${status.badge}`}>
                               {t(status.label)}
@@ -593,7 +610,7 @@ export default function DeckDetail() {
                           <td>
                             <div className="flex items-center gap-2">
                               <Link to={link} className="block w-8 shrink-0" tabIndex={-1} aria-hidden>
-                                <CardImage thumb src={line.image ?? e.image} alt={e.name} game={deck.game_id} />
+                                <CardImage thumb src={line.image ?? e.image} alt={e.name} game={deck.game_id} landscape={e.orientation === 'landscape'} />
                               </Link>
                               <div className="min-w-0">
                                 <Link to={link} className={`link-hover font-medium ${first ? '' : 'text-base-content/60'}`}>
@@ -603,7 +620,7 @@ export default function DeckDetail() {
                                   <PrintingBadge line={line} onClick={() => setPrinting({ row, split: false })} />
                                   {lineAllocated(row)}
                                   {first && e.mana_cost && <span className="font-mono">{e.mana_cost}</span>}
-                                  {first && !e.mana_cost && e.type_line && deck.game_id === 'lorcana' && <span>{e.type_line}</span>}
+                                  {first && !e.mana_cost && e.type_line && deck.game_id !== 'mtg' && <span>{e.type_line}</span>}
                                   {first && <Legality entry={e} />}
                                 </div>
                               </div>
@@ -625,7 +642,7 @@ export default function DeckDetail() {
         </div>
       </div>
 
-      <ImportDialog deckId={deckId} gameId={deck.game_id} open={importing} onClose={() => setImporting(false)} />
+      <ImportDialog deckId={deckId} gameId={deck.game_id} sections={sections} open={importing} onClose={() => setImporting(false)} />
       <CopiesDialog deckId={deckId} entry={copies} onClose={() => setCopies(null)} />
       <PrintingDialog deckId={deckId} gameId={deck.game_id} row={printing?.row ?? null} split={printing?.split ?? false} onClose={() => setPrinting(null)} />
       <ExportDialog deck={deck} open={exporting} onClose={() => setExporting(false)} />

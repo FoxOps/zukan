@@ -13,7 +13,7 @@ import { gridIcon, listIcon, type ViewChoice } from '../../lib/views'
 
 type Card = Schemas['CardSummaryOut']
 type Entry = Schemas['DeckEntryOut']
-type Section = Schemas['DeckCardIn']['section']
+type Section = Schemas['DeckSectionOut']['id']
 
 const PAGE_SIZE = 24
 const VIEWS: ViewChoice[] = [
@@ -34,21 +34,21 @@ function Counts({ card, entry }: { card: Card; entry?: Entry }) {
 
 /** Search the deck game's catalog like the Catalog page (name in any language, set,
  * colors, game filters, owned cards only) and add cards to a section. With a set
- * chosen, the card's printing of that set is added; otherwise any printing. Without
- * `sections` (Pokémon, Lorcana), cards go to the main deck. */
+ * chosen, the card's printing of that set is added; otherwise any printing. The main
+ * deck takes each card to its own section (a rune to the rune deck, a site to the
+ * atlas); with one section (Pokémon, Lorcana) there is no choice. */
 export function AddCards({
   deck,
   entries,
   onAdd,
-  commander,
   sections,
   busy,
 }: {
   deck: Schemas['DeckOut']
   entries: Entry[]
   onAdd: (cardId: number, section: Section, printingId: number | null) => void
-  commander: string | null
-  sections: boolean
+  // The format's sections and their shown names.
+  sections: { id: Section; name: string }[]
   busy: boolean
 }) {
   const { t } = useTranslation()
@@ -118,7 +118,7 @@ export function AddCards({
             </span>
             {t('Add cards')}
           </button>
-          {open && sections && (
+          {open && sections.length > 1 && (
             <label className="flex items-center gap-2 text-sm">
               <span className="text-base-content/70">{t('Add to')}</span>
               <Select
@@ -126,11 +126,7 @@ export function AddCards({
                 value={section}
                 onChange={(v) => setSection(v as Section)}
                 aria-label={t('Section')}
-                options={[
-                  ...(commander ? [{ value: 'commander', label: commander }] : []),
-                  { value: 'main', label: t('Main deck') },
-                  { value: 'sideboard', label: t('Sideboard') },
-                ]}
+                options={sections.map((s) => ({ value: s.id, label: s.name }))}
               />
             </label>
           )}

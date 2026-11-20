@@ -12,7 +12,7 @@ import { useFormatName } from './decks/formats'
 
 type Body = Schemas['DeckIn']
 
-/** New deck: a name, the game (Magic, Pokémon, Lorcana) and one of its formats. */
+/** New deck: a name, the game (each catalog game decks support) and one of its formats. */
 function CreateDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation()
   const toast = useToast()
@@ -112,9 +112,9 @@ export default function DecksPage() {
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold">
-            {t('Decks')} <span className="badge badge-sm badge-outline align-middle">{t('Experimental')}</span>
+            {t('Decks')} <span className="badge badge-sm badge-outline align-middle">{t('Beta')}</span>
           </h1>
-          <p className="text-sm text-base-content/60">{t('Build Magic and Pokémon decks, check format rules and set owned copies aside for each deck.')}</p>
+          <p className="text-sm text-base-content/60">{t('Build decks for your games, check format rules and set owned copies aside for each deck.')}</p>
         </div>
         <button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
           {t('New deck')}

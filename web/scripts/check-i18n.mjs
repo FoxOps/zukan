@@ -22,6 +22,11 @@ const DYNAMIC = [
   'Creature', 'Planeswalker', 'Battle', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Other',
   'Pokémon', 'Supporter', 'Item', 'Pokémon Tool', 'Stadium', 'Trainer', 'Energy',
   'Character', 'Action', 'Song', 'Location',
+  'Legend', 'Unit', 'Gear', 'Rune', 'Battlefield', 'Monster', 'Fusion', 'Synchro', 'Xyz', 'Link',
+  'Avatar', 'Site', 'Minion', 'Magic', 'Aura',
+  // Deck sections (`DeckFormatOut.sections`).
+  'Main deck', 'Sideboard', 'Commander', 'Chosen champion', 'Battlefields', 'Rune deck', 'Main Deck',
+  'Extra Deck', 'Side Deck', 'Atlas', 'Spellbook', 'Collection',
   'Allocated', 'Banned', 'Not legal', 'Restricted', 'Found', 'Ambiguous', 'Unknown',
   // Collection views and trend periods.
   'List', 'Images', '24h', '7d', '30d',

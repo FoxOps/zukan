@@ -5,7 +5,8 @@ import { api, call, type Schemas } from '../../api/client'
 import { useToast } from '../../components/toast'
 
 /** The decklist as text in the game's usual format (Moxfield / MTGO, Pokémon TCG Live,
- * Dreamborn): copy it or save it as a .txt file. The import reads it back. */
+ * Dreamborn, Riftbound / Yu-Gi-Oh! / Sorcery section blocks): copy it or save it as a
+ * .txt file. The import reads it back. */
 export function ExportDialog({ deck, open, onClose }: { deck: Schemas['DeckOut']; open: boolean; onClose: () => void }) {
   const { t } = useTranslation()
   const toast = useToast()
@@ -44,7 +45,9 @@ export function ExportDialog({ deck, open, onClose }: { deck: Schemas['DeckOut']
               ? t('Pokémon TCG Live format: paste it in the game or on Limitless.')
               : deck.game_id === 'lorcana'
                 ? t('Dreamborn / Inktable format.')
-                : t('Moxfield / MTGO format, read by most deck sites.')}
+                : deck.game_id === 'mtg'
+                  ? t('Moxfield / MTGO format, read by most deck sites.')
+                  : t('One block per section ("Main Deck:"), read back by the import.')}
           </p>
           {withSets && (
             <label className="flex items-center gap-2 py-1 text-sm">

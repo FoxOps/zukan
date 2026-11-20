@@ -157,8 +157,17 @@ def _attributes(card: dict[str, Any]) -> dict[str, Any]:
         "archetype": card.get("archetype"),
         "desc": card.get("desc"),
         "konami_id": info.get("konami_id"),
+        # Release in each market, for deck legality (`services.deck_rules`).
+        "tcg_date": info.get("tcg_date"),
+        "ocg_date": info.get("ocg_date"),
     }
-    return {k: v for k, v in values.items() if v not in (None, "", [])}
+    found = {k: v for k, v in values.items() if v not in (None, "", [])}
+    # Ban list status per list ("tcg", "ocg", "goat": Forbidden, Limited, Semi-Limited);
+    # always set (empty: unlimited everywhere) so decks tell it from a catalog not synced.
+    found["banlist"] = {
+        k.removeprefix("ban_"): v for k, v in (card.get("banlist_info") or {}).items() if v
+    }
+    return found
 
 
 def _ocg_colors(attributes: dict[str, Any]) -> list[str]:
@@ -466,7 +475,8 @@ class YugiohProvider:
     # 2: TCG / OCG sets, Korean and Chinese printings in the TCG sets, European
     # languages of sets YGOJSON lacks.
     # 3: one game each (TCG, OCG), Asian printings in OCG sets of their code.
-    catalog_version = 3
+    # 4: ban lists and release dates (deck legality).
+    catalog_version = 4
     legal_notice = LEGAL_NOTICE
     # No `text_attribute`: printings carry the text of their time (errata, "Graveyard"
     # became "GY"), so other sources' texts are not compared.

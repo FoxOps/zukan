@@ -5,12 +5,33 @@
   "4 Lightning Bolt (M10) 146".
 - Pokémon (Pokémon TCG Live, Limitless): "Pokémon: 12" / "Trainer: 30" / "Energy: 18"
   blocks, "4 Charmander PAF 7", "Total Cards: 60".
-- Lorcana (Dreamborn, Inktable): "4 Elsa - Snow Queen", no set."""
+- Lorcana (Dreamborn, Inktable): "4 Elsa - Snow Queen", no set.
+- Riftbound: "Legend:" / "Champion:" / "Main Deck:" / "Battlefields:" / "Runes:" /
+  "Sideboard:" blocks.
+- Yu-Gi-Oh!: "Main Deck:" / "Extra Deck:" / "Side Deck:" blocks.
+- Sorcery (Curiosa): "Avatar:" / "Atlas:" / "Spellbook:" / "Collection:" blocks."""
 
 from dataclasses import dataclass
 
-# Headers of Magic sections, in order.
+# Headers of each game's sections, in order.
 _MTG_SECTIONS = (("commander", "Commander"), ("main", "Deck"), ("sideboard", "Sideboard"))
+_SECTIONS = {
+    "riftbound": (
+        ("legend", "Legend:"),
+        ("champion", "Champion:"),
+        ("main", "Main Deck:"),
+        ("battlefields", "Battlefields:"),
+        ("runes", "Runes:"),
+        ("sideboard", "Sideboard:"),
+    ),
+    "yugioh": (("main", "Main Deck:"), ("extra", "Extra Deck:"), ("sideboard", "Side Deck:")),
+    "sorcery": (
+        ("avatar", "Avatar:"),
+        ("atlas", "Atlas:"),
+        ("main", "Spellbook:"),
+        ("sideboard", "Collection:"),
+    ),
+}
 
 
 @dataclass
@@ -40,8 +61,9 @@ def export_text(game_id: str, lines: list[ExportLine], sets: bool = True) -> str
         return "\n".join(_card(line, False) for line in lines if line.section == "main") + "\n"
     if game_id.startswith("pokemon"):
         return _pokemon(lines, sets)
+    sections = _SECTIONS.get("yugioh" if game_id.startswith("yugioh") else game_id, _MTG_SECTIONS)
     blocks = []
-    for section, header in _MTG_SECTIONS:
+    for section, header in sections:
         cards = [_card(line, sets) for line in lines if line.section == section]
         if cards:
             blocks.append("\n".join([header, *cards]))
