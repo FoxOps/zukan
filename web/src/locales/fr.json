@@ -750,5 +750,15 @@
   "The catalog, collection, dashboard, finance, binder and decks only show these games.": "Le catalogue, la collection, le tableau de bord, les finances, le classeur et les decks n'affichent que ces jeux.",
   "Choose games": "Choisir les jeux",
   "{{count}} more in games hidden in Settings._one": "{{count}} de plus dans un jeu masqué dans les paramètres.",
-  "{{count}} more in games hidden in Settings._other": "{{count}} de plus dans des jeux masqués dans les paramètres."
+  "{{count}} more in games hidden in Settings._other": "{{count}} de plus dans des jeux masqués dans les paramètres.",
+  "Followed sets (Binder)": "Extensions suivies (Classeur)",
+  "Decks, their cards and allocated copies": "Decks, leurs cartes et exemplaires réservés",
+  "Cards": "Cartes",
+  "Followed sets": "Extensions suivies",
+  "Deck cards": "Cartes des decks",
+  "Allocated copies": "Exemplaires réservés",
+  "With followed sets or decks, the download is a zip holding one CSV per part, which imports back here.": "Avec les extensions suivies ou les decks, le téléchargement est un zip contenant un CSV par partie, qui se réimporte ici.",
+  "Download zip": "Télécharger le zip",
+  "A zip exported here brings back followed sets and decks too. Decks of the same game and name get the cards added, or replaced with the second option.": "Un zip exporté ici restaure aussi les extensions suivies et les decks. Les decks du même jeu et du même nom reçoivent les cartes en plus, ou remplacées avec la seconde option.",
+  "File": "Fichier"
 }

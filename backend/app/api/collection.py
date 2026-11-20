@@ -29,8 +29,9 @@ from app.models import (
     Printing,
     StockTransaction,
 )
+from app.modules import for_user
 from app.prices.base import price_sources
-from app.services import collection, csv_io, images
+from app.services import collection, csv_io, export_bundle, images
 from app.services.collection import StockError, Variant
 from app.services.names import display_name
 
@@ -182,13 +183,21 @@ class ValueHistoryOut(BaseModel):
 class ImportErrorOut(BaseModel):
     line: int
     message: str
+    # File of a zip export bundle; None: the CSV.
+    file: str | None = None
 
 
 class ImportOut(BaseModel):
+    # Rows of the cards CSV (of `cards.csv` in a bundle).
     rows: int
     imported: int
     dry_run: bool
     errors: list[ImportErrorOut]
+    # Bundles: rows of each file, valid (dry run) or written.
+    counts: dict[str, int] = {}
+
+
+ExportPart = Literal["cards", "binder", "decks", "all"]
 
 
 def currency(game_id: str, wanted: str) -> str:
@@ -712,6 +721,34 @@ async def export_csv(user: CurrentUser, session: SessionDep, game: str | None = 
     )
 
 
+@router.get("/export")
+async def export(
+    user: CurrentUser,
+    session: SessionDep,
+    parts: Annotated[list[ExportPart], Query()] = ["cards"],  # noqa: B006
+    game: str | None = None,
+) -> Response:
+    """The cards alone as a CSV (as `export.csv`), or a zip of the chosen parts: cards,
+    followed sets (Binder), decks with their lines and allocated copies (Decks). `all`
+    takes every part the user can use; parts of modules not enabled are refused."""
+    enabled = (await for_user(session, user)).enabled
+    usable = [p for p, module in export_bundle.PARTS.items() if module is None or module in enabled]
+    chosen = usable if "all" in parts else list(dict.fromkeys(parts))
+    refused = [p for p in chosen if p not in usable]
+    if refused:
+        module = export_bundle.PARTS[refused[0]]
+        raise HTTPException(status.HTTP_403_FORBIDDEN, f"Module '{module}' is not enabled")
+    if chosen == ["cards"]:
+        return await export_csv(user, session, game)
+    content = await export_bundle.export_zip(session, user.id, game, chosen)
+    filename = f"zukan-{game or 'all'}-{date.today().isoformat()}.zip"
+    return Response(
+        content,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.post("/import")
 async def import_csv(
     user: CurrentUser,
@@ -720,11 +757,31 @@ async def import_csv(
     mode: Literal["add", "set"] = "add",
     dry_run: bool = False,
 ) -> ImportOut:
-    """Import a CSV (see export format). Nothing is imported if any row is invalid.
-    `add` adds quantities; `set` makes stored quantities equal to the file's."""
+    """Import a CSV (see export format) or a zip export bundle (`export`). Nothing is
+    imported if any row is invalid. `add` adds quantities (and deck lines); `set` makes
+    stored quantities equal to the file's (and replaces decks of the same game and name)."""
     data = await file.read(MAX_CSV_BYTES + 1)
     if len(data) > MAX_CSV_BYTES:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "File larger than 5 MB")
+    if export_bundle.is_zip(data):
+        try:
+            files = export_bundle.read_zip(data)
+        except export_bundle.BundleError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+        modules = (await for_user(session, user)).enabled
+        bundle = await export_bundle.import_bundle(
+            session, user.id, files, modules, mode == "set", dry_run
+        )
+        return ImportOut(
+            rows=bundle.rows,
+            imported=bundle.imported,
+            dry_run=dry_run,
+            errors=[
+                ImportErrorOut(line=e.line, message=e.message, file=e.file)
+                for e in bundle.errors[:200]
+            ],
+            counts=bundle.counts,
+        )
     try:
         text = data.decode("utf-8-sig")
     except UnicodeDecodeError as exc:

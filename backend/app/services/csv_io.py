@@ -129,7 +129,7 @@ class _Row:
     notes: str | None
 
 
-def _reader(text: str) -> csv.DictReader:
+def csv_reader(text: str) -> csv.DictReader:
     # Only the delimiter is guessed from the header: quoting stays the usual one (quotes
     # doubled inside quoted cells), which the header alone does not show.
     try:
@@ -206,7 +206,7 @@ class PrintingLookup:
 async def parse_rows(
     session: AsyncSession, text: str, set_mode: bool, report: ImportReport
 ) -> list[_Row]:
-    reader = _reader(text)
+    reader = csv_reader(text)
     try:
         missing = REQUIRED - set(reader.fieldnames or [])
     except csv.Error as exc:
