@@ -12,7 +12,6 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import delete, func, select
-from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
 from app.api.catalog import load_names, orientation, show_card, show_printing
@@ -774,7 +773,7 @@ async def set_card(
     quantity = body.quantity
     if body.add and (line := _line(deck, body.card_id, section, body.printing_id)):
         quantity = min(MAX_COPIES, line.quantity + quantity)
-    await _set_quantity(session, deck, body.card_id, section, body.printing_id, quantity)
+    await decks.set_line(session, deck, body.card_id, section, body.printing_id, quantity)
     await decks.release_excess(session, deck, [body.card_id])
     deck.updated_at = func.now()
     await session.commit()
@@ -796,10 +795,10 @@ async def move_line(
     if body.to_printing_id != body.printing_id:
         target = _line(deck, body.card_id, body.section, body.to_printing_id)
         current = target.quantity if target else 0
-        await _set_quantity(
+        await decks.set_line(
             session, deck, body.card_id, body.section, body.printing_id, line.quantity - moved
         )
-        await _set_quantity(
+        await decks.set_line(
             session,
             deck,
             body.card_id,
@@ -832,39 +831,6 @@ async def _check_printing(session: SessionDep, card_id: int, printing_id: int | 
     )
     if found is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Printing not found for this card")
-
-
-async def _set_quantity(
-    session: SessionDep,
-    deck: Deck,
-    card_id: int,
-    section: str,
-    printing_id: int | None,
-    quantity: int,
-) -> None:
-    if quantity == 0:
-        await session.execute(
-            delete(DeckCard).where(
-                DeckCard.deck_id == deck.id,
-                DeckCard.card_id == card_id,
-                DeckCard.section == section,
-                DeckCard.printing_id.is_not_distinct_from(printing_id),
-            )
-        )
-        return
-    stmt = insert(DeckCard).values(
-        deck_id=deck.id,
-        card_id=card_id,
-        section=section,
-        printing_id=printing_id,
-        quantity=quantity,
-    )
-    await session.execute(
-        stmt.on_conflict_do_update(
-            constraint="uq_deck_card_deck_id_card_id_section_printing_id",
-            set_={"quantity": quantity},
-        )
-    )
 
 
 @router.post("/{deck_id}/allocate")
@@ -1144,7 +1110,7 @@ async def import_cards(
         current = {}
     for (card_id, section, printing_id), quantity in wanted.items():
         total = min(MAX_COPIES, current.get((card_id, section, printing_id), 0) + quantity)
-        await _set_quantity(session, deck, card_id, section, printing_id, total)
+        await decks.set_line(session, deck, card_id, section, printing_id, total)
     if body.replace:
         await decks.release_excess(session, deck, before | card_ids)
     deck.updated_at = func.now()
