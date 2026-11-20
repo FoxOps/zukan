@@ -80,8 +80,14 @@ async def issue_refresh_token(
 
 async def start_session(session: AsyncSession, user: User) -> tuple[str, str]:
     """A new session for `user`: (access token, refresh token)."""
+    access, refresh, _ = await start_session_family(session, user)
+    return access, refresh
+
+
+async def start_session_family(session: AsyncSession, user: User) -> tuple[str, str, uuid.UUID]:
+    """A new session for `user`: (access token, refresh token, session id)."""
     refresh, family_id = await issue_refresh_token(session, user)
-    return create_access_token(user, family_id), refresh
+    return create_access_token(user, family_id), refresh, family_id
 
 
 async def session_alive(session: AsyncSession, family_id: uuid.UUID) -> bool:
@@ -129,6 +135,12 @@ async def rotate_refresh_token(session: AsyncSession, token: str) -> tuple[User,
     user = await session.get(User, row.user_id)
     if user is None or user.disabled:
         return None
+    # SSO sessions: lifetime, and the identity provider still accepting the account.
+    from app.services import sso_sessions
+
+    if not await sso_sessions.still_allowed(session, row.family_id, user):
+        await revoke_family(session, row.family_id)
+        return None
     if row.revoked_at is None:
         row.revoked_at = now
         row.rotated_at = now
@@ -145,19 +157,25 @@ async def revoke_refresh_token(session: AsyncSession, token: str) -> None:
 
 
 async def revoke_family(session: AsyncSession, family_id: uuid.UUID) -> None:
+    from app.services import sso_sessions
+
     await session.execute(
         update(RefreshToken)
         .where(RefreshToken.family_id == family_id, RefreshToken.revoked_at.is_(None))
         .values(revoked_at=datetime.now(UTC))
     )
+    await sso_sessions.forget(session, family_id)
 
 
 async def end_all_sessions(session: AsyncSession, user: User) -> None:
     """Log `user` out everywhere: every refresh token revoked and access tokens refused
     (`auth_version` raised). For password changes and disabled accounts."""
+    from app.services import sso_sessions
+
     user.auth_version += 1
     await session.execute(
         update(RefreshToken)
         .where(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None))
         .values(revoked_at=datetime.now(UTC))
     )
+    await sso_sessions.forget_user(session, user.id)

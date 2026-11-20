@@ -22,7 +22,8 @@ async def test_login_token_mode_and_me(client, session):
 
 
 @pytest.mark.smoke
-async def test_default_admin_created_on_empty_database(client, session):
+async def test_default_admin_created_on_empty_database(client, session, monkeypatch):
+    monkeypatch.setattr(get_settings(), "default_admin_password", "changeme")
     await create_default_admin()
     await create_default_admin()  # idempotent across restarts
     assert await session.scalar(select(func.count()).select_from(User)) == 1
@@ -49,14 +50,30 @@ async def test_default_admin_not_created_when_users_exist(session):
 
 async def test_default_admin_settings(client, session, monkeypatch):
     settings = get_settings()
-    monkeypatch.setattr(settings, "default_admin_password", "")
-    await create_default_admin()
-    assert await session.scalar(select(func.count()).select_from(User)) == 0
-
     monkeypatch.setattr(settings, "default_admin_username", "root")
     monkeypatch.setattr(settings, "default_admin_password", "custom-password")
     await create_default_admin()
     await bearer(client, "root", "custom-password")
+
+
+async def test_default_admin_random_password_logged_once(client, session, caplog):
+    """No preset password: a random one, only in the log of the start creating it."""
+    await create_default_admin()
+    logged = [r.args for r in caplog.records if "Created default administrator" in r.msg]
+    assert len(logged) == 1
+    username, password = logged[0]
+    assert username == "admin" and len(password) >= 20
+    await bearer(client, "admin", password)
+    caplog.clear()
+    await create_default_admin()
+    assert not [r for r in caplog.records if "Created default administrator" in r.msg]
+
+
+async def test_default_admin_skipped_without_local_login(session, monkeypatch):
+    monkeypatch.setattr(get_settings(), "local_login_enabled", False)
+    monkeypatch.setattr(get_settings(), "default_admin_password", "changeme")
+    await create_default_admin()
+    assert await session.scalar(select(func.count()).select_from(User)) == 0
 
 
 async def test_login_rejects_bad_password_unknown_and_disabled(client, session):

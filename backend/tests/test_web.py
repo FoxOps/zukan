@@ -22,6 +22,9 @@ async def test_serves_single_page_app(tmp_path, monkeypatch):
             response = await client.get(path)
             assert response.text == "<html>app</html>", path
             assert response.headers["cache-control"] == "no-cache"
+            policy = response.headers["content-security-policy"]
+            assert "script-src 'self'" in policy and "object-src 'none'" in policy
+            assert policy.endswith("frame-ancestors 'none'")
         asset = await client.get("/assets/index-abc.js")
         assert asset.headers["cache-control"].endswith("immutable")
         assert (await client.get("/favicon.svg")).text == "<svg/>"
@@ -54,3 +57,22 @@ async def test_unexpected_errors_are_json(tmp_path, monkeypatch):
         response = await client.get("/api/boom")
     assert response.status_code == 500
     assert response.json() == {"detail": "Internal server error"}
+
+
+@pytest.mark.parametrize("mode", ["report", "off"])
+async def test_web_csp_modes(tmp_path, monkeypatch, mode):
+    """TCG_CSP_MODE=report only reports the policy, off leaves only the framing rule."""
+    web = tmp_path / "dist"
+    web.mkdir()
+    (web / "index.html").write_text("<html>app</html>")
+    monkeypatch.setattr(get_settings(), "web_dir", web)
+    monkeypatch.setattr(get_settings(), "csp_mode", mode)
+    transport = httpx.ASGITransport(app=create_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/")
+    assert response.headers["content-security-policy"] == "frame-ancestors 'none'"
+    report = response.headers.get("content-security-policy-report-only")
+    if mode == "report":
+        assert "script-src 'self'" in report
+    else:
+        assert report is None

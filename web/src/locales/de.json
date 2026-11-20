@@ -503,7 +503,6 @@
   "No set followed yet. Follow one to see which of its cards you are missing.": "Noch kein Set verfolgt. Verfolge eins, um zu sehen, welche Karten dir fehlen.",
   "Modules": "Module",
   "Extra features for other ways of collecting. Zukan works the same without them.": "Zusätzliche Funktionen für andere Arten zu sammeln. Zukan funktioniert auch ohne sie gleich.",
-  "No module is available on this server.": "Auf diesem Server ist kein Modul verfügbar.",
   "Search this set": "In diesem Set suchen",
   "Stop following": "Nicht mehr verfolgen",
   "Number": "Nummer",
@@ -608,7 +607,6 @@
   "Format check": "Formatprüfung",
   "Not verified": "Nicht geprüft",
   "Issues never block saving: keep editing your draft.": "Probleme blockieren nie das Speichern: Bearbeite deinen Entwurf weiter.",
-  "Given by your group": "Von Ihrer Gruppe freigegeben",
   "Choose who can use each module in Admin › Groups": "Legen Sie unter Admin › Gruppen fest, wer welches Modul nutzen darf",
   "Module access": "Modulzugriff",
   "Open to everyone: each user turns the module on in their settings. Given to groups: on for their members, hidden for the others. Administrators can always use a module that is not off.": "Für alle: Jeder Benutzer schaltet das Modul in seinen Einstellungen ein. Für Gruppen: für deren Mitglieder eingeschaltet, für alle anderen ausgeblendet. Administratoren können jedes nicht ausgeschaltete Modul immer nutzen.",
@@ -760,5 +758,6 @@
   "With followed sets or decks, the download is a zip holding one CSV per part, which imports back here.": "Mit verfolgten Sets oder Decks ist der Download ein Zip mit einer CSV pro Teil, das sich hier wieder importieren lässt.",
   "Download zip": "Zip herunterladen",
   "A zip exported here brings back followed sets and decks too. Decks of the same game and name get the cards added, or replaced with the second option.": "Ein hier exportiertes Zip bringt auch verfolgte Sets und Decks zurück. Decks mit gleichem Spiel und Namen erhalten die Karten zusätzlich, oder ersetzt mit der zweiten Option.",
-  "File": "Datei"
+  "File": "Datei",
+  "Could not load the sign-in options.": "Die Anmeldeoptionen konnten nicht geladen werden."
 }

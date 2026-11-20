@@ -1,6 +1,7 @@
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from dotenv import dotenv_values
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -27,15 +28,30 @@ class Settings(BaseSettings):
     refresh_token_ttl_seconds: int = 90 * 24 * 3600
     # Secure cookies need HTTPS; disable only for local development.
     cookie_secure: bool = True
+    # SSO sessions end this long after the sign-in, whatever the activity (the user signs
+    # in at the identity provider again). Web sessions also ask the provider every
+    # `sso_recheck_seconds` (needs its refresh token, scope offline_access on Authentik)
+    # whether the account is still allowed, and resync its groups. 0: no recheck.
+    sso_session_max_age_seconds: int = 30 * 24 * 3600
+    sso_recheck_seconds: int = 15 * 60
+    # Content-Security-Policy of the web UI: enforce, report (Report-Only header, the
+    # browser console lists what it would block) or off (only no framing).
+    csp_mode: Literal["enforce", "report", "off"] = "enforce"
 
     # SSO providers (JSON list of names); each one is configured by TCG_OIDC_<NAME>_*
     # variables (see .env.example and app.core.oidc).
     oidc_providers: list[str] = []
     local_login_enabled: bool = True
-    # Administrator created on start when the database has no user yet, so the first
-    # login works. Change the password after signing in. Empty password: not created.
+    # Administrator created on start when the database has no user yet and local login is
+    # on, so the first login works. Empty password: a random one, written once in the log.
     default_admin_username: str = "admin"
-    default_admin_password: str = "changeme"
+    default_admin_password: str = ""
+
+    # Runtime database role made by `zukan db-roles` (run with the owner role of the
+    # database, before the API and worker start): no superuser, only reads and writes
+    # data. Its password; empty: `zukan db-roles` refuses to run.
+    db_app_user: str = "zukan_app"
+    db_app_password: str = ""
 
     # Sign-in limits (0: none): failed password sign-ins per account name and per client
     # address within `login_window_seconds`, then refresh and SSO requests per address and

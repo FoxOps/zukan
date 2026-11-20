@@ -21,6 +21,22 @@ async def test_security_headers_on_every_answer(client, session):
     assert policy.startswith("default-src 'none'") and policy.endswith("frame-ancestors 'none'")
 
 
+async def test_api_answers_not_cached(client, session):
+    """Collections and exports stay out of browser and proxy caches; card pictures keep
+    their own caching."""
+    await make_user(session)
+    alice = await bearer(client, "alice")
+    me = await client.get("/api/auth/me", headers=alice)
+    assert me.headers["cache-control"] == "private, no-store"
+    export = await client.get("/api/collection/export.csv", headers=alice)
+    assert export.status_code == 200
+    assert export.headers["cache-control"] == "private, no-store"
+    cards = await client.get("/api/collection/export", headers=alice)
+    assert cards.headers["cache-control"] == "private, no-store"
+    icon = await client.get("/api/games/lorcana/colors/amber/icon", headers=alice)
+    assert icon.headers["cache-control"].startswith("private, max-age=")
+
+
 async def test_large_bodies_refused_before_parsing(client, session, monkeypatch):
     monkeypatch.setattr(get_settings(), "max_request_bytes", 1000)
     await make_user(session)

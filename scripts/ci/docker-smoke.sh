@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Start a Zukan image against a PostgreSQL server and check it really works:
-# migrations, API, web UI, admin bootstrap, login, game plugins.
+# migrations and runtime database role, API, web UI, security headers, admin bootstrap,
+# login, game plugins.
 #
 #   scripts/ci/docker-smoke.sh IMAGE [DATABASE_URL]
 #
@@ -24,10 +25,19 @@ cleanup() {
 }
 trap cleanup EXIT
 
-docker run -d --name "$name" --network host \
+echo "Migrations and runtime database role (as the database owner)"
+docker run --rm --network host \
     -e TCG_DATABASE_URL="$database_url" \
+    -e TCG_DB_APP_PASSWORD=smoke-app-password \
+    "$image" sh -c "alembic upgrade head && zukan db-roles"
+# The API runs with the runtime role, as in docker-compose.yml.
+app_url=$(echo "$database_url" | sed -E 's#//[^@]*@#//zukan_app:smoke-app-password@#')
+
+docker run -d --name "$name" --network host \
+    -e TCG_DATABASE_URL="$app_url" \
     -e TCG_SECRET_KEY="smoke-test-secret-key-that-is-long-enough" \
     -e TCG_COOKIE_SECURE=false \
+    -e TCG_DEFAULT_ADMIN_PASSWORD=changeme \
     "$image" >/dev/null
 
 echo "Waiting for the API..."
@@ -41,6 +51,9 @@ echo "Web UI is served"
 curl -sf "$base/collection" | grep -q "<title>Zukan</title>"
 asset=$(curl -sf "$base/" | grep -o '/assets/index-[^"]*\.js' | head -1)
 curl -sf -o /dev/null "$base$asset"
+
+echo "Web UI has its Content-Security-Policy"
+curl -sf -D - -o /dev/null "$base/" | grep -qi "^content-security-policy: default-src 'self'; script-src 'self'"
 
 echo "Default administrator can sign in"
 curl -sf "$base/api/auth/login" -H 'Content-Type: application/json' \

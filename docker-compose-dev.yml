@@ -1,7 +1,8 @@
 # Development: builds the image from this checkout.
 #   docker compose -f docker-compose-dev.yml up --build
 # Separate project name and data folder (./data-dev) so it never shares containers or
-# data with a deployment. First start creates the administrator admin / changeme.
+# data with a deployment. First start writes the password of the administrator `admin`
+# in the API log, unless TCG_DEFAULT_ADMIN_PASSWORD is set.
 # All settings come from .env (documented in .env.example).
 name: zukan-dev
 
@@ -20,15 +21,28 @@ services:
       interval: 5s
       retries: 10
 
-  api:
+  # Database migrations and the runtime role of the API and worker, with the owner role
+  # (a superuser). Runs on every start, then exits.
+  migrate:
     build: .
-    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     env_file: .env
     environment:
       TCG_DATABASE_URL: postgresql+asyncpg://tcg:${POSTGRES_PASSWORD}@db:5432/tcg
+      TCG_DB_APP_PASSWORD: ${TCG_DB_APP_PASSWORD:?set in .env}
+    command: ["sh", "-c", "alembic upgrade head && zukan db-roles"]
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file: .env
+    environment:
+      TCG_DATABASE_URL: postgresql+asyncpg://zukan_app:${TCG_DB_APP_PASSWORD}@db:5432/tcg
       # Proxies trusted for X-Forwarded-For / -Proto (see .env.example).
       FORWARDED_ALLOW_IPS: ${TCG_FORWARDED_ALLOW_IPS:-127.0.0.1}
     volumes:
@@ -36,7 +50,9 @@ services:
       # Put downloaded image folders here (e.g. Sorcery Google Drive) to import them.
       - ./import:/data/import:ro
     ports:
-      - "${ZUKAN_PORT:-8000}:8000"
+      # Only on this machine by default: the reverse proxy (Caddy...) runs here. Set
+      # ZUKAN_BIND=0.0.0.0 to reach it from other machines (see .env.example).
+      - "${ZUKAN_BIND:-127.0.0.1}:${ZUKAN_PORT:-8000}:8000"
 
   # Refreshes catalogs, prices and owned card images (TCG_SYNC_INTERVAL_HOURS).
   worker:
@@ -49,7 +65,7 @@ services:
         condition: service_started
     env_file: .env
     environment:
-      TCG_DATABASE_URL: postgresql+asyncpg://tcg:${POSTGRES_PASSWORD}@db:5432/tcg
+      TCG_DATABASE_URL: postgresql+asyncpg://zukan_app:${TCG_DB_APP_PASSWORD}@db:5432/tcg
     volumes:
       - ./data-dev/images:/data/images
     command: ["python", "-m", "app.worker"]

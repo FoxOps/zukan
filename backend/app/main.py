@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -31,7 +32,13 @@ from app.core import naming
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
 from app.core.http import close_shared_http_client
-from app.core.middleware import BodyLimit, RequestTimer, SecurityHeaders, TextCompression
+from app.core.middleware import (
+    BodyLimit,
+    RequestTimer,
+    SecurityHeaders,
+    TextCompression,
+    web_csp_headers,
+)
 from app.core.security import hash_password
 from app.games.base import registry, shipped_folders
 from app.models import Game, Role, User
@@ -55,25 +62,35 @@ async def register_games() -> None:
 
 
 async def create_default_admin() -> None:
-    """First start: create the default administrator so somebody can sign in."""
+    """First start: create the default administrator so somebody can sign in. Not with
+    local login off (SSO administrators come from their groups). Without a set password,
+    a random one is written once in the log."""
     settings = get_settings()
-    if not settings.default_admin_password:
+    if not settings.local_login_enabled:
         return
     async with get_sessionmaker()() as session:
         if await session.scalar(select(exists().select_from(User))):
             return
+        password = settings.default_admin_password or secrets.token_urlsafe(18)
         session.add(
             User(
                 username=settings.default_admin_username,
                 role=Role.admin,
-                password_hash=hash_password(settings.default_admin_password),
+                password_hash=hash_password(password),
             )
         )
         await session.commit()
-    logger.warning(
-        "Created default administrator %r: sign in and change its password",
-        settings.default_admin_username,
-    )
+    if settings.default_admin_password:
+        logger.warning(
+            "Created default administrator %r: sign in and change its password",
+            settings.default_admin_username,
+        )
+    else:
+        logger.warning(
+            "Created default administrator %r with password %s: sign in and change it",
+            settings.default_admin_username,
+            password,
+        )
 
 
 @asynccontextmanager
@@ -176,7 +193,7 @@ def mount_web(app: FastAPI, web_dir: Path) -> None:
             page = await maintenance_response(request)
             if page is not None:
                 return page
-        return FileResponse(index, headers={"Cache-Control": "no-cache"})
+        return FileResponse(index, headers={"Cache-Control": "no-cache", **web_csp_headers()})
 
 
 async def maintenance_response(request: Request) -> HTMLResponse | None:
