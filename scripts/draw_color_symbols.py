@@ -1,7 +1,7 @@
 """Draw Zukan's own symbols where no source has one: Lorcana inks and text symbols, Riftbound text
-symbols (exhaust, might, any rune, energy), Sorcery colorless,
-Pokémon "No type", Yu-Gi-Oh! Spell and Trap (fallback of Konami's). Written to `backend/app/games/<game>/symbols/<code>.svg`
-(`ColorDef.icon_file`); existing files are kept.
+symbols (exhaust, might, any rune, energy), Sorcery colorless, Pokémon "No type", Yu-Gi-Oh! Spell
+and Trap (fallback of Konami's). Written to `backend/app/games/<game>/symbols/<code>.svg`
+(`ColorDef.icon_file`, `SymbolDef.icon_file`); existing files are kept.
 
     python scripts/draw_color_symbols.py
 """
@@ -171,7 +171,8 @@ TEXT_DRAWINGS = {
         "W": disc(
             DARK,
             GOLD,
-            f'<path d="M32 13 47 18V30C47 39.5 41 46 32 50.5 23 46 17 39.5 17 30V18Z" {GOLD_LINE}/>',
+            '<path d="M32 13 47 18V30C47 39.5 41 46 32 50.5 23 46 17 39.5 17 30V18Z" '
+            f"{GOLD_LINE}/>",
         ),
         # {L}: lore, a diamond.
         "L": disc(DARK, GOLD, f'<path d="M32 12 47 32 32 52 17 32Z" fill="{GOLD}"/>'),
@@ -206,9 +207,7 @@ TEXT_DRAWINGS = {
             '<path d="M21 42H43M32 42V53" ' + WHITE_LINE + "/>",
         ),
         # {rainbow}: a rune of any domain.
-        "rainbow": wedges(
-            ["#D7443E", "#4FA35B", "#3A7BD5", "#E08A2E", "#8E4BC2", "#E3C04B"]
-        ),
+        "rainbow": wedges(["#D7443E", "#4FA35B", "#3A7BD5", "#E08A2E", "#8E4BC2", "#E3C04B"]),
         **{str(n): number(n) for n in range(13)},
     },
 }
