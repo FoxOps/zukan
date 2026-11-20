@@ -1,7 +1,8 @@
 # Dev server image from a development branch (pick it in "Use workflow from").
 # Quick checks for breaking bugs, then an amd64 image pushed as dev-<branch> and
-# dev-<branch>-<sha>. On success the Release workflow publishes pre-release
-# server-dev-<branch> (replaced by each new dev build of that branch).
+# dev-<branch>-<sha>; the server shows version dev-<pyproject version>+<sha>. On success the
+# Release workflow publishes pre-release server-dev-<branch> (replaced by each new dev build
+# of that branch).
 name: Docker dev
 
 on:
@@ -21,12 +22,21 @@ jobs:
     outputs:
       slug: ${{ steps.guard.outputs.slug }}
       short_sha: ${{ steps.guard.outputs.short_sha }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
       - id: guard
         env:
           BRANCH: ${{ github.ref_name }}
         run: scripts/ci/guard.sh dev "$BRANCH"
+      # Shown by the server: the version being prepared and the commit (dev-0.27.0+1a2b3c4).
+      - id: version
+        env:
+          SHORT_SHA: ${{ steps.guard.outputs.short_sha }}
+        run: |
+          base=$(python3 -c 'import tomllib; print(tomllib.load(open("backend/pyproject.toml", "rb"))["project"]["version"])')
+          echo "version=dev-$base+$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "Server version: dev-$base+$SHORT_SHA"
 
   checks:
     needs: guard
@@ -43,7 +53,7 @@ jobs:
     with:
       tags: dev-${{ needs.guard.outputs.slug }},dev-${{ needs.guard.outputs.slug }}-${{ needs.guard.outputs.short_sha }}
       platforms: linux/amd64
-      version: dev-${{ needs.guard.outputs.slug }}
+      version: ${{ needs.guard.outputs.version }}
 
   release-info:
     name: Hand over to the release
@@ -54,13 +64,14 @@ jobs:
         env:
           SLUG: ${{ needs.guard.outputs.slug }}
           SHORT_SHA: ${{ needs.guard.outputs.short_sha }}
+          VERSION: ${{ needs.guard.outputs.version }}
           IMAGE: ${{ needs.image.outputs.image }}
         run: |
           mkdir release
           echo server > release/component
           echo dev > release/channel
           echo "dev-$SLUG" > release/version
-          echo "Dev build of branch \`$GITHUB_REF_NAME\` at $SHORT_SHA. Docker image: \`$IMAGE:dev-$SLUG\` (also \`$IMAGE:dev-$SLUG-$SHORT_SHA\`, linux/amd64)" > release/notes.md
+          echo "Dev build \`$VERSION\` of branch \`$GITHUB_REF_NAME\` at $SHORT_SHA. Docker image: \`$IMAGE:dev-$SLUG\` (also \`$IMAGE:dev-$SLUG-$SHORT_SHA\`, linux/amd64)" > release/notes.md
       - uses: actions/upload-artifact@v7
         with:
           name: release-docker
