@@ -2430,6 +2430,9 @@ Report from server 0.26.0 + Android 0.17.0. Branch `2026-11-20-001-modules-expor
   every game. Android: Collection screen follows it (Scan / Search already did).
 - [x] Decks page grouped by game (sections in the server's game order, regional games named with their
   market, count per game).
+- [x] Dev images show `dev-<pyproject version>+<short commit>` (e.g. `dev-0.27.0+126800e`) instead of
+  `dev-<branch>` (`dev-dev` on the `dev` branch). Image tags and `server-dev-<branch>` pre-releases unchanged;
+  the version is in the pre-release notes. Prod keeps the typed `X.Y.Z`.
 - [x] Versions: server 0.27.0 (new API, zip import, symbols, Decks), Android 0.17.1 (collection filter,
   dependencies). `.env.example`: user agent example, import size comment. No new variable, no migration.
 - [x] Verified: 321+ backend tests (new: export bundles x4, symbols route / download, Lorcana and
