@@ -327,11 +327,11 @@ export default function CardDetail() {
           )}
           <div className="card bg-base-200">
             <div className="card-body p-4">
-              <Attributes data={c.attributes} />
+              <Attributes data={c.attributes} game={game} />
               {selected && hasVisibleAttributes(selected.attributes) && (
                 <>
                   <div className="divider my-1" />
-                  <Attributes data={selected.attributes} />
+                  <Attributes data={selected.attributes} game={game} />
                 </>
               )}
             </div>

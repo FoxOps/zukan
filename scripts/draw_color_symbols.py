@@ -1,10 +1,12 @@
-"""Draw Zukan's own color symbols where no source has one: Lorcana inks, Sorcery colorless,
-Pokémon "No type", Yu-Gi-Oh! Spell and Trap (fallback of Konami's). Written to `backend/app/games/<game>/symbols/<code>.svg`
-(`ColorDef.icon_file`); existing files are kept.
+"""Draw Zukan's own symbols where no source has one: Lorcana inks and text symbols, Riftbound text
+symbols (exhaust, might, any rune, energy), Sorcery colorless, Pokémon "No type", Yu-Gi-Oh! Spell
+and Trap (fallback of Konami's). Written to `backend/app/games/<game>/symbols/<code>.svg`
+(`ColorDef.icon_file`, `SymbolDef.icon_file`); existing files are kept.
 
     python scripts/draw_color_symbols.py
 """
 
+import math
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -113,7 +115,107 @@ DRAWINGS = {
 }
 
 
+DARK = "#1F2937"
+GOLD = "#E8C66A"
+GOLD_LINE = f'fill="none" stroke="{GOLD}" stroke-width="5" stroke-linejoin="round"'
+WHITE_LINE = 'fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"'
+
+
+def number(value: int) -> str:
+    """Riftbound energy: a number on a dark disc."""
+    size = 34 if value < 10 else 28
+    return disc(
+        DARK,
+        "#111827",
+        f'<text x="32" y="33" font-family="Arial, Helvetica, sans-serif" font-weight="700" '
+        f'font-size="{size}" fill="#fff" text-anchor="middle" dominant-baseline="central">'
+        f"{value}</text>",
+    )
+
+
+def wedges(colors: list[str]) -> str:
+    """Riftbound rune of any domain: one wedge per domain color."""
+    paths = []
+    for i, color in enumerate(colors):
+        a, b = (2 * math.pi * k / len(colors) - math.pi / 2 for k in (i, i + 1))
+        x1, y1 = 32 + 26 * math.cos(a), 32 + 26 * math.sin(a)
+        x2, y2 = 32 + 26 * math.cos(b), 32 + 26 * math.sin(b)
+        paths.append(
+            f'<path d="M32 32L{x1:.1f} {y1:.1f}A26 26 0 0 1 {x2:.1f} {y2:.1f}Z" fill="{color}"/>'
+        )
+    return _svg(
+        '<circle cx="32" cy="32" r="29" fill="#111827"/>'
+        + "".join(paths)
+        + '<circle cx="32" cy="32" r="9" fill="#111827"/>'
+    )
+
+
+# Symbols of card texts (`SymbolDef.icon_file`), written as tokens: dark backgrounds so they
+# read on light and dark themes.
+TEXT_DRAWINGS = {
+    "lorcana": {
+        # {I}: ink, the cost hexagon.
+        "I": ink(
+            DARK,
+            GOLD,
+            f'<path d="M32 17 45 24.5V39.5L32 47 19 39.5V24.5Z" {GOLD_LINE}/>',
+        ),
+        # {S}: strength, a burst.
+        "S": disc(
+            DARK,
+            GOLD,
+            f'<path d="M32 12 36 25 49 20 41 31 53 36 39 38 41 52 32 42 23 52 25 38 11 36 '
+            f'23 31 15 20 28 25Z" fill="{GOLD}"/>',
+        ),
+        # {W}: willpower, a shield.
+        "W": disc(
+            DARK,
+            GOLD,
+            '<path d="M32 13 47 18V30C47 39.5 41 46 32 50.5 23 46 17 39.5 17 30V18Z" '
+            f"{GOLD_LINE}/>",
+        ),
+        # {L}: lore, a diamond.
+        "L": disc(DARK, GOLD, f'<path d="M32 12 47 32 32 52 17 32Z" fill="{GOLD}"/>'),
+        # {E}: exert, a turning arrow.
+        "E": disc(
+            DARK,
+            GOLD,
+            f'<path d="M45 32A13 13 0 1 1 32 19" {GOLD_LINE} stroke-linecap="round"/>'
+            f'<path d="M30 11 39 19 30 27Z" fill="{GOLD}"/>',
+        ),
+        # {IW}: inkwell, an ink drop in a ring.
+        "IW": disc(
+            DARK,
+            GOLD,
+            f'<circle cx="32" cy="32" r="17" {GOLD_LINE}/>'
+            f'<path d="M32 21C32 21 25 30 25 35a7 7 0 0 0 14 0C39 30 32 21 32 21Z" fill="{GOLD}"/>',
+        ),
+    },
+    "riftbound": {
+        # {exhaust}: turned sideways, a quarter-turn arrow.
+        "exhaust": disc(
+            DARK,
+            "#111827",
+            f'<path d="M20 40A14 14 0 0 1 40 21" {WHITE_LINE}/>'
+            '<path d="M36 13 47 21 37 30Z" fill="#fff"/>',
+        ),
+        # {might}: a blade.
+        "might": disc(
+            DARK,
+            "#111827",
+            '<path d="M32 11 38 21V40H26V21Z" fill="#fff"/>'
+            '<path d="M21 42H43M32 42V53" ' + WHITE_LINE + "/>",
+        ),
+        # {rainbow}: a rune of any domain.
+        "rainbow": wedges(["#D7443E", "#4FA35B", "#3A7BD5", "#E08A2E", "#8E4BC2", "#E3C04B"]),
+        **{str(n): number(n) for n in range(13)},
+    },
+}
+
+
 def main() -> None:
+    for game, drawings in TEXT_DRAWINGS.items():
+        DRAWINGS.setdefault(game, {}).update(drawings)
     for game, drawings in DRAWINGS.items():
         folder = GAMES / game / "symbols"
         folder.mkdir(exist_ok=True)

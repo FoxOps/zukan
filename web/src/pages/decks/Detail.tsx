@@ -9,6 +9,7 @@ import { gridIcon, listIcon, useView, type ViewChoice } from '../../lib/views'
 import { ConditionBadge, FinishBadge, LangFlag } from '../../components/Badges'
 import { CardImage } from '../../components/CardImage'
 import { ShownName } from '../../components/ShownName'
+import { SymbolText } from '../../components/SymbolText'
 import { Select } from '../../components/Select'
 import { useToast } from '../../components/toast'
 import { AddCards } from './AddCards'
@@ -619,7 +620,11 @@ export default function DeckDetail() {
                                 <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/60">
                                   <PrintingBadge line={line} onClick={() => setPrinting({ row, split: false })} />
                                   {lineAllocated(row)}
-                                  {first && e.mana_cost && <span className="font-mono">{e.mana_cost}</span>}
+                                  {first && e.mana_cost && (
+                                    <span className="whitespace-nowrap">
+                                      <SymbolText game={game} text={e.mana_cost} />
+                                    </span>
+                                  )}
                                   {first && !e.mana_cost && e.type_line && deck.game_id !== 'mtg' && <span>{e.type_line}</span>}
                                   {first && <Legality entry={e} />}
                                 </div>

@@ -1,11 +1,14 @@
 """Collection CSV import/export.
 
 Generic format, one row per collection item:
-    game,set_code,collector_number,name,language,finish,condition,quantity,manual_price,notes
+    game,set_code,collector_number,name,language,finish,condition,quantity,manual_price,notes,
+    set_id,printing_id
 
 `collector_number` is the printed number, or the provider's printing id for games
-without one (Sorcery). `name` is informational on import. Semicolon or tab separated
-files (spreadsheet exports in many locales) are accepted too.
+without one (Sorcery). `name` is informational on import. `set_id` and `printing_id` are
+the sources' ids of the set and printing (optional): when given they pick the printing,
+even where set code and number are shared by several. Semicolon or tab separated files
+(spreadsheet exports in many locales) are accepted too.
 
 Text that spreadsheets would read as a formula (starting with = + - @, possibly after
 spaces or control characters) is exported behind a `'`, which the import removes again.
@@ -36,6 +39,8 @@ COLUMNS = [
     "quantity",
     "manual_price",
     "notes",
+    "set_id",
+    "printing_id",
 ]
 REQUIRED = {"game", "set_code", "collector_number", "quantity"}
 MAX_ROWS = 50_000
@@ -91,6 +96,8 @@ async def export_csv(session: AsyncSession, user_id: int, game_id: str | None) -
                 item.quantity,
                 "" if item.manual_price is None else item.manual_price,
                 spreadsheet_text(item.notes or ""),
+                spreadsheet_text(card_set.external_id),
+                spreadsheet_text(printing.external_id),
             ]
         )
     return out.getvalue()
@@ -100,6 +107,8 @@ async def export_csv(session: AsyncSession, user_id: int, game_id: str | None) -
 class RowError:
     line: int
     message: str
+    # File of an export bundle (`services.export_bundle`); None: the single CSV.
+    file: str | None = None
 
 
 @dataclass
@@ -120,7 +129,7 @@ class _Row:
     notes: str | None
 
 
-def _reader(text: str) -> csv.DictReader:
+def csv_reader(text: str) -> csv.DictReader:
     # Only the delimiter is guessed from the header: quoting stays the usual one (quotes
     # doubled inside quoted cells), which the header alone does not show.
     try:
@@ -130,10 +139,48 @@ def _reader(text: str) -> csv.DictReader:
     return csv.DictReader(io.StringIO(text), delimiter=delimiter)
 
 
-class _PrintingLookup:
+class PrintingLookup:
+    """Printings named by game, set and number, or by the sources' set and printing ids."""
+
     def __init__(self, session: AsyncSession):
         self.session = session
         self.cache: dict[tuple[str, str, str], list[Printing]] = {}
+
+    async def by_ids(self, game_id: str, set_id: str, printing_id: str) -> Printing | None:
+        key = (game_id, "\0" + set_id, printing_id)
+        if key not in self.cache:
+            self.cache[key] = list(
+                await self.session.scalars(
+                    select(Printing)
+                    .join(CardSet)
+                    .where(
+                        CardSet.game_id == game_id,
+                        CardSet.external_id == set_id,
+                        Printing.external_id == printing_id,
+                    )
+                    .options(selectinload(Printing.set))
+                )
+            )
+        return self.cache[key][0] if self.cache[key] else None
+
+    async def resolve(self, game_id: str, value: dict[str, str]) -> tuple[str, list[Printing]]:
+        """The row's game and printings (`set_id` / `printing_id` first, then set code
+        and number; a group parent game also looks in its other games)."""
+        games = registry()
+        if value.get("set_id") and value.get("printing_id"):
+            found = await self.by_ids(game_id, value["set_id"], value["printing_id"])
+            if found is not None:
+                return game_id, [found]
+        matches = await self.find(game_id, value["set_code"], value["collector_number"])
+        if not matches and game_id == group_of(game_id):
+            # Files from before 0.17.0 name one game for every market ("pokemon" for a
+            # Japanese set): the printing may be another game's of the group.
+            for other in games:
+                if other != game_id and group_of(other) == game_id:
+                    found = await self.find(other, value["set_code"], value["collector_number"])
+                    if found:
+                        return other, found
+        return game_id, matches
 
     async def find(self, game_id: str, set_code: str, number: str) -> list[Printing]:
         key = (game_id, set_code.casefold(), number)
@@ -156,10 +203,10 @@ class _PrintingLookup:
         return self.cache[key]
 
 
-async def _parse(
+async def parse_rows(
     session: AsyncSession, text: str, set_mode: bool, report: ImportReport
 ) -> list[_Row]:
-    reader = _reader(text)
+    reader = csv_reader(text)
     try:
         missing = REQUIRED - set(reader.fieldnames or [])
     except csv.Error as exc:
@@ -168,7 +215,7 @@ async def _parse(
     if missing:
         report.errors.append(RowError(1, f"Missing columns: {', '.join(sorted(missing))}"))
         return []
-    lookup = _PrintingLookup(session)
+    lookup = PrintingLookup(session)
     games = registry()
     rows: list[_Row] = []
     while True:
@@ -216,16 +263,7 @@ async def _parse(
         if len(value.get("notes") or "") > MAX_NOTES:
             report.errors.append(RowError(line, f"Notes longer than {MAX_NOTES} characters"))
             continue
-        matches = await lookup.find(game_id, value["set_code"], value["collector_number"])
-        if not matches and game_id == group_of(game_id):
-            # Files from before 0.17.0 name one game for every market ("pokemon" for a
-            # Japanese set): the printing may be another game's of the group.
-            for other in games:
-                if other != game_id and group_of(other) == game_id:
-                    found = await lookup.find(other, value["set_code"], value["collector_number"])
-                    if found:
-                        game_id, matches = other, found
-                        break
+        game_id, matches = await lookup.resolve(game_id, value)
         if len(matches) != 1:
             problem = "No printing" if not matches else "Several printings"
             report.errors.append(
@@ -260,9 +298,19 @@ async def import_csv(
 
     Default mode adds the quantities; `set_mode` makes stored quantities equal to them."""
     report = ImportReport()
-    rows = await _parse(session, text, set_mode, report)
+    rows = await parse_rows(session, text, set_mode, report)
     if report.errors or dry_run:
         return report
+    if await apply_rows(session, user_id, rows, set_mode, report):
+        await session.commit()
+    return report
+
+
+async def apply_rows(
+    session: AsyncSession, user_id: int, rows: list["_Row"], set_mode: bool, report: ImportReport
+) -> bool:
+    """Write parsed rows; False (rolled back, error reported) when stock refuses one.
+    Does not commit."""
     for row in rows:
         if set_mode:
             item = await session.scalar(
@@ -286,12 +334,12 @@ async def import_csv(
                 report.errors.append(RowError(row.line, str(exc)))
                 await session.rollback()
                 report.imported = 0
-                return report
+                return False
         if item is not None and (row.manual_price is not None or row.notes):
             if row.manual_price is not None:
                 item.manual_price = row.manual_price
             if row.notes:
                 item.notes = row.notes
         report.imported += 1
-    await session.commit()
-    return report
+    await session.flush()
+    return True

@@ -276,10 +276,11 @@ async def test_csv_import_export_round_trip(client, session, alice):
     report = (await import_file(client, alice, CSV)).json()
     assert report["imported"] == 2
     exported = (await client.get("/api/collection/export.csv", headers=alice)).text
+    header = "game,set_code,collector_number,name,language,finish,condition,quantity,"
     assert exported.splitlines() == [
-        "game,set_code,collector_number,name,language,finish,condition,quantity,manual_price,notes",
-        "sorcery,001,abundance-b,Abundance,en,standard,NM,2,,",
-        "sorcery,002,abundance-b,Abundance,en,foil,EX,1,1.50,binder 3",
+        header + "manual_price,notes,set_id,printing_id",
+        "sorcery,001,abundance-b,Abundance,en,standard,NM,2,,,001,abundance-b",
+        "sorcery,002,abundance-b,Abundance,en,foil,EX,1,1.50,binder 3,002,abundance-b",
     ]
 
     # Adding the same file doubles quantities; `set` mode restores them.

@@ -1,9 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useNavigate } from 'react-router'
 import { api, call, type Schemas } from '../api/client'
-import { useDeckFormats, useDecks, useGames, useMe } from '../api/queries'
+import { gameGroups, gameLabel, useDeckFormats, useDecks, useMe, useShownGames, type Game } from '../api/queries'
+import { HiddenGamesNote } from '../components/HiddenGames'
 import { Select } from '../components/Select'
 import { useToast } from '../components/toast'
 import { formatDate } from '../lib/format'
@@ -12,20 +13,22 @@ import { useFormatName } from './decks/formats'
 
 type Body = Schemas['DeckIn']
 
-/** New deck: a name, the game (each catalog game decks support) and one of its formats. */
+/** New deck: a name, the game (each shown game decks support) and one of its formats. */
 function CreateDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation()
   const toast = useToast()
   const client = useQueryClient()
   const navigate = useNavigate()
   const { data: gameFormats = [] } = useDeckFormats(open)
-  const { data: games = [] } = useGames()
+  const { shown: games } = useShownGames()
   const [name, setName] = useState('')
-  const [gameId, setGameId] = useState('mtg')
-  const [format, setFormat] = useState('commander')
-  // Games of this server that decks can be built for.
+  const [chosenGame, setGameId] = useState<string | null>(null)
+  const [chosenFormat, setFormat] = useState<string | null>(null)
+  // Shown games of this server that decks can be built for: Magic first when shown.
   const deckGames = gameFormats.filter((g) => games.some((x) => x.id === g.game_id))
+  const gameId = chosenGame ?? (deckGames.find((g) => g.game_id === 'mtg') ?? deckGames[0])?.game_id ?? ''
   const formats = gameFormats.find((g) => g.game_id === gameId)?.formats ?? []
+  const format = chosenFormat ?? (gameId === 'mtg' ? 'commander' : formats[0]?.id) ?? ''
   const chooseGame = (id: string) => {
     setGameId(id)
     setFormat(gameFormats.find((g) => g.game_id === id)?.formats[0]?.id ?? '')
@@ -94,18 +97,33 @@ function CreateDialog({ open, onClose }: { open: boolean; onClose: () => void })
   )
 }
 
-/** Decks module: the user's decks. */
+function GameSection({ game, label, children }: { game: Game; label: string; children: ReactNode[] }) {
+  return (
+    <section className="flex flex-col gap-2" aria-labelledby={`decks-${game.id}`}>
+      <h2 id={`decks-${game.id}`} className="font-semibold">
+        {label} <span className="font-normal text-base-content/60">({children.length})</span>
+      </h2>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{children}</div>
+    </section>
+  )
+}
+
+/** Decks module: the user's decks, grouped by game. */
 export default function DecksPage() {
   const { t } = useTranslation()
   const { data: me } = useMe()
   const enabled = !!me?.modules?.includes('decks')
   const decks = useDecks(enabled)
   const formatName = useFormatName()
-  const { data: games = [] } = useGames()
-  const gameName = (id: string) => games.find((g) => g.id === id)?.name ?? id
+  const { shown, isShown } = useShownGames()
   const [creating, setCreating] = useState(false)
   if (me && !enabled) return <Navigate to="/settings" replace />
-  const list = decks.data ?? []
+  const all = decks.data ?? []
+  const list = all.filter((d) => isShown(d.game_id))
+  // One section per game, in the server's game order; decks last changed first inside.
+  const sections = gameGroups(shown).flatMap((group) =>
+    group.games.map((game) => ({ game, label: gameLabel(group, game, t), decks: list.filter((d) => d.game_id === game.id) })),
+  ).filter((s) => s.decks.length > 0)
 
   return (
     <div className="flex flex-col gap-4">
@@ -122,7 +140,7 @@ export default function DecksPage() {
       </div>
       {decks.isPending && enabled ? (
         <span className="loading loading-spinner loading-lg m-auto block" />
-      ) : list.length === 0 ? (
+      ) : list.length === 0 && all.length === 0 ? (
         <div className="card bg-base-200">
           <div className="card-body items-center text-center">
             <p>{t('No deck yet. Create one, then add cards from the catalog or paste a decklist.')}</p>
@@ -132,19 +150,24 @@ export default function DecksPage() {
           </div>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {list.map((d) => (
-            <Link key={d.id} to={`/decks/${d.id}`} className="card bg-base-200 transition-colors hover:bg-base-300">
-              <div className="card-body gap-2">
-                <h2 className="card-title text-base leading-tight">{d.name}</h2>
-                <div className="text-xs text-base-content/60">
-                  {gameName(d.game_id)} · {formatName(d.format)} · {t('Changed {{date}}', { date: formatDate(d.updated_at) })}
-                </div>
-                <DeckCount deck={d} />
-              </div>
-            </Link>
+        <>
+          {sections.map(({ game, label, decks: gameDecks }) => (
+            <GameSection key={game.id} game={game} label={label}>
+              {gameDecks.map((d) => (
+                <Link key={d.id} to={`/decks/${d.id}`} className="card bg-base-200 transition-colors hover:bg-base-300">
+                  <div className="card-body gap-2">
+                    <h3 className="card-title text-base leading-tight">{d.name}</h3>
+                    <div className="text-xs text-base-content/60">
+                      {formatName(d.format)} · {t('Changed {{date}}', { date: formatDate(d.updated_at) })}
+                    </div>
+                    <DeckCount deck={d} />
+                  </div>
+                </Link>
+              ))}
+            </GameSection>
           ))}
-        </div>
+          <HiddenGamesNote count={all.length - list.length} />
+        </>
       )}
       <CreateDialog open={creating} onClose={() => setCreating(false)} />
     </div>
