@@ -3,6 +3,7 @@ from app.models.binder import BinderSet
 from app.models.catalog import Card, CardName, CardSet, Game, Printing
 from app.models.checks import CatalogDiscrepancy, CatalogFieldRule
 from app.models.collection import CollectionItem, Condition, PriceSnapshot, StockTransaction
+from app.models.deck import Deck, DeckAllocation, DeckCard
 from app.models.group import UserGroup, user_group_member
 from app.models.settings import AppSetting
 from app.models.sync import JobKind, JobStatus, JobTrigger, SyncRun
@@ -21,6 +22,9 @@ __all__ = [
     "CardSet",
     "CollectionItem",
     "Condition",
+    "Deck",
+    "DeckAllocation",
+    "DeckCard",
     "Game",
     "GapCheck",
     "JobKind",

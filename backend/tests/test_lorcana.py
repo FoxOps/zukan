@@ -52,6 +52,28 @@ def test_catalog():
     assert {s.external_id for s in batch.sets} >= {"1", "P1"}
 
 
+def test_deck_legalities_and_copy_limits():
+    cards = by_name(lorcana.build_catalog(FILES))
+    # Set 1 rotated out of Core.
+    assert cards["Ariel - On Human Legs"].attributes["legalities"] == {
+        "core": "not_legal",
+        "infinity": "legal",
+    }
+    assert cards["Dalmatian Puppy - Tail Wagger"].attributes["max_copies"] == 99
+    assert "max_copies" not in cards["Ariel - On Human Legs"].attributes
+    banned = {
+        "Core": {"allowed": False, "bannedSinceDate": "2025-01-01"},
+        "Infinity": {"allowed": True},
+    }
+    assert lorcana._legalities({"allowedInFormats": banned}) == {
+        "core": "banned",
+        "infinity": "legal",
+    }
+    # A reprint in a Core set makes the card legal; a ban anywhere bans it.
+    assert lorcana._merge_legalities({"core": "not_legal"}, {"core": "legal"}) == {"core": "legal"}
+    assert lorcana._merge_legalities({"core": "legal"}, {"core": "banned"}) == {"core": "banned"}
+
+
 def test_quest_and_promo_rarities():
     files = json.loads(json.dumps(FILES))
     files["en"]["sets"]["Q2"] = {"type": "quest", "name": "Illumineer's Quest: Palace Heist"}

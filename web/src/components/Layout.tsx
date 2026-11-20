@@ -18,6 +18,7 @@ const NAV: { to: string; label: string; end?: boolean; module?: string }[] = [
   { to: '/collection', label: 'Collection' },
   { to: '/catalog', label: 'Catalog' },
   { to: '/binder', label: 'Binder', module: 'binder' },
+  { to: '/decks', label: 'Decks', module: 'decks' },
   { to: '/finance', label: 'Finance' },
   { to: '/import', label: 'Import / export' },
   { to: '/settings', label: 'Settings' },

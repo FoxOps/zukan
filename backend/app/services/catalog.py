@@ -30,11 +30,12 @@ from app.models import (
     CardName,
     CardSet,
     CollectionItem,
+    DeckCard,
     Game,
     Printing,
     StockTransaction,
 )
-from app.services import layout, prices, translations
+from app.services import decks, layout, prices, translations
 from app.services.names import update_sort_names
 
 log = logging.getLogger(__name__)
@@ -282,6 +283,7 @@ class CatalogWriter:
                 self.report.moved += len(gone)
 
     async def _move_items(self, from_id: int, to_id: int) -> None:
+        await decks.move_lines(self.session, from_id, to_id)
         items = await self.session.scalars(
             select(CollectionItem).where(CollectionItem.printing_id == from_id)
         )
@@ -308,6 +310,7 @@ class CatalogWriter:
                 .where(StockTransaction.item_id == item.id)
                 .values(item_id=same.id)
             )
+            await decks.move_allocations(self.session, item.id, same.id)
             await self.session.delete(item)
         await self.session.flush()
 
@@ -495,7 +498,10 @@ async def sync_catalog(
         writer.report.pruned_prices = await prices.prune_history(session, provider.id)
     pruned = await session.execute(
         delete(Card).where(
-            Card.game_id == provider.id, ~exists().where(Printing.card_id == Card.id)
+            Card.game_id == provider.id,
+            ~exists().where(Printing.card_id == Card.id),
+            # Cards in decks stay; the sync fills them again (same source id).
+            ~exists().where(DeckCard.card_id == Card.id),
         )
     )
     writer.report.pruned_cards = pruned.rowcount
@@ -602,13 +608,19 @@ async def reset_catalog(session: AsyncSession, game_id: str) -> ResetReport:
     report = ResetReport()
     in_game = select(Printing.id).join(CardSet).where(CardSet.game_id == game_id)
     owned = select(CollectionItem.printing_id).where(CollectionItem.printing_id.in_(in_game))
+    # Printings deck lines ask for are kept too.
+    owned = owned.union(select(DeckCard.printing_id).where(DeckCard.printing_id.in_(in_game)))
     await session.execute(delete(CatalogDiscrepancy).where(CatalogDiscrepancy.game_id == game_id))
     removed = await session.execute(
         delete(Printing).where(Printing.id.in_(in_game), Printing.id.not_in(owned))
     )
     report.printings = removed.rowcount
     removed = await session.execute(
-        delete(Card).where(Card.game_id == game_id, ~exists().where(Printing.card_id == Card.id))
+        delete(Card).where(
+            Card.game_id == game_id,
+            ~exists().where(Printing.card_id == Card.id),
+            ~exists().where(DeckCard.card_id == Card.id),
+        )
     )
     report.cards = removed.rowcount
     removed = await session.execute(

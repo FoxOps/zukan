@@ -182,6 +182,12 @@ def parse_card(raw: dict[str, Any]) -> CardData | None:
     attributes["types"], attributes["subtypes"] = parse_type_line(raw.get("type_line") or "")
     attributes["layout"] = raw.get("layout")
     attributes["color_identity"] = raw.get("color_identity", [])
+    if "legalities" in raw:
+        # Format -> legal | restricted | banned (formats where it is not legal left out),
+        # for the Decks module. Missing on cards stored by older syncs: not verifiable.
+        attributes["legalities"] = {
+            f: status for f, status in raw["legalities"].items() if status != "not_legal"
+        }
     if raw.get("card_faces"):
         attributes["faces"] = [
             {k: face[k] for k in _FACE_FIELDS if face.get(k) is not None}

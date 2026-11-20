@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import ColumnElement, case, exists, func, or_, select
 from sqlalchemy.orm import selectinload
 
+from app import modules
 from app.api.deps import CurrentUser, SessionDep
 from app.core.db import get_sessionmaker
 from app.core.http import http_client, shared_http_client
@@ -20,6 +21,8 @@ from app.models import (
     CardName,
     CardSet,
     CollectionItem,
+    Deck,
+    DeckAllocation,
     PriceSnapshot,
     Printing,
     User,
@@ -51,12 +54,20 @@ class SetOut(BaseModel):
     icon: str | None
 
 
+class OwnedDeckOut(BaseModel):
+    deck_id: int
+    name: str
+    quantity: int
+
+
 class OwnedOut(BaseModel):
     item_id: int
     finish: str
     condition: str
     language: str
     quantity: int
+    # Copies allocated to the user's decks (Decks module; empty without it).
+    decks: list[OwnedDeckOut] = []
 
 
 class PriceOut(BaseModel):
@@ -149,6 +160,8 @@ class CardSummaryOut(BaseModel):
     price_min: Decimal | None
     price_max: Decimal | None
     currency: str | None = None
+    # The user's copies of the card (every printing).
+    owned_copies: int = 0
 
 
 class CardPageOut(BaseModel):
@@ -438,6 +451,7 @@ async def search_cards(
     lang: Annotated[str | None, Query(max_length=8)] = None,
     attr: Annotated[list[str] | None, Query(max_length=200)] = None,
     color_mode: Literal["include", "exact"] = "include",
+    owned: bool = False,
     sort: Literal["relevance", "name", "number"] = "relevance",
     order: Literal["asc", "desc"] = "asc",
     page: Annotated[int, Query(ge=1)] = 1,
@@ -451,6 +465,7 @@ async def search_cards(
     filters (GameOut.filters); it needs `game`.
 
     `color_mode=exact`: cards of exactly the chosen colors (default: at least them).
+    `owned`: only cards the user has copies of.
     `sort=name` orders by shown name, `sort=number` by collector number in `set_id`
     (ignored without a set); `order` gives the direction."""
     # Cards without printings cannot be collected (left over by older catalog syncs).
@@ -512,6 +527,14 @@ async def search_cards(
                     status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown filter {item!r}"
                 )
             query = query.where(_filter_condition(filters[key], value))
+    if owned:
+        query = query.where(
+            Card.id.in_(
+                select(Printing.card_id)
+                .join(CollectionItem, CollectionItem.printing_id == Printing.id)
+                .where(CollectionItem.user_id == user.id, CollectionItem.quantity > 0)
+            )
+        )
     if lang:
         # Printed in that language.
         query = query.where(
@@ -569,6 +592,19 @@ async def search_cards(
     languages = await set_languages(
         session, (shown.printing.set_id for _, shown in shown_cards if shown.printing)
     )
+    copies = dict(
+        (
+            await session.execute(
+                select(Printing.card_id, func.sum(CollectionItem.quantity))
+                .join(CollectionItem, CollectionItem.printing_id == Printing.id)
+                .where(
+                    CollectionItem.user_id == user.id,
+                    Printing.card_id.in_([c.id for c in cards]),
+                )
+                .group_by(Printing.card_id)
+            )
+        ).all()
+    )
     items = []
     for card, shown in shown_cards:
         items.append(
@@ -590,6 +626,7 @@ async def search_cards(
                 price_min=min(card_prices.get(card.id, []), default=None),
                 price_max=max(card_prices.get(card.id, []), default=None),
                 currency=_currency(card.game_id, user.price_source),
+                owned_copies=copies.get(card.id) or 0,
             )
         )
     return CardPageOut(items=items, total=total or 0, page=page, page_size=page_size)
@@ -702,6 +739,21 @@ async def search_printings(
     return await describe_printings(session, user, printings)
 
 
+async def _add_decks(session: SessionDep, user: User, owned: list[OwnedOut]) -> None:
+    """The decks holding the copies, for users of the Decks module."""
+    if not owned or "decks" not in (await modules.for_user(session, user)).enabled:
+        return
+    by_item = {o.item_id: o for o in owned}
+    rows = await session.execute(
+        select(DeckAllocation.item_id, Deck.id, Deck.name, DeckAllocation.quantity)
+        .join(Deck)
+        .where(DeckAllocation.item_id.in_(by_item), Deck.user_id == user.id)
+        .order_by(Deck.name, Deck.id)
+    )
+    for item_id, deck_id, name, quantity in rows:
+        by_item[item_id].decks.append(OwnedDeckOut(deck_id=deck_id, name=name, quantity=quantity))
+
+
 async def describe_printings(
     session: SessionDep, user: User, printings: list[Printing]
 ) -> list[PrintingOut]:
@@ -748,6 +800,7 @@ async def describe_printings(
                 quantity=item.quantity,
             )
         )
+    await _add_decks(session, user, [o for found in owned.values() for o in found])
     languages = await set_languages(session, (p.set_id for p in printings))
     described = []
     for p in printings:

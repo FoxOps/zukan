@@ -114,6 +114,36 @@ def _rarity(raw: dict[str, Any], sets: dict[str, Any]) -> str | None:
     return rarity
 
 
+# Constructed formats of LorcanaJSON's `allowedInFormats`, by Decks key.
+FORMATS = {"core": "Core", "infinity": "Infinity"}
+
+
+def _legalities(raw: dict[str, Any]) -> dict[str, str]:
+    """ "legal", "not_legal" (rotated out, not out yet) or "banned" per format, as
+    LorcanaJSON says today."""
+    allowed = raw.get("allowedInFormats") or {}
+    result = {}
+    for key, name in FORMATS.items():
+        entry = allowed.get(name)
+        if entry is None:
+            continue
+        if entry.get("allowed"):
+            result[key] = "legal"
+        else:
+            result[key] = "banned" if entry.get("bannedSinceDate") else "not_legal"
+    return result
+
+
+def _merge_legalities(card: dict[str, str], printing: dict[str, str]) -> dict[str, str]:
+    """A card is legal when one of its printings is (reprints in a newer set), banned
+    when any is."""
+    merged = dict(card)
+    for key, status in printing.items():
+        both = {merged.get(key, status), status}
+        merged[key] = next(s for s in ("banned", "legal", "not_legal") if s in both)
+    return merged
+
+
 def _number(raw: dict[str, Any]) -> str:
     return f"{raw['number']}{raw.get('variant') or ''}"
 
@@ -162,6 +192,13 @@ def build_catalog(by_lang: dict[str, dict[str, Any]]) -> CatalogBatch:
                     if v not in (None, "", [])
                 },
                 names={"en": raw["fullName"]},
+            )
+            # Copies a deck may have when not 4 (Dalmatian Puppy 99, Microbots any).
+            if "maxCopiesInDeck" in raw:
+                card.attributes["max_copies"] = raw["maxCopiesInDeck"] or "any"
+        if legalities := _legalities(raw):
+            card.attributes["legalities"] = _merge_legalities(
+                card.attributes.get("legalities") or {}, legalities
             )
         set_code = _set_of(raw)
         if set_code not in sets:
@@ -289,8 +326,9 @@ class LorcanaProvider:
     short_names = ["lorcana", "lor"]
     # About 3500 printings: every picture is cached.
     cache_all_images = True
-    # 2: Quest and Promo rarities instead of LorcanaJSON's "Special".
-    catalog_version = 2
+    # 2: Quest and Promo rarities instead of LorcanaJSON's "Special". 3: Core / Infinity
+    # legalities and deck copy limits (Decks).
+    catalog_version = 3
     legal_notice = LEGAL_NOTICE
     text_attribute = "text"
     source_keys = {"tcgcsv": 71, "tcgapi_eu": "lorcana", "apitcg": "lorcana"}

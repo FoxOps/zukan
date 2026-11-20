@@ -299,6 +299,12 @@ def parse_card(raw: dict[str, Any], set_id: str, lang: str) -> CardData:
         for k in ("regulationMark", "attacks", "abilities", "effect")
         if raw.get(k) is not None
     }
+    # Standard / Expanded legality (Decks module), set for the international game only:
+    # TCGdex marks every Asian card not legal.
+    if lang not in ASIAN and isinstance(raw.get("legal"), dict):
+        printing_attributes["legal"] = {
+            k: bool(v) for k, v in raw["legal"].items() if k in ("standard", "expanded")
+        }
     market_ids = _market_ids(raw)
     if market_ids:
         printing_attributes["market_ids"] = market_ids
@@ -782,7 +788,8 @@ class PokemonProvider:
     #    names table), international names of the English card.
     # 10: mainland Chinese Trainers, Energies and owners' Pokémon translated (card names
     #     table "zh-hans").
-    catalog_version = 10
+    # 11: Standard / Expanded legality of international printings (Decks module).
+    catalog_version = 11
 
     def __init__(self, region: str = INTERNATIONAL):
         self.market = REGIONS[region]

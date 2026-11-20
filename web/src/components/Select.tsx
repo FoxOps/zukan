@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { normalize } from '../lib/format'
 
@@ -46,8 +46,11 @@ function SearchableSelect({ value, onChange, options, className = '', disabled, 
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const root = useRef<HTMLDivElement>(null)
+  const button = useRef<HTMLButtonElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
   const list = useRef<HTMLUListElement>(null)
   const listId = useId()
+  const [place, setPlace] = useState<CSSProperties>({})
 
   const shown = useMemo(() => {
     const words = normalize(query).split(/\s+/).filter(Boolean)
@@ -70,6 +73,36 @@ function SearchableSelect({ value, onChange, options, className = '', disabled, 
   useEffect(() => {
     list.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' })
   }, [active, open])
+
+  // The panel is a popover (top layer): dialogs and scrolling boxes around the select
+  // never clip it. Placed under the button, above it when there is no room below.
+  useLayoutEffect(() => {
+    const node = panel.current
+    if (!open || !node) return
+    if (!node.matches(':popover-open')) node.showPopover()
+    const follow = () => {
+      const box = button.current?.getBoundingClientRect()
+      if (!box) return
+      const width = Math.max(box.width, 256)
+      const left = Math.max(8, Math.min(box.left, window.innerWidth - width - 8))
+      const below = window.innerHeight - box.bottom - 8
+      const above = box.top - 8
+      const height = node.offsetHeight
+      setPlace(
+        below >= height || below >= above
+          ? { top: box.bottom + 4, left, width, maxHeight: below - 4 }
+          : { bottom: window.innerHeight - box.top + 4, left, width, maxHeight: above - 4 },
+      )
+    }
+    follow()
+    window.addEventListener('scroll', follow, true)
+    window.addEventListener('resize', follow)
+    return () => {
+      window.removeEventListener('scroll', follow, true)
+      window.removeEventListener('resize', follow)
+      if (node.matches(':popover-open')) node.hidePopover()
+    }
+  }, [open])
 
   const show = () => {
     setQuery('')
@@ -97,6 +130,7 @@ function SearchableSelect({ value, onChange, options, className = '', disabled, 
   return (
     <div ref={root} className={`relative ${tokens.filter(isWidth).join(' ')}`}>
       <button
+        ref={button}
         type="button"
         className={`select w-full text-left ${tokens.filter((token) => !isWidth(token)).join(' ')}`}
         disabled={disabled}
@@ -114,7 +148,12 @@ function SearchableSelect({ value, onChange, options, className = '', disabled, 
         <span className="truncate">{current?.label ?? ''}</span>
       </button>
       {open && (
-        <div className="absolute z-50 mt-1 flex w-full min-w-64 flex-col gap-1 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg animate-in fade-in zoom-in-95 duration-100">
+        <div
+          ref={panel}
+          popover="manual"
+          style={{ position: 'fixed', inset: 'auto', margin: 0, ...place }}
+          className="flex-col gap-1 rounded-box border border-base-300 bg-base-100 p-2 text-base-content shadow-lg open:flex animate-in fade-in zoom-in-95 duration-100"
+        >
           <input
             autoFocus
             className="input input-sm w-full"
@@ -129,7 +168,7 @@ function SearchableSelect({ value, onChange, options, className = '', disabled, 
             }}
             onKeyDown={keys}
           />
-          <ul ref={list} id={listId} role="listbox" className="menu max-h-72 w-full flex-nowrap overflow-y-auto p-0">
+          <ul ref={list} id={listId} role="listbox" className="menu max-h-72 min-h-0 w-full flex-nowrap overflow-y-auto p-0">
             {shown.map((o, i) => (
               <li key={o.value} role="option" aria-selected={o.value === value}>
                 <button

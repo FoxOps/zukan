@@ -123,6 +123,14 @@ def test_catalog_names_printings_and_prices(tmp_path):
     # French from YGOPRODeck; Asian languages are the OCG game's.
     assert dm.names["fr"] == "Magicien Sombre" and "ja" not in dm.names
     assert dm.attributes["konami_id"] == 4041
+    # Ban lists (decks): unlimited cards have an empty one; release dates per market.
+    assert dm.attributes["banlist"] == {} and dm.attributes["tcg_date"] == "2002-03-08"
+    assert cards["Pot of Greed"].attributes["banlist"] == {
+        "tcg": "Forbidden",
+        "ocg": "Forbidden",
+        "goat": "Limited",
+    }
+    assert cards["Mirror Force"].attributes["banlist"] == {"goat": "Limited"}
     # The OCG game: cards with Asian printings, keyed on the same password.
     ocg_cards = by_card(ocg_catalog(tmp_path))
     assert "Dark Magician" not in ocg_cards  # no Asian printing in the fixture

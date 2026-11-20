@@ -494,11 +494,33 @@ export default function CardDetail() {
                   </td>
                   <td>
                     {p.owned.map((o) => (
-                      <div key={o.item_id} className="flex items-center gap-1 whitespace-nowrap py-0.5 text-xs">
-                        <span className="font-semibold">{o.quantity}×</span>
-                        <FinishBadge game={game} finish={o.finish} size="badge-xs" />
-                        <ConditionBadge condition={o.condition} size="badge-xs" />
-                        <LangFlag lang={o.language} className="h-3" />
+                      <div key={o.item_id} className="py-0.5 text-xs">
+                        <div className="flex items-center gap-1 whitespace-nowrap">
+                          <span className="font-semibold">{o.quantity}×</span>
+                          <FinishBadge game={game} finish={o.finish} size="badge-xs" />
+                          <ConditionBadge condition={o.condition} size="badge-xs" />
+                          <LangFlag lang={o.language} className="h-3" />
+                        </div>
+                        {/* Copies set aside for decks (Decks module): where to find them. */}
+                        {(o.decks ?? []).length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1 pl-4 pt-0.5">
+                            {o.decks.map((d) => (
+                              <Link
+                                key={d.deck_id}
+                                to={`/decks/${d.deck_id}`}
+                                className="badge badge-xs badge-outline badge-secondary"
+                                title={t('Allocated to the deck {{name}}', { name: d.name })}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {t('{{n}} in {{name}}', { n: d.quantity, name: d.name })}
+                              </Link>
+                            ))}
+                            {(() => {
+                              const free = o.quantity - o.decks.reduce((n, d) => n + d.quantity, 0)
+                              return free > 0 && <span className="text-base-content/60">{t('{{n}} free', { n: free })}</span>
+                            })()}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </td>
