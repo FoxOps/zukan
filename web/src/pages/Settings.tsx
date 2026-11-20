@@ -96,7 +96,8 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
       {/* Two columns while this card spans the page width (lg), one in the three-card row (xl). */}
       <div className="card bg-base-200 lg:col-span-2 xl:col-span-1">
         <div className="card-body gap-4">
-          <h2 className="card-title">{t('Games shown in the catalog')}</h2>
+          <h2 className="card-title">{t('Games shown')}</h2>
+          <p className="text-sm text-base-content/60">{t('The catalog, collection, dashboard, finance, binder and decks only show these games.')}</p>
           <div className="fieldset block gap-x-8 py-0 sm:columns-2 xl:columns-1">
             {gameGroups(games).map((group) => (
               <div key={group.id} className="flex break-inside-avoid flex-col gap-1 pb-1">

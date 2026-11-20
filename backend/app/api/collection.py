@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, File, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel, Field
-from sqlalchemy import case, exists, func, select
+from sqlalchemy import case, exists, func, select, true
 from sqlalchemy.orm import contains_eager, selectinload
 
 from app.api.catalog import (
@@ -29,8 +29,9 @@ from app.models import (
     Printing,
     StockTransaction,
 )
+from app.modules import for_user
 from app.prices.base import price_sources
-from app.services import collection, csv_io, images
+from app.services import collection, csv_io, export_bundle, images
 from app.services.collection import StockError, Variant
 from app.services.names import display_name
 
@@ -38,6 +39,13 @@ router = APIRouter(prefix="/collection", tags=["collection"])
 
 Source = Literal["web", "scan"]
 MAX_CSV_BYTES = 5 * 1024 * 1024
+
+
+def _in_games(games: list[str]):
+    """Items of these games (their printing's set)."""
+    return CollectionItem.printing_id.in_(
+        select(Printing.id).join(CardSet).where(CardSet.game_id.in_(games))
+    )
 
 
 class ItemSetOut(BaseModel):
@@ -175,13 +183,21 @@ class ValueHistoryOut(BaseModel):
 class ImportErrorOut(BaseModel):
     line: int
     message: str
+    # File of a zip export bundle; None: the CSV.
+    file: str | None = None
 
 
 class ImportOut(BaseModel):
+    # Rows of the cards CSV (of `cards.csv` in a bundle).
     rows: int
     imported: int
     dry_run: bool
     errors: list[ImportErrorOut]
+    # Bundles: rows of each file, valid (dry run) or written.
+    counts: dict[str, int] = {}
+
+
+ExportPart = Literal["cards", "binder", "decks", "all"]
 
 
 def currency(game_id: str, wanted: str) -> str:
@@ -313,6 +329,9 @@ async def list_items(
         query = query.where(CollectionItem.quantity > 0)
     if game:
         query = query.where(CardSet.game_id == game)
+    elif user.catalog_games is not None:
+        # Without a game: the games shown (user settings).
+        query = query.where(CardSet.game_id.in_(user.catalog_games))
     if q:
         query = query.where(exists().where(CardName.card_id == Card.id, name_matches(q)))
     if set_id is not None:
@@ -496,8 +515,8 @@ async def undo_transaction(transaction_id: int, user: CurrentUser, session: Sess
 
 @router.get("/value")
 async def value(user: CurrentUser, session: SessionDep) -> ValueOut:
-    """Current collection value, per game and overall."""
-    games = await collection.value_by_game(session, user.id, user.price_source)
+    """Current collection value, per game and overall (games shown in the settings)."""
+    games = await collection.value_by_game(session, user.id, user.price_source, user.catalog_games)
     totals: dict[str, Decimal] = {}
     for game in games:
         totals[game.currency] = totals.get(game.currency, Decimal(0)) + game.total
@@ -537,6 +556,7 @@ async def movers(
             _item_query()
             .join(Printing, CollectionItem.printing_id == Printing.id)
             .where(CollectionItem.user_id == user.id, CollectionItem.quantity > 0)
+            .where(_in_games(user.catalog_games) if user.catalog_games is not None else true())
         )
     ).all()
     games = {i.printing_id: i.printing.set.game_id for i in items}
@@ -622,7 +642,9 @@ async def finance(user: CurrentUser, session: SessionDep, game: str | None = Non
             .where(CollectionItem.user_id == user.id, CollectionItem.quantity > 0)
         )
     ).all()
-    report = await collection.finance(session, user.id, list(items), user.price_source, game)
+    report = await collection.finance(
+        session, user.id, list(items), user.price_source, game, shown=user.catalog_games
+    )
     described = {
         out.id: out
         for out in await _items_out(
@@ -671,10 +693,17 @@ async def value_history(
     days: Annotated[int, Query(ge=1, le=3650)] = 90,
 ) -> ValueHistoryOut:
     """Daily value of current holdings over the last `days` days. Without a game, games
-    priced in another currency than the user's price source are left out."""
+    priced in another currency than the user's price source, and games hidden in the
+    settings, are left out."""
     end = date.today()
     currency, history = await collection.value_history(
-        session, user.id, user.price_source, game, end - timedelta(days=days - 1), end
+        session,
+        user.id,
+        user.price_source,
+        game,
+        end - timedelta(days=days - 1),
+        end,
+        user.catalog_games,
     )
     return ValueHistoryOut(
         currency=currency, points=[ValuePointOut(date=d, value=v) for d, v in history]
@@ -692,6 +721,34 @@ async def export_csv(user: CurrentUser, session: SessionDep, game: str | None = 
     )
 
 
+@router.get("/export")
+async def export(
+    user: CurrentUser,
+    session: SessionDep,
+    parts: Annotated[list[ExportPart], Query()] = ["cards"],  # noqa: B006
+    game: str | None = None,
+) -> Response:
+    """The cards alone as a CSV (as `export.csv`), or a zip of the chosen parts: cards,
+    followed sets (Binder), decks with their lines and allocated copies (Decks). `all`
+    takes every part the user can use; parts of modules not enabled are refused."""
+    enabled = (await for_user(session, user)).enabled
+    usable = [p for p, module in export_bundle.PARTS.items() if module is None or module in enabled]
+    chosen = usable if "all" in parts else list(dict.fromkeys(parts))
+    refused = [p for p in chosen if p not in usable]
+    if refused:
+        module = export_bundle.PARTS[refused[0]]
+        raise HTTPException(status.HTTP_403_FORBIDDEN, f"Module '{module}' is not enabled")
+    if chosen == ["cards"]:
+        return await export_csv(user, session, game)
+    content = await export_bundle.export_zip(session, user.id, game, chosen)
+    filename = f"zukan-{game or 'all'}-{date.today().isoformat()}.zip"
+    return Response(
+        content,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.post("/import")
 async def import_csv(
     user: CurrentUser,
@@ -700,11 +757,31 @@ async def import_csv(
     mode: Literal["add", "set"] = "add",
     dry_run: bool = False,
 ) -> ImportOut:
-    """Import a CSV (see export format). Nothing is imported if any row is invalid.
-    `add` adds quantities; `set` makes stored quantities equal to the file's."""
+    """Import a CSV (see export format) or a zip export bundle (`export`). Nothing is
+    imported if any row is invalid. `add` adds quantities (and deck lines); `set` makes
+    stored quantities equal to the file's (and replaces decks of the same game and name)."""
     data = await file.read(MAX_CSV_BYTES + 1)
     if len(data) > MAX_CSV_BYTES:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "File larger than 5 MB")
+    if export_bundle.is_zip(data):
+        try:
+            files = export_bundle.read_zip(data)
+        except export_bundle.BundleError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+        modules = (await for_user(session, user)).enabled
+        bundle = await export_bundle.import_bundle(
+            session, user.id, files, modules, mode == "set", dry_run
+        )
+        return ImportOut(
+            rows=bundle.rows,
+            imported=bundle.imported,
+            dry_run=dry_run,
+            errors=[
+                ImportErrorOut(line=e.line, message=e.message, file=e.file)
+                for e in bundle.errors[:200]
+            ],
+            counts=bundle.counts,
+        )
     try:
         text = data.decode("utf-8-sig")
     except UnicodeDecodeError as exc:

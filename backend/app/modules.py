@@ -20,7 +20,7 @@ from app.models import AppSetting, Role, User
 from app.services import groups as user_groups
 
 # Module ids, in the order they are shown.
-MODULES = ("binder",)
+MODULES = ("binder", "decks")
 SETTING_KEY = "modules_disabled"
 ACCESS_KEY = "modules_access"
 

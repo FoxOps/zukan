@@ -59,7 +59,7 @@ async def test_modules_setting_and_server_switch(client, session, catalog):
     root = await bearer(client, "root")
 
     me = (await client.get("/api/auth/me", headers=alice)).json()
-    assert (me["modules"], me["available_modules"]) == ([], ["binder"])
+    assert (me["modules"], me["available_modules"]) == ([], ["binder", "decks"])
     # Plain Zukan: the module's routes are refused.
     assert (await client.get("/api/binder", headers=alice)).status_code == 403
     unknown = await client.patch("/api/auth/me", json={"modules": ["chess"]}, headers=alice)
@@ -77,9 +77,9 @@ async def test_modules_setting_and_server_switch(client, session, catalog):
     off = await client.put(
         "/api/admin/modules", json=[{"id": "binder", "mode": "off"}], headers=root
     )
-    assert off.json() == [{"id": "binder", "mode": "off", "groups": []}]
+    assert off.json()[0] == {"id": "binder", "mode": "off", "groups": []}
     me = (await client.get("/api/auth/me", headers=alice)).json()
-    assert (me["modules"], me["available_modules"]) == ([], [])
+    assert (me["modules"], me["available_modules"]) == ([], ["decks"])
     assert (await client.get("/api/binder", headers=alice)).status_code == 403
     await client.put("/api/admin/modules", json=everyone, headers=root)
     assert (await client.get("/api/auth/me", headers=alice)).json()["modules"] == ["binder"]
@@ -103,7 +103,7 @@ async def test_module_given_by_groups(client, session, catalog):
     assert (await client.put("/api/admin/modules", json=unknown, headers=root)).status_code == 422
     given = [{"id": "binder", "mode": "groups", "groups": [group_id]}]
     response = await client.put("/api/admin/modules", json=given, headers=root)
-    assert response.json() == [{"id": "binder", "mode": "groups", "groups": [group_id]}]
+    assert response.json()[0] == {"id": "binder", "mode": "groups", "groups": [group_id]}
 
     alice_id = (await client.get("/api/auth/me", headers=alice)).json()["id"]
     added = await client.put(f"/api/admin/groups/{group_id}/members/{alice_id}", headers=root)
@@ -113,13 +113,13 @@ async def test_module_given_by_groups(client, session, catalog):
     me = (await client.get("/api/auth/me", headers=alice)).json()
     assert (me["modules"], me["available_modules"], me["managed_modules"]) == (
         ["binder"],
-        [],
+        ["decks"],
         ["binder"],
     )
     assert [g["name"] for g in me["groups"]] == ["Collectors"]
     assert (await client.get("/api/binder", headers=alice)).status_code == 200
     me = (await client.get("/api/auth/me", headers=bob)).json()
-    assert (me["modules"], me["available_modules"], me["managed_modules"]) == ([], [], [])
+    assert (me["modules"], me["available_modules"], me["managed_modules"]) == ([], ["decks"], [])
     assert (await client.get("/api/binder", headers=bob)).status_code == 403
     # Administrators always have it.
     assert (await client.get("/api/auth/me", headers=root)).json()["managed_modules"] == ["binder"]

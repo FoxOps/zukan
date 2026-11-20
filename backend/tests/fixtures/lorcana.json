@@ -122,7 +122,16 @@
 "tcgPlayerUrl": "https://www.tcgplayer.com/product/494102"
 },
 "fullIdentifier": "1/204 • EN • 1",
-"allowedInTournamentsFromDate": "2023-09-08"
+"allowedInTournamentsFromDate": "2023-09-08",
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2025-09-05"
+},
+"Infinity": {
+"allowed": true
+}
+}
 },
 {
 "id": 5,
@@ -164,7 +173,16 @@
 "tcgPlayerUrl": "https://www.tcgplayer.com/product/485364"
 },
 "fullIdentifier": "5/204 • EN • 1",
-"allowedInTournamentsFromDate": "2023-09-08"
+"allowedInTournamentsFromDate": "2023-09-08",
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2025-09-05"
+},
+"Infinity": {
+"allowed": true
+}
+}
 },
 {
 "id": 205,
@@ -205,7 +223,16 @@
 "tcgPlayerUrl": "https://www.tcgplayer.com/product/510148"
 },
 "fullIdentifier": "205/204 • EN • 1",
-"allowedInTournamentsFromDate": "2023-09-08"
+"allowedInTournamentsFromDate": "2023-09-08",
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2025-09-05"
+},
+"Infinity": {
+"allowed": true
+}
+}
 },
 {
 "id": 436,
@@ -246,7 +273,17 @@
 "tcgPlayerUrl": "https://www.tcgplayer.com/product/532867"
 },
 "fullIdentifier": "4a/204 • EN • 3",
-"allowedInTournamentsFromDate": "2024-03-15"
+"allowedInTournamentsFromDate": "2024-03-15",
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2026-07-17"
+},
+"Infinity": {
+"allowed": true
+}
+},
+"maxCopiesInDeck": 99
 },
 {
 "id": 659,
@@ -286,7 +323,16 @@
 "tcgPlayerUrl": "https://www.tcgplayer.com/product/454233"
 },
 "fullIdentifier": "1 TFC • EN • 1/P1",
-"allowedInTournamentsFromDate": "2023-09-08"
+"allowedInTournamentsFromDate": "2023-09-08",
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2025-09-05"
+},
+"Infinity": {
+"allowed": true
+}
+}
 },
 {
 "id": 1434,
@@ -330,7 +376,16 @@
 "tcgPlayerUrl": "https://www.tcgplayer.com/product/619407"
 },
 "fullIdentifier": "1/204 • EN • 7",
-"allowedInTournamentsFromDate": "2025-03-28"
+"allowedInTournamentsFromDate": "2025-03-28",
+"allowedInFormats": {
+"Core": {
+"allowed": false,
+"allowedUntilDate": "2026-07-17"
+},
+"Infinity": {
+"allowed": true
+}
+}
 }
 ]
 },

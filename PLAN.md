@@ -54,6 +54,18 @@ android/             Kotlin app
 docker-compose.yml
 ```
 
+## Branches (since 2026-11-20)
+Two permanent branches (CONTRIBUTING.md, "Branches and releases"):
+- `main`: release branch, current stable release. Stays the GitHub default branch (what visitors see).
+- `dev`: integration branch, changes for the next release.
+- Work branches (`DATE-NUMBER-NAME`) start from `origin/dev`; pull requests go into `dev`; delete the
+  branch once merged. Both permanent branches are protected (pull request required).
+- Release: pull request `dev` -> `main`, merged with a merge commit (never squash / rebase), then
+  Docker prod / Android prod from `main` with the version; the Release workflow tags `server-vX.Y.Z` /
+  `android-vX.Y.Z`. `dev` stays for the next cycle.
+- CI: PR checks and CodeQL run on pull requests into `dev` and `main`; Dependabot version updates
+  target `dev` (security updates target `main`: change their base to `dev`).
+
 ## Game plugin system (modularity core)
 `backend/app/games/base.py`:
 ```python
@@ -141,6 +153,20 @@ cannot be renamed/deleted, an admin cannot remove themself. With several provide
   (no copy of data), so cards added anywhere count. Ticking a row opens the stock dialog (filters
   preselected); unticking asks, then removes one copy (undo toast). Followed sets are never deleted with the
   catalog: reset and empty set pruning skip them, FK `RESTRICT`; the sync fills them again (same source id).
+- Decks (experimental, branch `experiment-decks`, `deck` / `deck_card` / `deck_allocation`, `/api/decks`):
+  Magic (paper formats with Scryfall legalities: Commander, Standard, Modern... `deck_rules.FORMATS`) and
+  Pokémon, all three markets (`pokemon_standard` / `_expanded` / `_unlimited` / `_glc`, `deck_rules.GAMES`;
+  legality from TCGdex `legal` per international printing, Pokémon catalog version 11) and Lorcana
+  (`lorcana_core` / `_infinity` / `_unrestricted`, legality and copy limits from LorcanaJSON, Lorcana
+  catalog version 3). Decklist by card, a line per printing asked for or any (`deck_card.printing_id`,
+  rules and allocations count a card's lines together), sections commander / main / sideboard
+  (Pokémon, Lorcana: main only); text export per game (`services/deck_export.py`);
+  rules in `services/deck_rules.py` from card attributes (`legalities` from Scryfall since this branch,
+  "not verified" until the next MtG catalog sync). Text import (`services/deck_import.py`): preview, then
+  import of the cards picked. Allocation (`services/decks.py`): owned copies of a collection item set aside
+  for one deck, owned quantity unchanged; allocations grow only under a row lock on the collection items;
+  collection decreases (adjust, set quantity, undo, item delete, catalog printing merge) trim allocations,
+  latest first. Cards in decks are never pruned with the catalog.
 
 ## Progress
 - [x] Phase 0 — plan copied, git init (2026-10-12)
@@ -2224,6 +2250,201 @@ Report against server 0.25.0 / app 0.17.0. Branch `2026-11-10-002-mtg-scan-missi
 - [ ] User: Admin › Groups on a real IdP — link a group to an IdP group, sign in with an SSO user, check
   membership and Binder access; check the Administrators group shows the former `ADMIN_GROUPS` values.
 - [ ] User: Data sync page shows the last catalog run a few days after it ran.
+
+## Report 2026-11-20 (branching workflow, versions unchanged)
+Branch `2026-11-20-000-dev-branch-workflow` from `origin/dev`, pull request into `dev`.
+- [x] CONTRIBUTING.md: "Branches and releases" (`main` release, `dev` integration, work branches from
+  `dev`, release pull request merged with a merge commit, existing version tags); pull requests against `dev`.
+- [x] CI: `pr-checks.yml` and `codeql.yml` also run on pull requests into `dev`; `dependabot.yml`
+  `target-branch: dev` for version updates. No change needed in `guard.sh`, `release.yml`,
+  `changelog.sh`, `release.sh` (prod stays main-only; `dev` dev builds are `dev-dev`).
+- [x] Repository: `dev` protected like `main`; default branch stays `main`.
+- [x] Wiki Development page: pointer to CONTRIBUTING "Branches and releases".
+- [ ] User: merge the pull request into `dev`, then the `dev` -> `main` pull request with a merge commit
+  (no new version: no server or Android files changed) so visitors see the new CONTRIBUTING.md.
+- [ ] User: retarget Dependabot security pull requests (they open against `main`) to `dev`.
+
+## Report 2026-11-19 — experimental Decks module (server unreleased, Android unchanged 0.17.0)
+Branch `experiment-decks` (name chosen by the user), from main at 0.25.1. No version bump, no changelog.
+- [x] Module `decks` (user setting, server switch as for Binder). Web: `/decks` list + new deck (game
+  selector with Magic only, format Commander / Standard), `/decks/:id` editor: rename, format change,
+  delete, catalog search to add a card to a section, quantity steppers, groups by type (Commander,
+  Creature, Planeswalker, Battle, Instant, Sorcery, Artifact, Enchantment, Land, Other, Sideboard), totals.
+- [x] Rules (never block saving): Standard 60+ main, sideboard 15 max, 4 copies across main and sideboard;
+  Commander exactly 100 with commanders, singleton, sideboard not counted (info), commander legendary
+  creature or "can be your commander", two commanders with Partner / Partner—X / Partner with /
+  Friends forever / Choose a Background + Background / Doctor's companion (rules text), color identity.
+  Basic lands and "any number of cards named" unlimited, "up to seven / nine" limits. Legality from
+  Scryfall `legalities` (banned / not legal / restricted); cards without data listed as not verified.
+- [x] Import: "4 Lightning Bolt", "4x", "(SET) 123", "[SET]", "*CMDR*", tags, headers Commander / Deck /
+  Main / Sideboard / Companion (to sideboard) / Maybeboard (skipped), "SB:" lines, comments. Names: full,
+  front face, other languages (`card_name`), case and accents ignored; tokens and art cards left out;
+  ambiguous names list their cards, unknown ones close names (trigram). Add or replace the list.
+- [x] Allocation per card: requested, owned, available (owned minus every deck's allocations), allocated
+  here, in other decks, missing; status missing / owned / allocated. Allocate / release one, or per
+  collection item ("Choose copies"). Refused beyond the deck's request or the free copies (concurrent
+  requests serialized by `SELECT ... FOR UPDATE` on the items; test with 4 parallel requests).
+- [x] Verified: 289 backend tests (9 new), web build, lint, i18n (EN/FR/DE/ES). Live (isolated DB, port
+  8010, Playwright): import with ambiguous and unknown lines, Commander checks, Bolt shared by a
+  Commander and a Standard deck, over-allocation refused, collection 3 to 1 trimmed both decks.
+- Gaps: legality needs a new MtG catalog sync; companions, Partner variants beyond keywords, banned as
+  commander only, restricted lists, other formats not modelled; MTGO blank-line sideboard not read (needs
+  a header); allocation counted per card over all sections (a Commander sideboard asks for copies too);
+  web only (Android ignores decks); allocations are not shown on collection pages yet.
+
+## Report 2026-11-19 (2) — Decks on 0.26.0, user report (server unreleased, Android unchanged 0.17.0)
+- [x] Branch on main 0.26.0: `origin/main` merged (branch was cut at 0.25.1 before PR #48). Decks follows
+  the 0.26.0 module access (off / everyone / groups, Admin > Groups). Decks migration had the same revision
+  id as the groups migration (`b8d0f2a4c367`): now `c4e7a19d5b20`, after groups. Test server repaired
+  (stamp `a7c9e1f3b256`, upgrade `b8d0f2a4c367`, stamp `c4e7a19d5b20`: deck tables and data kept).
+- [x] "⋯" row menu clipped in the commander block (table in `overflow-x-auto`): popover menu (top
+  layer, CSS anchor positioning), closed after each action.
+- [x] "Allocate" with several collection items of the card (printing / finish / condition / language)
+  with free copies (`DeckEntryOut.free_items`) opens the copies chooser instead of picking one; one item:
+  allocates directly. API `item_id` stays optional.
+- [x] Card page: owned copies list the decks holding them (`OwnedOut.decks`, link to the deck) and the
+  free count; only for users with the Decks module.
+- [x] Formats: every Scryfall legality key played outside MTG Arena (user: no Arena-only formats):
+  Commander, Standard, Pioneer, Modern, Legacy, Vintage, Pauper, Premodern, Old School, Penny Dreadful
+  (60+, 15 sideboard, 4 copies, restricted = 1), Duel Commander, PreDH (as Commander), Pauper Commander
+  (any creature leads, commander rarity not checked, commanders skip the legality check), Oathbreaker
+  (60, a planeswalker, two with partner, one signature instant / sorcery each in the commander section,
+  color identity). Left out: Historic, Timeless, Alchemy, Gladiator, Brawl, Standard Brawl, Competitive
+  Brawl (Arena), `future` (Standard preview), `tlr` (unknown key).
+- Gaps: collection pages still do not show allocations; format-specific ban lists come from Scryfall.
+
+## Report 2026-11-19 (3) — Decks: user report, Pokémon TCG (server unreleased, Android unchanged 0.17.0)
+- [x] Long selects (filter box, `SearchableSelect`) clipped inside dialogs (daisyUI `.modal-box` scrolls):
+  the list is a popover (top layer), placed under the button with `position: fixed` (above it without room
+  below), follows scroll and resize. Fixes every searchable select, the New deck Format one included. New
+  deck: changing the game picks its first format.
+- [x] Deck card picture: the allocated copy's (the collection item most allocated copies come from, its
+  language as in the collection, `copy_image`), else the card's; the copies chooser shows each copy's.
+- [x] Deck page List / Images toggle (`useView`, `tcg.deckView`, `?view=`): images grid by section and
+  group, quantity, copy state, here / requested, stepper, Allocate / Release and the "⋯" menu.
+- [x] Pokémon decks (user: Standard, Expanded, Unlimited, Gym Leader Challenge; legality stored from
+  TCGdex; all three markets). 60 cards exactly, 4 copies by name (one catalog card per name and language),
+  basic Energy unlimited, at least one Basic Pokémon, 1 ACE SPEC (rarity), 1 Radiant (name or rarity),
+  Prism Star 1 per name, legal when any printing is (reprints). GLC: singleton, one shared type (off-type
+  Pokémon listed), no Rule Box Pokémon (name / stage), no ACE SPEC. Groups Pokémon / Supporter / Item /
+  Pokémon Tool / Stadium / Trainer / Energy (`DeckDetailOut.groups`). Import reads Pokémon TCG Live and
+  Limitless lists ("Pokémon: 12", "4 Charmander PAF 7", "Basic {R} Energy", "Total Cards"). Format must be
+  of the deck's game (422).
+- Gaps: legality is "not verified" until the next Pokémon catalog sync (version 11, full resync); Asian and
+  Chinese cards have no legality (TCGdex marks them all not legal), Japanese Standard not modelled; GLC
+  ban list not checked; a French-only card and its English card are different cards for the copy count.
+
+## Report 2026-11-19 (4) — Decks: search, printings, export, Lorcana (server unreleased, Android unchanged 0.17.0)
+User report: search like Catalog / Collection; one card from several sets; export; Lorcana. Choices
+(user): optional printing per deck line, catalog-style panel, text export, Lorcana Core + Infinity +
+Unrestricted.
+- [x] Several sets of one card: before, allocations already took copies of any printing (2 Bolt M10 +
+  2 Bolt 2XM worked) but the deck could not say which printing it wants. Now `deck_card.printing_id`
+  (nullable, `SET NULL` when the printing leaves the catalog; unique with NULLS NOT DISTINCT, migration
+  `d5f8b2c6e731`): several lines per card and section. Rules and stock sum a card's lines. Lines of a
+  printing take its allocated copies first (`decks.line_allocations`); "Allocate" fills the printings
+  lines ask for first. `POST /api/decks/{id}/cards/move` (whole line or one copy split off),
+  `GET .../cards/{card}/printings` (owned first). Catalog merges move lines (`decks.move_lines`), reset
+  keeps printings deck lines ask for. Import keeps "(M10) 146", "[M10]", Pokémon "PAF 7" (set aliases,
+  leading zeros); unknown printing: any. Web: printing badge per row (chooser with pictures, owned / free),
+  "Choose the printing…" / "Split off one copy…", per-line allocated count, Images view one tile per line,
+  copies chooser marks printings asked for.
+- [x] Add cards panel (`pages/decks/AddCards.tsx`, replaces the 10-result dropdown): name in any language,
+  set, colors (include / exact), game filters, "Owned cards only" (`/api/cards?owned=`, new
+  `CardSummaryOut.owned_copies`), List / Images, pages of 24, section; a chosen set adds that printing.
+- [x] Export (`GET /api/decks/{id}/export?sets=`, dialog: copy, .txt): Magic Moxfield / MTGO blocks with
+  "(SET) 123", Pokémon TCG Live blocks + "Total Cards", Lorcana Dreamborn "4 Elsa - Snow Queen". Lines of
+  any printing use their allocated copies' printings (Pokémon: newest printing for the rest). Read back by
+  the import (tested).
+- [x] Lorcana: LorcanaJSON `allowedInFormats` (Core, Infinity: legal / not legal / banned; a card is
+  legal when one printing is, banned when any is) and `maxCopiesInDeck` (99, 2, any) in card attributes
+  (`catalog_version` 3). Rules: 60+, 4 per full name (or the card's limit), at most 2 inks (dual-ink
+  cards bring both; off-ink cards listed), legality per format. Groups Character / Action / Song / Item /
+  Location, type line with classifications and ink cost.
+- [x] Verified: 308 backend tests (12 new deck / Lorcana tests), ruff, web build, oxlint, i18n (EN/FR/DE/ES).
+  Migration up / down / up. Live (copy of a full catalog DB, Lorcana synced, port 8011, Playwright):
+  printing lines and allocation preference, chooser move, owned filter, Magic and Lorcana export,
+  Lorcana Core deck with ink, legality and size errors.
+- Test server: `alembic upgrade head`, then a Lorcana catalog sync (full, version 3) for legality.
+- Gaps: Magic lines without printing and no allocated copy export without set; Lorcana Format Coconut
+  not offered; per-line "missing" not shown (card level only).
+
+## Report 2026-11-20 — Decks: Riftbound, Yu-Gi-Oh!, Sorcery, Beta (server unreleased, Android unchanged 0.17.0)
+Branch `experiment-decks` rebased on `dev` (merge of main dropped, decks migration kept as `c4e7a19d5b20`).
+- [x] MtG "X // Land" cards grouped by their front face (`api.decks._front_types`).
+- [x] Neutral module text, "Beta" badge instead of "Experimental".
+- [x] Sections per format (`Format.sections` / `counted`, `DeckFormatOut.sections`, `DeckOut.counts`);
+  web blocks, move menu, add and import section pickers built from them. `PUT /cards` without a
+  section (`add: true` from the search) sends runes, sites, Extra Deck monsters... to their section.
+- [x] Riftbound Constructed (legend, chosen champion with the legend's tag, 40+ main, 3 copies by name,
+  12 runes, 3 battlefields of different names, sideboard 8, domains, 3 Signature cards).
+- [x] Yu-Gi-Oh! Advanced / Traditional / Unrestricted for TCG and OCG: 40-60 main, Extra 15, Side 15,
+  ban list from YGOPRODeck `banlist_info` (catalog_version 4: re-sync both games), Extra Deck kinds,
+  YDK import by password.
+- [x] Sorcery Constructed: avatar, atlas 30+ sites, spellbook 60+, collection 10 (warning), copies by
+  rarity. No separate Limited rules in the rulebook, so no Limited format.
+- [x] Verified: 315 backend tests (7 new), ruff, web tsc / lint / i18n / build.
+- [ ] Live browser check of the new games not done (usage limit); a Yu-Gi-Oh! catalog sync was started
+  on the `tcg_decks_live` test database.
+- Gaps: Riftbound and Sorcery ban lists not in the data; Signature cards' champion tag not checked.
+
+## Report 2026-11-20 #2 (server 0.27.0, Android 0.17.1)
+Report from server 0.26.0 + Android 0.17.0. Branch `2026-11-20-001-modules-export-symbols-game-filter` from
+`dev`, pull request into `dev`.
+- [x] Project: `experiment-decks` merged into `dev` (PR #54, merge commit) and deleted; its CodeQL failure
+  fixed first (3 polynomial ReDoS in `deck_import`: lines matched with whitespace collapsed, single optional
+  spaces in the regexes). Decks ship with this release (Beta).
+- [x] Dependabot #49 (i18next 27), #50 (react-i18next 18, failed alone: needs i18next 27), #51 (web group:
+  react-query, tailwind vite, plugin-react, daisyUI 5.8, oxlint, vite), #52 (kotlinx-serialization 1.13,
+  Gradle 9.9.1) retargeted to this branch and merged. react-i18next 18 breaking changes checked: no `Trans`,
+  `escapeValue: false` kept, `i18n.language` reads still right. Web build and Android test / lint / assemble pass.
+- [x] Import / export with modules. `GET /api/collection/export?parts=cards|binder|decks|all&game=`: cards
+  alone = the CSV (as `export.csv`, kept for Android); with other parts a zip (`services/export_bundle.py`):
+  `manifest.json` (format `zukan-export` v1, Zukan version, parts), `cards.csv`, `binder_sets.csv` (set,
+  language, finish), `decks.csv` (bundle-local deck ref, game, name, format), `deck_cards.csv` (card source
+  id, section, quantity, optional printing), `deck_allocations.csv` (collection item key, copies). Rows use
+  the sources' ids, never database ids, so bundles move between servers. Cards CSV gains optional `set_id` /
+  `printing_id` columns (sources' ids), used first on import (old files still import). `POST /import`
+  takes a CSV or a zip: names allowlisted, sizes counted on the bytes read (zip bombs), newer bundle
+  versions refused, parts of modules the user has not enabled refused (export: 403). All files checked
+  before writing; one transaction (cards, followed sets, decks, allocations re-linked to the collection
+  and capped by owned copies). `add` adds quantities and deck lines; `set` replaces quantities and the
+  decks of the same game and name. Web: Cards (always) + Followed sets + Decks checkboxes for enabled
+  modules, "Download zip", per-file counts and a File column in problems. Deck line writer moved to
+  `services.decks.set_line`.
+- [x] Card text symbols as pictograms. `SymbolDef` (token, name, downloaded `icon_url`, shipped `icon_file`
+  or a game `color`), provider `symbols`, `GameOut.symbols`, `GET /api/games/{id}/symbols/{key}/icon`,
+  downloaded by `ensure_symbols` like colors. Magic: Scryfall's 84 symbols (`games/mtg/text_symbols.py`,
+  `{2}{R}`, `{T}`, hybrids, Phyrexian...) in mana costs, rules texts, faces. Lorcana and Riftbound kept
+  words in `text` (search, TCGplayer cross-check) and now also store `text_symbols` with tokens (Lorcana
+  `{I}{S}{W}{L}{E}{IW}`; Riftbound `{0}`-`{12}` energy, domain runes = domain symbols, `{rainbow}`,
+  `{exhaust}`, `{might}`); pictograms drawn by `scripts/draw_color_symbols.py`; catalog versions Lorcana 4,
+  Riftbound 2 (full re-sync). Pokémon attack costs (type names in any card language) and Sorcery
+  thresholds shown with the game's color symbols. Yu-Gi-Oh!: no codes. Web `SymbolText`, `Attributes`
+  (`<attr>_symbols` shown in place of `<attr>`), deck list mana costs. Android shows no card text: unchanged.
+- [x] Game setting on every page: `useShownGames()`; `GameTabs` always follows it (Catalog, Collection,
+  Finance); Dashboard "Value over time", Import / export game select, Binder (list and follow dialog),
+  Decks (list and New deck). Server: collection list, value, value history, movers, finance leave hidden
+  games out without a `game` parameter; export "All games" stays a full backup. Hidden decks / binders:
+  "N more in games hidden in Settings" note. Settings card "Games shown". Admin pages, About, Settings keep
+  every game. Android: Collection screen follows it (Scan / Search already did).
+- [x] Decks page grouped by game (sections in the server's game order, regional games named with their
+  market, count per game).
+- [x] Dev images show `dev-<pyproject version>+<short commit>` (e.g. `dev-0.27.0+126800e`) instead of
+  `dev-<branch>` (`dev-dev` on the `dev` branch). Image tags: `dev-<branch>` (latest build of the branch,
+  for compose) and `dev-<pyproject version>-<short commit>` (was `dev-<branch>-<sha>`; Docker tags have no
+  "+"). `server-dev-<branch>` pre-releases unchanged; the version is in their notes. Prod keeps `X.Y.Z`.
+- [x] Versions: server 0.27.0 (new API, zip import, symbols, Decks), Android 0.17.1 (collection filter,
+  dependencies). `.env.example`: user agent example, import size comment. No new variable, no migration.
+- [x] Verified: 321+ backend tests (new: export bundles x4, symbols route / download, Lorcana and
+  Riftbound tokens, collection game filter), ruff, web tsc / oxlint / i18n (EN/FR/DE/ES) / build, Android
+  test / lint / assemble. Live (copy of a full catalog DB, port 8012, Lorcana and Riftbound re-synced,
+  Playwright): MtG / Lorcana / Riftbound pictograms inline, Pokémon costs, Sorcery thresholds, decks by
+  game, Lorcana hidden (decks note, collection tabs), zip export, dry run and `set` import round trip.
+- [ ] Test server: Lorcana and Riftbound catalog syncs run on their own (catalog versions) to fill
+  `text_symbols`; Magic symbols download on the first start.
+- Gaps: Riftbound energy above 12 stays a number; Lorcana / Riftbound symbols are Zukan drawings; deck
+  type lines ("3 ink") stay text; Android has no import or bundle export (CSV export unchanged).
 
 ## Build phases
 0. Copy this plan to `/home/pierre/Projets/TCG_MGMT/PLAN.md`; `git init`; keep PLAN.md updated as phases complete.

@@ -91,6 +91,11 @@ def test_parse_card():
     assert elves.names == {"en": "Llanowar Elves"}
     assert elves.printings[0].names == {}
     assert elves.printings[0].attributes["scryfall_id"] == raw("en", "dom")["id"]
+    # Format legality for the Decks module: unknown without Scryfall's data.
+    assert "legalities" not in elves.attributes
+    legal = {"standard": "not_legal", "commander": "legal", "legacy": "banned"}
+    with_legalities = parse_card({**raw("en", "dom"), "legalities": legal})
+    assert with_legalities.attributes["legalities"] == {"commander": "legal", "legacy": "banned"}
 
     french = parse_card(raw("fr", "dom"))
     assert french.partial

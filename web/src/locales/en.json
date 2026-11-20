@@ -26,5 +26,15 @@
   "{{count}} days_one": "{{count}} day",
   "{{count}} days_other": "{{count}} days",
   "{{count}} hours_one": "{{count}} hour",
-  "{{count}} hours_other": "{{count}} hours"
+  "{{count}} hours_other": "{{count}} hours",
+  "{{count}} cards imported_one": "{{count}} card imported",
+  "{{count}} cards imported_other": "{{count}} cards imported",
+  "{{count}} lines need a choice: pick the card or leave the line out._one": "{{count}} line needs a choice: pick the card or leave the line out.",
+  "{{count}} lines need a choice: pick the card or leave the line out._other": "{{count}} lines need a choice: pick the card or leave the line out.",
+  "Import {{count}} cards_one": "Import {{count}} card",
+  "Import {{count}} cards_other": "Import {{count}} cards",
+  "{{count}} issues_one": "{{count}} issue",
+  "{{count}} issues_other": "{{count}} issues",
+  "{{count}} more in games hidden in Settings._one": "{{count}} more in a game hidden in Settings.",
+  "{{count}} more in games hidden in Settings._other": "{{count}} more in games hidden in Settings."
 }

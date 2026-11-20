@@ -17,7 +17,17 @@ const DYNAMIC = [
   'catalog', 'prices', 'images', 'running', 'success', 'failed', 'user', 'admin', 'web', 'scan', 'import',
   'cancelled', 'queued', 'auto', 'manual',
   // Optional modules and binder tabs.
-  'Binder', 'All', 'Missing', 'Owned',
+  'Binder', 'All', 'Missing', 'Owned', 'Decks',
+  // Deck card groups, copy states, legality and import line states.
+  'Creature', 'Planeswalker', 'Battle', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Other',
+  'Pokémon', 'Supporter', 'Item', 'Pokémon Tool', 'Stadium', 'Trainer', 'Energy',
+  'Character', 'Action', 'Song', 'Location',
+  'Legend', 'Unit', 'Gear', 'Rune', 'Battlefield', 'Monster', 'Fusion', 'Synchro', 'Xyz', 'Link',
+  'Avatar', 'Site', 'Minion', 'Magic', 'Aura',
+  // Deck sections (`DeckFormatOut.sections`).
+  'Main deck', 'Sideboard', 'Commander', 'Chosen champion', 'Battlefields', 'Rune deck', 'Main Deck',
+  'Extra Deck', 'Side Deck', 'Atlas', 'Spellbook', 'Collection',
+  'Allocated', 'Banned', 'Not legal', 'Restricted', 'Found', 'Ambiguous', 'Unknown',
   // Collection views and trend periods.
   'List', 'Images', '24h', '7d', '30d',
   // Finance periods.

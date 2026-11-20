@@ -18,6 +18,7 @@ from app.api import (
     binder,
     catalog,
     collection,
+    decks,
     games,
     groups,
     releases,
@@ -122,6 +123,7 @@ def create_app() -> FastAPI:
     api.include_router(catalog.router)
     api.include_router(collection.router)
     api.include_router(binder.router)
+    api.include_router(decks.router)
     api.include_router(scan.router)
     api.include_router(admin.router)
     api.include_router(groups.router)

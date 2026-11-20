@@ -20,6 +20,7 @@ from app.games.riftbound.records import (
     full_name,
     normalize_id,
     rules_text,
+    symbol_text,
 )
 
 API_URL = "https://{region}.api.riotgames.com/riftbound/content/v1/contents"
@@ -68,6 +69,7 @@ def parse_content(content: dict[str, Any]) -> list[RiftCard]:
                     power=as_int(stats.get("power")),
                     tags=list(raw.get("tags") or []),
                     text=rules_text(raw.get("description")),
+                    text_symbols=symbol_text(raw.get("description")),
                     flavor=raw.get("flavorText"),
                     artist=art.get("artist"),
                     image=art.get("fullURL") or art.get("thumbnailURL"),

@@ -17,6 +17,7 @@ from app.games.riftbound.records import (
     normalize_id,
     rules_text,
     split_variant,
+    symbol_text,
 )
 
 API_URL = "https://api.riftcodex.com"
@@ -66,6 +67,7 @@ def parse_card(raw: dict[str, Any]) -> RiftCard | None:
         power=as_int(stats.get("power")),
         tags=list(raw.get("tags") or []),
         text=rules_text(text.get("rich")) or text.get("plain"),
+        text_symbols=symbol_text(text.get("rich")),
         flavor=text.get("flavour"),
         artist=media.get("artist"),
         image=media.get("image_url"),

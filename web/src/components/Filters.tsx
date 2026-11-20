@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, call } from '../api/client'
-import { gameGroups, useGames, useSets, type Game, type GameGroup } from '../api/queries'
+import { gameGroups, useSets, useShownGames, type Game, type GameGroup } from '../api/queries'
 import { languageName } from '../lib/format'
 import { TYPE_TO_SEARCH } from '../lib/typeToSearch'
 import { ColorSymbol } from './ColorBadges'
@@ -12,8 +12,6 @@ type GameTabsProps = {
   value: string
   onChange: (id: string) => void
   allowAll?: boolean
-  // Games to show (user settings); all when null or undefined.
-  only?: string[] | null
 }
 
 // Last market picked in each group of games, so its tab opens on it again.
@@ -37,12 +35,11 @@ function remember(game: Game) {
   }
 }
 
-/** One tab per game, the games of one family (Pokémon, Yu-Gi-Oh!) under one tab with
- * their markets below it (International | Asia | China). */
-export function GameTabs({ value, onChange, allowAll = true, only }: GameTabsProps) {
+/** One tab per game shown (user settings), the games of one family (Pokémon, Yu-Gi-Oh!)
+ * under one tab with their markets below it (International | Asia | China). */
+export function GameTabs({ value, onChange, allowAll = true }: GameTabsProps) {
   const { t } = useTranslation()
-  const { data: games = [] } = useGames()
-  const shown = only ? games.filter((g) => only.includes(g.id)) : games
+  const { shown } = useShownGames()
   const groups = gameGroups(shown)
   const current = groups.find((group) => group.games.some((g) => g.id === value))
   const pick = (game: Game) => {

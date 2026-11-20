@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.games.base import get_provider
 from app.models import CardSet, CollectionItem, Condition, PriceSnapshot, Printing, StockTransaction
 from app.prices.base import preferred_source, price_sources
+from app.services import decks
 
 
 class StockError(Exception):
@@ -144,6 +145,7 @@ async def adjust(
         )
         if item_id is None:
             raise StockError("Not enough copies to remove")
+        await decks.fit_allocations(session, [item_id])
     transaction = StockTransaction(user_id=user_id, item_id=item_id, delta=delta, source=source)
     session.add(transaction)
     await session.flush()
@@ -165,6 +167,8 @@ async def set_quantity(
     )
     if result.rowcount != 1:
         raise StockError("Quantity changed meanwhile, reload and retry")
+    if delta < 0:
+        await decks.fit_allocations(session, [item.id])
     transaction = StockTransaction(
         user_id=item.user_id, item_id=item.id, delta=delta, source=source
     )
@@ -200,6 +204,8 @@ async def undo(session: AsyncSession, user_id: int, transaction_id: int) -> Coll
     )
     if reverted.rowcount != 1:
         raise StockError("Copies were removed since, cannot undo this addition")
+    if transaction.delta > 0:
+        await decks.fit_allocations(session, [transaction.item_id])
     item = await session.get(CollectionItem, transaction.item_id, populate_existing=True)
     return item
 
@@ -322,9 +328,12 @@ def unit_price(item: CollectionItem, prices: dict[tuple[int, str], PricePoint]) 
 
 
 async def owned_items(
-    session: AsyncSession, user_id: int, game_id: str | None = None
+    session: AsyncSession,
+    user_id: int,
+    game_id: str | None = None,
+    games: list[str] | None = None,
 ) -> list[tuple[CollectionItem, str]]:
-    """Items with copies, with their game."""
+    """Items with copies, with their game: of one game, else of `games` (None: all)."""
     query = (
         select(CollectionItem, CardSet.game_id)
         .join(Printing, CollectionItem.printing_id == Printing.id)
@@ -333,6 +342,8 @@ async def owned_items(
     )
     if game_id:
         query = query.where(CardSet.game_id == game_id)
+    elif games is not None:
+        query = query.where(CardSet.game_id.in_(games))
     return [(item, game) for item, game in (await session.execute(query)).all()]
 
 
@@ -346,8 +357,10 @@ class GameValue:
     unpriced: int
 
 
-async def value_by_game(session: AsyncSession, user_id: int, wanted: str) -> list[GameValue]:
-    rows = await owned_items(session, user_id)
+async def value_by_game(
+    session: AsyncSession, user_id: int, wanted: str, games: list[str] | None = None
+) -> list[GameValue]:
+    rows = await owned_items(session, user_id, games=games)
     prices = await user_prices(session, wanted, {item.printing_id: game for item, game in rows})
     games: dict[str, GameValue] = {}
     for item, game_id in rows:
@@ -371,17 +384,18 @@ async def value_history(
     game_id: str | None,
     start: date,
     end: date,
+    games: list[str] | None = None,
 ) -> tuple[str, list[tuple[date, Decimal]]]:
     """Currency and daily value of the current holdings, priced with each day's latest
     known prices.
 
     Quantities are today's: the curve shows how prices moved for what is owned now.
     Without a game, games priced in another currency than the user's source are left
-    out."""
+    out, and only `games` count (None: all)."""
     currency = price_sources()[wanted].currency if wanted in price_sources() else "EUR"
     if game_id is not None and (chosen := pricing(game_id, wanted)) is not None:
         currency = chosen.currency
-    rows = await owned_items(session, user_id, game_id)
+    rows = await owned_items(session, user_id, game_id, games)
     source_of = {
         item.printing_id: chosen.source
         for item, game in rows
@@ -495,6 +509,7 @@ async def finance(
     wanted: str,
     game_id: str | None,
     today: date | None = None,
+    shown: list[str] | None = None,
 ) -> Finance:
     """Market value figures of owned items (loaded with their printing and set): totals,
     change over periods, and how the value splits by game, set, rarity, condition,
@@ -509,6 +524,8 @@ async def finance(
     for item in items:
         game = item.printing.set.game_id
         if game_id is not None and game != game_id:
+            continue
+        if game_id is None and shown is not None and game not in shown:
             continue
         chosen = pricing(game, wanted)
         if (chosen.currency if chosen else "EUR") != currency:
@@ -570,7 +587,7 @@ async def finance(
     anchor = min(max((p.date for p in prices.values()), default=today), today)
     longest = max(FINANCE_PERIODS)
     start = anchor - timedelta(days=longest)
-    _, history = await value_history(session, user_id, wanted, game_id, start, today)
+    _, history = await value_history(session, user_id, wanted, game_id, start, today, shown)
     by_day = dict(history)
     # Days before the first known price count as no history (a value of 0 there means
     # nothing was priced yet).

@@ -8,7 +8,7 @@ from typing import Any
 from app.core.text import plain_text
 from app.games.cardmarket import name_key
 
-__all__ = ["RiftCard", "plain_text", "rules_text"]
+__all__ = ["RiftCard", "plain_text", "rules_text", "symbol_text"]
 
 
 @dataclass
@@ -29,6 +29,8 @@ class RiftCard:
     power: int | None = None
     tags: list[str] = field(default_factory=list)
     text: str | None = None
+    # The text with Riot's symbols as tokens (`symbol_text`), when it has some.
+    text_symbols: str | None = None
     flavor: str | None = None
     artist: str | None = None
     image: str | None = None
@@ -100,6 +102,32 @@ def rules_text(rich: str | None) -> str | None:
 
 
 _BEFORE_PUNCTUATION = re.compile(r" +([,.:;)])")
+DOMAINS = ("fury", "calm", "mind", "body", "chaos", "order")
+# Energy costs drawn as pictograms (`RiftboundProvider.symbols`).
+MAX_ENERGY_SYMBOL = 12
+
+
+def _token(match: re.Match[str]) -> str:
+    kind, value = match.group(1), match.group(2)
+    if kind == "energy" and value and value.isdigit() and int(value) <= MAX_ENERGY_SYMBOL:
+        return f" {{{int(value)}}} "
+    if kind == "rune" and value in (*DOMAINS, "rainbow"):
+        return f" {{{value}}} "
+    if kind in ("exhaust", "might") and not value:
+        return f" {{{kind}}} "
+    return _glyph(match)
+
+
+def symbol_text(rich: str | None) -> str | None:
+    """Rules text with Riot's symbol codes as tokens (`:rb_energy_3::rb_rune_fury:` =
+    "{3}{fury}", `:rb_exhaust:` = "{exhaust}"); None without symbols."""
+    text = plain_text(rich)
+    if not text or not _GLYPH.search(text):
+        return None
+    lines = (" ".join(_GLYPH.sub(_token, line).split()) for line in text.splitlines())
+    joined = _BEFORE_PUNCTUATION.sub(r"\1", "\n".join(lines))
+    # Costs read "{3}{fury}": no space between symbols.
+    return re.sub(r"\} (?=\{)", "}", joined)
 
 
 def as_int(value: Any) -> int | None:
