@@ -70,11 +70,12 @@ _HEADERS: dict[str, Section | None] = {
 }
 # Header lines that change nothing ("Total Cards: 60").
 _IGNORED = {"total cards", "total"}
-# "Sideboard", "Sideboard (15)", "Pokémon: 12".
+# "Sideboard", "Sideboard (15)", "Pokémon: 12". Lines are matched with their whitespace
+# collapsed to single spaces (`parse`): no unbounded run of spaces to backtrack over.
 _HEADER = re.compile(
-    r"^(?://|#)?\s*([^\W\d_][^\W\d]*(?: [^\W\d_][^\W\d]*)*?)\s*(?:\(\d+\))?\s*(?::\s*\d*)?\s*$"
+    r"^(?://|#)? ?([^\W\d_][^\W\d]*(?: [^\W\d_][^\W\d]*)*?) ?(?:\(\d+\))? ?(?:: ?\d*)?$"
 )
-_LINE = re.compile(r"^(?:(\d+)\s*x?\s+)?(.+)$", re.IGNORECASE)
+_LINE = re.compile(r"^(?:(\d+) ?x? )?(.+)$", re.IGNORECASE)
 _SUFFIXES = (
     re.compile(r"\s+\*[^*]+\*\s*$"),  # *CMDR*, *F*
     re.compile(r"\s+\^[^^]*\^\s*$"),  # Archidekt tags ^Ramp^
@@ -153,7 +154,7 @@ def _clean_name(name: str, pokemon: bool = False) -> Cleaned:
                 if found.set_code is None:
                     found.set_code = match.group("set").strip()
                     found.collector_number = match.groupdict().get("number")
-    found.name = re.sub(r"\s+/{1,2}\s+", " // ", name.strip())
+    found.name = re.sub(r" /{1,2} ", " // ", " ".join(name.split()))
     return found
 
 
@@ -162,7 +163,7 @@ def parse(text: str, game_id: str = "mtg") -> Parsed:
     pokemon = game_id.startswith("pokemon")
     section: Section | None = "main"
     for number, raw in enumerate(text.splitlines()[:MAX_LINES], start=1):
-        line = raw.strip()
+        line = " ".join(raw.split())
         if not line:
             continue
         if line.startswith("!"):
