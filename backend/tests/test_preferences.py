@@ -364,9 +364,12 @@ async def test_symbols_downloaded_once(client, alice):
             for c in p.colors
             if c.icon_url
         ]
-        assert stored == len(downloaded) - 2
+        # Magic's text symbols too ("{T}"; "{W}" is the White color's file).
+        mtg = registry()["mtg"]
+        texts = [s for s in mtg.symbols if s.key not in {c.code for c in mtg.colors}]
+        assert stored == len(downloaded) - 2 + len(texts)
         assert attributes.call_count == 7
-        assert (sprite.call_count, svg.call_count, elements.call_count) == (1, 6, 4)
+        assert (sprite.call_count, svg.call_count, elements.call_count) == (1, 84, 4)
         assert domains.call_count == 6
         # Meanwhile, the drawn Spell symbol.
         assert symbols.symbol_file("yugioh", "spell").suffix == ".svg"
@@ -397,6 +400,23 @@ async def test_symbols_downloaded_once(client, alice):
         shipped = await client.get(color["icon"], headers=alice)
         assert shipped.status_code == 200 and shipped.content.startswith(b"<svg"), code
     assert all(c["icon"] for c in games["lorcana"]["colors"])
+
+    # Text symbols: downloaded (Magic), drawn (Lorcana), or a color's (Riftbound runes).
+    by_token = {
+        game: {s["token"]: s for s in games[game]["symbols"]}
+        for game in ("mtg", "lorcana", "riftbound")
+    }
+    for game, token in [
+        ("mtg", "{T}"),
+        ("mtg", "{W/U}"),
+        ("lorcana", "{I}"),
+        ("riftbound", "{fury}"),
+    ]:
+        icon = await client.get(by_token[game][token]["icon"], headers=alice)
+        assert icon.status_code == 200, (game, token)
+    assert "/symbols/WU/icon" in by_token["mtg"]["{W/U}"]["icon"]
+    assert (await client.get("/api/games/mtg/symbols/NOPE/icon", headers=alice)).status_code == 404
+    assert games["pokemon"]["symbols"] == []
 
 
 def test_api_tokens_follow_the_naming_rule(monkeypatch):

@@ -262,6 +262,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/games/{game_id}/symbols/{key}/icon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Text Symbol Icon */
+        get: operations["text_symbol_icon_api_games__game_id__symbols__key__icon_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/games/{game_id}/rarities/{code}/icon": {
         parameters: {
             query?: never;
@@ -2323,6 +2340,11 @@ export interface components {
              * @default []
              */
             rarities: components["schemas"]["RarityOut"][];
+            /**
+             * Symbols
+             * @default []
+             */
+            symbols: components["schemas"]["SymbolOut"][];
             /** Languages */
             languages: string[];
             /** Filters */
@@ -3167,6 +3189,15 @@ export interface components {
             /** Refreshable */
             refreshable: string[];
         };
+        /** SymbolOut */
+        SymbolOut: {
+            /** Token */
+            token: string;
+            /** Name */
+            name: string;
+            /** Icon */
+            icon: string | null;
+        };
         /**
          * SyncScheduleIn
          * @description Time zone (IANA name) and one rule per job kind; kinds left out keep their
@@ -3860,6 +3891,38 @@ export interface operations {
             path: {
                 game_id: string;
                 code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    text_symbol_icon_api_games__game_id__symbols__key__icon_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: string;
+                key: string;
             };
             cookie?: never;
         };

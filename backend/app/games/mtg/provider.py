@@ -44,8 +44,10 @@ from app.games.base import (
     PrintingData,
     RarityDef,
     SetData,
+    SymbolDef,
 )
 from app.games.mtg import mtgjson
+from app.games.mtg.text_symbols import SYMBOLOGY
 from app.games.ocr import (
     bottom_part,
     by_position,
@@ -492,6 +494,11 @@ class MtgProvider:
         ColorDef("R", "Red", "#D3202A", icon_url=f"{SYMBOLS_URL}/R.svg"),
         ColorDef("G", "Green", "#00733E", icon_url=f"{SYMBOLS_URL}/G.svg"),
         ColorDef("C", "Colorless", "#A9A9A9", icon_url=f"{SYMBOLS_URL}/C.svg"),
+    ]
+    # Mana costs and rules texts keep Scryfall's tokens ("{2}{R}", "{T}").
+    symbols = [
+        SymbolDef(token, name, icon_url=f"{SYMBOLS_URL}/{SymbolDef(token, name).key}.svg")
+        for token, name in SYMBOLOGY
     ]
     finishes = [
         FinishDef("nonfoil", "Standard"),

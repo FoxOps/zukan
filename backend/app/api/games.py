@@ -11,7 +11,7 @@ from app.api.deps import CurrentUser, SessionDep
 from app.games.base import group_of, rarity_icon_file, rarity_of, registry
 from app.models import Card, Printing
 from app.prices.base import game_sources
-from app.services.symbols import symbol_file
+from app.services.symbols import symbol_file, text_symbol_file, text_symbols
 
 router = APIRouter(prefix="/games", tags=["games"])
 
@@ -21,6 +21,14 @@ class ColorOut(BaseModel):
     name: str
     hex: str
     # Official symbol, once downloaded.
+    icon: str | None
+
+
+class SymbolOut(BaseModel):
+    # As card texts write it ("{T}", "{2}"), in the `<attribute>_symbols` attributes.
+    token: str
+    name: str
+    # Pictogram, once downloaded; None: clients show the token.
     icon: str | None
 
 
@@ -65,6 +73,7 @@ class GameOut(BaseModel):
     colors: list[ColorOut]
     finishes: list[FinishOut]
     rarities: list[RarityOut] = []
+    symbols: list[SymbolOut] = []
     languages: list[str]
     # Advanced catalog search filters; values from /api/games/{id}/filters.
     filters: list[FilterOut]
@@ -110,6 +119,16 @@ async def list_games(_: CurrentUser) -> list[GameOut]:
                 )
                 for r in getattr(p, "rarities", [])
             ],
+            symbols=[
+                SymbolOut(
+                    token=s.token,
+                    name=s.name,
+                    icon=_icon_link(
+                        f"/api/games/{p.id}/symbols/{s.key}/icon", text_symbol_file(p.id, s.key)
+                    ),
+                )
+                for s in text_symbols(p.id)
+            ],
             languages=p.languages,
             filters=[FilterOut(key=f.key, label=f.label) for f in getattr(p, "filters", [])],
             price_sources=[
@@ -132,6 +151,18 @@ async def color_icon(game_id: str, code: str, _: CurrentUser) -> FileResponse:
     if provider is None or color is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown color")
     path = symbol_file(provider.id, color.code)
+    if path is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Symbol not downloaded yet")
+    return FileResponse(path, headers=_SYMBOL_HEADERS)
+
+
+@router.get("/{game_id}/symbols/{key}/icon")
+async def text_symbol_icon(game_id: str, key: str, _: CurrentUser) -> FileResponse:
+    provider = registry().get(game_id)
+    symbol = next((s for s in text_symbols(game_id) if s.key == key), None)
+    if provider is None or symbol is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown symbol")
+    path = text_symbol_file(provider.id, symbol.key)
     if path is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Symbol not downloaded yet")
     return FileResponse(path, headers=_SYMBOL_HEADERS)

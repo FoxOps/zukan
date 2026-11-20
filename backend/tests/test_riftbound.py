@@ -121,6 +121,19 @@ def test_rules_text_spells_out_symbols():
     assert rules_text(rich) == "2 Chaos, [Exhaust]: Kill this.\n3 Might"
 
 
+def test_symbol_text_keeps_symbols_as_tokens():
+    from app.games.riftbound.provider import RiftboundProvider
+    from app.games.riftbound.records import symbol_text
+
+    rich = "<p>:rb_energy_2::rb_rune_chaos:, :rb_exhaust:: Kill this.<br />3 :rb_might:</p>"
+    assert symbol_text(rich) == "{2}{chaos}, {exhaust}: Kill this.\n3 {might}"
+    # Energy above the drawn numbers stays a number; no symbol: None.
+    assert symbol_text(":rb_energy_14: :rb_rune_rainbow:") == "14 {rainbow}"
+    assert symbol_text("<p>Deflect</p>") is None
+    tokens = {s.token for s in RiftboundProvider.symbols}
+    assert {"{2}", "{chaos}", "{exhaust}", "{might}", "{rainbow}"} <= tokens
+
+
 def test_riot_content_is_parsed():
     content = {
         "game": "riftbound",

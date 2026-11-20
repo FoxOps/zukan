@@ -94,6 +94,9 @@ def test_quest_and_promo_rarities():
 def test_rules_text_spells_out_symbols():
     assert lorcana.rules_text("Shift 3 ⬡ (pay 3 ⬡)") == "Shift 3 Ink (pay 3 Ink)"
     assert lorcana.rules_text("can ⟳ to sing, +1 ◊") == "can [Exert] to sing, +1 Lore"
+    # The same text with tokens, shown as pictograms; None without symbols.
+    assert lorcana.symbol_text("Shift 3 ⬡, +1 ◊, ⟳ ◉") == "Shift 3 {I}, +1 {L}, {E} {IW}"
+    assert lorcana.symbol_text("Rush") is None
 
 
 def test_cardmarket_prices_by_id():

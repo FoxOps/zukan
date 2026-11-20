@@ -38,6 +38,7 @@ from app.games.base import (
     PrintingData,
     RarityDef,
     SetData,
+    SymbolDef,
 )
 from app.games.ocr import by_position, clean, letter_ratio
 from app.models import Printing
@@ -66,6 +67,19 @@ _INKS = {"amber", "amethyst", "emerald", "ruby", "sapphire", "steel"}
 SYMBOLS = Path(__file__).parent / "symbols"
 _SYMBOLS = {"⬡": "Ink", "¤": "Strength", "⟳": "[Exert]", "◊": "Lore", "⛉": "Willpower",
             "◉": "Inkwell"}  # fmt: skip
+
+
+# The same symbols as tokens, shown as pictograms (`SymbolDef`).
+_TOKENS = {"⬡": "{I}", "¤": "{S}", "⟳": "{E}", "◊": "{L}", "⛉": "{W}", "◉": "{IW}"}
+
+
+def symbol_text(text: str | None) -> str | None:
+    """Card text with its symbols as tokens ("Shift 3 {I}"); None without symbols."""
+    if not text or not any(symbol in text for symbol in _TOKENS):
+        return None
+    for symbol, token in _TOKENS.items():
+        text = text.replace(symbol, token)
+    return text
 
 
 def rules_text(text: str | None) -> str | None:
@@ -188,6 +202,7 @@ def build_catalog(by_lang: dict[str, dict[str, Any]]) -> CatalogBatch:
                         "lore": raw.get("lore"),
                         "move_cost": raw.get("moveCost"),
                         "text": rules_text(raw.get("fullText")),
+                        "text_symbols": symbol_text(raw.get("fullText")),
                     }.items()
                     if v not in (None, "", [])
                 },
@@ -300,6 +315,18 @@ class LorcanaProvider:
         ColorDef("steel", "Steel", "#8A949E", icon_file=SYMBOLS / "steel.svg"),
     ]
     finishes = [FinishDef("normal", "Normal"), FinishDef("foil", "Foil")]
+    # Drawn for Zukan (scripts/draw_color_symbols.py).
+    symbols = [
+        SymbolDef(token, name, icon_file=SYMBOLS / f"{token.strip('{}')}.svg")
+        for token, name in (
+            ("{I}", "Ink"),
+            ("{S}", "Strength"),
+            ("{W}", "Willpower"),
+            ("{L}", "Lore"),
+            ("{E}", "Exert"),
+            ("{IW}", "Inkwell"),
+        )
+    ]
     rarities = [
         RarityDef("common", "Common"),
         RarityDef("uncommon", "Uncommon"),
@@ -327,8 +354,8 @@ class LorcanaProvider:
     # About 3500 printings: every picture is cached.
     cache_all_images = True
     # 2: Quest and Promo rarities instead of LorcanaJSON's "Special". 3: Core / Infinity
-    # legalities and deck copy limits (Decks).
-    catalog_version = 3
+    # legalities and deck copy limits (Decks). 4: texts with symbol tokens (text_symbols).
+    catalog_version = 4
     legal_notice = LEGAL_NOTICE
     text_attribute = "text"
     source_keys = {"tcgcsv": 71, "tcgapi_eu": "lorcana", "apitcg": "lorcana"}
