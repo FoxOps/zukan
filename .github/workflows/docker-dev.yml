@@ -1,6 +1,7 @@
 # Dev server image from a development branch (pick it in "Use workflow from").
-# Quick checks for breaking bugs, then an amd64 image pushed as dev-<branch> and
-# dev-<branch>-<sha>; the server shows version dev-<pyproject version>+<sha>. On success the
+# Quick checks for breaking bugs, then an amd64 image pushed as dev-<branch> (latest build
+# of the branch) and dev-<pyproject version>-<sha>; the server shows version
+# dev-<pyproject version>+<sha> (no "+" in Docker tags). On success the
 # Release workflow publishes pre-release server-dev-<branch> (replaced by each new dev build
 # of that branch).
 name: Docker dev
@@ -23,6 +24,7 @@ jobs:
       slug: ${{ steps.guard.outputs.slug }}
       short_sha: ${{ steps.guard.outputs.short_sha }}
       version: ${{ steps.version.outputs.version }}
+      commit_tag: ${{ steps.version.outputs.commit_tag }}
     steps:
       - uses: actions/checkout@v7
       - id: guard
@@ -35,8 +37,11 @@ jobs:
           SHORT_SHA: ${{ steps.guard.outputs.short_sha }}
         run: |
           base=$(python3 -c 'import tomllib; print(tomllib.load(open("backend/pyproject.toml", "rb"))["project"]["version"])')
-          echo "version=dev-$base+$SHORT_SHA" >> "$GITHUB_OUTPUT"
-          echo "Server version: dev-$base+$SHORT_SHA"
+          {
+            echo "version=dev-$base+$SHORT_SHA"
+            echo "commit_tag=dev-$base-$SHORT_SHA"
+          } >> "$GITHUB_OUTPUT"
+          echo "Server version: dev-$base+$SHORT_SHA, image tag dev-$base-$SHORT_SHA"
 
   checks:
     needs: guard
@@ -51,7 +56,7 @@ jobs:
       packages: write
     uses: ./.github/workflows/_docker-image.yml
     with:
-      tags: dev-${{ needs.guard.outputs.slug }},dev-${{ needs.guard.outputs.slug }}-${{ needs.guard.outputs.short_sha }}
+      tags: dev-${{ needs.guard.outputs.slug }},${{ needs.guard.outputs.commit_tag }}
       platforms: linux/amd64
       version: ${{ needs.guard.outputs.version }}
 
@@ -65,13 +70,14 @@ jobs:
           SLUG: ${{ needs.guard.outputs.slug }}
           SHORT_SHA: ${{ needs.guard.outputs.short_sha }}
           VERSION: ${{ needs.guard.outputs.version }}
+          COMMIT_TAG: ${{ needs.guard.outputs.commit_tag }}
           IMAGE: ${{ needs.image.outputs.image }}
         run: |
           mkdir release
           echo server > release/component
           echo dev > release/channel
           echo "dev-$SLUG" > release/version
-          echo "Dev build \`$VERSION\` of branch \`$GITHUB_REF_NAME\` at $SHORT_SHA. Docker image: \`$IMAGE:dev-$SLUG\` (also \`$IMAGE:dev-$SLUG-$SHORT_SHA\`, linux/amd64)" > release/notes.md
+          echo "Dev build \`$VERSION\` of branch \`$GITHUB_REF_NAME\` at $SHORT_SHA. Docker image: \`$IMAGE:dev-$SLUG\` (also \`$IMAGE:$COMMIT_TAG\`, linux/amd64)" > release/notes.md
       - uses: actions/upload-artifact@v7
         with:
           name: release-docker
