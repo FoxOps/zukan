@@ -83,8 +83,7 @@ data class MeOut(
 data class SettingsIn(
     // Interface language ("en", "fr", "de", "es"); card names and pictures follow it.
     val language: String? = null,
-    // With `language`, true on the server unless sent false (the phone's language, saved
-    // for card names and pictures). False alone: follow the phone again.
+    // False: follow the phone's language again (the server takes it from Accept-Language).
     @SerialName("language_chosen") val languageChosen: Boolean? = null,
     // Makes this source the main one.
     @SerialName("price_source") val priceSource: String? = null,

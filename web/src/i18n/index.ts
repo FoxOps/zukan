@@ -126,32 +126,29 @@ export function browserLanguage(): Lang {
   return 'en'
 }
 
-/** Follow the browser's language again: the user's choice is forgotten, and the browser's
- * language is saved on the user for card images (still not a choice). */
+/** Follow the browser's language again: the user's choice is forgotten, and the server
+ * takes the browser's language (Accept-Language) when the interface has it, else English. */
 export function useFollowBrowser() {
   const client = useQueryClient()
   return useCallback(() => {
-    const lang = browserLanguage()
-    void setLanguage(lang)
-    void api.PATCH('/api/auth/me', { body: { language: lang, language_chosen: false } }).then(() => client.invalidateQueries())
+    void api.PATCH('/api/auth/me', { body: { language_chosen: false } }).then(({ data }) => {
+      if (data) void setLanguage(data.language)
+      return client.invalidateQueries()
+    })
   }, [client])
 }
 
-/** Once signed in, a language the user chose wins (it may come from another device),
- * unless one was just chosen on the login page. Never chosen: the browser's language,
- * saved on the user for card images when it differs. */
+/** Once signed in, the user's language wins: the one chosen (maybe on another device), else
+ * the one the server took from the browser (Accept-Language). A language just chosen on the
+ * login page is saved first. */
 export function useServerLanguage(serverLang: string | undefined, chosen: boolean | undefined) {
   const change = useChangeLanguage()
-  const follow = useFollowBrowser()
   useEffect(() => {
     if (!isLang(serverLang)) return
     const pending = session()?.getItem(PENDING_KEY)
     session()?.removeItem(PENDING_KEY)
     if (isLang(pending) && (pending !== serverLang || !chosen)) change(pending)
-    else if (!chosen) {
-      if (browserLanguage() !== serverLang) follow()
-      else if (serverLang !== currentLanguage()) void setLanguage(serverLang)
-    } else if (serverLang !== currentLanguage()) void setLanguage(serverLang)
-  }, [serverLang, chosen, change, follow])
+    else if (serverLang !== currentLanguage()) void setLanguage(serverLang)
+  }, [serverLang, chosen, change])
 }
 

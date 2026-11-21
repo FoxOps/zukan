@@ -17,6 +17,7 @@ from app.api.deps import (
     check_csrf,
 )
 from app.api.schemas import (
+    UI_LANGUAGES,
     EmailChangeIn,
     GroupRefOut,
     LoginIn,
@@ -238,19 +239,58 @@ async def _has_sso(session: SessionDep, user: User) -> bool:
     )
 
 
+def ui_language(header: str | None) -> str:
+    """The first language of an `Accept-Language` header (by weight, then order) the
+    interface has, else English."""
+    wanted = []
+    for i, part in enumerate((header or "").split(",")):
+        tag, _, params = part.strip().partition(";")
+        weight = 1.0
+        for param in params.split(";"):
+            name, _, value = param.strip().partition("=")
+            if name == "q":
+                try:
+                    weight = float(value)
+                except ValueError:
+                    weight = 0.0
+        if tag and weight > 0:
+            wanted.append((-weight, i, tag.split("-")[0].lower()))
+    for _, _, lang in sorted(wanted):
+        if lang in UI_LANGUAGES:
+            return lang
+    return "en"
+
+
+def _follow_os(user: User, request: Request) -> bool:
+    """Never chosen: the account's language is the client's (OS or browser,
+    `Accept-Language`) when the interface has it, else English. True when it changed."""
+    if user.language_chosen:
+        return False
+    lang = ui_language(request.headers.get("accept-language"))
+    if lang == user.language:
+        return False
+    user.language = lang
+    return True
+
+
 @router.get("/me")
-async def me(user: CurrentUser, session: SessionDep) -> MeOut:
+async def me(user: CurrentUser, session: SessionDep, request: Request) -> MeOut:
+    if _follow_os(user, request):
+        await session.commit()
     return await _load_me(session, user.id)
 
 
 @router.patch("/me")
-async def update_settings(body: SettingsIn, user: CurrentUser, session: SessionDep) -> MeOut:
+async def update_settings(
+    body: SettingsIn, user: CurrentUser, session: SessionDep, request: Request
+) -> MeOut:
     fields = body.model_dump(exclude_unset=True)
     if fields.get("language") is not None:
         user.language = fields["language"]
         user.language_chosen = True
-    if fields.get("language_chosen") is not None:
-        user.language_chosen = fields["language_chosen"]
+    elif fields.get("language_chosen") is False:
+        user.language_chosen = False
+    _follow_os(user, request)
     if "catalog_games" in fields:
         games = fields["catalog_games"]
         if games is not None:

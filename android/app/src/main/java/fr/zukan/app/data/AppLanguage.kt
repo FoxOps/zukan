@@ -17,8 +17,8 @@ import java.util.Locale
  * preferences when the screen is created.
  *
  * Signed in, a language picked on the account (`language_chosen`, shared with the web UI)
- * wins; never picked, the phone's is used and saved on the account for card names and
- * pictures (servers before 0.30 always count it as picked).
+ * wins; never picked, the phone's is used, and the server takes it for the account from
+ * the requests' `Accept-Language` (servers before 0.30 always count it as picked).
  */
 object AppLanguage {
     val SUPPORTED = listOf("en", "fr", "de", "es")

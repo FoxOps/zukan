@@ -148,14 +148,13 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
             // Settings shared with the web UI may have changed there.
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { session.refreshAccount() }
             // Interface language: one picked on the account (shared with the web UI), else the
-            // phone's, saved on the account for card names and pictures.
+            // phone's (the server took it from Accept-Language for card names and pictures).
             LaunchedEffect(state.serverLanguage, state.languageChosen) {
                 val server = state.serverLanguage?.takeIf { it in AppLanguage.SUPPORTED } ?: return@LaunchedEffect
                 if (state.languageChosen) {
                     if (server != AppLanguage.chosen(context)) activity?.let { AppLanguage.choose(it, server) }
-                } else {
-                    if (AppLanguage.chosen(context) != null) activity?.let { AppLanguage.choose(it, null) }
-                    if (server != AppLanguage.device()) session.followPhoneLanguage(AppLanguage.device())
+                } else if (AppLanguage.chosen(context) != null) {
+                    activity?.let { AppLanguage.choose(it, null) }
                 }
             }
             UpdateDialog(updates, updateState)

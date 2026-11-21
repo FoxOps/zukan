@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints
 
@@ -11,6 +11,7 @@ Username = Annotated[
 Password = Annotated[str, StringConstraints(min_length=8, max_length=256)]
 # Languages of the web interface.
 UiLanguage = Literal["en", "fr", "de", "es"]
+UI_LANGUAGES: tuple[str, ...] = get_args(UiLanguage)
 
 
 class IdentityOut(BaseModel):
@@ -61,7 +62,8 @@ class MeOut(UserOut):
     identities: list[IdentityOut]
     sso_account: SsoAccountOut | None = None
     language: UiLanguage
-    # False: the user never picked a language, clients follow the device or browser.
+    # False: the user never picked a language; `language` is the client's OS or browser
+    # language (Accept-Language) when the interface has it, else English.
     language_chosen: bool = False
     # Games shown in the catalog, None for all.
     catalog_games: list[str] | None
@@ -81,8 +83,8 @@ class SettingsIn(BaseModel):
     """Fields left out are not changed. `catalog_games: null` shows every game."""
 
     language: UiLanguage | None = None
-    # With `language`, defaults to true (the user picked it). False: follow the device or
-    # browser language again (`language`, if given, is the one it detected).
+    # False: forget the user's choice, the language follows the client's OS or browser
+    # again (Accept-Language). Ignored with `language` (a choice).
     language_chosen: bool | None = None
     catalog_games: list[str] | None = None
     # Makes this source the main one (the others stay shown).

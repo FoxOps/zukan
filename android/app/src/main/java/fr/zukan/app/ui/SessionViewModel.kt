@@ -171,10 +171,10 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         _state.update { it.withMe(me) }
     }
 
-    /** Follow the phone's language: saved on the account for card names and pictures,
-     * not as a choice (the web interface keeps following its browser's). */
-    fun followPhoneLanguage(lang: String) = work {
-        val me = requireClient().api.updateMe(SettingsIn(language = lang, languageChosen = false))
+    /** Follow the phone's language again: the server takes it from Accept-Language (else
+     * English) for card names and pictures; the web keeps following its browser's. */
+    fun followPhoneLanguage() = work {
+        val me = requireClient().api.updateMe(SettingsIn(languageChosen = false))
         _state.update { it.withMe(me) }
     }
 

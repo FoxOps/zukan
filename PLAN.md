@@ -2622,15 +2622,21 @@ from the app, never automatically; PDF made on the server (`fpdf2`).
   source); Collection "Without price" toggle (`?noprice=1`); "N without price" on Finance and the
   Dashboard links there (with the game).
 - [x] Language: `user.language_chosen` (migration: true for accounts not in English; English ones
-  cannot be told from the default). Not chosen: Android follows the phone (clears its per-app
-  language), the web its browser, each saving that language on the account (`language_chosen:false`)
-  for card names and pictures. Settings: "Phone language" (Android) / "Browser language" (web).
+  cannot be told from the default). Not chosen, the server sets the account's language (user:
+  "OS language if available in Zukan, else English"): `auth.ui_language` takes the first language
+  of the request's `Accept-Language` (by weight) the interface has, else "en", on `GET` / `PATCH
+  /api/auth/me`. Browsers send it; the Android app sends the phone's system locales (interceptor,
+  `acceptLanguage`, five at most). Clients apply the account's language; Android clears its
+  per-app language when not chosen. `PATCH {language_chosen:false}` forgets the choice.
+  Settings: "Phone language" (Android) / "Browser language" (web).
   Root cause: since Android 0.14.0 the account's `language` (default "en") was always applied.
 - [x] Not done: shopping lists in export bundles (lists are short-lived, the bundle import would need them too).
 - [x] Versions: server 0.30.0, Android 0.18.0. `.env.example`: user agent 0.30.0 (was 0.28.0). No new variable.
-- [x] Verified: 344 backend tests (new `test_shopping`: badges with another deck's allocation, files,
-  list CRUD + other user, nothing to buy, `language_chosen`; `no_price` in `test_finance`), ruff,
+- [x] Verified: 345 backend tests (new `test_shopping`: badges with another deck's allocation, files,
+  list CRUD + other user, nothing to buy; `test_language`: Accept-Language parsing and choice;
+  `no_price` in `test_finance`), ruff,
   alembic upgrade / check / downgrade, pip-audit; web tsc / oxlint / build / i18n / API types / npm
-  audit; Android unit tests (new `ShoppingTest`), assembleDebug, lintDebug. Not tried live.
+  audit; Android unit tests (new `ShoppingTest`, `LanguageTest`), assembleDebug, lintDebug. Not
+  tried live.
 - [ ] User: try on the next dev image (Magic catalog needed for symbols and decks); release Android
   0.18.0 with server 0.30.0 (older apps ignore `language_chosen` and keep the account's language).

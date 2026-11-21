@@ -31,8 +31,8 @@ class User(TimestampMixin, Base):
     auth_version: Mapped[int] = mapped_column(default=0, server_default=text("0"))
     # Interface language; card images are shown in it when they exist.
     language: Mapped[str] = mapped_column(String(8), default="en", server_default=text("'en'"))
-    # False until the user picks a language: apps and the web then follow the device or
-    # browser language (and save it as `language`, for card images) instead of applying it.
+    # False until the user picks a language: `language` is then the language of the client's
+    # OS or browser (Accept-Language) when the interface has it, else English.
     language_chosen: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
     # Games shown in the catalog, None for all of them.
     catalog_games: Mapped[list[str] | None] = mapped_column(ARRAY(String(32)))

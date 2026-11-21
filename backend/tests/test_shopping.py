@@ -169,25 +169,3 @@ async def test_nothing_to_buy(client, session, alice, catalog):
     }
     sent = await client.post(f"/api/decks/{deck['id']}/shopping-list", headers=alice)
     assert sent.status_code == 409
-
-
-async def test_language_chosen(client, session):
-    await make_user(session)
-    from tests.conftest import bearer
-
-    headers = await bearer(client, "alice")
-    me = (await client.get("/api/auth/me", headers=headers)).json()
-    assert (me["language"], me["language_chosen"]) == ("en", False)
-    # The browser's language, saved for card images, still not chosen.
-    me = (
-        await client.patch(
-            "/api/auth/me", json={"language": "de", "language_chosen": False}, headers=headers
-        )
-    ).json()
-    assert (me["language"], me["language_chosen"]) == ("de", False)
-    me = (await client.patch("/api/auth/me", json={"language": "fr"}, headers=headers)).json()
-    assert (me["language"], me["language_chosen"]) == ("fr", True)
-    me = (
-        await client.patch("/api/auth/me", json={"language_chosen": False}, headers=headers)
-    ).json()
-    assert (me["language"], me["language_chosen"]) == ("fr", False)

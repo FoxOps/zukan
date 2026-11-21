@@ -193,7 +193,7 @@ fun SettingsScreen(
                 ChoiceRow(
                     stringResource(R.string.phone_language, languageName(AppLanguage.device())),
                     !state.languageChosen,
-                    { session.followPhoneLanguage(AppLanguage.device()) },
+                    { session.followPhoneLanguage() },
                 )
                 AppLanguage.SUPPORTED.forEach { lang ->
                     // Saved on the account first; the app follows the account (see MainActivity).
