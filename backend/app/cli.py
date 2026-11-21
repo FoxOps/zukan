@@ -3,6 +3,7 @@
 zukan create-admin USERNAME
 zukan sync GAME [--kind catalog|prices|images]
 zukan import-images GAME FOLDER
+zukan db-roles [--print-sql]
 """
 
 import argparse
@@ -13,15 +14,16 @@ import os
 import sys
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import make_url, select
 
 from app.core import naming
+from app.core.config import get_settings
 from app.core.db import get_sessionmaker
-from app.core.security import end_all_sessions, hash_password
+from app.core.security import end_all_sessions, forget_initial_admin_password, hash_password
 from app.games.base import get_provider
 from app.main import register_games
 from app.models import JobKind, Role, User
-from app.services import images, jobs
+from app.services import db_roles, images, jobs
 
 
 async def create_admin(username: str, password: str) -> None:
@@ -37,6 +39,7 @@ async def create_admin(username: str, password: str) -> None:
         user.disabled = False
         user.password_hash = hash_password(password)
         await session.commit()
+    forget_initial_admin_password(user)
     print(f"Administrator {username!r} ready")
 
 
@@ -64,6 +67,13 @@ def main() -> None:
     import_cmd = commands.add_parser("import-images", help="import card images from a folder")
     import_cmd.add_argument("game")
     import_cmd.add_argument("folder", type=Path)
+    roles_cmd = commands.add_parser(
+        "db-roles",
+        help="create or update the runtime database role (run with the database owner)",
+    )
+    roles_cmd.add_argument(
+        "--print-sql", action="store_true", help="print the SQL instead of running it"
+    )
     args = parser.parse_args()
     naming.name_process("cli")
     logging.basicConfig(level=logging.INFO, format=naming.LOG_FORMAT)
@@ -78,6 +88,19 @@ def main() -> None:
         asyncio.run(sync(args.game, args.kind))
     elif args.command == "import-images":
         asyncio.run(import_images(args.game, args.folder))
+    elif args.command == "db-roles":
+        settings = get_settings()
+        try:
+            if args.print_sql:
+                # Run with: psql -U tcg -d tcg -v app_password=... -f roles.sql
+                database = make_url(settings.database_url).database or "tcg"
+                for statement in db_roles.printable_sql(settings.db_app_user, database):
+                    print(f"{statement};")
+            else:
+                role = asyncio.run(db_roles.apply())
+                print(f"Database role {role!r} ready")
+        except ValueError as exc:
+            sys.exit(str(exc))
 
 
 if __name__ == "__main__":

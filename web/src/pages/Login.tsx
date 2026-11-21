@@ -45,7 +45,9 @@ export default function Login() {
   }
 
   const sso = providers.data?.providers ?? []
-  const local = providers.data?.local_login_enabled ?? true
+  // Unknown until the providers answer: no form meanwhile, so an SSO password is never
+  // typed into it before the page turns out to be SSO only.
+  const local = providers.data?.local_login_enabled ?? false
   const ssoHref = (name: string) =>
     `/api/auth/oidc/${encodeURIComponent(name)}/login?next=${encodeURIComponent(next)}`
   // Single sign-on only: straight to the identity provider. Not after an SSO error, nor
@@ -55,6 +57,14 @@ export default function Login() {
   useEffect(() => {
     if (redirectTo) window.location.replace(redirectTo)
   }, [redirectTo])
+
+  if (providers.isPending) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-base-200 p-4">
+        <span className="loading loading-spinner loading-lg" aria-label={t('Loading')} />
+      </div>
+    )
+  }
 
   if (only) {
     return (
@@ -77,6 +87,14 @@ export default function Login() {
             <LanguageMenu signedIn={false} />
           </div>
           {error && <div role="alert" className="alert alert-error alert-soft">{error}</div>}
+          {providers.isError && (
+            <div role="alert" className="alert alert-error alert-soft">
+              <span>{t('Could not load the sign-in options.')}</span>
+              <button type="button" className="btn btn-sm" onClick={() => providers.refetch()}>
+                {t('Try again')}
+              </button>
+            </div>
+          )}
           {local && (
             <form onSubmit={submit} className="flex flex-col gap-3">
               <label className="input w-full">

@@ -109,7 +109,8 @@ technical reference.
 | Maintenance and recovery | [Backup and restore](https://github.com/FoxOps/zukan/wiki/Backup-and-restore) · [Updates and migrations](https://github.com/FoxOps/zukan/wiki/Updates-and-migrations) · [Troubleshooting](https://github.com/FoxOps/zukan/wiki/Troubleshooting) |
 | Development and integration | [Architecture](https://github.com/FoxOps/zukan/wiki/Architecture) · [Development](https://github.com/FoxOps/zukan/wiki/Development) · [API guide](https://github.com/FoxOps/zukan/wiki/API-guide) · [Plugin development](https://github.com/FoxOps/zukan/wiki/Plugin-development) |
 
-Server configuration examples remain in [`.env.example`](.env.example). Interactive
+Server configuration examples remain in [`.env.example`](.env.example); steps some
+releases need when upgrading are in [`UPGRADING.md`](UPGRADING.md). Interactive
 API documentation is available on your running instance at `/api/docs`, with its
 OpenAPI schema at `/api/openapi.json`.
 

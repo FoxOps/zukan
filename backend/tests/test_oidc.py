@@ -1,5 +1,6 @@
 import json
 import time
+from datetime import timedelta
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -8,10 +9,11 @@ import jwt
 import pytest
 import respx
 from cryptography.hazmat.primitives.asymmetric import rsa
+from sqlalchemy import select, update
 
 from app.core.config import Settings, get_settings
 from app.core.oidc import get_auth_config, guess_account_url
-from app.models import Role
+from app.models import RefreshToken, Role, SsoSession
 from tests.conftest import CSRF, bearer, make_user
 
 ISSUER = "https://idp.test/realms/home"
@@ -28,6 +30,8 @@ class FakeIdp:
         self.next_claims: dict = {}
         self.userinfo: dict = {}
         self.token_requests: list[httpx.Request] = []
+        # Answer to refresh token grants: 200 (new tokens), 400 (refused) or 503.
+        self.refresh_status = 200
         router.get(f"{ISSUER}/.well-known/openid-configuration").respond(
             json={
                 "issuer": ISSUER,
@@ -51,8 +55,19 @@ class FakeIdp:
 
     def _token(self, request) -> httpx.Response:
         self.token_requests.append(request)
+        form = parse_qs(request.content.decode())
+        claims = self.next_claims
+        if form["grant_type"] == ["refresh_token"]:
+            if self.refresh_status != 200:
+                return httpx.Response(self.refresh_status, json={"error": "invalid_grant"})
+            claims = {k: v for k, v in claims.items() if k != "nonce"}
         return httpx.Response(
-            200, json={"id_token": self.id_token(**self.next_claims), "access_token": "at"}
+            200,
+            json={
+                "id_token": self.id_token(**claims),
+                "access_token": "at",
+                "refresh_token": f"rt-{len(self.token_requests)}",
+            },
         )
 
     def id_token(self, **overrides) -> str:
@@ -549,3 +564,103 @@ async def test_unreachable_idp_is_a_login_error(client, monkeypatch):
         response = await client.get("/api/auth/oidc/home/login")
     assert response.status_code == 303
     assert response.headers["location"].startswith("/login?error=")
+
+
+async def test_mobile_id_token_gives_one_session(client, session, idp):
+    """A copy of an ID token the app already exchanged gives no other session."""
+    token = idp.id_token(aud=MOBILE_CLIENT, nonce="n1")
+    body = {"id_token": token, "nonce": "n1"}
+    first = await client.post("/api/auth/oidc/home/exchange", json=body)
+    assert first.status_code == 200
+    again = await client.post("/api/auth/oidc/home/exchange", json=body)
+    assert again.status_code == 401
+    assert "already used" in again.json()["detail"]
+    families = await session.scalars(select(RefreshToken.family_id).distinct())
+    assert len(families.all()) == 1
+    # A new sign-in (new token) works.
+    other = idp.id_token(aud=MOBILE_CLIENT, nonce="n2", jti="2")
+    response = await client.post(
+        "/api/auth/oidc/home/exchange", json={"id_token": other, "nonce": "n2"}
+    )
+    assert response.status_code == 200
+
+
+async def _age_sso_session(session, **delta) -> None:
+    for field, seconds in delta.items():
+        await session.execute(
+            update(SsoSession).values(
+                {field: getattr(SsoSession, field) - timedelta(seconds=seconds)}
+            )
+        )
+    await session.commit()
+
+
+async def _refresh(client) -> httpx.Response:
+    return await client.post("/api/auth/refresh", json={}, headers=CSRF)
+
+
+async def test_sso_session_absolute_lifetime(client, session, idp):
+    query = await start_login(client)
+    await finish_login(client, idp, query)
+    assert (await _refresh(client)).status_code == 200
+    max_age = get_settings().sso_session_max_age_seconds
+    await _age_sso_session(session, started_at=max_age + 1)
+    assert (await _refresh(client)).status_code == 401
+    # Mobile sessions too.
+    token = idp.id_token(aud=MOBILE_CLIENT, nonce="n1")
+    tokens = (
+        await client.post("/api/auth/oidc/home/exchange", json={"id_token": token, "nonce": "n1"})
+    ).json()
+    refresh = {"refresh_token": tokens["refresh_token"]}
+    assert (await client.post("/api/auth/refresh", json=refresh)).status_code == 200
+    await _age_sso_session(session, started_at=max_age + 1)
+    refresh = {"refresh_token": tokens["refresh_token"]}
+    assert (await client.post("/api/auth/refresh", json=refresh)).status_code == 401
+
+
+async def test_sso_session_rechecked_at_idp(client, session, idp):
+    query = await start_login(client)
+    await finish_login(client, idp, query, groups=["tcg-admins"])
+    row = await session.scalar(select(SsoSession))
+    assert row.idp_refresh_token and "rt-" not in row.idp_refresh_token  # encrypted
+    grants = len(idp.token_requests)
+
+    # Not asked again before TCG_SSO_RECHECK_SECONDS.
+    assert (await _refresh(client)).status_code == 200
+    assert len(idp.token_requests) == grants
+
+    # Asked after: groups follow the provider (admin no more).
+    recheck = get_settings().sso_recheck_seconds
+    idp.next_claims = {"groups": []}
+    await _age_sso_session(session, checked_at=recheck + 1)
+    assert (await _refresh(client)).status_code == 200
+    form = parse_qs(idp.token_requests[-1].content.decode())
+    assert form["grant_type"] == ["refresh_token"]
+    assert form["refresh_token"] == [f"rt-{grants}"]
+    assert (await client.get("/api/auth/me")).json()["role"] == "user"
+
+    # Provider down: the session goes on.
+    idp.refresh_status = 503
+    await _age_sso_session(session, checked_at=recheck + 1)
+    assert (await _refresh(client)).status_code == 200
+
+    # Provider refuses (account deactivated): the session ends.
+    idp.refresh_status = 400
+    assert (await _refresh(client)).status_code == 401
+    assert await session.scalar(select(SsoSession)) is None
+
+
+async def test_sso_recheck_applies_allowed_groups(client, session, idp, monkeypatch):
+    configure(monkeypatch, allowed_groups=["tcg-users"])
+    query = await start_login(client)
+    await finish_login(client, idp, query)
+    idp.next_claims = {"groups": ["others"]}
+    await _age_sso_session(session, checked_at=get_settings().sso_recheck_seconds + 1)
+    assert (await _refresh(client)).status_code == 401
+
+
+async def test_sso_logout_forgets_sso_session(client, session, idp):
+    query = await start_login(client)
+    await finish_login(client, idp, query)
+    await client.post("/api/auth/logout", json={}, headers=CSRF)
+    assert await session.scalar(select(SsoSession)) is None

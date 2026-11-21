@@ -35,18 +35,20 @@ from app.core import oidc, ratelimit
 from app.core.config import get_settings
 from app.core.security import (
     end_all_sessions,
+    forget_initial_admin_password,
     hash_password,
     revoke_refresh_token,
     rotate_refresh_token,
     sign,
     start_session,
+    start_session_family,
     unsign,
     verify_password,
 )
 from app.games.base import registry
 from app.models import User, UserIdentity
 from app.prices.base import price_sources
-from app.services import groups
+from app.services import groups, sso_sessions
 from app.services.sso import resolve_sso_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -318,6 +320,7 @@ async def change_password(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is wrong")
     user.password_hash = hash_password(body.new_password)
     await end_all_sessions(session, user)
+    forget_initial_admin_password(user)
     cookie_mode = not request.headers.get("Authorization", "").lower().startswith("bearer ")
     if cookie_mode:
         access, refresh = await start_session(session, user)
@@ -415,7 +418,10 @@ async def oidc_callback(
         await session.rollback()
         return _login_error_redirect(str(exc))
 
-    access, refresh_token = await start_session(session, user)
+    access, refresh_token, family_id = await start_session_family(session, user)
+    await sso_sessions.record(
+        session, family_id, user, client.config.name, tokens.get("refresh_token")
+    )
     await session.commit()
     response = RedirectResponse(_safe_next(saved.get("next")), status.HTTP_303_SEE_OTHER)
     response.delete_cookie(STATE_COOKIE, path="/api/auth/oidc")
@@ -447,12 +453,16 @@ async def oidc_exchange(provider: str, body: OidcExchangeIn, session: SessionDep
             nonce=body.nonce,
             max_age=_MOBILE_ID_TOKEN_MAX_AGE,
         )
+        # One session per ID token: a copy of it gives nothing.
+        if not await sso_sessions.use_id_token(session, body.id_token, _MOBILE_ID_TOKEN_MAX_AGE):
+            raise oidc.OidcError("SSO token already used, sign in again")
         claims = await oidc.claims_with_userinfo(client, claims, body.access_token)
         issuer = (await client.metadata())["issuer"]
         user = await resolve_sso_user(session, client.config, issuer, claims)
     except oidc.OidcError as exc:
         await session.rollback()
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(exc)) from exc
-    access, refresh_token = await start_session(session, user)
+    access, refresh_token, family_id = await start_session_family(session, user)
+    await sso_sessions.record(session, family_id, user, client.config.name, None)
     await session.commit()
     return _token_out(access, refresh_token)

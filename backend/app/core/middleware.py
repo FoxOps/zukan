@@ -18,11 +18,44 @@ _HEADERS = {
     b"referrer-policy": b"same-origin",
 }
 _NO_FRAMING = b"frame-ancestors 'none'"
+# API answers are private (collections, exports): never stored by browsers or proxies,
+# unless the route says otherwise (card pictures).
+_NO_STORE = b"private, no-store"
+
+# Content-Security-Policy of the web UI pages: only the site's own scripts. Card and set
+# pictures may come from the card data sources.
+WEB_CSP = "; ".join(
+    [
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: blob: https:",
+        "font-src 'self' data:",
+        "connect-src 'self'",
+        "manifest-src 'self'",
+        "worker-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+    ]
+)
+
+
+def web_csp_headers() -> dict[str, str]:
+    """CSP header of a web UI page, as `TCG_CSP_MODE` wants it."""
+    mode = get_settings().csp_mode
+    if mode == "enforce":
+        return {"Content-Security-Policy": WEB_CSP}
+    if mode == "report":
+        return {"Content-Security-Policy-Report-Only": WEB_CSP}
+    return {}
 
 
 class SecurityHeaders:
     """No page of the site may be framed (clickjacking), no type sniffing, no full URL
-    sent to other sites. A route's own Content-Security-Policy gets `frame-ancestors`."""
+    sent to other sites, API answers not cached. A route's own Content-Security-Policy
+    gets `frame-ancestors`."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -30,12 +63,15 @@ class SecurityHeaders:
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
+        api = scope.get("path", "").startswith("/api/")
 
         async def send_with_headers(message: Message) -> None:
             if message["type"] == "http.response.start":
                 headers = [(k.lower(), v) for k, v in message.get("headers", [])]
                 present = {k for k, _ in headers}
                 headers += [(k, v) for k, v in _HEADERS.items() if k not in present]
+                if api and b"cache-control" not in present:
+                    headers.append((b"cache-control", _NO_STORE))
                 csp = next(
                     (i for i, (k, _) in enumerate(headers) if k == b"content-security-policy"), None
                 )

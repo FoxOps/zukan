@@ -82,6 +82,8 @@ async def alice_bundle(client, session, catalog) -> tuple[dict, bytes]:  # noqa:
     response = await client.get("/api/collection/export", params={"parts": "all"}, headers=alice)
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/zip"
+    # Private exports are never kept by browsers or proxies.
+    assert response.headers["cache-control"] == "private, no-store"
     return alice, response.content
 
 

@@ -123,8 +123,9 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
   )
 }
 
-/** Optional modules: those open to everyone are turned on here; those given by a
- * group are on without a choice. Administrators set the access in Admin > Groups. */
+/** Optional modules open to everyone, turned on here. Modules given by a group (access
+ * managed by administrators or the identity provider) are not listed: nothing to choose.
+ * No card when there is nothing to turn on. */
 function Modules({ me }: { me: Schemas['MeOut'] }) {
   const { t } = useTranslation()
   const toast = useToast()
@@ -134,17 +135,15 @@ function Modules({ me }: { me: Schemas['MeOut'] }) {
     onSuccess: (data) => client.setQueryData(['me'], data),
     onError: (e) => toast(e.message, 'error'),
   })
-  const shown = [...me.available_modules, ...me.managed_modules.filter((m) => !me.available_modules.includes(m))]
+  if (me.available_modules.length === 0) return null
 
   return (
     <div className="card bg-base-200">
       <div className="card-body gap-4">
         <h2 className="card-title">{t('Modules')}</h2>
         <p className="text-sm text-base-content/70">{t('Extra features for other ways of collecting. Zukan works the same without them.')}</p>
-        {shown.length === 0 && <p className="text-sm text-base-content/60">{t('No module is available on this server.')}</p>}
-        {shown.map((id) => {
+        {me.available_modules.map((id) => {
           const info = moduleInfo(id)
-          const granted = me.managed_modules.includes(id)
           return (
             <div key={id} className="flex flex-col gap-1">
               <label className="label cursor-pointer gap-3 text-base-content">
@@ -152,11 +151,10 @@ function Modules({ me }: { me: Schemas['MeOut'] }) {
                   type="checkbox"
                   className="toggle toggle-primary toggle-sm"
                   checked={me.modules.includes(id)}
-                  disabled={granted || save.isPending}
+                  disabled={save.isPending}
                   onChange={(e) => save.mutate(e.target.checked ? [...me.modules, id] : me.modules.filter((m) => m !== id))}
                 />
                 <span className="font-medium">{t(info.name)}</span>
-                {granted && <span className="badge badge-sm badge-ghost">{t('Given by your group')}</span>}
               </label>
               {info.text && <span className="pl-12 text-xs whitespace-normal text-base-content/60">{t(info.text)}</span>}
             </div>

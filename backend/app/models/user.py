@@ -92,3 +92,31 @@ class RefreshToken(TimestampMixin, Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Set when the token was exchanged for a new one (not on logout).
     rotated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SsoSession(Base):
+    """SSO side of a session (refresh token family) started by an SSO sign-in.
+
+    Ends the session `TCG_SSO_SESSION_MAX_AGE_SECONDS` after the sign-in, and lets web
+    sessions ask the identity provider again (its refresh token, encrypted) whether the
+    account is still allowed, resyncing its groups (`app.services.sso_sessions`).
+    """
+
+    __tablename__ = "sso_session"
+
+    family_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    provider: Mapped[str] = mapped_column(String(64))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Identity provider refresh token (Fernet), None for the app and IdPs giving none.
+    idp_refresh_token: Mapped[str | None] = mapped_column(String(4096))
+
+
+class UsedIdToken(Base):
+    """ID tokens the app exchanged for a session: each one is accepted once."""
+
+    __tablename__ = "used_id_token"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)

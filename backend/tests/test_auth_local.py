@@ -22,7 +22,8 @@ async def test_login_token_mode_and_me(client, session):
 
 
 @pytest.mark.smoke
-async def test_default_admin_created_on_empty_database(client, session):
+async def test_default_admin_created_on_empty_database(client, session, monkeypatch):
+    monkeypatch.setattr(get_settings(), "default_admin_password", "changeme")
     await create_default_admin()
     await create_default_admin()  # idempotent across restarts
     assert await session.scalar(select(func.count()).select_from(User)) == 1
@@ -49,14 +50,41 @@ async def test_default_admin_not_created_when_users_exist(session):
 
 async def test_default_admin_settings(client, session, monkeypatch):
     settings = get_settings()
-    monkeypatch.setattr(settings, "default_admin_password", "")
-    await create_default_admin()
-    assert await session.scalar(select(func.count()).select_from(User)) == 0
-
     monkeypatch.setattr(settings, "default_admin_username", "root")
     monkeypatch.setattr(settings, "default_admin_password", "custom-password")
     await create_default_admin()
     await bearer(client, "root", "custom-password")
+
+
+async def test_default_admin_random_password_in_file(
+    client, session, caplog, tmp_path, monkeypatch
+):
+    """No preset password: a random one in a file only the server's user reads, never in
+    the log; gone once the administrator changes it."""
+    path = tmp_path / "data" / "initial-admin-password"
+    monkeypatch.setattr(get_settings(), "admin_password_file", path)
+    await create_default_admin()
+    password = path.read_text().strip()
+    assert len(password) >= 20 and path.stat().st_mode & 0o777 == 0o600
+    assert not [r for r in caplog.records if password in r.getMessage()]
+    assert [r for r in caplog.records if str(path) in r.getMessage()]
+    headers = await bearer(client, "admin", password)
+    await create_default_admin()  # a restart keeps it
+    assert path.read_text().strip() == password
+    response = await client.post(
+        "/api/auth/password",
+        json={"current_password": password, "new_password": "a-better-password"},
+        headers=headers,
+    )
+    assert response.status_code == 204
+    assert not path.exists()
+
+
+async def test_default_admin_skipped_without_local_login(session, monkeypatch):
+    monkeypatch.setattr(get_settings(), "local_login_enabled", False)
+    monkeypatch.setattr(get_settings(), "default_admin_password", "changeme")
+    await create_default_admin()
+    assert await session.scalar(select(func.count()).select_from(User)) == 0
 
 
 async def test_login_rejects_bad_password_unknown_and_disabled(client, session):
