@@ -235,6 +235,14 @@ def test_standard_rules():
     ok = [Entry(bolt, "main", 4), Entry(mountain, "main", 36), Entry(rats, "main", 20)]
     report = deck_rules.check("standard", ok)
     assert report.valid and codes(report) == set()
+    # A sound deck has nothing "not verified" either.
+    assert report.unverified == []
+    # Un-set cards with their own deck: named in a note only when there.
+    ride = RuleCard(99, "Bumper Cars", {"types": ["Artifact"], "subtypes": ["Attraction"]})
+    note = deck_rules.check("standard", [*ok, Entry(ride, "main", 1)]).unverified
+    assert [(i.code, i.params["names"]) for i in note if i.code == "not_modelled"] == [
+        ("not_modelled", ["Bumper Cars"])
+    ]
 
     report = deck_rules.check(
         "standard",
@@ -429,7 +437,7 @@ def test_companions():
     assert companion_check(gyruda, base)[0].params["names"] == ["Lightning Bolt", "Savannah Lions"]
     # Zirda: permanents with an activated ability (basic lands have theirs), from rules text.
     issue, report = companion_check(zirda, [Entry(mountain, "main", 24), Entry(ox, "main", 36)])
-    assert issue is None and "zirda_by_text" in {i.code for i in report.unverified}
+    assert issue is None and report.unverified == []
     assert companion_check(zirda, base)[0].params["names"] == ["Savannah Lions"]
 
     # Commander: the companion stays outside the 100, within the commanders' identity;

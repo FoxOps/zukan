@@ -2579,3 +2579,16 @@ Branch `2026-11-21-003-deck-card-backs` from `dev`. Same unreleased server 0.29.
 - [x] Verified: deck tests (new `test_double_faced_cards_show_their_back`), ruff, web build / oxlint
   / i18n. Not tried live (no Magic catalog on the test database).
 
+### Decks: "Not verified" only about the deck (user, 2026-11-21)
+User: notes like "Not checked: cards with other special deck rules" are useless when nothing is wrong.
+Branch `2026-11-21-004-deck-check-notes` from `dev`. Rule: a note must be about cards in the deck or
+a check the format's data cannot make (and could hide a real problem).
+- [x] Removed: `not_modelled` on every Magic deck, `special_rules` (Pokémon, Yu-Gi-Oh!), the
+  "checked from rules text" notes (`pair_by_text`, `zirda_by_text`), and the notes repeating an
+  issue already shown (`color_identity_unchecked` next to "Choose a commander" / oathbreaker,
+  `domains_unchecked` next to the missing Riftbound legend).
+- [x] `not_modelled` now only when the deck holds Attraction / Contraption cards, naming them.
+- [x] Kept: legality / stage / mana value unknown (named cards), unknown companion, ban lists not in
+  the data (Riftbound, Sorcery, GLC), Pauper Commander rarity.
+- [x] Verified: deck tests (a sound Standard deck has no note), ruff, web build / oxlint / i18n.
+

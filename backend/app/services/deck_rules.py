@@ -545,7 +545,16 @@ def check(format_id: str, entries: list[Entry]) -> Report:
     elif fmt.leader is not None:
         _check_commanders(report, fmt.leader, commanders, by_section["main"])
     _check_companions(report, fmt, commanders, by_section["main"], companions)
-    report.note("not_modelled", "Not checked: cards with other special deck rules")
+    # Un-set cards with a deck of their own: named only when the deck holds some.
+    own_decks = sorted(
+        {e.card.name for e in entries if {"Attraction", "Contraption"} & set(e.card.subtypes)}
+    )
+    if own_decks:
+        report.note(
+            "not_modelled",
+            "Not checked: Attraction and Contraption decks (" + ", ".join(own_decks[:5]) + ")",
+            names=own_decks,
+        )
     return report
 
 
@@ -708,10 +717,6 @@ def _check_companions(
             size = None if fmt.exact_size else fmt.size + 20
         else:
             misses, unknown = _companion_misses(rule, deck)
-            if rule == "zirda":
-                report.note(
-                    "zirda_by_text", "Activated abilities (Zirda) are checked from rules text"
-                )
             if unknown:
                 report.note(
                     "companion_value_unknown",
@@ -742,7 +747,6 @@ def _check_commanders(
     leaders = [e.card for e in commanders for _ in range(e.quantity)]
     if not leaders:
         report.add("error", "no_commander", "Choose a commander")
-        report.note("color_identity_unchecked", "Color identity is checked once a commander is set")
         return
     if len(leaders) > 2:
         report.add(
@@ -759,11 +763,6 @@ def _check_commanders(
                 "commander_pair",
                 f"{first.name} and {second.name} cannot lead a deck together",
             )
-        report.note(
-            "pair_by_text",
-            "Commander pairs (Partner, Friends forever, Background, Doctor's companion) are "
-            "checked from rules text",
-        )
     backgrounds_allowed = any("choose a background" in c.text.lower() for c in leaders)
     for card in leaders:
         if _can_lead(card, leader) or (backgrounds_allowed and "Background" in card.subtypes):
@@ -802,7 +801,6 @@ def _check_oathbreaker(report: Report, commanders: list[Entry], main: list[Entry
             )
     if not walkers:
         report.add("error", "no_oathbreaker", "Choose an oathbreaker (a planeswalker)")
-        report.note("color_identity_unchecked", "Color identity is checked once a commander is set")
         return
     if len(walkers) > 2 or (
         len(walkers) == 2 and (walkers[0].card_id == walkers[1].card_id or not _pair_ok(*walkers))
@@ -977,7 +975,6 @@ def _check_pokemon(report: Report, fmt: Format, entries: list[Entry]) -> None:
                 count=len(unknown),
                 names=sorted(unknown),
             )
-    report.note("special_rules", "Not checked: cards with special deck rules")
 
 
 def _check_glc(report: Report, pokemon: list[RuleCard], copies: dict[int, int]) -> None:
@@ -1274,10 +1271,9 @@ def _check_riftbound(report: Report, fmt: Format, entries: list[Entry]) -> None:
             count=signatures,
         )
 
-    # Domain identity: the legend's domains (cards of no domain fit any).
-    if legend is None:
-        report.note("domains_unchecked", "Domains are checked once a legend is set")
-    else:
+    # Domain identity: the legend's domains (cards of no domain fit any). Without a legend
+    # the legend count is already an issue.
+    if legend is not None:
         identity = _rb_domains(legend)
         others = by_section["runes"] + by_section["battlefields"] + by_section["sideboard"]
         for entry in deck + others:
@@ -1387,7 +1383,6 @@ def _check_yugioh(report: Report, fmt: Format, entries: list[Entry]) -> None:
             count=len(unknown),
             names=sorted(unknown),
         )
-    report.note("special_rules", "Not checked: cards with special deck rules")
 
 
 # Sorcery: card kinds (`category` Avatar / Site / Spell, `type`), copies by rarity.

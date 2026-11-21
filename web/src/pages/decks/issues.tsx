@@ -127,8 +127,6 @@ function useIssueText() {
         return t('{{n}} Signature cards, at most 3 allowed', { n })
       case 'off_domain':
         return t("{{name}} is outside the legend's domains ({{domains}})", { name: p.name, domains: ((p.domains as string[]) ?? []).map((d) => t(d[0].toUpperCase() + d.slice(1))).join(', ') })
-      case 'domains_unchecked':
-        return t('Domains are checked once a legend is set')
       case 'bans_unchecked':
         return t('Not checked: the banned and restricted cards list')
       // Yu-Gi-Oh!, Sorcery.
@@ -138,14 +136,8 @@ function useIssueText() {
         return t('Rarity of {{n}} cards not known: copies not checked', { n })
       case 'glc_bans':
         return t('Not checked: the Gym Leader Challenge ban list')
-      case 'special_rules':
-        return t('Not checked: cards with special deck rules')
-      case 'color_identity_unchecked':
-        return t('Color identity is checked once a commander is set')
-      case 'pair_by_text':
-        return t("Commander pairs (Partner, Friends forever, Background, Doctor's companion) are checked from rules text")
       case 'not_modelled':
-        return t('Not checked: cards with other special deck rules')
+        return t('Not checked: Attraction and Contraption decks ({{names}})', { names: ((p.names as string[]) ?? []).slice(0, 5).join(', ') })
       // Magic companions.
       case 'companion': {
         const names = ((p.names as string[]) ?? []).slice(0, 5)
@@ -162,8 +154,6 @@ function useIssueText() {
         return t('{{name}}: companion condition not checked', { name: p.name })
       case 'companion_value_unknown':
         return t('{{name}}: mana value of some cards not known (sync the Magic catalog again)', { name: p.name })
-      case 'zirda_by_text':
-        return t('Activated abilities (Zirda) are checked from rules text')
       default:
         return issue.message
     }

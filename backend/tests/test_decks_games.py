@@ -84,8 +84,10 @@ def test_riftbound_rules():
         [Entry(legend, "legend", 1), Entry(champion, "champion", 1), Entry(champion, "main", 3)],
     )
     assert "copy_limit" in found
+    # No legend: that is the issue, no extra note about domains.
     found, report = _codes("riftbound_constructed", [Entry(unit, "main", 40)])
-    assert "domains_unchecked" in {i.code for i in report.unverified}
+    assert "section_size_exact" in found
+    assert {i.code for i in report.unverified} == {"bans_unchecked"}
 
 
 def _yg(card_id, name, frame, banlist=None, tcg=True, ocg=True):
