@@ -2463,3 +2463,52 @@ Report from server 0.26.0 + Android 0.17.0. Branch `2026-11-20-001-modules-expor
 - `docker compose up`, run sync for each game, check card/printings counts and images on disk.
 - Web: add/remove items, check value + history chart after two snapshot runs.
 - Android: run on device against LAN server, scan real cards in EN/FR/JA for each game, confirm correct printing and stock change visible in web UI.
+
+## Report 2026-11-21 (server 0.28.0, Android 0.17.1)
+Report from server 0.27.0 + Android 0.17.1 with the security audit of 2026-11-20 (tcg.derpfox.net,
+findings ZK-01 to ZK-07). Branch `2026-11-21-000-security-audit-fixes` from `dev`, pull request into `dev`.
+Decisions (user, 2026-11-21): SSO absolute lifetime + IdP recheck, DB role split + loopback port, CSP
+enforced with a switch, random bootstrap password skipped without local login, no forced SSO sign-out on
+upgrade (sessions backfilled).
+- [x] Dependabot #60 (web group: react-query 5.108, i18next 27.1.5, languagedetector 8.3.1,
+  react-i18next 18.0.2, daisyUI 5.8.1, oxlint 1.94) retargeted to this branch and merged; build, lint pass.
+- [x] Settings › Modules: only modules users turn on themselves (access "everyone") are listed; no card
+  when none (all off or given by groups / SSO). "Given by your group" and "No module…" texts dropped.
+- [x] ZK-01 SSO sessions: table `sso_session` (family, provider, started_at, checked_at, IdP refresh token
+  Fernet-encrypted with a key derived from `TCG_SECRET_KEY`). `TCG_SSO_SESSION_MAX_AGE_SECONDS` (30 days)
+  ends SSO sessions (web and app) after sign-in whatever the activity. `TCG_SSO_RECHECK_SECONDS` (900): on
+  a Zukan refresh, web sessions do a refresh_token grant at the IdP (`OidcClient.refresh`, row-locked so
+  concurrent tabs use it once): refused = session revoked; accepted = `resolve_sso_user` again (allowed
+  groups, disabled, linked groups and admin role). IdP down (network, 5xx, 429, `OidcUnavailable`) keeps
+  the session. Needs `offline_access` on Authentik. Migration backfills open SSO families with their first
+  token's `created_at` (rows never deleted): no forced sign-out, older than 30 days end at next refresh.
+- [x] ZK-02 single-use app exchange: table `used_id_token` (sha256, expiry); a second exchange of the
+  same ID token is 401, one session family per token. No Android change.
+- [x] ZK-03 database roles: `zukan db-roles [--print-sql]` (`services/db_roles.py`) creates / updates
+  `zukan_app` (NOSUPERUSER, DML on all tables, sequences, default privileges). Compose: one-shot
+  `migrate` service (owner role: `alembic upgrade head && zukan db-roles`), api / worker on `zukan_app`
+  (`TCG_DB_APP_PASSWORD`), api waits for migrate. CI smoke test runs the API with the runtime role.
+- [x] ZK-04 port published on `${ZUKAN_BIND:-127.0.0.1}`.
+- [x] ZK-05 `Cache-Control: private, no-store` on exports and on every `/api/` answer without its own.
+- [x] ZK-06 CSP on the web UI (`default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
+  img-src 'self' data: blob: https:; ... object-src 'none'; base-uri 'self'; form-action 'self'`),
+  `TCG_CSP_MODE=enforce|report|off`.
+- [x] ZK-07 login page: spinner until the providers answer (never the local form by default), error +
+  retry when they fail.
+- [x] Bootstrap admin: no preset password, not created with local login off. Random password written to
+  `TCG_ADMIN_PASSWORD_FILE` (`./data/init/initial-admin-password`, 0600; api mounts `./data/init` (new
+  folder for anything the first start generates; database folder never mounted), entrypoint chowns it), deleted when that admin changes its password. Not logged (CodeQL
+  `py/clear-text-logging-sensitive-data`, user choice 2026-11-21).
+- [x] `zukan db-roles --print-sql` never prints the password: psql variable `:'app_password'`
+  (`psql -v app_password=...`).
+- [x] Referrer: live `strict-origin-when-cross-origin` comes from the operator's Caddy; documented.
+- [x] Docs: `UPGRADING.md` (step-by-step 0.28.0 upgrade), `.env.example` (`TCG_DB_APP_PASSWORD`,
+  `ZUKAN_BIND`, `TCG_SSO_*`, `TCG_CSP_MODE`, admin password, offline_access), README link.
+- [x] Versions: server 0.28.0 (migration, deployment change). Android unchanged (0.17.1).
+- [x] Verified: 333 backend tests (new: single-use exchange, SSO lifetime web + app, recheck resync /
+  refuse / IdP down, allowed groups on recheck, logout, cache headers, CSP modes, bootstrap admin, runtime
+  role rights), ruff, alembic check, migration backfill on seeded data, web build / oxlint / i18n. Live
+  (API as `zukan_app`, port 8023, Playwright): every page without CSP violation, Modules card hidden when
+  group-managed, no login form flash.
+- [ ] Operator: follow `UPGRADING.md` on tcg.derpfox.net (password, compose, Authentik offline_access).
+

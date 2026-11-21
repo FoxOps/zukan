@@ -503,7 +503,6 @@
   "No set followed yet. Follow one to see which of its cards you are missing.": "Aucune extension suivie. Suivez-en une pour voir les cartes qui vous manquent.",
   "Modules": "Modules",
   "Extra features for other ways of collecting. Zukan works the same without them.": "Fonctions en plus pour d'autres façons de collectionner. Zukan fonctionne pareil sans elles.",
-  "No module is available on this server.": "Aucun module n'est disponible sur ce serveur.",
   "Search this set": "Chercher dans cette extension",
   "Stop following": "Ne plus suivre",
   "Number": "Numéro",
@@ -608,7 +607,6 @@
   "Format check": "Vérification du format",
   "Not verified": "Non vérifié",
   "Issues never block saving: keep editing your draft.": "Les problèmes ne bloquent jamais l'enregistrement : continuez votre brouillon.",
-  "Given by your group": "Donné par votre groupe",
   "Choose who can use each module in Admin › Groups": "Choisissez qui peut utiliser chaque module dans Admin › Groupes",
   "Module access": "Accès aux modules",
   "Open to everyone: each user turns the module on in their settings. Given to groups: on for their members, hidden for the others. Administrators can always use a module that is not off.": "Ouvert à tous : chaque utilisateur active le module dans ses paramètres. Donné à des groupes : activé pour leurs membres, masqué pour les autres. Les administrateurs peuvent toujours utiliser un module qui n'est pas désactivé.",
@@ -760,5 +758,6 @@
   "With followed sets or decks, the download is a zip holding one CSV per part, which imports back here.": "Avec les extensions suivies ou les decks, le téléchargement est un zip contenant un CSV par partie, qui se réimporte ici.",
   "Download zip": "Télécharger le zip",
   "A zip exported here brings back followed sets and decks too. Decks of the same game and name get the cards added, or replaced with the second option.": "Un zip exporté ici restaure aussi les extensions suivies et les decks. Les decks du même jeu et du même nom reçoivent les cartes en plus, ou remplacées avec la seconde option.",
-  "File": "Fichier"
+  "File": "Fichier",
+  "Could not load the sign-in options.": "Impossible de charger les options de connexion."
 }

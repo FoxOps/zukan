@@ -3,8 +3,13 @@
 #   docker compose pull && docker compose up -d
 # ZUKAN_TAG in .env pins a version (e.g. 0.1.0) or tests a dev build (dev-<branch>).
 # To build from source instead, use docker-compose-dev.yml.
-# Data lives next to this file: ./data/postgres (database) and ./data/images (card images).
-# First start creates the administrator admin / changeme: change its password.
+# Data lives next to this file: ./data/postgres (database), ./data/images (card images)
+# and ./data/init (generated on the first start).
+# First start writes the password of the administrator `admin` to
+# ./data/init/initial-admin-password, unless TCG_DEFAULT_ADMIN_PASSWORD is set: sign in and
+# change it (the file is then deleted).
+# The API and worker use a database role that only reads and writes data
+# (TCG_DB_APP_PASSWORD); the `migrate` service sets it up with the owner role.
 # All settings come from .env (documented in .env.example).
 name: zukan
 
@@ -31,9 +36,10 @@ services:
       interval: 5s
       retries: 10
 
-  api:
+  # Database migrations and the runtime role of the API and worker, with the owner role
+  # (a superuser). Runs on every start, then exits.
+  migrate:
     image: ghcr.io/foxops/zukan:${ZUKAN_TAG:-latest}
-    restart: unless-stopped
     logging: *logging
     depends_on:
       db:
@@ -41,14 +47,32 @@ services:
     env_file: .env
     environment:
       TCG_DATABASE_URL: postgresql+asyncpg://tcg:${POSTGRES_PASSWORD}@db:5432/tcg
+      TCG_DB_APP_PASSWORD: ${TCG_DB_APP_PASSWORD:?set in .env}
+    command: ["sh", "-c", "alembic upgrade head && zukan db-roles"]
+
+  api:
+    image: ghcr.io/foxops/zukan:${ZUKAN_TAG:-latest}
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file: .env
+    environment:
+      TCG_DATABASE_URL: postgresql+asyncpg://zukan_app:${TCG_DB_APP_PASSWORD}@db:5432/tcg
       # Proxies trusted for X-Forwarded-For / -Proto (see .env.example).
       FORWARDED_ALLOW_IPS: ${TCG_FORWARDED_ALLOW_IPS:-127.0.0.1}
     volumes:
       - ./data/images:/data/images
+      # What the first start generates: the administrator's password
+      # (initial-admin-password) when TCG_DEFAULT_ADMIN_PASSWORD is not set.
+      - ./data/init:/data/init
       # Put downloaded image folders here (e.g. Sorcery Google Drive) to import them.
       - ./import:/data/import:ro
     ports:
-      - "${ZUKAN_PORT:-8000}:8000"
+      # Only on this machine by default: the reverse proxy (Caddy...) runs here. Set
+      # ZUKAN_BIND=0.0.0.0 to reach it from other machines (see .env.example).
+      - "${ZUKAN_BIND:-127.0.0.1}:${ZUKAN_PORT:-8000}:8000"
     healthcheck:
       test:
         - CMD
@@ -71,12 +95,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      # The API runs the database migrations.
+      # Starts once the migrations (migrate service, before the API) are done.
       api:
         condition: service_healthy
     env_file: .env
     environment:
-      TCG_DATABASE_URL: postgresql+asyncpg://tcg:${POSTGRES_PASSWORD}@db:5432/tcg
+      TCG_DATABASE_URL: postgresql+asyncpg://zukan_app:${TCG_DB_APP_PASSWORD}@db:5432/tcg
     volumes:
       - ./data/images:/data/images
     command: ["python", "-m", "app.worker"]

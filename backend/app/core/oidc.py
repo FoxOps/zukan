@@ -41,6 +41,10 @@ class OidcError(Exception):
     """Login refused or IdP response invalid. Message is safe to show to the user."""
 
 
+class OidcUnavailable(OidcError):
+    """The IdP could not answer (network error, server error): nothing was refused."""
+
+
 class OidcProviderConfig(BaseModel):
     name: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,63}$")
     display_name: str
@@ -166,14 +170,14 @@ class OidcClient:
             async with self._http() as http:
                 return await http.request(method, url, **kwargs)
         except httpx.HTTPError as exc:
-            raise OidcError("SSO provider unreachable, try again later") from exc
+            raise OidcUnavailable("SSO provider unreachable, try again later") from exc
 
     async def metadata(self) -> dict[str, Any]:
         if self._metadata is None or time.monotonic() - self._metadata_at > _CACHE_TTL:
             url = self.config.issuer.rstrip("/") + "/.well-known/openid-configuration"
             response = await self._request("GET", url)
             if response.status_code != 200:
-                raise OidcError("SSO provider discovery failed")
+                raise OidcUnavailable("SSO provider discovery failed")
             metadata = response.json()
             if metadata.get("issuer", "").rstrip("/") != self.config.issuer.rstrip("/"):
                 raise OidcError("SSO provider issuer mismatch")
@@ -187,7 +191,7 @@ class OidcClient:
             if self._jwks is None or stale or attempt == 1:
                 response = await self._request("GET", (await self.metadata())["jwks_uri"])
                 if response.status_code != 200:
-                    raise OidcError("SSO provider key fetch failed")
+                    raise OidcUnavailable("SSO provider key fetch failed")
                 self._jwks, self._jwks_at = (
                     jwt.PyJWKSet.from_dict(response.json()),
                     time.monotonic(),
@@ -213,19 +217,25 @@ class OidcClient:
         }
         return f"{endpoint}?{urlencode(params)}"
 
-    async def exchange_code(self, code: str, code_verifier: str) -> dict[str, Any]:
-        data = {
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": redirect_uri(self.config),
-            "code_verifier": code_verifier,
-            "client_id": self.config.client_id,
-        }
+    async def _token_request(self, data: dict[str, str]) -> httpx.Response:
         auth = None
         if self.config.client_secret:
             auth = httpx.BasicAuth(self.config.client_id, self.config.client_secret)
-        response = await self._request(
-            "POST", (await self.metadata())["token_endpoint"], data=data, auth=auth
+        return await self._request(
+            "POST",
+            (await self.metadata())["token_endpoint"],
+            data={**data, "client_id": self.config.client_id},
+            auth=auth,
+        )
+
+    async def exchange_code(self, code: str, code_verifier: str) -> dict[str, Any]:
+        response = await self._token_request(
+            {
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": redirect_uri(self.config),
+                "code_verifier": code_verifier,
+            }
         )
         if response.status_code != 200:
             raise OidcError("SSO code exchange failed")
@@ -233,6 +243,18 @@ class OidcClient:
         if "id_token" not in tokens:
             raise OidcError("SSO provider returned no ID token")
         return tokens
+
+    async def refresh(self, refresh_token: str) -> dict[str, Any]:
+        """Refresh token grant of the web client: the IdP still accepts the sign-in.
+        Raises OidcUnavailable when it could not tell, OidcError when it refused."""
+        response = await self._token_request(
+            {"grant_type": "refresh_token", "refresh_token": refresh_token}
+        )
+        if response.status_code >= 500 or response.status_code == 429:
+            raise OidcUnavailable("SSO provider unavailable")
+        if response.status_code != 200:
+            raise OidcError("SSO session ended at the provider")
+        return response.json()
 
     async def validate_id_token(
         self, id_token: str, audiences: list[str], nonce: str | None, max_age: int | None = None

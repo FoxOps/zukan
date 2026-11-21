@@ -8,7 +8,14 @@ from app.models.group import UserGroup, user_group_member
 from app.models.settings import AppSetting
 from app.models.sync import JobKind, JobStatus, JobTrigger, SyncRun
 from app.models.usage import ApiUsage, GapCheck
-from app.models.user import RefreshToken, Role, User, UserIdentity
+from app.models.user import (
+    RefreshToken,
+    Role,
+    SsoSession,
+    UsedIdToken,
+    User,
+    UserIdentity,
+)
 
 __all__ = [
     "ApiUsage",
@@ -34,8 +41,10 @@ __all__ = [
     "Printing",
     "RefreshToken",
     "Role",
+    "SsoSession",
     "StockTransaction",
     "SyncRun",
+    "UsedIdToken",
     "User",
     "UserGroup",
     "UserIdentity",
