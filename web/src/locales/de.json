@@ -689,7 +689,6 @@
   "Copy": "Kopieren",
   "One card per line (\"4 Charmander PAF 7\"), as Pokémon TCG Live exports them; the set code and number choose the printing.": "Eine Karte pro Zeile („4 Charmander PAF 7“), wie Pokémon TCG Live sie exportiert; Editionscode und Nummer wählen den Druck.",
   "One card per line with its full name (\"4 Elsa - Snow Queen\"), as Dreamborn and Inktable export them.": "Eine Karte pro Zeile mit vollem Namen („4 Elsa - Snow Queen“), wie Dreamborn und Inktable sie exportieren.",
-  "One card per line (\"4 Lightning Bolt\"). \"Commander\" and \"Sideboard\" lines start those sections; a set code and number (\"(M10) 146\") choose the printing.": "Eine Karte pro Zeile („4 Lightning Bolt“). Zeilen „Commander“ und „Sideboard“ beginnen diese Abschnitte; Editionscode und Nummer („(M10) 146“) wählen den Druck.",
   "No printing of this card has that set code and number: any printing": "Kein Druck dieser Karte hat diesen Code und diese Nummer: beliebiger Druck",
   "{{set}} not found": "{{set}} nicht gefunden",
   "The deck has {{n}} inks ({{inks}}), at most 2 allowed": "Das Deck hat {{n}} Tinten ({{inks}}), höchstens 2 erlaubt",
@@ -790,5 +789,9 @@
   "every nonland card must share a card type": "alle Nichtland-Karten müssen einen Kartentyp gemeinsam haben",
   "the deck needs at least {{size}} cards": "das Deck braucht mindestens {{size}} Karten",
   "the deck needs at least 20 cards more than the minimum": "das Deck braucht mindestens 20 Karten mehr als das Minimum",
-  "every permanent card needs an activated ability": "jede bleibende Karte braucht eine aktivierte Fähigkeit"
+  "every permanent card needs an activated ability": "jede bleibende Karte braucht eine aktivierte Fähigkeit",
+  "Companion": "Gefährte",
+  "{{n}} companions, at most 1": "{{n}} Gefährten, höchstens 1",
+  "{{name}} is not a companion": "{{name}} ist kein Gefährte",
+  "One card per line (\"4 Lightning Bolt\"). \"Commander\", \"Companion\" and \"Sideboard\" lines start those sections; a set code and number (\"(M10) 146\") choose the printing.": "Eine Karte pro Zeile („4 Lightning Bolt“). Zeilen „Commander“, „Companion“ und „Sideboard“ beginnen diese Abschnitte; Set-Code und Nummer („(M10) 146“) wählen den Druck."
 }

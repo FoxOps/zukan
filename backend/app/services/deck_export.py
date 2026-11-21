@@ -1,8 +1,8 @@
 """Plain-text decklists of the Decks module, in each game's usual format, read back by
 `services.deck_import`:
 
-- Magic (Moxfield, MTGO, Archidekt): "Commander" / "Deck" / "Sideboard" blocks,
-  "4 Lightning Bolt (M10) 146".
+- Magic (Moxfield, MTGO, Archidekt, MTG Arena): "Commander" / "Companion" / "Deck" /
+  "Sideboard" blocks, "4 Lightning Bolt (M10) 146".
 - Pokémon (Pokémon TCG Live, Limitless): "Pokémon: 12" / "Trainer: 30" / "Energy: 18"
   blocks, "4 Charmander PAF 7", "Total Cards: 60".
 - Lorcana (Dreamborn, Inktable): "4 Elsa - Snow Queen", no set.
@@ -14,7 +14,12 @@
 from dataclasses import dataclass
 
 # Headers of each game's sections, in order.
-_MTG_SECTIONS = (("commander", "Commander"), ("main", "Deck"), ("sideboard", "Sideboard"))
+_MTG_SECTIONS = (
+    ("commander", "Commander"),
+    ("companion", "Companion"),
+    ("main", "Deck"),
+    ("sideboard", "Sideboard"),
+)
 _SECTIONS = {
     "riftbound": (
         ("legend", "Legend:"),

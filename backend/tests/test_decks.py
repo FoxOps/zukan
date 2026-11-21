@@ -359,7 +359,7 @@ def mtg(
 
 
 def companion_check(companion: RuleCard, main: list[Entry], fmt: str = "modern"):
-    report = deck_rules.check(fmt, [*main, Entry(companion, "sideboard", 1)])
+    report = deck_rules.check(fmt, [*main, Entry(companion, "companion", 1)])
     return next((i for i in report.issues if i.code == "companion"), None), report
 
 
@@ -385,11 +385,23 @@ def test_companions():
     issue, report = companion_check(lurrus, [*base[:2], Entry(giant, "main", 36)])
     assert issue.params["rule"] == "lurrus" and issue.params["names"] == ["Stone Giant"]
     assert issue.level == "error" and not report.valid
-    # In the main deck it is just a creature: not a companion.
-    assert (
-        companion_check(cat, [*base[:2], Entry(lurrus, "main", 4), Entry(giant, "main", 32)])[0]
-        is None
+    # In the main deck or the sideboard it is just a creature: not a companion.
+    big = [*base[:2], Entry(giant, "main", 36)]
+    for section in ("main", "sideboard"):
+        report = deck_rules.check("modern", [*big, Entry(lurrus, section, 1)])
+        assert "companion" not in codes(report)
+    # The companion is one of the sideboard's 15 cards.
+    side = [Entry(mountain, "sideboard", 14)]
+    assert "sideboard_max" not in codes(companion_check(lurrus, [*base, *side])[1])
+    side = [Entry(mountain, "sideboard", 15)]
+    assert "sideboard_max" in codes(companion_check(lurrus, [*base, *side])[1])
+    # One companion, and a companion card.
+    report = deck_rules.check(
+        "modern", [*base, Entry(lurrus, "companion", 1), Entry(kaheera, "companion", 1)]
     )
+    assert "companion_count" in codes(report)
+    issue = next(i for i in companion_check(cat, base)[1].issues if i.code == "not_companion")
+    assert issue.params["name"] == "Savannah Lions"
 
     # Yorion: 20 cards over the minimum; never in a 100-card singleton format.
     assert companion_check(yorion, base)[0].params == {
@@ -420,11 +432,20 @@ def test_companions():
     assert issue is None and "zirda_by_text" in {i.code for i in report.unverified}
     assert companion_check(zirda, base)[0].params["names"] == ["Savannah Lions"]
 
-    # Two companions: one met is enough.
-    report = deck_rules.check(
-        "modern", [*base, Entry(lurrus, "sideboard", 1), Entry(yorion, "sideboard", 1)]
-    )
-    assert "companion" not in codes(report)
+    # Commander: the companion stays outside the 100, within the commanders' identity;
+    # Yorion never fits.
+    krenko = mtg(30, "Krenko, Tin Street Kingpin", "Legendary Creature — Goblin Warrior", 3)
+    krenko.attributes["color_identity"] = ["R"]
+    lurrus.attributes["color_identity"] = ["W", "B"]
+    edh = [Entry(krenko, "commander", 1), Entry(mountain, "main", 99)]
+    issue, report = companion_check(lurrus, edh, "commander")
+    # The commander is in the starting deck: a 3-mana one breaks Lurrus's condition.
+    assert issue.params["names"] == ["Krenko, Tin Street Kingpin"]
+    assert "color_identity" in codes(report) and "copy_limit" not in codes(report)
+    small = [Entry(mtg(31, "Kiki", "Legendary Creature — Goblin", 2), "commander", 1), *edh[1:]]
+    assert companion_check(lurrus, small, "commander")[0] is None
+    issue = companion_check(yorion, edh, "commander")[0]
+    assert issue.params == {"name": yorion.name, "rule": "yorion", "names": []}
 
     # Modal double-faced card: the front face counts (an instant, not a land).
     awakening = mtg(
@@ -1177,6 +1198,16 @@ def test_export_formats():
     assert deck_import.parse("4 Elsa - Snow Queen\n", "lorcana").lines[0].name == (
         "Elsa - Snow Queen"
     )
+    # Magic: the companion has its own block (MTG Arena's), read back to its section.
+    magic = [
+        ExportLine("Lurrus of the Dream-Den", "companion", "Creature", 1, "IKO", "226"),
+        ExportLine("Lightning Bolt", "main", "Instant", 4, "M10", "146"),
+        ExportLine("Duress", "sideboard", "Sorcery", 2),
+    ]
+    text = export_text("mtg", magic)
+    assert text.startswith("Companion\n1 Lurrus of the Dream-Den (IKO) 226\n\nDeck\n")
+    parsed = deck_import.parse(text)
+    assert [line.section for line in parsed.lines] == ["companion", "main", "sideboard"]
 
 
 async def test_lorcana_deck(client, session, alice):

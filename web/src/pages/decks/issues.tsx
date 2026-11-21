@@ -154,6 +154,10 @@ function useIssueText() {
           ? t('{{name}} cannot be your companion: {{rule}} ({{names}})', { name: p.name, rule, names: names.join(', ') + (((p.names as string[]) ?? []).length > 5 ? '…' : '') })
           : t('{{name}} cannot be your companion: {{rule}}', { name: p.name, rule })
       }
+      case 'companion_count':
+        return t('{{n}} companions, at most 1', { n })
+      case 'not_companion':
+        return t('{{name}} is not a companion', { name: p.name })
       case 'companion_unknown':
         return t('{{name}}: companion condition not checked', { name: p.name })
       case 'companion_value_unknown':

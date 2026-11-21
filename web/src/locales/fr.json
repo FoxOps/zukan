@@ -689,7 +689,6 @@
   "Copy": "Copier",
   "One card per line (\"4 Charmander PAF 7\"), as Pokémon TCG Live exports them; the set code and number choose the printing.": "Une carte par ligne (« 4 Charmander PAF 7 »), comme les exporte Pokémon TCG Live ; le code d'extension et le numéro choisissent l'impression.",
   "One card per line with its full name (\"4 Elsa - Snow Queen\"), as Dreamborn and Inktable export them.": "Une carte par ligne avec son nom complet (« 4 Elsa - Snow Queen »), comme les exportent Dreamborn et Inktable.",
-  "One card per line (\"4 Lightning Bolt\"). \"Commander\" and \"Sideboard\" lines start those sections; a set code and number (\"(M10) 146\") choose the printing.": "Une carte par ligne (« 4 Lightning Bolt »). Les lignes « Commander » et « Sideboard » commencent ces sections ; un code d'extension et un numéro (« (M10) 146 ») choisissent l'impression.",
   "No printing of this card has that set code and number: any printing": "Aucune impression de cette carte n'a ce code et ce numéro : toute impression",
   "{{set}} not found": "{{set}} introuvable",
   "The deck has {{n}} inks ({{inks}}), at most 2 allowed": "Le deck a {{n}} encres ({{inks}}), 2 au plus",
@@ -790,5 +789,9 @@
   "every nonland card must share a card type": "toutes les cartes non-terrain doivent partager un type de carte",
   "the deck needs at least {{size}} cards": "le deck doit compter au moins {{size}} cartes",
   "the deck needs at least 20 cards more than the minimum": "le deck doit compter au moins 20 cartes de plus que le minimum",
-  "every permanent card needs an activated ability": "chaque carte de permanent doit avoir une capacité activée"
+  "every permanent card needs an activated ability": "chaque carte de permanent doit avoir une capacité activée",
+  "Companion": "Compagnon",
+  "{{n}} companions, at most 1": "{{n}} compagnons, 1 au maximum",
+  "{{name}} is not a companion": "{{name}} n'est pas un compagnon",
+  "One card per line (\"4 Lightning Bolt\"). \"Commander\", \"Companion\" and \"Sideboard\" lines start those sections; a set code and number (\"(M10) 146\") choose the printing.": "Une carte par ligne (« 4 Lightning Bolt »). Les lignes « Commander », « Companion » et « Sideboard » commencent ces sections ; un code d'extension et un numéro (« (M10) 146 ») choisissent l'impression."
 }

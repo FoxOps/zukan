@@ -37,7 +37,7 @@ const STATUS = {
   allocated: { badge: 'badge-success', label: 'Allocated' },
 } as const
 // Sections of one card: moving a line there moves one copy.
-const SINGLE = new Set<Section>(['commander', 'legend', 'champion', 'avatar'])
+const SINGLE = new Set<Section>(['commander', 'companion', 'legend', 'champion', 'avatar'])
 const LEGAL_BADGE: Record<string, string | null> = { legal: null, unknown: null, banned: 'Banned', not_legal: 'Not legal', restricted: 'Restricted' }
 
 /** "Banned" / "Not legal" badge, "?" when legality is not known. */

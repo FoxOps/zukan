@@ -21,6 +21,7 @@ from typing import Any, Literal
 # Every game's deck sections. Spellbook (Sorcery) is "main", collection "sideboard".
 Section = Literal[
     "commander",
+    "companion",
     "legend",
     "champion",
     "avatar",
@@ -33,6 +34,7 @@ Section = Literal[
 ]
 SECTIONS: tuple[Section, ...] = (
     "commander",
+    "companion",
     "legend",
     "champion",
     "avatar",
@@ -55,6 +57,8 @@ Rules = Literal["mtg", "pokemon", "lorcana", "riftbound", "yugioh", "sorcery"]
 # Sections of a deck, in the order shown, with their English names.
 _MTG_SECTIONS: tuple[tuple[Section, str], ...] = (
     ("commander", "Commander"),
+    # One companion card, outside the deck (counted in the sideboard's 15).
+    ("companion", "Companion"),
     ("main", "Main deck"),
     ("sideboard", "Sideboard"),
 )
@@ -438,6 +442,9 @@ def check(format_id: str, entries: list[Entry]) -> Report:
     commanders = by_section["commander"]
     deck_size = sum(e.quantity for e in by_section["main"] + commanders)
     side_size = sum(e.quantity for e in by_section["sideboard"])
+    companions = by_section["companion"]
+    # Constructed: the companion is one of the sideboard's 15 cards.
+    side_total = side_size + (0 if fmt.commander else sum(e.quantity for e in companions))
 
     # Deck size.
     if fmt.exact_size and deck_size != fmt.size:
@@ -457,12 +464,12 @@ def check(format_id: str, entries: list[Entry]) -> Report:
             count=deck_size,
             size=fmt.size,
         )
-    if fmt.sideboard_max is not None and side_size > fmt.sideboard_max:
+    if fmt.sideboard_max is not None and side_total > fmt.sideboard_max:
         report.add(
             "error",
             "sideboard_max",
-            f"The sideboard has {_plural(side_size, 'card')}, at most {fmt.sideboard_max} allowed",
-            count=side_size,
+            f"The sideboard has {_plural(side_total, 'card')}, at most {fmt.sideboard_max} allowed",
+            count=side_total,
             size=fmt.sideboard_max,
         )
     if fmt.commander and side_size:
@@ -479,11 +486,12 @@ def check(format_id: str, entries: list[Entry]) -> Report:
             f"{fmt.name} has no commander: those cards count as main deck",
         )
 
-    # Copies of each card across sections (sideboard included, as in tournaments).
+    # Copies of each card across sections (sideboard and companion included, as in
+    # tournaments; commander formats: the deck only).
     copies: dict[int, int] = {}
     cards: dict[int, RuleCard] = {}
     for entry in entries:
-        if fmt.commander and entry.section == "sideboard":
+        if fmt.commander and entry.section in ("sideboard", "companion"):
             continue
         copies[entry.card.card_id] = copies.get(entry.card.card_id, 0) + entry.quantity
         cards[entry.card.card_id] = entry.card
@@ -507,7 +515,8 @@ def check(format_id: str, entries: list[Entry]) -> Report:
         leading = {e.card.card_id for e in commanders}
         report.note("commander_rarity", "Commanders printed at uncommon are not checked")
     unknown = []
-    for card in cards.values():
+    # The companion must be legal too.
+    for card in [*cards.values(), *(e.card for e in companions if e.card.card_id not in cards)]:
         if card.card_id in leading:
             continue
         status = legality(card, fmt)
@@ -518,7 +527,7 @@ def check(format_id: str, entries: list[Entry]) -> Report:
             report.add("error", "banned", f"{card.name} is banned in {fmt.name}", card)
         elif status == "not_legal":
             report.add("error", "not_legal", f"{card.name} is not legal in {fmt.name}", card)
-        elif status == "restricted" and copies[card.card_id] > 1:
+        elif status == "restricted" and copies.get(card.card_id, 1) > 1:
             report.add(
                 "error", "restricted", f"{card.name} is restricted to one copy", card, limit=1
             )
@@ -535,13 +544,13 @@ def check(format_id: str, entries: list[Entry]) -> Report:
         _check_oathbreaker(report, commanders, by_section["main"])
     elif fmt.leader is not None:
         _check_commanders(report, fmt.leader, commanders, by_section["main"])
-    _check_companions(report, fmt, commanders + by_section["main"], by_section["sideboard"])
+    _check_companions(report, fmt, commanders, by_section["main"], companions)
     report.note("not_modelled", "Not checked: cards with other special deck rules")
     return report
 
 
-# Companions (Ikoria): kept in the sideboard, each with a condition on the starting deck
-# (main deck and commanders), by front face name.
+# Companions (Ikoria), put in the Companion section, each with a condition on the starting
+# deck (main deck and commanders), by front face name.
 COMPANIONS = {
     "Gyruda, Doom of Depths": "gyruda",
     "Jegantha, the Wellspring": "jegantha",
@@ -663,46 +672,55 @@ def _companion_misses(rule: str, deck: list[Entry]) -> tuple[list[str], bool]:
 
 
 def _check_companions(
-    report: Report, fmt: Format, deck: list[Entry], sideboard: list[Entry]
+    report: Report,
+    fmt: Format,
+    commanders: list[Entry],
+    main: list[Entry],
+    companions: list[Entry],
 ) -> None:
-    """A companion in the sideboard must have its condition met by the starting deck.
-    With several, one met is enough (only one can be the companion)."""
-    candidates: list[tuple[RuleCard, str]] = []
-    for entry in sideboard:
-        front_name = entry.card.name.split(" // ")[0]
-        rule = COMPANIONS.get(front_name)
-        if rule is not None:
-            candidates.append((entry.card, rule))
-        elif "companion —" in entry.card.text.lower():
-            report.note(
-                "companion_unknown",
-                f"{entry.card.name}: companion condition not checked",
-                name=entry.card.name,
-            )
-    failures: list[tuple[RuleCard, str, list[str]]] = []
-    for card, rule in candidates:
-        if rule == "yorion":
-            size = sum(e.quantity for e in deck)
-            needed = fmt.size + 20
-            if fmt.exact_size or size < needed:
-                failures.append((card, rule, []))
+    """The card in the Companion section: one at most, a companion, its condition met by
+    the starting deck (main deck and commanders), and in commander formats within the
+    commanders' color identity. Companion cards elsewhere (sideboard, main deck) are
+    ordinary cards."""
+    count = sum(e.quantity for e in companions)
+    if count > 1:
+        report.add("error", "companion_count", f"{count} companions, at most 1", count=count)
+    deck = commanders + main
+    for entry in companions:
+        card = entry.card
+        rule = COMPANIONS.get(card.name.split(" // ")[0])
+        if rule is None:
+            if "companion —" in card.text.lower():
+                report.note(
+                    "companion_unknown",
+                    f"{card.name}: companion condition not checked",
+                    name=card.name,
+                )
             else:
-                return
+                report.add("error", "not_companion", f"{card.name} is not a companion", card)
             continue
-        misses, unknown = _companion_misses(rule, deck)
-        if rule == "zirda":
-            report.note("zirda_by_text", "Activated abilities (Zirda) are checked from rules text")
-        if unknown:
-            report.note(
-                "companion_value_unknown",
-                f"{card.name}: mana value of some cards not known (sync the Magic catalog again)",
-                name=card.name,
-            )
-        if not misses:
-            return
-        failures.append((card, rule, misses))
-    for card, rule, misses in failures:
-        size = fmt.size + 20 if rule == "yorion" else None
+        misses: list[str] = []
+        size = None
+        if rule == "yorion":
+            # Never met where the size is exact (Commander's 100).
+            if not fmt.exact_size and sum(e.quantity for e in deck) >= fmt.size + 20:
+                continue
+            size = None if fmt.exact_size else fmt.size + 20
+        else:
+            misses, unknown = _companion_misses(rule, deck)
+            if rule == "zirda":
+                report.note(
+                    "zirda_by_text", "Activated abilities (Zirda) are checked from rules text"
+                )
+            if unknown:
+                report.note(
+                    "companion_value_unknown",
+                    f"{card.name}: mana value of some cards not known (sync the Magic catalog "
+                    "again)",
+                    name=card.name,
+                )
+            if not misses:
+                continue
         report.add(
             "error",
             "companion",
@@ -711,8 +729,11 @@ def _check_companions(
             card,
             rule=rule,
             names=misses,
-            **({"size": size} if size and not fmt.exact_size else {}),
+            **({"size": size} if size else {}),
         )
+    if fmt.commander and commanders:
+        identity = set().union(*(e.card.color_identity for e in commanders))
+        _check_identity(report, identity, companions)
 
 
 def _check_commanders(

@@ -1820,7 +1820,7 @@ export interface components {
             /** Card Id */
             card_id: number;
             /** Section */
-            section?: ("commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard") | null;
+            section?: ("commander" | "companion" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard") | null;
             /** Printing Id */
             printing_id?: number | null;
             /** Quantity */
@@ -1927,7 +1927,7 @@ export interface components {
             /** Sections */
             sections: components["schemas"]["DeckSectionOut"][];
             /** Counted */
-            counted: ("commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard")[];
+            counted: ("commander" | "companion" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard")[];
         };
         /** DeckGameOut */
         DeckGameOut: {
@@ -1945,7 +1945,7 @@ export interface components {
              * @default main
              * @enum {string}
              */
-            section: "commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
+            section: "commander" | "companion" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
             /** Printing Id */
             printing_id?: number | null;
             /** Quantity */
@@ -1975,7 +1975,7 @@ export interface components {
              * Section
              * @enum {string}
              */
-            section: "commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
+            section: "commander" | "companion" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
             /** Set Code */
             set_code?: string | null;
             /** Collector Number */
@@ -2099,7 +2099,7 @@ export interface components {
              * @default main
              * @enum {string}
              */
-            section: "commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
+            section: "commander" | "companion" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
             /** Printing Id */
             printing_id?: number | null;
             /** To Printing Id */
@@ -2116,7 +2116,7 @@ export interface components {
              * Section
              * @enum {string}
              */
-            section: "commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
+            section: "commander" | "companion" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
             /** Printing Id */
             printing_id: number | null;
             /** Set Code */
@@ -2191,7 +2191,7 @@ export interface components {
              * Id
              * @enum {string}
              */
-            id: "commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
+            id: "commander" | "companion" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
             /** Name */
             name: string;
         };
