@@ -152,6 +152,80 @@ async def test_maintenance_page_replaces_the_web_interface(tmp_path, session, mo
         assert blocked.status_code == 503 and "maintenance" in blocked.json()["detail"]
 
 
+async def test_admin_starts_and_stops_maintenance(client, session, monkeypatch):
+    await make_user(session, "root", role=Role.admin)
+    await make_user(session)
+    admin = await bearer(client, "root")
+    user = await bearer(client, "alice")
+    monkeypatch.setattr(load, "_manual", None)
+    monkeypatch.setattr(load, "_monitor", None)
+
+    assert (await client.get("/api/admin/maintenance", headers=user)).status_code == 403
+    assert (
+        await client.put("/api/admin/maintenance", json={"enabled": True}, headers=user)
+    ).status_code == 403
+    assert (await client.get("/api/admin/maintenance", headers=admin)).json() == {
+        "maintenance": None
+    }
+
+    started = (
+        await client.put("/api/admin/maintenance", json={"enabled": True}, headers=admin)
+    ).json()
+    state = started["maintenance"]
+    assert state["reason"] == "admin" and state["by"] == "root" and state["game_id"] is None
+    # Starting again keeps the first start time.
+    again = (
+        await client.put("/api/admin/maintenance", json={"enabled": True}, headers=admin)
+    ).json()
+    assert again["maintenance"]["since"] == state["since"]
+    assert (await client.get("/api/health")).json()["maintenance"]["reason"] == "admin"
+    blocked = await client.get("/api/collection", headers=user)
+    assert blocked.status_code == 503 and "maintenance" in blocked.json()["detail"]
+    assert (await client.get("/api/collection", headers=admin)).status_code == 200
+
+    # Another API process (or a restart) reads it from the database.
+    monkeypatch.setattr(load, "_manual", None)
+    await load.load_manual()
+    assert load.maintenance() == load.Maintenance(
+        since=datetime.fromisoformat(state["since"]), reason="admin", by="root"
+    )
+
+    # The administrator's maintenance comes before the automatic one, which stays after.
+    monitor = load.LoadMonitor(limit_ms=500)
+    monitor.state = load.Maintenance(since=NOW, game_id="mtg")
+    monkeypatch.setattr(load, "_monitor", monitor)
+    assert load.maintenance().reason == "admin"
+    stopped = (
+        await client.put("/api/admin/maintenance", json={"enabled": False}, headers=admin)
+    ).json()
+    assert stopped["maintenance"]["reason"] == "sync" and stopped["maintenance"]["game_id"] == "mtg"
+    monkeypatch.setattr(load, "_monitor", None)
+    assert (await client.get("/api/collection", headers=user)).status_code == 200
+    await load.load_manual()
+    assert load.maintenance() is None
+
+
+async def test_maintenance_page_without_database(tmp_path, monkeypatch):
+    from app import main
+
+    web = tmp_path / "dist"
+    web.mkdir()
+    (web / "index.html").write_text("<html>app</html>")
+    monkeypatch.setattr(get_settings(), "web_dir", web)
+    monkeypatch.setattr(load, "_manual", load.Maintenance(since=NOW, reason="admin", by="root"))
+
+    def broken():
+        raise OSError("database down")
+
+    monkeypatch.setattr(main, "get_sessionmaker", broken)
+    transport = httpx.ASGITransport(app=create_app())
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://testserver", cookies={"tcg_access": "x"}
+    ) as signed_in:
+        page = await signed_in.get("/")
+    assert page.status_code == 503 and "Zukan is taking a break" in page.text
+
+
 def test_maintenance_page_languages():
     assert maintenance_page.accept_language("de-CH, en;q=0.5") == "de"
     assert maintenance_page.accept_language("ja, fr;q=0.3, es;q=0.7") == "es"

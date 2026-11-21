@@ -2512,3 +2512,38 @@ upgrade (sessions backfilled).
   group-managed, no login form flash.
 - [ ] Operator: follow `UPGRADING.md` on tcg.derpfox.net (password, compose, Authentik offline_access).
 
+## Report 2026-11-21 b (server 0.28.0, Android 0.17.1)
+Branch `2026-11-21-001-maintenance-mode-deck-ui` from `dev`, pull request into `dev`. No Dependabot pull
+request open. Decisions (user, 2026-11-21): the duplicate deck switch is the Add cards one; manual
+maintenance on a new Admin › Server page; `maintenance.game_id` nullable with Android 0.17.2.
+- [x] `UPGRADING.md` removed (not needed any more), README link dropped.
+- [x] Decks: one List / Images switch (above the deck cards); the Add cards search results follow it
+  (their own switch removed).
+- [x] Decks: format check moved from the side card into the deck header, under the existing count /
+  status badge (no second badge): issues in two columns on wide screens, "Not verified (n)" folded,
+  "never blocks saving" as hover text; deck cards use the full width.
+- [x] Friendly page instead of "Something went wrong": `MaintenanceScreen` (same texts as the server
+  maintenance page) for route errors (except 404 and "new version"), `me` failures other than
+  401/403, and a health check without answer (0, 502, 503, 504: server restarting or stopped). No
+  toast for those statuses. Comes back by itself once the server answers after being seen down
+  (no reload loop when it never stopped). Plain 500 on one request keeps its toast. A page whose
+  code fails to load checks the server first: unreachable = maintenance page (was "A new version is
+  available" during a restart), reachable = new version.
+- [x] Server maintenance page served even when the database is unreachable (anonymous language).
+- [x] Admin › Server: start / stop maintenance by hand (confirm dialog). Setting `maintenance`
+  (`{"since", "by"}`) in `app_setting`: survives restarts, read by every API process at each 2 s
+  sample, before the automatic one. `GET/PUT /api/admin/maintenance`. `MaintenanceOut` gains
+  `reason` ("sync" / "admin") and `by`; `game_id` nullable. Admin banner per reason. 503 message
+  generic. `TCG_MAINTENANCE_ENABLED=false` now only turns the automatic mode off.
+- [x] Data sync: "Automatic updates" schedule collapsible, closed by default, remembered per browser
+  (`tcg.scheduleOpen`), kept open with unsaved edits ("Not saved" badge).
+- [x] Android: `MaintenanceOut.gameId` nullable, `reason`, `by` (HealthTest), 0.17.2.
+- [x] Versions: server 0.29.0 (new admin feature, API fields). Android 0.17.2.
+- [x] `.env.example`: `TCG_MAINTENANCE_ENABLED` note. No new variable.
+- [x] Verified: 336 backend tests (new: admin start/stop + precedence + reload from DB, page without
+  database), ruff, alembic check, web build / oxlint / i18n, Android HealthTest (4/4). Live (API on
+  port 8023, Playwright): Server page start / stop with banner, users 503 + maintenance page, admin
+  maintenance kept across an API restart, API stopped mid-session = maintenance screen then back by
+  itself, schedule folded, deck header and single view switch.
+- [ ] User: try Admin › Server maintenance on the next dev image; release Android 0.17.2 with server 0.29.0.
+

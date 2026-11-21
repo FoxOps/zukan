@@ -127,46 +127,36 @@ function useIssueText() {
 
 const LEVEL = { error: 'text-error', warning: 'text-warning', info: 'text-info' } as const
 
-/** Format check: issues (never blocking: a draft can be saved) and the checks that
- * could not be made. */
-export function Validation({ validation }: { validation: Schemas['DeckValidationOut'] }) {
+/** Format check, in the deck's header under its count and status badge: the issues
+ * (never blocking: a draft can be saved) and, folded, the checks that could not be made. */
+export function FormatCheck({ validation }: { validation: Schemas['DeckValidationOut'] }) {
   const { t } = useTranslation()
   const text = useIssueText()
+  if (validation.issues.length === 0 && validation.unverified.length === 0) return null
   return (
-    <div className="card bg-base-200">
-      <div className="card-body gap-2 p-4">
-        <h2 className="flex items-center gap-2 font-semibold">
-          {t('Format check')}
-          {validation.valid ? (
-            <span className="badge badge-sm badge-success">{t('Format rules met')}</span>
-          ) : (
-            <span className="badge badge-sm badge-warning">{t('{{count}} issues', { count: validation.issues.filter((i) => i.level === 'error').length })}</span>
-          )}
-        </h2>
-        {validation.issues.length > 0 && (
-          <ul className="flex flex-col gap-1 text-sm">
-            {validation.issues.map((issue, i) => (
-              <li key={i} className="flex gap-2">
-                <span className={`${LEVEL[issue.level]} font-bold`} aria-hidden>
-                  {issue.level === 'error' ? '✕' : issue.level === 'warning' ? '!' : 'i'}
-                </span>
-                <span>{text(issue)}</span>
-              </li>
+    <div className="mt-2 flex flex-col gap-1">
+      {validation.issues.length > 0 && (
+        <ul className="gap-x-6 text-sm lg:columns-2" title={t('Issues never block saving: keep editing your draft.')}>
+          {validation.issues.map((issue, i) => (
+            <li key={i} className="flex break-inside-avoid gap-2">
+              <span className={`${LEVEL[issue.level]} font-bold`} aria-hidden>
+                {issue.level === 'error' ? '✕' : issue.level === 'warning' ? '!' : 'i'}
+              </span>
+              <span>{text(issue)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {validation.unverified.length > 0 && (
+        <details className="text-xs text-base-content/70">
+          <summary className="w-fit cursor-pointer text-base-content/60">{t('Not verified ({{n}})', { n: validation.unverified.length })}</summary>
+          <ul className="mt-1 flex flex-col gap-1">
+            {validation.unverified.map((issue, i) => (
+              <li key={i}>? {text(issue)}</li>
             ))}
           </ul>
-        )}
-        {validation.unverified.length > 0 && (
-          <div className="mt-1 border-t border-base-300 pt-2">
-            <div className="text-xs font-semibold uppercase text-base-content/60">{t('Not verified')}</div>
-            <ul className="mt-1 flex flex-col gap-1 text-xs text-base-content/70">
-              {validation.unverified.map((issue, i) => (
-                <li key={i}>? {text(issue)}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        <p className="text-xs text-base-content/50">{t('Issues never block saving: keep editing your draft.')}</p>
-      </div>
+        </details>
+      )}
     </div>
   )
 }

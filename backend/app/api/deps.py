@@ -36,8 +36,8 @@ async def current_user(request: Request, session: SessionDep) -> User:
     if not token:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
     user = await _token_user(session, token)
-    # Maintenance (catalog refresh slowing the server down): users wait, administrators
-    # keep access to watch the job; account routes stay open so clients know who is in.
+    # Maintenance (data sync slowing the server down, or started by an administrator): users
+    # wait, administrators keep access; account routes stay open so clients know who is in.
     if (
         user.role != Role.admin
         and load.maintenance() is not None
@@ -45,7 +45,7 @@ async def current_user(request: Request, session: SessionDep) -> User:
     ):
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
-            "Zukan is under maintenance (catalog refresh), try again in a few minutes",
+            "Zukan is under maintenance, try again in a few minutes",
             headers={"Retry-After": "60"},
         )
     return user

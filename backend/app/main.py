@@ -152,7 +152,9 @@ def create_app() -> FastAPI:
         state = load.maintenance()
         return HealthOut(
             version=__version__,
-            maintenance=MaintenanceOut(since=state.since, game_id=state.game_id) if state else None,
+            maintenance=MaintenanceOut.model_validate(state, from_attributes=True)
+            if state
+            else None,
         )
 
     @app.exception_handler(Exception)
@@ -199,8 +201,13 @@ def mount_web(app: FastAPI, web_dir: Path) -> None:
 
 async def maintenance_response(request: Request) -> HTMLResponse | None:
     """The maintenance page instead of the web interface, except for administrators."""
-    async with get_sessionmaker()() as session:
-        user = await cookie_user(request, session)
+    try:
+        async with get_sessionmaker()() as session:
+            user = await cookie_user(request, session)
+    except Exception:
+        # Database unreachable: still the page, never an error.
+        logger.warning("Maintenance page: signed-in user not read", exc_info=True)
+        user = None
     if user is not None and user.role == Role.admin:
         return None
     lang = user.language if user is not None else None
