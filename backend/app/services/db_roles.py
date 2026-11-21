@@ -16,19 +16,11 @@ from app.core.config import get_settings
 _ROLE_NAME = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 
 
-# Password in the printed SQL: a psql variable (`psql -v app_password=...`), so the
-# secret is never written out.
-PSQL_PASSWORD = ":'app_password'"
-
-
-def statements(app_user: str, password: str | None, database: str) -> list[str]:
-    """SQL making `app_user` the runtime role of `database` (run by its owner).
-    `password` None: the psql variable `app_password` instead."""
+def role_statements(app_user: str, database: str) -> list[str]:
+    """SQL making `app_user` the runtime role of `database` (run by its owner), its
+    password aside (`password_statement`)."""
     if not _ROLE_NAME.match(app_user):
         raise ValueError(f"Invalid database role name {app_user!r}")
-    if password == "":
-        raise ValueError("Set TCG_DB_APP_PASSWORD to the runtime role's password")
-    secret = PSQL_PASSWORD if password is None else "'" + password.replace("'", "''") + "'"
     db = '"' + database.replace('"', '""') + '"'
     rights = (
         "LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT -1"
@@ -36,7 +28,7 @@ def statements(app_user: str, password: str | None, database: str) -> list[str]:
     return [
         f"DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{app_user}') "
         f"THEN CREATE ROLE {app_user}; END IF; END $$",
-        f"ALTER ROLE {app_user} WITH {rights} PASSWORD {secret}",
+        f"ALTER ROLE {app_user} WITH {rights}",
         f"GRANT CONNECT ON DATABASE {db} TO {app_user}",
         f"GRANT USAGE ON SCHEMA public TO {app_user}",
         f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {app_user}",
@@ -47,6 +39,18 @@ def statements(app_user: str, password: str | None, database: str) -> list[str]:
         f"ALTER DEFAULT PRIVILEGES IN SCHEMA public "
         f"GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO {app_user}",
     ]
+
+
+def password_statement(app_user: str, password: str) -> str:
+    if not password:
+        raise ValueError("Set TCG_DB_APP_PASSWORD to the runtime role's password")
+    return f"ALTER ROLE {app_user} PASSWORD '" + password.replace("'", "''") + "'"
+
+
+def printable_sql(app_user: str, database: str) -> list[str]:
+    """`role_statements` for psql, the password taken from the psql variable
+    `app_password` (`psql -v app_password=...`): never written out."""
+    return [*role_statements(app_user, database), f"ALTER ROLE {app_user} PASSWORD :'app_password'"]
 
 
 async def apply(database_url: str | None = None) -> str:
@@ -62,8 +66,11 @@ async def apply(database_url: str | None = None) -> str:
                 raise ValueError(
                     "zukan db-roles runs with the database owner, not the runtime role"
                 )
-            for statement in statements(settings.db_app_user, settings.db_app_password, database):
+            for statement in role_statements(settings.db_app_user, database):
                 await conn.exec_driver_sql(statement)
+            await conn.exec_driver_sql(
+                password_statement(settings.db_app_user, settings.db_app_password)
+            )
     finally:
         await engine.dispose()
     return settings.db_app_user

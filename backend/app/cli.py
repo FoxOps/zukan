@@ -94,7 +94,7 @@ def main() -> None:
             if args.print_sql:
                 # Run with: psql -U tcg -d tcg -v app_password=... -f roles.sql
                 database = make_url(settings.database_url).database or "tcg"
-                for statement in db_roles.statements(settings.db_app_user, None, database):
+                for statement in db_roles.printable_sql(settings.db_app_user, database):
                     print(f"{statement};")
             else:
                 role = asyncio.run(db_roles.apply())

@@ -86,11 +86,11 @@ async def create_default_admin() -> None:
             settings.default_admin_username,
         )
     else:
-        path = write_initial_admin_password(password)
+        write_initial_admin_password(password)
         logger.warning(
             "Created default administrator %r, its password is in %s: sign in and change it",
             settings.default_admin_username,
-            path,
+            settings.admin_password_file,
         )
 
 

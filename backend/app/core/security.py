@@ -3,7 +3,6 @@ import os
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 import jwt
@@ -19,7 +18,7 @@ _hasher = PasswordHasher()
 _ALGORITHM = "HS256"
 
 
-def write_initial_admin_password(password: str) -> Path:
+def write_initial_admin_password(password: str) -> None:
     """Random password of the first administrator, in a file only the server's user can
     read (never in the log)."""
     path = get_settings().admin_password_file
@@ -28,7 +27,6 @@ def write_initial_admin_password(password: str) -> Path:
     with os.fdopen(fd, "w") as file:
         file.write(password + "\n")
     os.chmod(path, 0o600)
-    return path
 
 
 def forget_initial_admin_password(user: User) -> None:

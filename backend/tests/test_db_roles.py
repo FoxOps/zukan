@@ -48,12 +48,12 @@ async def test_runtime_role_reads_and_writes_only(app_role, session):
 
 def test_statements_refuse_bad_names_and_empty_password():
     with pytest.raises(ValueError):
-        db_roles.statements("bad; DROP", "x", "tcg")
+        db_roles.role_statements("bad; DROP", "tcg")
     with pytest.raises(ValueError):
-        db_roles.statements("zukan_app", "", "tcg")
+        db_roles.password_statement("zukan_app", "")
 
 
 def test_printed_sql_keeps_the_password_out():
     """`zukan db-roles --print-sql` takes the password from a psql variable."""
-    sql = "\n".join(db_roles.statements("zukan_app", None, "tcg"))
+    sql = "\n".join(db_roles.printable_sql("zukan_app", "tcg"))
     assert "PASSWORD :'app_password'" in sql
