@@ -2495,7 +2495,12 @@ upgrade (sessions backfilled).
   `TCG_CSP_MODE=enforce|report|off`.
 - [x] ZK-07 login page: spinner until the providers answer (never the local form by default), error +
   retry when they fail.
-- [x] Bootstrap admin: no preset password (random one logged once), not created with local login off.
+- [x] Bootstrap admin: no preset password, not created with local login off. Random password written to
+  `TCG_ADMIN_PASSWORD_FILE` (`./data/init/initial-admin-password`, 0600; api mounts `./data/init` (new
+  folder for anything the first start generates; database folder never mounted), entrypoint chowns it), deleted when that admin changes its password. Not logged (CodeQL
+  `py/clear-text-logging-sensitive-data`, user choice 2026-11-21).
+- [x] `zukan db-roles --print-sql` never prints the password: psql variable `:'app_password'`
+  (`psql -v app_password=...`).
 - [x] Referrer: live `strict-origin-when-cross-origin` comes from the operator's Caddy; documented.
 - [x] Docs: `UPGRADING.md` (step-by-step 0.28.0 upgrade), `.env.example` (`TCG_DB_APP_PASSWORD`,
   `ZUKAN_BIND`, `TCG_SSO_*`, `TCG_CSP_MODE`, admin password, offline_access), README link.

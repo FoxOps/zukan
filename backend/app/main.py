@@ -39,7 +39,7 @@ from app.core.middleware import (
     TextCompression,
     web_csp_headers,
 )
-from app.core.security import hash_password
+from app.core.security import hash_password, write_initial_admin_password
 from app.games.base import registry, shipped_folders
 from app.models import Game, Role, User
 from app.services import groups as groups_service
@@ -64,7 +64,7 @@ async def register_games() -> None:
 async def create_default_admin() -> None:
     """First start: create the default administrator so somebody can sign in. Not with
     local login off (SSO administrators come from their groups). Without a set password,
-    a random one is written once in the log."""
+    a random one is written to TCG_ADMIN_PASSWORD_FILE (not to the log)."""
     settings = get_settings()
     if not settings.local_login_enabled:
         return
@@ -86,10 +86,11 @@ async def create_default_admin() -> None:
             settings.default_admin_username,
         )
     else:
+        path = write_initial_admin_password(password)
         logger.warning(
-            "Created default administrator %r with password %s: sign in and change it",
+            "Created default administrator %r, its password is in %s: sign in and change it",
             settings.default_admin_username,
-            password,
+            path,
         )
 
 

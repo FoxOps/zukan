@@ -44,7 +44,8 @@ SQL needs to be run by hand.
    - `api` and `worker`: `TCG_DATABASE_URL` set to
      `postgresql+asyncpg://zukan_app:${TCG_DB_APP_PASSWORD}@db:5432/tcg`;
    - `api`: `depends_on: migrate: condition: service_completed_successfully`;
-   - `api` ports: `"${ZUKAN_BIND:-127.0.0.1}:${ZUKAN_PORT:-8000}:8000"`.
+   - `api` ports: `"${ZUKAN_BIND:-127.0.0.1}:${ZUKAN_PORT:-8000}:8000"`;
+   - `api` volumes: add `./data/init:/data/init`.
 
 4. **Check how the reverse proxy reaches Zukan.**
    - If Caddy runs on the same host, the default `127.0.0.1` binding works.
@@ -96,11 +97,13 @@ SQL needs to be run by hand.
    browser console lists.
 
 9. **Manual fallback.** If the `migrate` service cannot be used, print the SQL and run it
-   once as the owner:
+   once as the owner. The password is passed as a psql variable and is not written in
+   the file:
 
    ```sh
-   docker compose run --rm --no-deps -e TCG_DB_APP_PASSWORD=<password> api zukan db-roles --print-sql > roles.sql
-   docker compose exec -T db psql -U tcg -d tcg < roles.sql
+   docker compose run --rm --no-deps api zukan db-roles --print-sql > roles.sql
+   docker compose cp roles.sql db:/tmp/roles.sql
+   docker compose exec db psql -U tcg -d tcg -v app_password=<password> -f /tmp/roles.sql
    ```
 
    Then point `api` and `worker` at `zukan_app` as in step 3, and run `zukan db-roles`
@@ -116,7 +119,10 @@ SQL needs to be run by hand.
 - **Android SSO.** An ID token sent by the app gives one session only. The app is
   unchanged.
 - **First start on an empty database.** The default administrator `admin` gets a random
-  password, written once in the API log, unless `TCG_DEFAULT_ADMIN_PASSWORD` is set. No
+  password, written to `./data/init/initial-admin-password` (never to the log) unless
+  `TCG_DEFAULT_ADMIN_PASSWORD` is set. The file is deleted once that administrator
+  changes its password. `./data/init` is a new folder for what the first start
+  generates; the `api` service mounts it at `/data/init`. No
   default administrator is created when `TCG_LOCAL_LOGIN_ENABLED=false`.
 - **Referrer policy.** Zukan sends `Referrer-Policy: same-origin`. A reverse proxy that
   sets its own header replaces it. For example, a Caddy `header Referrer-Policy

@@ -1,7 +1,9 @@
 import hashlib
+import os
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import jwt
@@ -15,6 +17,24 @@ from app.models import RefreshToken, User
 
 _hasher = PasswordHasher()
 _ALGORITHM = "HS256"
+
+
+def write_initial_admin_password(password: str) -> Path:
+    """Random password of the first administrator, in a file only the server's user can
+    read (never in the log)."""
+    path = get_settings().admin_password_file
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as file:
+        file.write(password + "\n")
+    os.chmod(path, 0o600)
+    return path
+
+
+def forget_initial_admin_password(user: User) -> None:
+    """The first administrator chose its own password: the generated one goes away."""
+    if user.username == get_settings().default_admin_username:
+        get_settings().admin_password_file.unlink(missing_ok=True)
 
 
 def hash_password(password: str) -> str:

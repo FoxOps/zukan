@@ -16,13 +16,19 @@ from app.core.config import get_settings
 _ROLE_NAME = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 
 
-def statements(app_user: str, password: str, database: str) -> list[str]:
-    """SQL making `app_user` the runtime role of `database` (run by its owner)."""
+# Password in the printed SQL: a psql variable (`psql -v app_password=...`), so the
+# secret is never written out.
+PSQL_PASSWORD = ":'app_password'"
+
+
+def statements(app_user: str, password: str | None, database: str) -> list[str]:
+    """SQL making `app_user` the runtime role of `database` (run by its owner).
+    `password` None: the psql variable `app_password` instead."""
     if not _ROLE_NAME.match(app_user):
         raise ValueError(f"Invalid database role name {app_user!r}")
-    if not password:
+    if password == "":
         raise ValueError("Set TCG_DB_APP_PASSWORD to the runtime role's password")
-    secret = "'" + password.replace("'", "''") + "'"
+    secret = PSQL_PASSWORD if password is None else "'" + password.replace("'", "''") + "'"
     db = '"' + database.replace('"', '""') + '"'
     rights = (
         "LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT -1"

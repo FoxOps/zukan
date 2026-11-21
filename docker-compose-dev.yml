@@ -2,7 +2,7 @@
 #   docker compose -f docker-compose-dev.yml up --build
 # Separate project name and data folder (./data-dev) so it never shares containers or
 # data with a deployment. First start writes the password of the administrator `admin`
-# in the API log, unless TCG_DEFAULT_ADMIN_PASSWORD is set.
+# to ./data-dev/init/initial-admin-password, unless TCG_DEFAULT_ADMIN_PASSWORD is set.
 # All settings come from .env (documented in .env.example).
 name: zukan-dev
 
@@ -47,6 +47,9 @@ services:
       FORWARDED_ALLOW_IPS: ${TCG_FORWARDED_ALLOW_IPS:-127.0.0.1}
     volumes:
       - ./data-dev/images:/data/images
+      # What the first start generates: the administrator's password
+      # (initial-admin-password) when TCG_DEFAULT_ADMIN_PASSWORD is not set.
+      - ./data-dev/init:/data/init
       # Put downloaded image folders here (e.g. Sorcery Google Drive) to import them.
       - ./import:/data/import:ro
     ports:

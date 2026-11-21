@@ -56,17 +56,28 @@ async def test_default_admin_settings(client, session, monkeypatch):
     await bearer(client, "root", "custom-password")
 
 
-async def test_default_admin_random_password_logged_once(client, session, caplog):
-    """No preset password: a random one, only in the log of the start creating it."""
+async def test_default_admin_random_password_in_file(
+    client, session, caplog, tmp_path, monkeypatch
+):
+    """No preset password: a random one in a file only the server's user reads, never in
+    the log; gone once the administrator changes it."""
+    path = tmp_path / "data" / "initial-admin-password"
+    monkeypatch.setattr(get_settings(), "admin_password_file", path)
     await create_default_admin()
-    logged = [r.args for r in caplog.records if "Created default administrator" in r.msg]
-    assert len(logged) == 1
-    username, password = logged[0]
-    assert username == "admin" and len(password) >= 20
-    await bearer(client, "admin", password)
-    caplog.clear()
-    await create_default_admin()
-    assert not [r for r in caplog.records if "Created default administrator" in r.msg]
+    password = path.read_text().strip()
+    assert len(password) >= 20 and path.stat().st_mode & 0o777 == 0o600
+    assert not [r for r in caplog.records if password in r.getMessage()]
+    assert [r for r in caplog.records if str(path) in r.getMessage()]
+    headers = await bearer(client, "admin", password)
+    await create_default_admin()  # a restart keeps it
+    assert path.read_text().strip() == password
+    response = await client.post(
+        "/api/auth/password",
+        json={"current_password": password, "new_password": "a-better-password"},
+        headers=headers,
+    )
+    assert response.status_code == 204
+    assert not path.exists()
 
 
 async def test_default_admin_skipped_without_local_login(session, monkeypatch):

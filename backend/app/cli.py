@@ -19,7 +19,7 @@ from sqlalchemy import make_url, select
 from app.core import naming
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
-from app.core.security import end_all_sessions, hash_password
+from app.core.security import end_all_sessions, forget_initial_admin_password, hash_password
 from app.games.base import get_provider
 from app.main import register_games
 from app.models import JobKind, Role, User
@@ -39,6 +39,7 @@ async def create_admin(username: str, password: str) -> None:
         user.disabled = False
         user.password_hash = hash_password(password)
         await session.commit()
+    forget_initial_admin_password(user)
     print(f"Administrator {username!r} ready")
 
 
@@ -91,9 +92,9 @@ def main() -> None:
         settings = get_settings()
         try:
             if args.print_sql:
+                # Run with: psql -U tcg -d tcg -v app_password=... -f roles.sql
                 database = make_url(settings.database_url).database or "tcg"
-                password = settings.db_app_password or "CHANGE-ME"
-                for statement in db_roles.statements(settings.db_app_user, password, database):
+                for statement in db_roles.statements(settings.db_app_user, None, database):
                     print(f"{statement};")
             else:
                 role = asyncio.run(db_roles.apply())

@@ -51,3 +51,9 @@ def test_statements_refuse_bad_names_and_empty_password():
         db_roles.statements("bad; DROP", "x", "tcg")
     with pytest.raises(ValueError):
         db_roles.statements("zukan_app", "", "tcg")
+
+
+def test_printed_sql_keeps_the_password_out():
+    """`zukan db-roles --print-sql` takes the password from a psql variable."""
+    sql = "\n".join(db_roles.statements("zukan_app", None, "tcg"))
+    assert "PASSWORD :'app_password'" in sql

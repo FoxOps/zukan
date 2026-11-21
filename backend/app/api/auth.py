@@ -35,6 +35,7 @@ from app.core import oidc, ratelimit
 from app.core.config import get_settings
 from app.core.security import (
     end_all_sessions,
+    forget_initial_admin_password,
     hash_password,
     revoke_refresh_token,
     rotate_refresh_token,
@@ -319,6 +320,7 @@ async def change_password(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is wrong")
     user.password_hash = hash_password(body.new_password)
     await end_all_sessions(session, user)
+    forget_initial_admin_password(user)
     cookie_mode = not request.headers.get("Authorization", "").lower().startswith("bearer ")
     if cookie_mode:
         access, refresh = await start_session(session, user)

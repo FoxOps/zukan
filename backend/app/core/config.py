@@ -43,9 +43,12 @@ class Settings(BaseSettings):
     oidc_providers: list[str] = []
     local_login_enabled: bool = True
     # Administrator created on start when the database has no user yet and local login is
-    # on, so the first login works. Empty password: a random one, written once in the log.
+    # on, so the first login works. Empty password: a random one, written to
+    # `admin_password_file` (only readable by the server's user, deleted once that
+    # administrator changes its password).
     default_admin_username: str = "admin"
     default_admin_password: str = ""
+    admin_password_file: Path = Path("data/init/initial-admin-password")
 
     # Runtime database role made by `zukan db-roles` (run with the owner role of the
     # database, before the API and worker start): no superuser, only reads and writes
