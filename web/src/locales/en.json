@@ -36,5 +36,7 @@
   "{{count}} issues_one": "{{count}} issue",
   "{{count}} issues_other": "{{count}} issues",
   "{{count}} more in games hidden in Settings._one": "{{count}} more in a game hidden in Settings.",
-  "{{count}} more in games hidden in Settings._other": "{{count}} more in games hidden in Settings."
+  "{{count}} more in games hidden in Settings._other": "{{count}} more in games hidden in Settings.",
+  "{{count}} cards to get_one": "{{count}} card to get",
+  "{{count}} cards to get_other": "{{count}} cards to get"
 }

@@ -117,16 +117,38 @@ export function useChangeLanguage() {
   )
 }
 
-/** Once signed in, the language saved on the user wins (it may come from another
- * device), unless one was just chosen on the login page. */
-export function useServerLanguage(serverLang: string | undefined) {
+/** The browser's first language the interface has, else English. */
+export function browserLanguage(): Lang {
+  for (const tag of navigator.languages ?? [navigator.language]) {
+    const lang = tag?.split('-')[0]
+    if (isLang(lang)) return lang
+  }
+  return 'en'
+}
+
+/** Follow the browser's language again: the user's choice is forgotten, and the server
+ * takes the browser's language (Accept-Language) when the interface has it, else English. */
+export function useFollowBrowser() {
+  const client = useQueryClient()
+  return useCallback(() => {
+    void api.PATCH('/api/auth/me', { body: { language_chosen: false } }).then(({ data }) => {
+      if (data) void setLanguage(data.language)
+      return client.invalidateQueries()
+    })
+  }, [client])
+}
+
+/** Once signed in, the user's language wins: the one chosen (maybe on another device), else
+ * the one the server took from the browser (Accept-Language). A language just chosen on the
+ * login page is saved first. */
+export function useServerLanguage(serverLang: string | undefined, chosen: boolean | undefined) {
   const change = useChangeLanguage()
   useEffect(() => {
     if (!isLang(serverLang)) return
     const pending = session()?.getItem(PENDING_KEY)
     session()?.removeItem(PENDING_KEY)
-    if (isLang(pending) && pending !== serverLang) change(pending)
+    if (isLang(pending) && (pending !== serverLang || !chosen)) change(pending)
     else if (serverLang !== currentLanguage()) void setLanguage(serverLang)
-  }, [serverLang, change])
+  }, [serverLang, chosen, change])
 }
 

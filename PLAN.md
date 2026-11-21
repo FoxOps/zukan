@@ -2465,7 +2465,7 @@ Report from server 0.26.0 + Android 0.17.0. Branch `2026-11-20-001-modules-expor
 - Android: run on device against LAN server, scan real cards in EN/FR/JA for each game, confirm correct printing and stock change visible in web UI.
 
 ## Report 2026-11-21 (server 0.28.0, Android 0.17.1)
-Report from server 0.27.0 + Android 0.17.1 with the security audit of 2026-11-20 (tcg.derpfox.net,
+Report from server 0.27.0 + Android 0.17.1 with the security audit of 2026-11-20 (production server,
 findings ZK-01 to ZK-07). Branch `2026-11-21-000-security-audit-fixes` from `dev`, pull request into `dev`.
 Decisions (user, 2026-11-21): SSO absolute lifetime + IdP recheck, DB role split + loopback port, CSP
 enforced with a switch, random bootstrap password skipped without local login, no forced SSO sign-out on
@@ -2510,7 +2510,7 @@ upgrade (sessions backfilled).
   role rights), ruff, alembic check, migration backfill on seeded data, web build / oxlint / i18n. Live
   (API as `zukan_app`, port 8023, Playwright): every page without CSP violation, Modules card hidden when
   group-managed, no login form flash.
-- [ ] Operator: follow `UPGRADING.md` on tcg.derpfox.net (password, compose, Authentik offline_access).
+- [ ] Operator: follow `UPGRADING.md` on the production server (password, compose, Authentik offline_access).
 
 ## Report 2026-11-21 b (server 0.28.0, Android 0.17.1)
 Branch `2026-11-21-001-maintenance-mode-deck-ui` from `dev`, pull request into `dev`. No Dependabot pull
@@ -2592,3 +2592,51 @@ a check the format's data cannot make (and could hide a real problem).
   the data (Riftbound, Sorcery, GLC), Pauper Commander rarity.
 - [x] Verified: deck tests (a sound Standard deck has no note), ruff, web build / oxlint / i18n.
 
+
+### Report server 0.29.0 + Android 0.17.2: deck ownership, shopping lists, phone language (user, 2026-11-21)
+Branch `2026-11-21-006-deck-shopping-lists` from `dev`. Server 0.30.0 (new tables, API, dependency
+`fpdf2`), Android 0.18.0 (new tab). No Dependabot pull request open.
+Decisions (Q&A 2026-11-21): badges count copies other decks hold as missing; missing cards to the
+Collection with a "Without price" filter; shopping lists stored on the server per user, deleted only
+from the app, never automatically; PDF made on the server (`fpdf2`).
+- [x] Decks: `DeckOut.copies` / `owned` (allocated to the deck or free in the collection) /
+  `allocated`; badges "X/Y cards owned" and "X/Y cards in the deck" on deck cards and header.
+  `services.decks.stocks` computes every deck of the list in two queries (`stock` uses it).
+- [x] Shopping list: `GET /api/decks/{id}/shopping` (preview) and `/shopping/download?format=txt|md|pdf`
+  (check list in the user's language; `decks.line_missing` splits a card's missing copies by line,
+  printing first). PDF with built-in fonts: Latin-1 only, other scripts become "?" (English names and
+  fr/de/es translations are fine).
+- [x] Send to the app: `POST /api/decks/{id}/shopping-list` copies the missing cards into
+  `shopping_list` / `shopping_item` (migration `f7b1d4e8a953`; list kept when the deck is deleted).
+  `/api/shopping-lists`: list, detail, `PATCH .../items/{id}` `{bought}`, `DELETE` (app only, no web
+  button). Ticking only marks bought. Items keep `card_id` / `printing_id` so ticking could add the
+  card to the collection later (user: decide after trying it).
+- [x] Android: "Lists" tab (Decks module only): lists with bought / copies and "Complete", detail
+  with check boxes (optimistic, back to the old state on error), delete after a confirmation.
+- [x] Deck rename: input + Save joined, Cancel apart as a ghost button (the plain Cancel button had
+  the card's color, so Save looked square on the right).
+- [x] Set symbols: `SetIcon` component; Magic's black Scryfall symbols get `zukan-ink` (inverted on
+  the dark theme, chosen or system) in Binder, binder page and card printings. Other games' colored
+  symbols keep the white backing on card printings.
+- [x] Finance: `GET /api/collection?no_price=true` (same price as the sort: manual, else the user's
+  source); Collection "Without price" toggle (`?noprice=1`); "N without price" on Finance and the
+  Dashboard links there (with the game).
+- [x] Language: `user.language_chosen` (migration: true for accounts not in English; English ones
+  cannot be told from the default). Not chosen, the server sets the account's language (user:
+  "OS language if available in Zukan, else English"): `auth.ui_language` takes the first language
+  of the request's `Accept-Language` (by weight) the interface has, else "en", on `GET` / `PATCH
+  /api/auth/me`. Browsers send it; the Android app sends the phone's system locales (interceptor,
+  `acceptLanguage`, five at most). Clients apply the account's language; Android clears its
+  per-app language when not chosen. `PATCH {language_chosen:false}` forgets the choice.
+  Settings: "Phone language" (Android) / "Browser language" (web).
+  Root cause: since Android 0.14.0 the account's `language` (default "en") was always applied.
+- [x] Not done: shopping lists in export bundles (lists are short-lived, the bundle import would need them too).
+- [x] Versions: server 0.30.0, Android 0.18.0. `.env.example`: user agent 0.30.0 (was 0.28.0). No new variable.
+- [x] Verified: 345 backend tests (new `test_shopping`: badges with another deck's allocation, files,
+  list CRUD + other user, nothing to buy; `test_language`: Accept-Language parsing and choice;
+  `no_price` in `test_finance`), ruff,
+  alembic upgrade / check / downgrade, pip-audit; web tsc / oxlint / build / i18n / API types / npm
+  audit; Android unit tests (new `ShoppingTest`, `LanguageTest`), assembleDebug, lintDebug. Not
+  tried live.
+- [ ] User: try on the next dev image (Magic catalog needed for symbols and decks); release Android
+  0.18.0 with server 0.30.0 (older apps ignore `language_chosen` and keep the account's language).

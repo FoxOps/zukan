@@ -49,6 +49,11 @@ class CardStock:
         return max(0, self.requested - self.allocated - self.available)
 
     @property
+    def covered(self) -> int:
+        """Copies the user has for the deck: allocated to it, or free in the collection."""
+        return self.requested - self.missing
+
+    @property
     def status(self) -> str:
         if self.requested and self.allocated >= self.requested:
             return "allocated"
@@ -83,45 +88,68 @@ async def allocated_by_item(session: AsyncSession, item_ids: Iterable[int]) -> d
 
 async def stock(session: AsyncSession, deck: Deck, card_ids: Iterable[int]) -> dict[int, CardStock]:
     """Copies of each card for the deck (its cards loaded)."""
-    card_ids = set(card_ids)
-    result = {card_id: CardStock() for card_id in card_ids}
-    for entry in deck.cards:
-        if entry.card_id in result:
-            result[entry.card_id].requested += entry.quantity
-    if not card_ids:
+    return (await stocks(session, deck.user_id, [deck], {deck.id: set(card_ids)}))[deck.id]
+
+
+async def stocks(
+    session: AsyncSession,
+    user_id: int,
+    decks: list[Deck],
+    card_ids: dict[int, set[int]] | None = None,
+) -> dict[int, dict[int, CardStock]]:
+    """Copies of each card for each of a user's decks (their cards loaded), by deck id:
+    two queries whatever the number of decks. Without `card_ids`, every card of each deck."""
+    if card_ids is None:
+        card_ids = {d.id: {e.card_id for e in d.cards} for d in decks}
+    result = {d.id: {card_id: CardStock() for card_id in card_ids[d.id]} for d in decks}
+    for deck in decks:
+        for entry in deck.cards:
+            if entry.card_id in result[deck.id]:
+                result[deck.id][entry.card_id].requested += entry.quantity
+    every_card = set().union(*card_ids.values())
+    if not every_card:
         return result
     owned = await session.execute(
         select(CollectionItem.id, Printing.card_id, Printing.id, CollectionItem.quantity)
         .join(Printing)
-        .where(CollectionItem.user_id == deck.user_id, Printing.card_id.in_(card_ids))
+        .where(CollectionItem.user_id == user_id, Printing.card_id.in_(every_card))
     )
     card_of: dict[int, int] = {}
     printing_of: dict[int, int] = {}
-    free: dict[int, int] = {}
+    quantity_of: dict[int, int] = {}
     for item_id, card_id, printing_id, quantity in owned:
         card_of[item_id] = card_id
         printing_of[item_id] = printing_id
-        free[item_id] = quantity
-        result[card_id].owned += quantity
-    allocations = await session.execute(
-        select(DeckAllocation.item_id, DeckAllocation.deck_id, DeckAllocation.quantity).where(
-            DeckAllocation.item_id.in_(card_of)
+        quantity_of[item_id] = quantity
+    allocations = list(
+        await session.execute(
+            select(DeckAllocation.item_id, DeckAllocation.deck_id, DeckAllocation.quantity).where(
+                DeckAllocation.item_id.in_(card_of)
+            )
         )
     )
-    for item_id, deck_id, quantity in allocations:
-        card = result[card_of[item_id]]
-        card.allocated_all += quantity
-        free[item_id] -= quantity
-        if deck_id == deck.id:
-            card.allocated += quantity
-            by_printing = card.allocated_by_printing
-            by_printing[printing_of[item_id]] = by_printing.get(printing_of[item_id], 0) + quantity
-    for item_id, left in free.items():
-        card = result[card_of[item_id]]
-        if left > 0:
-            card.free_items += 1
-            available = card.available_by_printing
-            available[printing_of[item_id]] = available.get(printing_of[item_id], 0) + left
+    for deck in decks:
+        cards = result[deck.id]
+        free = {i: q for i, q in quantity_of.items() if card_of[i] in cards}
+        for item_id, quantity in free.items():
+            cards[card_of[item_id]].owned += quantity
+        for item_id, deck_id, quantity in allocations:
+            if item_id not in free:
+                continue
+            card = cards[card_of[item_id]]
+            card.allocated_all += quantity
+            free[item_id] -= quantity
+            if deck_id == deck.id:
+                card.allocated += quantity
+                by_printing = card.allocated_by_printing
+                printing_id = printing_of[item_id]
+                by_printing[printing_id] = by_printing.get(printing_id, 0) + quantity
+        for item_id, left in free.items():
+            card = cards[card_of[item_id]]
+            if left > 0:
+                card.free_items += 1
+                available = card.available_by_printing
+                available[printing_of[item_id]] = available.get(printing_of[item_id], 0) + left
     return result
 
 
@@ -450,3 +478,41 @@ async def set_line(
             set_={"quantity": quantity},
         )
     )
+
+
+def line_missing(
+    lines: list[tuple[int | None, int]],
+    allocated: list[int],
+    available_by_printing: dict[int, int],
+    missing: int,
+) -> list[int]:
+    """Copies still to get for each line (printing or None for any, quantity) of one card,
+    `allocated` its copies per line (`line_allocations`) and `missing` the card's
+    (`CardStock.missing`): free copies of a line's printing cover it first, those left
+    cover lines of any printing, and the card's free copies of other printings make up
+    the difference, taken off lines of any printing first, then from the last lines."""
+    left = dict(available_by_printing)
+    result = [quantity - done for (_, quantity), done in zip(lines, allocated, strict=True)]
+    for i, (printing_id, _) in enumerate(lines):
+        if printing_id is not None:
+            used = min(result[i], left.get(printing_id, 0))
+            result[i] -= used
+            left[printing_id] = left.get(printing_id, 0) - used
+    rest = sum(max(0, n) for n in left.values())
+    for i, (printing_id, _) in enumerate(lines):
+        if printing_id is None:
+            used = min(result[i], rest)
+            result[i] -= used
+            rest -= used
+    extra = sum(result) - missing
+    last_first = list(reversed(range(len(lines))))
+    order = [i for i in last_first if lines[i][0] is None] + [
+        i for i in last_first if lines[i][0] is not None
+    ]
+    for i in order:
+        if extra <= 0:
+            break
+        used = min(result[i], extra)
+        result[i] -= used
+        extra -= used
+    return result

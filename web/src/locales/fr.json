@@ -788,5 +788,20 @@
   "{{n}} companions, at most 1": "{{n}} compagnons, 1 au maximum",
   "{{name}} is not a companion": "{{name}} n'est pas un compagnon",
   "One card per line (\"4 Lightning Bolt\"). \"Commander\", \"Companion\" and \"Sideboard\" lines start those sections; a set code and number (\"(M10) 146\") choose the printing.": "Une carte par ligne (« 4 Lightning Bolt »). Les lignes « Commander », « Companion » et « Sideboard » commencent ces sections ; un code d'extension et un numéro (« (M10) 146 ») choisissent l'impression.",
-  "Not checked: Attraction and Contraption decks ({{names}})": "Non vérifié : decks d'Attractions et de Contraptions ({{names}})"
+  "Not checked: Attraction and Contraption decks ({{names}})": "Non vérifié : decks d'Attractions et de Contraptions ({{names}})",
+  "Without price": "Sans prix",
+  "Browser language ({{language}})": "Langue du navigateur ({{language}})",
+  "Shopping list": "Liste d'achats",
+  "Shopping list sent: open it in the Zukan Android app.": "Liste d'achats envoyée : ouvrez-la dans l'application Android Zukan.",
+  "Shopping list for {{name}}": "Liste d'achats pour {{name}}",
+  "Copies neither set aside for this deck nor free in your collection (copies other decks hold count as missing).": "Exemplaires ni réservés pour ce deck ni libres dans votre collection (ceux que d'autres decks utilisent comptent comme manquants).",
+  "You have every card of this deck.": "Vous avez toutes les cartes de ce deck.",
+  "{{count}} cards to get_one": "{{count}} carte à trouver",
+  "{{count}} cards to get_other": "{{count}} cartes à trouver",
+  "Download .{{format}}": "Télécharger .{{format}}",
+  "Send to the app": "Envoyer à l'application",
+  "Copies you have for this deck: set aside for it or free in your collection (copies other decks hold do not count)": "Exemplaires que vous avez pour ce deck : réservés pour lui ou libres dans votre collection (ceux d'autres decks ne comptent pas)",
+  "{{owned}}/{{copies}} cards owned": "{{owned}}/{{copies}} cartes possédées",
+  "Copies of your collection set aside for this deck": "Exemplaires de votre collection réservés pour ce deck",
+  "{{allocated}}/{{copies}} cards in the deck": "{{allocated}}/{{copies}} cartes dans le deck"
 }

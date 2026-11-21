@@ -235,4 +235,17 @@
     <string name="all_games">Tous les jeux</string>
     <string name="interface_language">Langue de l\'interface</string>
     <string name="interface_language_help">Les noms et images des cartes la suivent aussi. Partagé avec l\'interface web.</string>
+    <!-- Shopping lists (Decks module) -->
+    <string name="tab_shopping">Listes</string>
+    <string name="shopping_title">Listes d\'achats</string>
+    <string name="shopping_subtitle">Cartes manquantes de vos decks, envoyées depuis le web</string>
+    <string name="shopping_empty">Aucune liste d\'achats</string>
+    <string name="shopping_empty_help">Sur le web, ouvrez un deck, puis Liste d\'achats et Envoyer à l\'application.</string>
+    <string name="shopping_progress">%1$d / %2$d achetées</string>
+    <string name="shopping_complete">Terminée</string>
+    <string name="shopping_delete">Supprimer</string>
+    <string name="shopping_delete_title">Supprimer cette liste ?</string>
+    <string name="shopping_delete_text">La liste %1$s est supprimée définitivement. Votre collection et vos decks ne changent pas.</string>
+    <string name="cancel">Annuler</string>
+    <string name="phone_language">Langue du téléphone (%1$s)</string>
 </resources>

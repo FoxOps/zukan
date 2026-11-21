@@ -18,6 +18,7 @@ import { ExportDialog } from './Export'
 import { useFormatName } from './formats'
 import { ImportDialog } from './Import'
 import { FormatCheck } from './issues'
+import { ShoppingDialog } from './Shopping'
 
 type Detail = Schemas['DeckDetailOut']
 type Entry = Schemas['DeckEntryOut']
@@ -325,6 +326,7 @@ export default function DeckDetail() {
   const [copies, setCopies] = useState<Entry | null>(null)
   const [printing, setPrinting] = useState<{ row: Row; split: boolean } | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [shopping, setShopping] = useState(false)
   const [view, chooseView] = useView(DECK_VIEWS, 'tcg.deckView')
   const game = useGame(query.data?.deck.game_id)
 
@@ -485,17 +487,19 @@ export default function DeckDetail() {
               </h1>
             ) : (
               <form
-                className="join"
+                className="flex flex-wrap items-center gap-2"
                 onSubmit={(e) => {
                   e.preventDefault()
                   if (renaming.trim()) update.mutate({ name: renaming.trim() }, { onSuccess: () => setRenaming(null) })
                 }}
               >
-                <input className="input join-item" value={renaming} maxLength={100} autoFocus onChange={(e) => setRenaming(e.target.value)} aria-label={t('Name')} />
-                <button type="submit" className="btn btn-primary join-item" disabled={!renaming.trim()}>
-                  {t('Save')}
-                </button>
-                <button type="button" className="btn join-item" onClick={() => setRenaming(null)}>
+                <div className="join">
+                  <input className="input join-item" value={renaming} maxLength={100} autoFocus onChange={(e) => setRenaming(e.target.value)} aria-label={t('Name')} />
+                  <button type="submit" className="btn btn-primary join-item" disabled={!renaming.trim()}>
+                    {t('Save')}
+                  </button>
+                </div>
+                <button type="button" className="btn btn-ghost" onClick={() => setRenaming(null)}>
                   {t('Cancel')}
                 </button>
               </form>
@@ -525,6 +529,9 @@ export default function DeckDetail() {
             </button>
             <button className="btn btn-sm" onClick={() => setExporting(true)} disabled={entries.length === 0}>
               {t('Export')}
+            </button>
+            <button className="btn btn-sm" onClick={() => setShopping(true)} disabled={totals.missing === 0}>
+              {t('Shopping list')}
             </button>
             <button className="btn btn-ghost btn-sm text-error" onClick={() => setDeleting(true)}>
               {t('Delete')}
@@ -656,6 +663,7 @@ export default function DeckDetail() {
       <CopiesDialog deckId={deckId} entry={copies} onClose={() => setCopies(null)} />
       <PrintingDialog deckId={deckId} gameId={deck.game_id} row={printing?.row ?? null} split={printing?.split ?? false} onClose={() => setPrinting(null)} />
       <ExportDialog deck={deck} open={exporting} onClose={() => setExporting(false)} />
+      <ShoppingDialog deck={deck} open={shopping} onClose={() => setShopping(false)} />
 
       <dialog className={`modal ${deleting ? 'modal-open' : ''}`} onClose={() => setDeleting(false)}>
         {deleting && (

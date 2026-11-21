@@ -64,11 +64,16 @@ data class MeOut(
     val username: String,
     val role: String,
     val language: String = "en",
+    // False until the user picks a language: the app follows the phone's (servers before
+    // 0.30: always applied).
+    @SerialName("language_chosen") val languageChosen: Boolean = true,
     @SerialName("price_source") val priceSource: String = "cardmarket",
     // Shown price sources, main one first (servers before 0.7: only the main one).
     @SerialName("price_sources") val priceSources: List<String> = emptyList(),
     // Games shown in the catalog (search, scanner), null for all; shared with the web UI.
     @SerialName("catalog_games") val catalogGames: List<String>? = null,
+    // Optional modules the user has on ("decks": shopping lists).
+    val modules: List<String> = emptyList(),
 ) {
     val shownPriceSources get() = priceSources.ifEmpty { listOf(priceSource) }
 }
@@ -78,6 +83,8 @@ data class MeOut(
 data class SettingsIn(
     // Interface language ("en", "fr", "de", "es"); card names and pictures follow it.
     val language: String? = null,
+    // False: follow the phone's language again (the server takes it from Accept-Language).
+    @SerialName("language_chosen") val languageChosen: Boolean? = null,
     // Makes this source the main one.
     @SerialName("price_source") val priceSource: String? = null,
     @SerialName("price_sources") val priceSources: List<String>? = null,
@@ -333,3 +340,38 @@ data class CardOut(
 
 @Serializable
 data class ErrorOut(val detail: kotlinx.serialization.json.JsonElement? = null)
+
+/** A deck's missing cards sent from the web (Decks module): ticked while buying, deleted
+ * only here. Ticking does not change the collection. */
+@Serializable
+data class ShoppingListOut(
+    val id: Int,
+    // The deck's name when the list was made.
+    val name: String,
+    @SerialName("deck_id") val deckId: Int? = null,
+    @SerialName("game_id") val gameId: String,
+    @SerialName("created_at") val createdAt: String,
+    // Copies to get, and those ticked as bought.
+    val copies: Int,
+    val bought: Int,
+    val items: List<ShoppingItemOut> = emptyList(),
+) {
+    val complete get() = copies > 0 && bought >= copies
+}
+
+@Serializable
+data class ShoppingItemOut(
+    val id: Int,
+    @SerialName("card_id") val cardId: Int? = null,
+    @SerialName("printing_id") val printingId: Int? = null,
+    val name: String,
+    // Name in the account's language, when it differs.
+    val translation: String? = null,
+    @SerialName("set_code") val setCode: String? = null,
+    @SerialName("collector_number") val collectorNumber: String? = null,
+    val quantity: Int,
+    val bought: Boolean,
+)
+
+@Serializable
+data class ShoppingItemIn(val bought: Boolean)

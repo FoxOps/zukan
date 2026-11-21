@@ -7,6 +7,7 @@ import { gameGroups, gameLabel, useBinders, useGames, useMe, useSets, useShownGa
 import { HiddenGamesNote } from '../components/HiddenGames'
 import { FinishBadge, LangFlag } from '../components/Badges'
 import { Select } from '../components/Select'
+import { SetIcon } from '../components/SetIcon'
 import { useToast } from '../components/toast'
 import { finishName, languageName } from '../lib/format'
 
@@ -200,7 +201,7 @@ export default function BinderPage() {
             <Link key={b.id} to={`/binder/${b.id}`} className="card bg-base-200 transition-colors hover:bg-base-300">
               <div className="card-body gap-3">
                 <div className="flex items-start gap-3">
-                  {b.set.icon && <img src={b.set.icon} alt="" className="h-8 w-8 object-contain" loading="lazy" />}
+                  {b.set.icon && <SetIcon src={b.set.icon} game={b.game_id} className="h-8 w-8" />}
                   <div className="min-w-0">
                     <h2 className="card-title text-base leading-tight">{b.set.name}</h2>
                     <div className="text-xs text-base-content/60">

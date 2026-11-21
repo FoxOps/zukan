@@ -503,6 +503,10 @@ async def test_finance(client, session, alice):
     report = (await client.get("/api/collection/finance", headers=alice)).json()
     assert (report["currency"], report["value"], report["quantity"]) == ("EUR", "40.00", 7)
     assert (report["priced"], report["unpriced"], report["printings"]) == (5, 2, 2)
+    # The collection lists the cards without a price.
+    unpriced = (await client.get("/api/collection?no_price=true", headers=alice)).json()
+    assert [(i["printing_id"], i["quantity"]) for i in unpriced["items"]] == [(aqueduct.id, 2)]
+    assert unpriced["total"] == 1
     # 40 / 5 copies; median copy: 2.50 (four at 2.50, one at 30).
     assert (report["average"], report["median"]) == ("8.00", "2.50")
     changes = {c["days"]: c["past"] for c in report["changes"]}
