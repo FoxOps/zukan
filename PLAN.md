@@ -2465,7 +2465,7 @@ Report from server 0.26.0 + Android 0.17.0. Branch `2026-11-20-001-modules-expor
 - Android: run on device against LAN server, scan real cards in EN/FR/JA for each game, confirm correct printing and stock change visible in web UI.
 
 ## Report 2026-11-21 (server 0.28.0, Android 0.17.1)
-Report from server 0.27.0 + Android 0.17.1 with the security audit of 2026-11-20 (tcg.derpfox.net,
+Report from server 0.27.0 + Android 0.17.1 with the security audit of 2026-11-20 (production server,
 findings ZK-01 to ZK-07). Branch `2026-11-21-000-security-audit-fixes` from `dev`, pull request into `dev`.
 Decisions (user, 2026-11-21): SSO absolute lifetime + IdP recheck, DB role split + loopback port, CSP
 enforced with a switch, random bootstrap password skipped without local login, no forced SSO sign-out on
@@ -2510,7 +2510,7 @@ upgrade (sessions backfilled).
   role rights), ruff, alembic check, migration backfill on seeded data, web build / oxlint / i18n. Live
   (API as `zukan_app`, port 8023, Playwright): every page without CSP violation, Modules card hidden when
   group-managed, no login form flash.
-- [ ] Operator: follow `UPGRADING.md` on tcg.derpfox.net (password, compose, Authentik offline_access).
+- [ ] Operator: follow `UPGRADING.md` on the production server (password, compose, Authentik offline_access).
 
 ## Report 2026-11-21 b (server 0.28.0, Android 0.17.1)
 Branch `2026-11-21-001-maintenance-mode-deck-ui` from `dev`, pull request into `dev`. No Dependabot pull
