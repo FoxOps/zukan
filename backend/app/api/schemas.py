@@ -156,10 +156,22 @@ class UserUpdateIn(BaseModel):
 
 
 class MaintenanceOut(BaseModel):
-    """A catalog refresh slows the server down: users wait, administrators pass."""
+    """Users wait, administrators pass. `reason` "sync": a data sync slows the server down
+    (`game_id`: game of the job running); "admin": started by the administrator `by`."""
 
     since: datetime
-    game_id: str
+    game_id: str | None = None
+    reason: Literal["sync", "admin"] = "sync"
+    by: str | None = None
+
+
+class MaintenanceStateOut(BaseModel):
+    maintenance: MaintenanceOut | None = None
+
+
+class MaintenanceIn(BaseModel):
+    # On: users get the maintenance page until an administrator turns it off.
+    enabled: bool
 
 
 class HealthOut(BaseModel):

@@ -7,6 +7,33 @@ type Issue = Schemas['DeckIssueOut']
  * codes this page does not know yet). */
 function useIssueText() {
   const { t } = useTranslation()
+  // Condition of a Magic companion, by the server's rule id.
+  const companionRule = (rule: string, size?: number): string => {
+    switch (rule) {
+      case 'gyruda':
+        return t('every nonland card needs an even mana value')
+      case 'jegantha':
+        return t('no card may have the same mana symbol twice in its cost')
+      case 'kaheera':
+        return t('every creature must be a Cat, Elemental, Nightmare, Dinosaur or Beast')
+      case 'keruga':
+        return t('every nonland card needs a mana value of 3 or more')
+      case 'lurrus':
+        return t('every permanent card needs a mana value of 2 or less')
+      case 'lutri':
+        return t('every nonland card needs a different name')
+      case 'obosh':
+        return t('every nonland card needs an odd mana value')
+      case 'umori':
+        return t('every nonland card must share a card type')
+      case 'yorion':
+        return size ? t('the deck needs at least {{size}} cards', { size }) : t('the deck needs at least 20 cards more than the minimum')
+      case 'zirda':
+        return t('every permanent card needs an activated ability')
+      default:
+        return rule
+    }
+  }
   return (issue: Issue): string => {
     const p = (issue.params ?? {}) as Record<string, string | number | string[]>
     const n = p.count as number
@@ -100,8 +127,6 @@ function useIssueText() {
         return t('{{n}} Signature cards, at most 3 allowed', { n })
       case 'off_domain':
         return t("{{name}} is outside the legend's domains ({{domains}})", { name: p.name, domains: ((p.domains as string[]) ?? []).map((d) => t(d[0].toUpperCase() + d.slice(1))).join(', ') })
-      case 'domains_unchecked':
-        return t('Domains are checked once a legend is set')
       case 'bans_unchecked':
         return t('Not checked: the banned and restricted cards list')
       // Yu-Gi-Oh!, Sorcery.
@@ -111,14 +136,24 @@ function useIssueText() {
         return t('Rarity of {{n}} cards not known: copies not checked', { n })
       case 'glc_bans':
         return t('Not checked: the Gym Leader Challenge ban list')
-      case 'special_rules':
-        return t('Not checked: cards with special deck rules')
-      case 'color_identity_unchecked':
-        return t('Color identity is checked once a commander is set')
-      case 'pair_by_text':
-        return t("Commander pairs (Partner, Friends forever, Background, Doctor's companion) are checked from rules text")
       case 'not_modelled':
-        return t('Not checked: companion deck conditions, cards with other special deck rules')
+        return t('Not checked: Attraction and Contraption decks ({{names}})', { names: ((p.names as string[]) ?? []).slice(0, 5).join(', ') })
+      // Magic companions.
+      case 'companion': {
+        const names = ((p.names as string[]) ?? []).slice(0, 5)
+        const rule = companionRule(p.rule as string, p.size as number | undefined)
+        return names.length
+          ? t('{{name}} cannot be your companion: {{rule}} ({{names}})', { name: p.name, rule, names: names.join(', ') + (((p.names as string[]) ?? []).length > 5 ? '…' : '') })
+          : t('{{name}} cannot be your companion: {{rule}}', { name: p.name, rule })
+      }
+      case 'companion_count':
+        return t('{{n}} companions, at most 1', { n })
+      case 'not_companion':
+        return t('{{name}} is not a companion', { name: p.name })
+      case 'companion_unknown':
+        return t('{{name}}: companion condition not checked', { name: p.name })
+      case 'companion_value_unknown':
+        return t('{{name}}: mana value of some cards not known (sync the Magic catalog again)', { name: p.name })
       default:
         return issue.message
     }
@@ -127,46 +162,36 @@ function useIssueText() {
 
 const LEVEL = { error: 'text-error', warning: 'text-warning', info: 'text-info' } as const
 
-/** Format check: issues (never blocking: a draft can be saved) and the checks that
- * could not be made. */
-export function Validation({ validation }: { validation: Schemas['DeckValidationOut'] }) {
+/** Format check, in the deck's header under its count and status badge: the issues
+ * (never blocking: a draft can be saved) and, folded, the checks that could not be made. */
+export function FormatCheck({ validation }: { validation: Schemas['DeckValidationOut'] }) {
   const { t } = useTranslation()
   const text = useIssueText()
+  if (validation.issues.length === 0 && validation.unverified.length === 0) return null
   return (
-    <div className="card bg-base-200">
-      <div className="card-body gap-2 p-4">
-        <h2 className="flex items-center gap-2 font-semibold">
-          {t('Format check')}
-          {validation.valid ? (
-            <span className="badge badge-sm badge-success">{t('Format rules met')}</span>
-          ) : (
-            <span className="badge badge-sm badge-warning">{t('{{count}} issues', { count: validation.issues.filter((i) => i.level === 'error').length })}</span>
-          )}
-        </h2>
-        {validation.issues.length > 0 && (
-          <ul className="flex flex-col gap-1 text-sm">
-            {validation.issues.map((issue, i) => (
-              <li key={i} className="flex gap-2">
-                <span className={`${LEVEL[issue.level]} font-bold`} aria-hidden>
-                  {issue.level === 'error' ? '✕' : issue.level === 'warning' ? '!' : 'i'}
-                </span>
-                <span>{text(issue)}</span>
-              </li>
+    <div className="mt-2 flex flex-col gap-1">
+      {validation.issues.length > 0 && (
+        <ul className="gap-x-6 text-sm lg:columns-2" title={t('Issues never block saving: keep editing your draft.')}>
+          {validation.issues.map((issue, i) => (
+            <li key={i} className="flex break-inside-avoid gap-2">
+              <span className={`${LEVEL[issue.level]} font-bold`} aria-hidden>
+                {issue.level === 'error' ? '✕' : issue.level === 'warning' ? '!' : 'i'}
+              </span>
+              <span>{text(issue)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {validation.unverified.length > 0 && (
+        <details className="text-xs text-base-content/70">
+          <summary className="w-fit cursor-pointer text-base-content/60">{t('Not verified ({{n}})', { n: validation.unverified.length })}</summary>
+          <ul className="mt-1 flex flex-col gap-1">
+            {validation.unverified.map((issue, i) => (
+              <li key={i}>? {text(issue)}</li>
             ))}
           </ul>
-        )}
-        {validation.unverified.length > 0 && (
-          <div className="mt-1 border-t border-base-300 pt-2">
-            <div className="text-xs font-semibold uppercase text-base-content/60">{t('Not verified')}</div>
-            <ul className="mt-1 flex flex-col gap-1 text-xs text-base-content/70">
-              {validation.unverified.map((issue, i) => (
-                <li key={i}>? {text(issue)}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        <p className="text-xs text-base-content/50">{t('Issues never block saving: keep editing your draft.')}</p>
-      </div>
+        </details>
+      )}
     </div>
   )
 }

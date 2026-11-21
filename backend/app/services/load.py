@@ -13,6 +13,11 @@ the API), administrators keep access to watch or cancel the job. Once in, it sta
 data sync is over: no job (any kind, any game) running for `IDLE` samples in a row, so the
 short gaps between the jobs of one worker run don't end it. Leaving as soon as the server
 looked fast again made the page come and go during a sync.
+
+Administrators can also start maintenance by hand (Admin > Server) before heavy work on the
+server. That one is stored in the `maintenance` setting, so it survives restarts and every
+API process reads it at each sample; it lasts until an administrator stops it and comes
+before the automatic one. `TCG_MAINTENANCE_ENABLED` only turns the automatic one off.
 """
 
 import asyncio
@@ -22,12 +27,14 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Literal
 
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
-from app.models import JobKind, JobStatus, SyncRun
+from app.models import AppSetting, JobKind, JobStatus, SyncRun
 
 log = logging.getLogger(__name__)
 
@@ -36,13 +43,20 @@ SAMPLE_SECONDS = 2.0
 # leave (30 s).
 WINDOW = 10
 IDLE = 15
+# Setting holding the maintenance started by an administrator: {"since", "by"}.
+SETTING_KEY = "maintenance"
 
 
 @dataclass(frozen=True)
 class Maintenance:
     since: datetime
-    # Game whose job is running (the catalog refresh that started it, then the next ones).
-    game_id: str
+    # Game whose job is running (the catalog refresh that started it, then the next ones);
+    # none for a maintenance started by an administrator.
+    game_id: str | None = None
+    # "sync": a data sync slows the server down; "admin": started by an administrator.
+    reason: Literal["sync", "admin"] = "sync"
+    # Administrator who started it.
+    by: str | None = None
 
 
 class LoadMonitor:
@@ -90,12 +104,49 @@ class LoadMonitor:
 
 
 _monitor: LoadMonitor | None = None
+# Maintenance started by an administrator, as last read from the database.
+_manual: Maintenance | None = None
 # Durations (ms) of the API requests answered since the last sample.
 _requests: list[float] = []
 
 
 def maintenance() -> Maintenance | None:
+    """Current maintenance: the administrator's first, else the automatic one."""
+    if _manual is not None:
+        return _manual
     return _monitor.state if _monitor is not None else None
+
+
+async def _read_manual(session: AsyncSession) -> Maintenance | None:
+    row = await session.get(AppSetting, SETTING_KEY, populate_existing=True)
+    if row is None:
+        return None
+    return Maintenance(
+        since=datetime.fromisoformat(row.value["since"]), reason="admin", by=row.value.get("by")
+    )
+
+
+async def load_manual() -> None:
+    """Reads the administrator's maintenance (another API process may have changed it)."""
+    global _manual
+    async with get_sessionmaker()() as session:
+        _manual = await _read_manual(session)
+
+
+async def set_manual(session: AsyncSession, enabled: bool, by: str) -> Maintenance | None:
+    """Starts (kept as is when already on) or stops the administrator's maintenance."""
+    global _manual
+    row = await session.get(AppSetting, SETTING_KEY)
+    if enabled and row is None:
+        now = datetime.now(UTC)
+        session.add(AppSetting(key=SETTING_KEY, value={"since": now.isoformat(), "by": by}))
+        log.warning("Maintenance started by %s", by)
+    elif not enabled and row is not None:
+        await session.delete(row)
+        log.info("Maintenance ended by %s", by)
+    await session.commit()
+    _manual = await _read_manual(session)
+    return _manual
 
 
 def record_request(duration_ms: float) -> None:
@@ -135,15 +186,22 @@ async def watch() -> None:
     """Sample forever (API process lifespan task)."""
     global _monitor
     settings = get_settings()
-    if not settings.maintenance_enabled:
-        return
-    _monitor = LoadMonitor(settings.maintenance_latency_ms)
+    # Off: only the administrator's maintenance.
+    if settings.maintenance_enabled:
+        _monitor = LoadMonitor(settings.maintenance_latency_ms)
+    try:
+        await load_manual()
+    except Exception:
+        log.exception("Maintenance setting not read")
     while True:
         start = time.perf_counter()
         await asyncio.sleep(SAMPLE_SECONDS)
         # Event loop delay: how late this task wakes up.
         delay = max(0.0, (time.perf_counter() - start - SAMPLE_SECONDS) * 1000)
         try:
+            await load_manual()
+            if _monitor is None:
+                continue
             latency, activity = await _sample(delay)
         except Exception:
             log.exception("Load sample failed")

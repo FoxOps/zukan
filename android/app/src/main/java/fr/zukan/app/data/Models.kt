@@ -13,8 +13,15 @@ data class HealthOut(
     val maintenance: MaintenanceOut? = null,
 )
 
+/** `reason` (server 0.29.0+): "sync" (a data sync slows the server, `gameId` set) or
+ * "admin" (started by an administrator, no game). */
 @Serializable
-data class MaintenanceOut(val since: String, @SerialName("game_id") val gameId: String)
+data class MaintenanceOut(
+    val since: String,
+    @SerialName("game_id") val gameId: String? = null,
+    val reason: String = "sync",
+    val by: String? = null,
+)
 
 @Serializable
 data class ProvidersOut(

@@ -8,18 +8,12 @@ import { AdvancedFilters, ColorFilter, SearchInput, SetSelect, type ColorMode } 
 import { Pagination } from '../../components/Pagination'
 import { Select } from '../../components/Select'
 import { ShownName } from '../../components/ShownName'
-import { ViewToggle } from '../../components/ViewToggle'
-import { gridIcon, listIcon, type ViewChoice } from '../../lib/views'
 
 type Card = Schemas['CardSummaryOut']
 type Entry = Schemas['DeckEntryOut']
 type Section = Schemas['DeckSectionOut']['id']
 
 const PAGE_SIZE = 24
-const VIEWS: ViewChoice[] = [
-  { id: 'list', label: 'List', icon: listIcon },
-  { id: 'images', label: 'Images', icon: gridIcon },
-]
 
 /** Copies of a card in the deck ("× 3"), and the user's copies. */
 function Counts({ card, entry }: { card: Card; entry?: Entry }) {
@@ -36,13 +30,15 @@ function Counts({ card, entry }: { card: Card; entry?: Entry }) {
  * colors, game filters, owned cards only) and add cards to a section. With a set
  * chosen, the card's printing of that set is added; otherwise any printing. The main
  * deck takes each card to its own section (a rune to the rune deck, a site to the
- * atlas); with one section (Pokémon, Lorcana) there is no choice. */
+ * atlas); with one section (Pokémon, Lorcana) there is no choice. Results follow the
+ * deck page's list / images view. */
 export function AddCards({
   deck,
   entries,
   onAdd,
   sections,
   busy,
+  view,
 }: {
   deck: Schemas['DeckOut']
   entries: Entry[]
@@ -50,6 +46,8 @@ export function AddCards({
   // The format's sections and their shown names.
   sections: { id: Section; name: string }[]
   busy: boolean
+  // The deck page's view: 'list' or 'images'.
+  view: string
 }) {
   const { t } = useTranslation()
   const game = useGame(deck.game_id)
@@ -61,7 +59,6 @@ export function AddCards({
   const [attrs, setAttrs] = useState<string[]>([])
   const [owned, setOwned] = useState(false)
   const [page, setPage] = useState(1)
-  const [view, setView] = useState('list')
   const [section, setSection] = useState<Section>('main')
   // Any change of the search goes back to its first page.
   const refine = <T,>(set: (value: T) => void) => (value: T) => {
@@ -155,7 +152,6 @@ export function AddCards({
                     {t('{{count}} cards', { count: results.data.total })}
                     {results.isPlaceholderData && <span className="loading loading-spinner loading-xs" aria-label={t('Loading')} />}
                   </div>
-                  <ViewToggle views={VIEWS} value={view} onChange={setView} />
                 </div>
                 {cards.length === 0 ? (
                   <p className="text-sm text-base-content/60">{t('No cards found')}</p>
@@ -163,10 +159,24 @@ export function AddCards({
                   <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 2xl:grid-cols-8">
                     {cards.map((card) => (
                       <div key={card.id} className="flex flex-col gap-1">
-                        <button type="button" className="group relative" disabled={busy} onClick={() => add(card)} title={card.name}>
-                          <CardImage thumb src={card.image} alt={card.name} game={deck.game_id} landscape={card.orientation === 'landscape'} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
+                        {/* Not a <button>: the flip button of double-faced cards sits inside
+                            (it stops its click, so turning the card adds nothing). */}
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          aria-disabled={busy}
+                          className="group relative cursor-pointer"
+                          onClick={() => !busy && add(card)}
+                          onKeyDown={(e) => {
+                            if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
+                            e.preventDefault()
+                            if (!busy) add(card)
+                          }}
+                          title={card.name}
+                        >
+                          <CardImage thumb src={card.image} back={card.back_image} alt={card.name} game={deck.game_id} landscape={card.orientation === 'landscape'} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
                           <span className="badge badge-primary badge-sm absolute right-[3%] top-[3%] shadow">+1</span>
-                        </button>
+                        </div>
                         <span className="truncate text-xs font-medium">
                           <ShownName name={card.name} translation={card.translation} />
                         </span>

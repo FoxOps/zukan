@@ -2512,3 +2512,83 @@ upgrade (sessions backfilled).
   group-managed, no login form flash.
 - [ ] Operator: follow `UPGRADING.md` on tcg.derpfox.net (password, compose, Authentik offline_access).
 
+## Report 2026-11-21 b (server 0.28.0, Android 0.17.1)
+Branch `2026-11-21-001-maintenance-mode-deck-ui` from `dev`, pull request into `dev`. No Dependabot pull
+request open. Decisions (user, 2026-11-21): the duplicate deck switch is the Add cards one; manual
+maintenance on a new Admin › Server page; `maintenance.game_id` nullable with Android 0.17.2.
+- [x] `UPGRADING.md` removed (not needed any more), README link dropped.
+- [x] Decks: one List / Images switch (above the deck cards); the Add cards search results follow it
+  (their own switch removed).
+- [x] Decks: format check moved from the side card into the deck header, under the existing count /
+  status badge (no second badge): issues in two columns on wide screens, "Not verified (n)" folded,
+  "never blocks saving" as hover text; deck cards use the full width.
+- [x] Friendly page instead of "Something went wrong": `MaintenanceScreen` (same texts as the server
+  maintenance page) for route errors (except 404 and "new version"), `me` failures other than
+  401/403, and a health check without answer (0, 502, 503, 504: server restarting or stopped). No
+  toast for those statuses. Comes back by itself once the server answers after being seen down
+  (no reload loop when it never stopped). Plain 500 on one request keeps its toast. A page whose
+  code fails to load checks the server first: unreachable = maintenance page (was "A new version is
+  available" during a restart), reachable = new version.
+- [x] Server maintenance page served even when the database is unreachable (anonymous language).
+- [x] Admin › Server: start / stop maintenance by hand (confirm dialog). Setting `maintenance`
+  (`{"since", "by"}`) in `app_setting`: survives restarts, read by every API process at each 2 s
+  sample, before the automatic one. `GET/PUT /api/admin/maintenance`. `MaintenanceOut` gains
+  `reason` ("sync" / "admin") and `by`; `game_id` nullable. Admin banner per reason. 503 message
+  generic. `TCG_MAINTENANCE_ENABLED=false` now only turns the automatic mode off.
+- [x] Data sync: "Automatic updates" schedule collapsible, closed by default, remembered per browser
+  (`tcg.scheduleOpen`), kept open with unsaved edits ("Not saved" badge).
+- [x] Android: `MaintenanceOut.gameId` nullable, `reason`, `by` (HealthTest), 0.17.2.
+- [x] Versions: server 0.29.0 (new admin feature, API fields). Android 0.17.2.
+- [x] `.env.example`: `TCG_MAINTENANCE_ENABLED` note. No new variable.
+- [x] Verified: 336 backend tests (new: admin start/stop + precedence + reload from DB, page without
+  database), ruff, alembic check, web build / oxlint / i18n, Android HealthTest (4/4). Live (API on
+  port 8023, Playwright): Server page start / stop with banner, users 503 + maintenance page, admin
+  maintenance kept across an API restart, API stopped mid-session = maintenance screen then back by
+  itself, schedule folded, deck header and single view switch.
+- [ ] User: try Admin › Server maintenance on the next dev image; release Android 0.17.2 with server 0.29.0.
+
+### Magic companions in the format check (user, 2026-11-21)
+Branch `2026-11-21-002-mtg-companion-check` from `dev`. Same unreleased server 0.29.0 (no bump), no
+Android change.
+- [x] Companion section for Magic decks (user's choice over "any companion in the sideboard", which
+  flagged a Lurrus boarded in as a plain card): one card, outside the deck; constructed: counted in
+  the sideboard's 15 and in copy limits; commander formats: outside the 100, within the commanders'
+  color identity; its legality checked. Import "Companion" header (MTG Arena) goes there, export
+  writes a "Companion" block. Companion cards in the main deck or sideboard are ordinary cards.
+  Errors `companion_count` (more than one), `not_companion`. No migration (section is text).
+- [x] `deck_rules._check_companions`: the companion (the 10 Ikoria ones, by front face name) in the
+  Companion section must have its condition met by the starting deck (main deck + commanders): Gyruda even /
+  Obosh odd / Keruga 3+ mana values of nonland cards, Lurrus permanents 2 or less, Jegantha no repeated
+  mana symbol, Kaheera creature types (changeling passes), Lutri singleton, Umori one shared card
+  type, Yorion 20 over the minimum (never in exact-size formats), Zirda permanents with an activated
+  ability (rules text, basic land types pass; noted as text-based). Modal double-faced / transforming / adventure cards use the front face, split cards both
+  halves. Unknown "Companion —" cards and missing mana values go to "Not verified".
+- [x] Issue `companion` (params `rule`, `names`, `size`), web text per rule in fr/de/es; the
+  "not_modelled" note now only names other special deck rules.
+- [x] Verified: 337 backend tests (new `test_companions`, companion export / import round trip),
+  ruff, web build / oxlint / i18n. Not tried live (no Magic catalog on the test database).
+
+### Decks: double-faced cards turn over (user, 2026-11-21)
+Branch `2026-11-21-003-deck-card-backs` from `dev`. Same unreleased server 0.29.0, no Android change.
+- [x] `DeckEntryOut.back_image` (back of the printing whose picture is shown: allocated copy's, else
+  the card's) and `DeckLineOut.back_image` (the line's printing), from `catalog.back_image_link`.
+- [x] Deck images view and Add cards image results get the flip button of `CardImage`, as in
+  Collection and Catalog. The Add cards tile is a clickable div (role button, Enter / Space) instead
+  of a `<button>`, so the flip button can sit inside without adding the card. List views keep their
+  small thumbnails without flip.
+- [x] Verified: deck tests (new `test_double_faced_cards_show_their_back`), ruff, web build / oxlint
+  / i18n. Not tried live (no Magic catalog on the test database).
+
+### Decks: "Not verified" only about the deck (user, 2026-11-21)
+User: notes like "Not checked: cards with other special deck rules" are useless when nothing is wrong.
+Branch `2026-11-21-004-deck-check-notes` from `dev`. Rule: a note must be about cards in the deck or
+a check the format's data cannot make (and could hide a real problem).
+- [x] Removed: `not_modelled` on every Magic deck, `special_rules` (Pokémon, Yu-Gi-Oh!), the
+  "checked from rules text" notes (`pair_by_text`, `zirda_by_text`), and the notes repeating an
+  issue already shown (`color_identity_unchecked` next to "Choose a commander" / oathbreaker,
+  `domains_unchecked` next to the missing Riftbound legend).
+- [x] `not_modelled` now only when the deck holds Attraction / Contraption cards, naming them.
+- [x] Kept: legality / stage / mana value unknown (named cards), unknown companion, ban lists not in
+  the data (Riftbound, Sorcery, GLC), Pauper Commander rarity.
+- [x] Verified: deck tests (a sound Standard deck has no note), ruff, web build / oxlint / i18n.
+

@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { isRouteErrorResponse, Link, useRouteError } from 'react-router'
 import { ApiError } from '../api/client'
+import { MaintenanceScreen } from './Maintenance'
 
 /** A page-sized error in the app's theme, with what can be done about it. */
 export function ErrorScreen({ title, text, onRetry, home = true }: { title: string; text?: string; onRetry?: () => void; home?: boolean }) {
@@ -37,24 +39,31 @@ export default function ErrorPage() {
   const error = useRouteError()
   if (isRouteErrorResponse(error) && error.status === 404) return <ErrorScreen title={t('Not found')} />
   const message = error instanceof Error ? error.message : ''
-  // Page code from an older version, removed by an update of the server.
-  if (/dynamically imported module|module script failed|Loading chunk/i.test(message)) {
-    return (
-      <ErrorScreen
-        title={t('A new version is available')}
-        text={t('Reload the page to use it.')}
-        onRetry={() => window.location.reload()}
-        home={false}
-      />
-    )
-  }
-  if (error instanceof ApiError) return <ErrorScreen title={t('Something went wrong')} text={error.message} onRetry={() => window.location.reload()} />
-  console.error(error)
+  if (/dynamically imported module|module script failed|Loading chunk/i.test(message)) return <PageCodeMissing />
+  // Anything else (server restarting or failing, page error): the calm maintenance page,
+  // details only in the console.
+  if (!(error instanceof ApiError)) console.error(error)
+  return <MaintenanceScreen />
+}
+
+/** Page code not loaded: the server is down (restart, update in progress), or answers
+ * and removed it with an update (new version). */
+function PageCodeMissing() {
+  const { t } = useTranslation()
+  const [reachable, setReachable] = useState<boolean | null>(null)
+  useEffect(() => {
+    fetch('/api/health', { cache: 'no-store' })
+      .then((r) => setReachable(r.ok))
+      .catch(() => setReachable(false))
+  }, [])
+  if (reachable === null) return <span className="loading loading-spinner loading-lg m-auto block" />
+  if (!reachable) return <MaintenanceScreen />
   return (
     <ErrorScreen
-      title={t('Something went wrong')}
-      text={t('This page could not be shown. Reload it, and report the problem if it happens again.')}
+      title={t('A new version is available')}
+      text={t('Reload the page to use it.')}
       onRetry={() => window.location.reload()}
+      home={false}
     />
   )
 }

@@ -51,5 +51,14 @@ class HealthTest {
         val health = health("""{"status":"ok","version":"0.20.1","maintenance":{"since":"2026-10-29T10:00:00Z","game_id":"mtg"}}""")
         assertEquals("0.20.1", health.version)
         assertEquals("mtg", health.maintenance?.gameId)
+        assertEquals("sync", health.maintenance?.reason)
+    }
+
+    @Test
+    fun adminMaintenance() = runTest {
+        val health = health("""{"status":"ok","version":"0.29.0","maintenance":{"since":"2026-11-21T10:00:00Z","game_id":null,"reason":"admin","by":"root"}}""")
+        assertEquals("admin", health.maintenance?.reason)
+        assertNull(health.maintenance?.gameId)
+        assertEquals("root", health.maintenance?.by)
     }
 }

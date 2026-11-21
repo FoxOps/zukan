@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from app import modules
 from app.api import games
 from app.api.deps import AdminUser, SessionDep
+from app.api.schemas import MaintenanceIn, MaintenanceOut, MaintenanceStateOut
 from app.core.budget import period_start
 from app.core.config import get_settings
 from app.core.http import http_client
@@ -28,7 +29,7 @@ from app.models import (
     SyncRun,
     UserGroup,
 )
-from app.services import catalog, crosscheck, images, jobs, prices, refresh, schedule
+from app.services import catalog, crosscheck, images, jobs, load, prices, refresh, schedule
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -279,6 +280,28 @@ async def preview_sync_schedule(body: SyncScheduleIn, _: AdminUser) -> SyncSched
     """Next set times of a schedule being edited, without saving it."""
     out = _schedule_out(_validated(body))
     return out.model_copy(update={"is_default": False})
+
+
+def _maintenance_out(state: load.Maintenance | None) -> MaintenanceStateOut:
+    return MaintenanceStateOut(
+        maintenance=MaintenanceOut.model_validate(state, from_attributes=True) if state else None
+    )
+
+
+@router.get("/maintenance")
+async def get_maintenance(_: AdminUser) -> MaintenanceStateOut:
+    """Current maintenance, started by an administrator or by a data sync."""
+    return _maintenance_out(load.maintenance())
+
+
+@router.put("/maintenance")
+async def set_maintenance(
+    body: MaintenanceIn, admin: AdminUser, session: SessionDep
+) -> MaintenanceStateOut:
+    """Starts or stops the maintenance page for users (heavy work on the server).
+    Administrators keep access. A maintenance started by a data sync is not stopped here."""
+    await load.set_manual(session, body.enabled, admin.username)
+    return _maintenance_out(load.maintenance())
 
 
 @router.post("/jobs/{game_id}/{kind}", status_code=status.HTTP_202_ACCEPTED)

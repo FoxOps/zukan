@@ -1174,6 +1174,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/maintenance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Maintenance
+         * @description Current maintenance, started by an administrator or by a data sync.
+         */
+        get: operations["get_maintenance_api_admin_maintenance_get"];
+        /**
+         * Set Maintenance
+         * @description Starts or stops the maintenance page for users (heavy work on the server).
+         *     Administrators keep access. A maintenance started by a data sync is not stopped here.
+         */
+        put: operations["set_maintenance_api_admin_maintenance_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/jobs/{game_id}/{kind}": {
         parameters: {
             query?: never;
@@ -1795,7 +1820,7 @@ export interface components {
             /** Card Id */
             card_id: number;
             /** Section */
-            section?: ("commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard") | null;
+            section?: ("commander" | "companion" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard") | null;
             /** Printing Id */
             printing_id?: number | null;
             /** Quantity */
@@ -1825,6 +1850,8 @@ export interface components {
             translation?: string | null;
             /** Image */
             image: string | null;
+            /** Back Image */
+            back_image?: string | null;
             /**
              * Orientation
              * @default portrait
@@ -1902,7 +1929,7 @@ export interface components {
             /** Sections */
             sections: components["schemas"]["DeckSectionOut"][];
             /** Counted */
-            counted: ("commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard")[];
+            counted: ("commander" | "companion" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard")[];
         };
         /** DeckGameOut */
         DeckGameOut: {
@@ -1920,7 +1947,7 @@ export interface components {
              * @default main
              * @enum {string}
              */
-            section: "commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
+            section: "commander" | "companion" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
             /** Printing Id */
             printing_id?: number | null;
             /** Quantity */
@@ -1950,7 +1977,7 @@ export interface components {
              * Section
              * @enum {string}
              */
-            section: "commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
+            section: "commander" | "companion" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
             /** Set Code */
             set_code?: string | null;
             /** Collector Number */
@@ -2074,7 +2101,7 @@ export interface components {
              * @default main
              * @enum {string}
              */
-            section: "commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
+            section: "commander" | "companion" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
             /** Printing Id */
             printing_id?: number | null;
             /** To Printing Id */
@@ -2091,7 +2118,7 @@ export interface components {
              * Section
              * @enum {string}
              */
-            section: "commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
+            section: "commander" | "companion" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
             /** Printing Id */
             printing_id: number | null;
             /** Set Code */
@@ -2104,6 +2131,8 @@ export interface components {
             quantity: number;
             /** Image */
             image?: string | null;
+            /** Back Image */
+            back_image?: string | null;
             /** Allocated */
             allocated: number;
             /** Available */
@@ -2166,7 +2195,7 @@ export interface components {
              * Id
              * @enum {string}
              */
-            id: "commander" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
+            id: "commander" | "companion" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard";
             /** Name */
             name: string;
         };
@@ -2692,9 +2721,15 @@ export interface components {
              */
             mode: "token" | "cookie";
         };
+        /** MaintenanceIn */
+        MaintenanceIn: {
+            /** Enabled */
+            enabled: boolean;
+        };
         /**
          * MaintenanceOut
-         * @description A catalog refresh slows the server down: users wait, administrators pass.
+         * @description Users wait, administrators pass. `reason` "sync": a data sync slows the server down
+         *     (`game_id`: game of the job running); "admin": started by the administrator `by`.
          */
         MaintenanceOut: {
             /**
@@ -2703,7 +2738,19 @@ export interface components {
              */
             since: string;
             /** Game Id */
-            game_id: string;
+            game_id?: string | null;
+            /**
+             * Reason
+             * @default sync
+             * @enum {string}
+             */
+            reason: "sync" | "admin";
+            /** By */
+            by?: string | null;
+        };
+        /** MaintenanceStateOut */
+        MaintenanceStateOut: {
+            maintenance?: components["schemas"]["MaintenanceOut"] | null;
         };
         /** MeOut */
         MeOut: {
@@ -5571,6 +5618,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SyncScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_maintenance_api_admin_maintenance_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaintenanceStateOut"];
+                };
+            };
+        };
+    };
+    set_maintenance_api_admin_maintenance_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaintenanceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaintenanceStateOut"];
                 };
             };
             /** @description Validation Error */

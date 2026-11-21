@@ -14,6 +14,12 @@ export class ApiError extends Error {
   }
 }
 
+/** The server did not answer (restart, update, proxy without backend, maintenance): the
+ * interface shows its maintenance page rather than errors. */
+export function serverDown(error: unknown): boolean {
+  return error instanceof ApiError && [0, 502, 503, 504].includes(error.status)
+}
+
 // Cookie-authenticated writes must carry this header (CSRF protection).
 const CSRF = { 'X-TCG-CSRF': '1' }
 const listeners = new Set<() => void>()
