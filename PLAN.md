@@ -2547,3 +2547,18 @@ maintenance on a new Admin › Server page; `maintenance.game_id` nullable with 
   itself, schedule folded, deck header and single view switch.
 - [ ] User: try Admin › Server maintenance on the next dev image; release Android 0.17.2 with server 0.29.0.
 
+### Magic companions in the format check (user, 2026-11-21)
+Branch `2026-11-21-002-mtg-companion-check` from `dev`. Same unreleased server 0.29.0 (no bump), no
+Android change.
+- [x] `deck_rules._check_companions`: a companion (the 10 Ikoria ones, by front face name) in the
+  sideboard must have its condition met by the starting deck (main deck + commanders): Gyruda even /
+  Obosh odd / Keruga 3+ mana values of nonland cards, Lurrus permanents 2 or less, Jegantha no repeated
+  mana symbol, Kaheera creature types (changeling passes), Lutri singleton, Umori one shared card
+  type, Yorion 20 over the minimum (never in exact-size formats), Zirda permanents with an activated
+  ability (rules text, basic land types pass; noted as text-based). Several companions: one met is
+  enough. Modal double-faced / transforming / adventure cards use the front face, split cards both
+  halves. Unknown "Companion —" cards and missing mana values go to "Not verified".
+- [x] Issue `companion` (params `rule`, `names`, `size`), web text per rule in fr/de/es; the
+  "not_modelled" note now only names other special deck rules.
+- [x] Verified: deck tests (new `test_companions`), ruff, web build / oxlint / i18n.
+

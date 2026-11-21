@@ -348,6 +348,110 @@ def test_other_formats():
     assert "invalid_oathbreaker" in codes(rats_too)
 
 
+def mtg(
+    card_id: int, name: str, type_line: str, cmc: float, cost: str = "", text: str = "", **more
+):
+    types, _, subtypes = type_line.partition("—")
+    attributes = {"types": types.split(), "subtypes": subtypes.split(), "color_identity": []}
+    attributes |= {"cmc": cmc, "mana_cost": cost, "oracle_text": text}
+    attributes |= {"legalities": {"modern": "legal", "legacy": "legal", "commander": "legal"}}
+    return RuleCard(card_id, name, attributes | more)
+
+
+def companion_check(companion: RuleCard, main: list[Entry], fmt: str = "modern"):
+    report = deck_rules.check(fmt, [*main, Entry(companion, "sideboard", 1)])
+    return next((i for i in report.issues if i.code == "companion"), None), report
+
+
+def test_companions():
+    mountain = mtg(1, "Mountain", "Basic Land — Mountain", 0, text="({T}: Add {R}.)")
+    bolt = mtg(2, "Lightning Bolt", "Instant", 1, "{R}")
+    giant = mtg(3, "Stone Giant", "Creature — Giant", 4, "{2}{R}{R}")
+    cat = mtg(4, "Savannah Lions", "Creature — Cat Soldier", 1, "{W}")
+    ox = mtg(5, "Ox of Agonas", "Creature — Ox", 2, "{3}{R}{R}", "{1}: Ox gets +1/+0.")
+    lurrus = mtg(10, "Lurrus of the Dream-Den", "Legendary Creature — Cat Nightmare", 3)
+    yorion = mtg(11, "Yorion, Sky Nomad", "Legendary Creature — Bird Serpent", 5)
+    kaheera = mtg(12, "Kaheera, the Orphanguard", "Legendary Creature — Cat Beast", 3)
+    jegantha = mtg(13, "Jegantha, the Wellspring", "Legendary Creature — Elemental Elk", 5)
+    lutri = mtg(14, "Lutri, the Spellchaser", "Legendary Creature — Elemental Otter", 3)
+    umori = mtg(15, "Umori, the Collector", "Legendary Creature — Ooze", 4)
+    zirda = mtg(16, "Zirda, the Dawnwaker", "Legendary Creature — Elemental Fox", 3)
+    gyruda = mtg(17, "Gyruda, Doom of Depths", "Legendary Creature — Demon Kraken", 6)
+    base = [Entry(mountain, "main", 20), Entry(bolt, "main", 4), Entry(cat, "main", 36)]
+
+    # Lurrus: permanents of mana value 2 or less (instants and lands do not matter).
+    # (Copy limits are not the point here.)
+    assert companion_check(lurrus, base)[0] is None
+    issue, report = companion_check(lurrus, [*base[:2], Entry(giant, "main", 36)])
+    assert issue.params["rule"] == "lurrus" and issue.params["names"] == ["Stone Giant"]
+    assert issue.level == "error" and not report.valid
+    # In the main deck it is just a creature: not a companion.
+    assert (
+        companion_check(cat, [*base[:2], Entry(lurrus, "main", 4), Entry(giant, "main", 32)])[0]
+        is None
+    )
+
+    # Yorion: 20 cards over the minimum; never in a 100-card singleton format.
+    assert companion_check(yorion, base)[0].params == {
+        "name": yorion.name,
+        "rule": "yorion",
+        "names": [],
+        "size": 80,
+    }
+    assert companion_check(yorion, [*base, Entry(cat, "main", 20)])[0] is None
+
+    # Kaheera: creature types; Jegantha: no repeated mana symbol; Lutri: singleton.
+    assert companion_check(kaheera, base)[0] is None
+    assert companion_check(kaheera, [*base, Entry(giant, "main", 1)])[0].params["names"] == [
+        "Stone Giant"
+    ]
+    assert companion_check(jegantha, [*base, Entry(giant, "main", 1)])[0].params["names"] == [
+        "Stone Giant"
+    ]
+    assert companion_check(jegantha, base)[0] is None
+    assert companion_check(lutri, base)[0].params["names"] == ["Lightning Bolt", "Savannah Lions"]
+    # Umori: every nonland card shares a type; Gyruda: even mana values.
+    assert companion_check(umori, [Entry(mountain, "main", 20), Entry(cat, "main", 40)])[0] is None
+    assert companion_check(umori, base)[0].params["names"] == ["Lightning Bolt", "Savannah Lions"]
+    assert companion_check(gyruda, [Entry(mountain, "main", 24), Entry(ox, "main", 36)])[0] is None
+    assert companion_check(gyruda, base)[0].params["names"] == ["Lightning Bolt", "Savannah Lions"]
+    # Zirda: permanents with an activated ability (basic lands have theirs), from rules text.
+    issue, report = companion_check(zirda, [Entry(mountain, "main", 24), Entry(ox, "main", 36)])
+    assert issue is None and "zirda_by_text" in {i.code for i in report.unverified}
+    assert companion_check(zirda, base)[0].params["names"] == ["Savannah Lions"]
+
+    # Two companions: one met is enough.
+    report = deck_rules.check(
+        "modern", [*base, Entry(lurrus, "sideboard", 1), Entry(yorion, "sideboard", 1)]
+    )
+    assert "companion" not in codes(report)
+
+    # Modal double-faced card: the front face counts (an instant, not a land).
+    awakening = mtg(
+        20,
+        "Valakut Awakening // Valakut Stoneforge",
+        "Instant // Land",
+        3,
+        layout="modal_dfc",
+        faces=[
+            {"name": "Valakut Awakening", "type_line": "Instant", "mana_cost": "{2}{R}"},
+            {"name": "Valakut Stoneforge", "type_line": "Land"},
+        ],
+    )
+    keruga = mtg(18, "Keruga, the Macrosage", "Legendary Creature — Dinosaur Hippo", 5)
+    issue = companion_check(keruga, [Entry(mountain, "main", 56), Entry(awakening, "main", 4)])[0]
+    assert issue is None
+    assert companion_check(keruga, [*base])[0].params["names"] == [
+        "Lightning Bolt",
+        "Savannah Lions",
+    ]
+
+    # A companion this checker does not know yet.
+    new = mtg(19, "New Companion", "Legendary Creature — Fox", 2, text="Companion — Something.")
+    report = companion_check(new, base)[1]
+    assert "companion_unknown" in {i.code for i in report.unverified}
+
+
 def test_parse_decklist():
     parsed = deck_import.parse(
         """// Burn

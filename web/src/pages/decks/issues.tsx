@@ -7,6 +7,33 @@ type Issue = Schemas['DeckIssueOut']
  * codes this page does not know yet). */
 function useIssueText() {
   const { t } = useTranslation()
+  // Condition of a Magic companion, by the server's rule id.
+  const companionRule = (rule: string, size?: number): string => {
+    switch (rule) {
+      case 'gyruda':
+        return t('every nonland card needs an even mana value')
+      case 'jegantha':
+        return t('no card may have the same mana symbol twice in its cost')
+      case 'kaheera':
+        return t('every creature must be a Cat, Elemental, Nightmare, Dinosaur or Beast')
+      case 'keruga':
+        return t('every nonland card needs a mana value of 3 or more')
+      case 'lurrus':
+        return t('every permanent card needs a mana value of 2 or less')
+      case 'lutri':
+        return t('every nonland card needs a different name')
+      case 'obosh':
+        return t('every nonland card needs an odd mana value')
+      case 'umori':
+        return t('every nonland card must share a card type')
+      case 'yorion':
+        return size ? t('the deck needs at least {{size}} cards', { size }) : t('the deck needs at least 20 cards more than the minimum')
+      case 'zirda':
+        return t('every permanent card needs an activated ability')
+      default:
+        return rule
+    }
+  }
   return (issue: Issue): string => {
     const p = (issue.params ?? {}) as Record<string, string | number | string[]>
     const n = p.count as number
@@ -118,7 +145,21 @@ function useIssueText() {
       case 'pair_by_text':
         return t("Commander pairs (Partner, Friends forever, Background, Doctor's companion) are checked from rules text")
       case 'not_modelled':
-        return t('Not checked: companion deck conditions, cards with other special deck rules')
+        return t('Not checked: cards with other special deck rules')
+      // Magic companions.
+      case 'companion': {
+        const names = ((p.names as string[]) ?? []).slice(0, 5)
+        const rule = companionRule(p.rule as string, p.size as number | undefined)
+        return names.length
+          ? t('{{name}} cannot be your companion: {{rule}} ({{names}})', { name: p.name, rule, names: names.join(', ') + (((p.names as string[]) ?? []).length > 5 ? '…' : '') })
+          : t('{{name}} cannot be your companion: {{rule}}', { name: p.name, rule })
+      }
+      case 'companion_unknown':
+        return t('{{name}}: companion condition not checked', { name: p.name })
+      case 'companion_value_unknown':
+        return t('{{name}}: mana value of some cards not known (sync the Magic catalog again)', { name: p.name })
+      case 'zirda_by_text':
+        return t('Activated abilities (Zirda) are checked from rules text')
       default:
         return issue.message
     }
