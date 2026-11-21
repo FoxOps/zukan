@@ -1310,3 +1310,24 @@ def test_magic_group_by_front_face():
     assert _group(card("Land // Land", ["Land", "Land"])) == "Land"
     assert _group(card("Artifact Land")) == "Land"
     assert _group(card("Land Creature — Forest Dryad")) == "Creature"
+
+
+async def test_double_faced_cards_show_their_back(client, session, alice, catalog):
+    delver, printing_id = catalog["Delver of Secrets // Insectile Aberration"]
+    bolt, _ = catalog["Lightning Bolt"]
+    printing = await session.get(Printing, printing_id)
+    printing.attributes = {**printing.attributes, "back_image_url": "https://example.test/b.jpg"}
+    printing.image_urls = {"en": "https://example.test/f.jpg"}
+    await session.commit()
+    deck = (await new_deck(client, alice))["deck"]["id"]
+    await put_card(client, alice, deck, bolt, 1)
+    response = await client.put(
+        f"/api/decks/{deck}/cards",
+        json={"card_id": delver, "quantity": 2, "section": "main", "printing_id": printing_id},
+        headers=alice,
+    )
+    detail = response.json()
+    back = f"/api/printings/{printing_id}/image?face=back"
+    assert entry(detail, delver)["back_image"] == back
+    assert entry(detail, delver)["lines"][0]["back_image"] == back
+    assert entry(detail, bolt)["back_image"] is None

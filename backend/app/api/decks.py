@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
 
-from app.api.catalog import load_names, orientation, show_card, show_printing
+from app.api.catalog import back_image_link, load_names, orientation, show_card, show_printing
 from app.api.collection import copy_image
 from app.api.deps import SessionDep
 from app.models import Card, CollectionItem, Deck, DeckAllocation, DeckCard, Printing, User
@@ -120,6 +120,8 @@ class DeckLineOut(BaseModel):
     # The printing's picture (its allocated copy's, else the catalog's); any printing:
     # the card's (`DeckEntryOut.image`).
     image: str | None = None
+    # Back face of a double-faced printing.
+    back_image: str | None = None
     # Copies allocated to this line: copies of its printing first, then lines of any
     # printing take the rest.
     allocated: int
@@ -133,6 +135,8 @@ class DeckEntryOut(BaseModel):
     translation: str | None = None
     # The allocated copy's picture (the one most copies come from), else the card's.
     image: str | None
+    # Back face of that picture's printing (double-faced cards).
+    back_image: str | None = None
     # "landscape": Riftbound battlefields, Lorcana locations.
     orientation: str = "portrait"
     colors: list[str]
@@ -486,9 +490,9 @@ def _item_image(printing: Printing, language: str, ui_lang: str) -> str | None:
 
 async def _allocated_images(
     session: SessionDep, deck: Deck, ui_lang: str
-) -> tuple[dict[int, str], dict[int, str]]:
-    """Per card, and per printing, the picture of the copy most of its allocated copies
-    come from."""
+) -> tuple[dict[int, tuple[str, Printing]], dict[int, str]]:
+    """Per card (with its printing, for the back face), and per printing, the picture of
+    the copy most of its allocated copies come from."""
     allocations = await session.scalars(
         select(DeckAllocation)
         .where(DeckAllocation.deck_id == deck.id, DeckAllocation.quantity > 0)
@@ -499,7 +503,7 @@ async def _allocated_images(
             .selectinload(Printing.set)
         )
     )
-    shown: dict[int, str] = {}
+    shown: dict[int, tuple[str, Printing]] = {}
     by_printing: dict[int, str] = {}
     for allocation in allocations:
         item = allocation.item
@@ -508,7 +512,7 @@ async def _allocated_images(
             continue
         if image := _item_image(item.printing, item.language, ui_lang):
             by_printing[item.printing_id] = image
-            shown.setdefault(card_id, image)
+            shown.setdefault(card_id, (image, item.printing))
     return shown, by_printing
 
 
@@ -602,6 +606,8 @@ async def _detail(session: SessionDep, user: User, deck_id: int) -> DeckDetailOu
     for card_id in card_ids:
         card = cards[card_id]
         shown = show_card(card, card_names, printing_names, user.language)
+        # The allocated copy's picture, else the card's; its back for double-faced cards.
+        front, front_printing = allocated_images.get(card_id, (shown.image, shown.printing))
         counts = stock[card_id]
         quantities: dict[str, int] = {}
         card_lines = _sorted_lines([e for e in deck.cards if e.card_id == card_id])
@@ -626,6 +632,7 @@ async def _detail(session: SessionDep, user: User, deck_id: int) -> DeckDetailOu
                     printing_images.get(e.printing_id)
                     or (show_printing(e.printing, card_names, printing_names, user.language)[1])
                 )
+                line.back_image = back_image_link(e.printing)
                 line.available = counts.available_by_printing.get(e.printing_id, 0)
             lines.append(line)
         entries.append(
@@ -633,7 +640,8 @@ async def _detail(session: SessionDep, user: User, deck_id: int) -> DeckDetailOu
                 card_id=card_id,
                 name=shown.name.name,
                 translation=shown.name.translation,
-                image=allocated_images.get(card_id, shown.image),
+                image=front,
+                back_image=back_image_link(front_printing) if front_printing else None,
                 orientation=orientation(shown.printing) if shown.printing else "portrait",
                 colors=card.colors,
                 mana_cost=card.attributes.get("mana_cost")

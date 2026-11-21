@@ -2568,3 +2568,14 @@ Android change.
 - [x] Verified: 337 backend tests (new `test_companions`, companion export / import round trip),
   ruff, web build / oxlint / i18n. Not tried live (no Magic catalog on the test database).
 
+### Decks: double-faced cards turn over (user, 2026-11-21)
+Branch `2026-11-21-003-deck-card-backs` from `dev`. Same unreleased server 0.29.0, no Android change.
+- [x] `DeckEntryOut.back_image` (back of the printing whose picture is shown: allocated copy's, else
+  the card's) and `DeckLineOut.back_image` (the line's printing), from `catalog.back_image_link`.
+- [x] Deck images view and Add cards image results get the flip button of `CardImage`, as in
+  Collection and Catalog. The Add cards tile is a clickable div (role button, Enter / Space) instead
+  of a `<button>`, so the flip button can sit inside without adding the card. List views keep their
+  small thumbnails without flip.
+- [x] Verified: deck tests (new `test_double_faced_cards_show_their_back`), ruff, web build / oxlint
+  / i18n. Not tried live (no Magic catalog on the test database).
+

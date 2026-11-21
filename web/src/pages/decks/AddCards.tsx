@@ -159,10 +159,24 @@ export function AddCards({
                   <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 2xl:grid-cols-8">
                     {cards.map((card) => (
                       <div key={card.id} className="flex flex-col gap-1">
-                        <button type="button" className="group relative" disabled={busy} onClick={() => add(card)} title={card.name}>
-                          <CardImage thumb src={card.image} alt={card.name} game={deck.game_id} landscape={card.orientation === 'landscape'} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
+                        {/* Not a <button>: the flip button of double-faced cards sits inside
+                            (it stops its click, so turning the card adds nothing). */}
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          aria-disabled={busy}
+                          className="group relative cursor-pointer"
+                          onClick={() => !busy && add(card)}
+                          onKeyDown={(e) => {
+                            if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
+                            e.preventDefault()
+                            if (!busy) add(card)
+                          }}
+                          title={card.name}
+                        >
+                          <CardImage thumb src={card.image} back={card.back_image} alt={card.name} game={deck.game_id} landscape={card.orientation === 'landscape'} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
                           <span className="badge badge-primary badge-sm absolute right-[3%] top-[3%] shadow">+1</span>
-                        </button>
+                        </div>
                         <span className="truncate text-xs font-medium">
                           <ShownName name={card.name} translation={card.translation} />
                         </span>

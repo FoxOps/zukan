@@ -560,7 +560,16 @@ export default function DeckDetail() {
                     return (
                       <div key={rowKey(block, row)} className="flex flex-col gap-1">
                         <Link to={link} className="group relative">
-                          <CardImage thumb src={line.image ?? e.image} alt={e.name} game={deck.game_id} landscape={e.orientation === 'landscape'} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
+                          <CardImage
+                            thumb
+                            src={line.image ?? e.image}
+                            // The back of the picture shown: the line's printing, else the card's.
+                            back={line.image ? line.back_image : e.back_image}
+                            alt={e.name}
+                            game={deck.game_id}
+                            landscape={e.orientation === 'landscape'}
+                            faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]"
+                          />
                           <span className="badge badge-neutral absolute bottom-[3%] left-[3%] font-semibold shadow">×{line.quantity}</span>
                           <span className={`badge badge-sm absolute right-[3%] top-[3%] shadow ${status.badge}`}>
                             {t(status.label)}

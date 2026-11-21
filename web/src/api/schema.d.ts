@@ -1850,6 +1850,8 @@ export interface components {
             translation?: string | null;
             /** Image */
             image: string | null;
+            /** Back Image */
+            back_image?: string | null;
             /**
              * Orientation
              * @default portrait
@@ -2129,6 +2131,8 @@ export interface components {
             quantity: number;
             /** Image */
             image?: string | null;
+            /** Back Image */
+            back_image?: string | null;
             /** Allocated */
             allocated: number;
             /** Available */
