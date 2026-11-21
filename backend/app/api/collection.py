@@ -313,6 +313,8 @@ async def list_items(
     condition: Condition | None = None,
     language: str | None = None,
     include_empty: bool = False,
+    # Only items without a price (no manual price, no market price from the user's source).
+    no_price: bool = False,
     sort: Literal["name", "set", "updated", "quantity", "price_asc", "price_desc"] = "name",
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=500)] = 50,
@@ -347,8 +349,6 @@ async def list_items(
     if language:
         query = query.where(CollectionItem.language == language)
 
-    total = await session.scalar(select(func.count()).select_from(query.subquery()))
-    name = display_name(user.language)
     # Unit price as shown: manual price, else latest market price of that finish.
     sources = {
         game_id: chosen.source
@@ -369,6 +369,11 @@ async def list_items(
         .scalar_subquery()
     )
     price = func.coalesce(CollectionItem.manual_price, market)
+    if no_price:
+        query = query.where(price.is_(None))
+
+    total = await session.scalar(select(func.count()).select_from(query.subquery()))
+    name = display_name(user.language)
     order = {
         "price_asc": (price.asc().nulls_last(), name),
         "price_desc": (price.desc().nulls_last(), name),

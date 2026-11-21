@@ -6,7 +6,7 @@ import { api, call, type Schemas } from '../api/client'
 import { gameGroups, useGames, useMe } from '../api/queries'
 import { useToast } from '../components/toast'
 import { Select } from '../components/Select'
-import { LANGUAGES, useChangeLanguage } from '../i18n'
+import { browserLanguage, LANGUAGES, useChangeLanguage, useFollowBrowser } from '../i18n'
 import { moduleInfo } from '../lib/modules'
 
 type SettingsIn = Schemas['SettingsIn']
@@ -14,6 +14,7 @@ type SettingsIn = Schemas['SettingsIn']
 function Preferences({ me }: { me: Schemas['MeOut'] }) {
   const { t, i18n } = useTranslation()
   const changeLanguage = useChangeLanguage()
+  const followBrowser = useFollowBrowser()
   const { data: games = [] } = useGames()
   const toast = useToast()
   const client = useQueryClient()
@@ -45,9 +46,12 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
             <span className="fieldset-legend">{t('Language')}</span>
             <Select
               className="w-full max-w-xs"
-              value={i18n.resolvedLanguage ?? ''}
-              onChange={(v) => changeLanguage(v as (typeof LANGUAGES)[number]['code'])}
-              options={LANGUAGES.map((l) => ({ value: l.code, label: l.label, lang: l.code }))}
+              value={me.language_chosen ? (i18n.resolvedLanguage ?? '') : ''}
+              onChange={(v) => (v ? changeLanguage(v as (typeof LANGUAGES)[number]['code']) : followBrowser())}
+              options={[
+                { value: '', label: t('Browser language ({{language}})', { language: LANGUAGES.find((l) => l.code === browserLanguage())?.label }) },
+                ...LANGUAGES.map((l) => ({ value: l.code, label: l.label, lang: l.code })),
+              ]}
             />
             <span className="label whitespace-normal">
               {t('Card images are shown in this language when available, else in English, else in Japanese.')}

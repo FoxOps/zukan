@@ -9,7 +9,7 @@ only allocating does, and allocating never changes owned quantities."""
 from datetime import date, datetime
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
@@ -17,9 +17,20 @@ from sqlalchemy.orm import selectinload
 from app.api.catalog import back_image_link, load_names, orientation, show_card, show_printing
 from app.api.collection import copy_image
 from app.api.deps import SessionDep
-from app.models import Card, CollectionItem, Deck, DeckAllocation, DeckCard, Printing, User
+from app.api.shopping import ShoppingListDetailOut, shopping_detail
+from app.models import (
+    Card,
+    CollectionItem,
+    Deck,
+    DeckAllocation,
+    DeckCard,
+    Printing,
+    ShoppingItem,
+    ShoppingList,
+    User,
+)
 from app.modules import require_module
-from app.services import deck_export, deck_import, deck_rules, decks
+from app.services import deck_export, deck_import, deck_rules, decks, shopping
 from app.services.deck_rules import FORMATS, GAMES, SECTIONS, Leader, Rules, Section
 
 router = APIRouter(prefix="/decks", tags=["decks"])
@@ -86,6 +97,11 @@ class DeckOut(BaseModel):
     # Cards per section.
     counts: dict[str, int]
     errors: int
+    # Copies the deck asks for (all sections), those the user has for it (allocated to it
+    # or free in the collection, not those other decks hold) and those allocated to it.
+    copies: int = 0
+    owned: int = 0
+    allocated: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -537,7 +553,7 @@ def _number_key(number: str | None) -> tuple[int, str]:
     return (int(digits) if digits else 0, number or "")
 
 
-def _deck_out(deck: Deck, report: deck_rules.Report) -> DeckOut:
+def _deck_out(deck: Deck, report: deck_rules.Report, stock: dict[int, decks.CardStock]) -> DeckOut:
     counts: dict[str, int] = {}
     for e in deck.cards:
         counts[e.section] = counts.get(e.section, 0) + e.quantity
@@ -551,6 +567,9 @@ def _deck_out(deck: Deck, report: deck_rules.Report) -> DeckOut:
         card_count=sum(n for section, n in counts.items() if section in counted),
         counts={s: counts[s] for s in SECTION_ORDER if s in counts},
         errors=sum(1 for i in report.issues if i.level == "error"),
+        copies=sum(c.requested for c in stock.values()),
+        owned=sum(c.covered for c in stock.values()),
+        allocated=sum(min(c.allocated, c.requested) for c in stock.values()),
         created_at=deck.created_at,
         updated_at=deck.updated_at,
     )
@@ -667,7 +686,7 @@ async def _detail(session: SessionDep, user: User, deck_id: int) -> DeckDetailOu
     order = _groups(deck.game_id)
     entries.sort(key=lambda e: (order.index(e.group), e.name.casefold()))
     return DeckDetailOut(
-        deck=_deck_out(deck, report),
+        deck=_deck_out(deck, report, stock),
         groups=list(order),
         entries=entries,
         validation=DeckValidationOut(
@@ -713,7 +732,11 @@ async def list_decks(user: DecksUser, session: SessionDep) -> list[DeckOut]:
     )
     found = list(found)
     printings = await _rule_printings(session, found)
-    return [_deck_out(d, deck_rules.check(d.format, _rule_entries(d, printings))) for d in found]
+    stocks = await decks.stocks(session, user.id, found)
+    return [
+        _deck_out(d, deck_rules.check(d.format, _rule_entries(d, printings)), stocks[d.id])
+        for d in found
+    ]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -1021,10 +1044,149 @@ async def export_deck(
             else:
                 joined[line.name, line.section] = line
         lines = list(joined.values())
-    safe = "".join(c if c.isalnum() or c in " -_" else "_" for c in deck.name).strip()
     return DeckExportOut(
-        text=deck_export.export_text(deck.game_id, lines, sets), filename=f"{safe or 'deck'}.txt"
+        text=deck_export.export_text(deck.game_id, lines, sets),
+        filename=_filename(deck.name, "txt"),
     )
+
+
+def _filename(name: str, extension: str) -> str:
+    """A file name from a deck's name ("Burn.txt")."""
+    safe = "".join(c if c.isalnum() or c in " -_" else "_" for c in name).strip()
+    return f"{safe or 'deck'}.{extension}"
+
+
+class ShoppingLineOut(BaseModel):
+    card_id: int | None
+    printing_id: int | None
+    name: str
+    translation: str | None
+    set_code: str | None
+    collector_number: str | None
+    quantity: int
+
+
+class ShoppingOut(BaseModel):
+    # Cards to get, in the decklist's order; empty when the deck has every copy.
+    lines: list[ShoppingLineOut]
+
+
+async def _shopping_lines(
+    session: SessionDep, user: User, deck: Deck
+) -> list[shopping.ShoppingLine]:
+    """Copies the deck misses (`decks.line_missing`), by card in the decklist's order:
+    one line per printing asked for, or for any printing."""
+    card_ids = {e.card_id for e in deck.cards}
+    cards = {
+        c.id: c
+        for c in await session.scalars(
+            select(Card)
+            .where(Card.id.in_(card_ids))
+            .options(selectinload(Card.printings).selectinload(Printing.set))
+        )
+    }
+    stock = await decks.stock(session, deck, card_ids)
+    card_names, printing_names = await load_names(session, card_ids)
+    order = _groups(deck.game_id)
+    result = []
+    for card_id in sorted(
+        card_ids, key=lambda c: (order.index(_group(cards[c])), cards[c].name.casefold())
+    ):
+        counts = stock[card_id]
+        if not counts.missing:
+            continue
+        card = cards[card_id]
+        card_lines = _sorted_lines([e for e in deck.cards if e.card_id == card_id])
+        wanted = [(e.printing_id, e.quantity) for e in card_lines]
+        missing = decks.line_missing(
+            wanted,
+            decks.line_allocations(wanted, counts.allocated_by_printing),
+            counts.available_by_printing,
+            counts.missing,
+        )
+        translation = show_card(card, card_names, printing_names, user.language).name.name
+        merged: dict[int | None, shopping.ShoppingLine] = {}
+        for e, quantity in zip(card_lines, missing, strict=True):
+            if quantity <= 0:
+                continue
+            if (found := merged.get(e.printing_id)) is not None:
+                found.quantity += quantity
+                continue
+            merged[e.printing_id] = shopping.ShoppingLine(
+                card_id=card_id,
+                printing_id=e.printing_id,
+                name=card.name,
+                translation=translation if translation != card.name else None,
+                set_code=e.printing.set.code.upper() if e.printing else None,
+                collector_number=e.printing.collector_number if e.printing else None,
+                quantity=quantity,
+            )
+        result.extend(merged.values())
+    return result
+
+
+@router.get("/{deck_id}/shopping")
+async def deck_shopping(deck_id: int, user: DecksUser, session: SessionDep) -> ShoppingOut:
+    """The cards the deck misses: copies neither allocated to it nor free in the
+    collection (copies other decks hold count as missing)."""
+    deck = await _own(session, user, deck_id)
+    lines = await _shopping_lines(session, user, deck)
+    return ShoppingOut(
+        lines=[
+            ShoppingLineOut(**{k: v for k, v in line.__dict__.items() if k != "bought"})
+            for line in lines
+        ]
+    )
+
+
+SHOPPING_TYPES = {
+    "txt": "text/plain; charset=utf-8",
+    "md": "text/markdown; charset=utf-8",
+    "pdf": "application/pdf",
+}
+
+
+@router.get(
+    "/{deck_id}/shopping/download",
+    response_class=Response,
+    responses={200: {"content": {t: {} for t in SHOPPING_TYPES.values()}}},
+)
+async def download_shopping(
+    deck_id: int,
+    user: DecksUser,
+    session: SessionDep,
+    format: Literal["txt", "md", "pdf"] = "txt",
+) -> Response:
+    """The cards the deck misses as a check list file, in the user's language."""
+    deck = await _own(session, user, deck_id)
+    lines = await _shopping_lines(session, user, deck)
+    render = {"txt": shopping.to_txt, "md": shopping.to_md, "pdf": shopping.to_pdf}[format]
+    content = render(deck.name, lines, user.language, date.today())
+    return Response(
+        content,
+        media_type=SHOPPING_TYPES[format],
+        headers={
+            "Content-Disposition": f'attachment; filename="{_filename(deck.name, format)}"',
+            "Cache-Control": "private, no-store",
+        },
+    )
+
+
+@router.post("/{deck_id}/shopping-list", status_code=status.HTTP_201_CREATED)
+async def send_shopping_list(
+    deck_id: int, user: DecksUser, session: SessionDep
+) -> ShoppingListDetailOut:
+    """Saves the cards the deck misses as a shopping list for the Android app: a copy,
+    later deck changes do not change it."""
+    deck = await _own(session, user, deck_id)
+    lines = await _shopping_lines(session, user, deck)
+    if not lines:
+        raise HTTPException(status.HTTP_409_CONFLICT, "The deck misses no card")
+    found = ShoppingList(user_id=user.id, deck_id=deck.id, game_id=deck.game_id, name=deck.name)
+    found.items = [ShoppingItem(position=i, **line.__dict__) for i, line in enumerate(lines)]
+    session.add(found)
+    await session.commit()
+    return await shopping_detail(session, user, found.id)
 
 
 @router.post("/import/preview")

@@ -234,4 +234,17 @@
     <string name="all_games">Alle Spiele</string>
     <string name="interface_language">Sprache der Oberfläche</string>
     <string name="interface_language_help">Kartennamen und -bilder folgen ihr ebenfalls. Wird mit der Weboberfläche geteilt.</string>
+    <!-- Shopping lists (Decks module) -->
+    <string name="tab_shopping">Listen</string>
+    <string name="shopping_title">Einkaufslisten</string>
+    <string name="shopping_subtitle">Fehlende Karten deiner Decks, vom Web gesendet</string>
+    <string name="shopping_empty">Noch keine Einkaufsliste</string>
+    <string name="shopping_empty_help">Öffne im Web ein Deck, dann Einkaufsliste und An die App senden.</string>
+    <string name="shopping_progress">%1$d / %2$d gekauft</string>
+    <string name="shopping_complete">Erledigt</string>
+    <string name="shopping_delete">Löschen</string>
+    <string name="shopping_delete_title">Diese Liste löschen?</string>
+    <string name="shopping_delete_text">Die Liste %1$s wird endgültig gelöscht. Deine Sammlung und Decks ändern sich nicht.</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="phone_language">Telefonsprache (%1$s)</string>
 </resources>

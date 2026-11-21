@@ -45,6 +45,7 @@ export default function Collection() {
     finish: url.get('finish') || undefined,
     condition: (url.get('condition') || undefined) as Item['condition'] | undefined,
     language: url.get('language') || undefined,
+    no_price: url.get('noprice') === '1' || undefined,
     sort: (url.get('sort') || 'name') as keyof typeof SORTS,
   }
 
@@ -116,6 +117,15 @@ export default function Collection() {
             aria-label={t('Sort by')}
             options={Object.entries(SORTS).map(([k, v]) => ({ value: k, label: t(v) }))}
           />
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="toggle toggle-sm toggle-primary"
+            checked={filters.no_price === true}
+            onChange={(e) => url.set({ noprice: e.target.checked ? '1' : null })}
+          />
+          {t('Without price')}
         </label>
         <ColorFilter
           game={gameInfo}

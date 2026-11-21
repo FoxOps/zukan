@@ -234,4 +234,17 @@
     <string name="all_games">All games</string>
     <string name="interface_language">Interface language</string>
     <string name="interface_language_help">Card names and pictures follow it too. Shared with the web interface.</string>
+    <!-- Shopping lists (Decks module) -->
+    <string name="tab_shopping">Lists</string>
+    <string name="shopping_title">Shopping lists</string>
+    <string name="shopping_subtitle">Cards your decks miss, sent from the web</string>
+    <string name="shopping_empty">No shopping list yet</string>
+    <string name="shopping_empty_help">On the web, open a deck, then Shopping list and Send to the app.</string>
+    <string name="shopping_progress">%1$d / %2$d bought</string>
+    <string name="shopping_complete">Complete</string>
+    <string name="shopping_delete">Delete</string>
+    <string name="shopping_delete_title">Delete this list?</string>
+    <string name="shopping_delete_text">The list %1$s is deleted for good. Your collection and decks do not change.</string>
+    <string name="cancel">Cancel</string>
+    <string name="phone_language">Phone language (%1$s)</string>
 </resources>

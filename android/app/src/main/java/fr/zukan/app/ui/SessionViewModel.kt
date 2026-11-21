@@ -47,6 +47,10 @@ data class SessionState(
     val catalogGames: List<String>? = null,
     // The account's interface language (server setting, shared with the web UI).
     val serverLanguage: String? = null,
+    // False: never picked, the app follows the phone's language.
+    val languageChosen: Boolean = true,
+    // Optional modules the user has on (server setting).
+    val modules: List<String> = emptyList(),
     val error: String? = null,
 ) {
     val loggedIn get() = username != null
@@ -150,7 +154,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun SessionState.withMe(me: MeOut) =
-        copy(priceSources = me.shownPriceSources, catalogGames = me.catalogGames, serverLanguage = me.language)
+        copy(priceSources = me.shownPriceSources, catalogGames = me.catalogGames, serverLanguage = me.language, languageChosen = me.languageChosen, modules = me.modules)
 
     /** Settings changed on the web meanwhile (back to the app). */
     fun refreshAccount() {
@@ -164,6 +168,13 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     /** Saves the interface language on the account (the web UI follows). */
     fun setServerLanguage(lang: String) = work {
         val me = requireClient().api.updateMe(SettingsIn(language = lang))
+        _state.update { it.withMe(me) }
+    }
+
+    /** Follow the phone's language again: the server takes it from Accept-Language (else
+     * English) for card names and pictures; the web keeps following its browser's. */
+    fun followPhoneLanguage() = work {
+        val me = requireClient().api.updateMe(SettingsIn(languageChosen = false))
         _state.update { it.withMe(me) }
     }
 

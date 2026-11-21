@@ -10,6 +10,7 @@ import { CardImage } from '../../components/CardImage'
 import { SearchInput } from '../../components/Filters'
 import { RarityBadge } from '../../components/RarityBadge'
 import { Select } from '../../components/Select'
+import { SetIcon } from '../../components/SetIcon'
 import { ShownName } from '../../components/ShownName'
 import { StockDialog, type StockTarget } from '../../components/StockDialog'
 import { useToast } from '../../components/toast'
@@ -100,7 +101,7 @@ export default function BinderDetail() {
       <div className="card bg-base-200">
         <div className="card-body gap-4 lg:flex-row lg:items-center">
           <div className="flex min-w-0 flex-1 items-start gap-3">
-            {binder.set.icon && <img src={binder.set.icon} alt="" className="h-10 w-10 object-contain" />}
+            {binder.set.icon && <SetIcon src={binder.set.icon} game={binder.game_id} className="h-10 w-10" />}
             <div className="min-w-0">
               <h1 className="text-2xl font-bold leading-tight">{binder.set.name}</h1>
               <div className="text-sm text-base-content/60">

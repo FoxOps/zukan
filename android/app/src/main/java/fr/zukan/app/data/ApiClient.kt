@@ -1,7 +1,9 @@
 package fr.zukan.app.data
 
 import android.content.Context
+import android.content.res.Resources
 import fr.zukan.app.R
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -34,13 +36,28 @@ val json = Json {
     explicitNulls = false
 }
 
+/** The phone's languages (system settings, not the app's own), best first. */
+fun systemLanguages(): List<String> = runCatching {
+    val locales = Resources.getSystem().configuration.locales
+    (0 until locales.size()).map { locales[it].toLanguageTag() }
+}.getOrDefault(emptyList())
+
+/** `Accept-Language` for [tags], best first (five at most), null without any. The server
+ * takes the account's language from it until the user picks one. */
+fun acceptLanguage(tags: List<String>): String? =
+    tags.filter { it.isNotBlank() && it != "und" }.distinct().take(5)
+        .mapIndexed { i, tag -> if (i == 0) tag else "$tag;q=${String.format(Locale.ROOT, "%.1f", 1.0 - i * 0.1)}" }
+        .joinToString(",")
+        .ifEmpty { null }
+
 /**
- * HTTP access to one Zukan server: bearer token on every request and a single
- * refresh-token rotation when the access token expires.
+ * HTTP access to one Zukan server: bearer token on every request, the phone's languages
+ * (`Accept-Language`), and a single refresh-token rotation when the access token expires.
  */
 class ApiClient(
     val baseUrl: String,
     private val store: TokenStore,
+    private val languages: () -> List<String> = ::systemLanguages,
     private val onSessionExpired: () -> Unit,
 ) {
     private val plain: OkHttpClient = OkHttpClient.Builder()
@@ -54,6 +71,15 @@ class ApiClient(
         val token = store.tokens?.access
         val request = chain.request()
         chain.proceed(if (token == null) request else request.withToken(token))
+    }
+
+    private val language = Interceptor { chain ->
+        val request = chain.request()
+        val header = acceptLanguage(languages())
+        chain.proceed(
+            if (header == null || request.header("Accept-Language") != null) request
+            else request.newBuilder().header("Accept-Language", header).build(),
+        )
     }
 
     // A card missing from the server's catalog is fetched from its source before the
@@ -97,6 +123,7 @@ class ApiClient(
     /** Also used by the image loader, so card pictures carry the token too. */
     val http: OkHttpClient = plain.newBuilder()
         .addInterceptor(slowScan)
+        .addInterceptor(language)
         .addInterceptor(bearer)
         .authenticator(refresher)
         .build()

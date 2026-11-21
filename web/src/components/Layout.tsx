@@ -45,7 +45,7 @@ export function Layout() {
   const [dark, setDark] = useTheme()
   const health = useHealth()
   const android = useAndroidRelease()
-  useServerLanguage(me.data?.language)
+  useServerLanguage(me.data?.language, me.data?.language_chosen)
   useTypeToSearch()
   const maintenance = health.data?.maintenance ?? null
   // Maintenance over: reload what failed meanwhile.
