@@ -788,5 +788,20 @@
   "{{n}} companions, at most 1": "{{n}} compañeros, como máximo 1",
   "{{name}} is not a companion": "{{name}} no es un compañero",
   "One card per line (\"4 Lightning Bolt\"). \"Commander\", \"Companion\" and \"Sideboard\" lines start those sections; a set code and number (\"(M10) 146\") choose the printing.": "Una carta por línea («4 Lightning Bolt»). Las líneas «Commander», «Companion» y «Sideboard» empiezan esas secciones; un código de edición y un número («(M10) 146») eligen la impresión.",
-  "Not checked: Attraction and Contraption decks ({{names}})": "No comprobado: mazos de Atracciones y Artilugios ({{names}})"
+  "Not checked: Attraction and Contraption decks ({{names}})": "No comprobado: mazos de Atracciones y Artilugios ({{names}})",
+  "Without price": "Sin precio",
+  "Browser language ({{language}})": "Idioma del navegador ({{language}})",
+  "Shopping list": "Lista de compras",
+  "Shopping list sent: open it in the Zukan Android app.": "Lista de compras enviada: ábrela en la aplicación Android de Zukan.",
+  "Shopping list for {{name}}": "Lista de compras para {{name}}",
+  "Copies neither set aside for this deck nor free in your collection (copies other decks hold count as missing).": "Copias ni reservadas para este mazo ni libres en tu colección (las que usan otros mazos cuentan como faltantes).",
+  "You have every card of this deck.": "Tienes todas las cartas de este mazo.",
+  "{{count}} cards to get_one": "{{count}} carta por conseguir",
+  "{{count}} cards to get_other": "{{count}} cartas por conseguir",
+  "Download .{{format}}": "Descargar .{{format}}",
+  "Send to the app": "Enviar a la aplicación",
+  "Copies you have for this deck: set aside for it or free in your collection (copies other decks hold do not count)": "Copias que tienes para este mazo: reservadas para él o libres en tu colección (las de otros mazos no cuentan)",
+  "{{owned}}/{{copies}} cards owned": "{{owned}}/{{copies}} cartas en posesión",
+  "Copies of your collection set aside for this deck": "Copias de tu colección reservadas para este mazo",
+  "{{allocated}}/{{copies}} cards in the deck": "{{allocated}}/{{copies}} cartas en el mazo"
 }

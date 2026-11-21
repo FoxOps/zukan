@@ -25,6 +25,22 @@ export function DeckCount({ deck }: { deck: Deck }) {
       ) : (
         <span className="badge badge-sm badge-success">{t('Format rules met')}</span>
       )}
+      {deck.copies > 0 && (
+        <>
+          <span
+            className={`badge badge-sm ${deck.owned >= deck.copies ? 'badge-success' : 'badge-warning'}`}
+            title={t('Copies you have for this deck: set aside for it or free in your collection (copies other decks hold do not count)')}
+          >
+            {t('{{owned}}/{{copies}} cards owned', { owned: deck.owned, copies: deck.copies })}
+          </span>
+          <span
+            className={`badge badge-sm ${deck.allocated >= deck.copies ? 'badge-success' : 'badge-ghost'}`}
+            title={t('Copies of your collection set aside for this deck')}
+          >
+            {t('{{allocated}}/{{copies}} cards in the deck', { allocated: deck.allocated, copies: deck.copies })}
+          </span>
+        </>
+      )}
     </span>
   )
 }

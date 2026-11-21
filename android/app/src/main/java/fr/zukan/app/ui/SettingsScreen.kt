@@ -190,9 +190,14 @@ fun SettingsScreen(
         }
         SettingsSheet.LANGUAGE -> ZukanSheet(stringResource(R.string.interface_language), close, subtitle = stringResource(R.string.interface_language_help)) {
             Column {
+                ChoiceRow(
+                    stringResource(R.string.phone_language, languageName(AppLanguage.device())),
+                    !state.languageChosen,
+                    { session.followPhoneLanguage(AppLanguage.device()) },
+                )
                 AppLanguage.SUPPORTED.forEach { lang ->
                     // Saved on the account first; the app follows the account (see MainActivity).
-                    ChoiceRow(languageName(lang), interfaceLanguage == lang, { session.setServerLanguage(lang) })
+                    ChoiceRow(languageName(lang), state.languageChosen && interfaceLanguage == lang, { session.setServerLanguage(lang) })
                 }
             }
         }

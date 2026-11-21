@@ -68,7 +68,14 @@ export default function Dashboard() {
             <div className="stat-value text-2xl">{formatMoney(g.total, g.currency)}</div>
             <div className="stat-desc">
               {t('{{count}} cards', { count: g.quantity })}
-              {g.unpriced > 0 && ` · ${t('{{count}} without price', { count: g.unpriced })}`}
+              {g.unpriced > 0 && (
+                <>
+                  {' · '}
+                  <Link className="link" to={`/collection?game=${encodeURIComponent(g.game_id)}&noprice=1`}>
+                    {t('{{count}} without price', { count: g.unpriced })}
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         ))}

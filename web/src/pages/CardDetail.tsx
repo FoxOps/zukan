@@ -13,6 +13,7 @@ import { ColorBadges } from '../components/ColorBadges'
 import { PriceChart } from '../components/PriceChart'
 import { StockDialog, type StockTarget } from '../components/StockDialog'
 import { Select } from '../components/Select'
+import { SetIcon } from '../components/SetIcon'
 import { hasVisibleAttributes } from '../lib/attributes'
 import { useUrlState } from '../lib/hooks'
 import { finishName, formatDate, formatMoney, languageName, normalize } from '../lib/format'
@@ -418,7 +419,7 @@ export default function CardDetail() {
                   <td className={p.owned.length ? 'border-l-4 border-success' : 'border-l-4 border-transparent'}>
                     <div className="flex items-center gap-1.5 font-medium">
                       {p.set.icon && (
-                        <img src={p.set.icon} alt="" loading="lazy" className="h-4 w-4 object-contain dark:rounded-sm dark:bg-white/85 dark:p-px" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                        <SetIcon src={p.set.icon} game={c.game_id} className={`h-4 w-4 ${c.game_id === 'mtg' ? '' : 'dark:rounded-sm dark:bg-white/85 dark:p-px'}`} />
                       )}
                       <Link
                         to={`/cards/${c.id}/${p.id}`}

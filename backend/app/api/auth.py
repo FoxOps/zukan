@@ -248,6 +248,9 @@ async def update_settings(body: SettingsIn, user: CurrentUser, session: SessionD
     fields = body.model_dump(exclude_unset=True)
     if fields.get("language") is not None:
         user.language = fields["language"]
+        user.language_chosen = True
+    if fields.get("language_chosen") is not None:
+        user.language_chosen = fields["language_chosen"]
     if "catalog_games" in fields:
         games = fields["catalog_games"]
         if games is not None:

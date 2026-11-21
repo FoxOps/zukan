@@ -3,6 +3,7 @@ package fr.zukan.app.data
 import kotlinx.serialization.json.JsonObject
 import okhttp3.ResponseBody
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
@@ -11,6 +12,18 @@ import retrofit2.http.Query
 import retrofit2.http.Streaming
 
 interface ZukanApi {
+    @GET("api/shopping-lists")
+    suspend fun shoppingLists(): List<ShoppingListOut>
+
+    @GET("api/shopping-lists/{id}")
+    suspend fun shoppingList(@Path("id") id: Int): ShoppingListOut
+
+    @PATCH("api/shopping-lists/{id}/items/{item}")
+    suspend fun updateShoppingItem(@Path("id") id: Int, @Path("item") itemId: Int, @Body body: ShoppingItemIn): ShoppingListOut
+
+    @DELETE("api/shopping-lists/{id}")
+    suspend fun deleteShoppingList(@Path("id") id: Int)
+
     @GET("api/health")
     suspend fun health(): HealthOut
 

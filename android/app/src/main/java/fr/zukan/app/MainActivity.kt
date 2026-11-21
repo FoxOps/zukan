@@ -54,6 +54,7 @@ import fr.zukan.app.ui.ScanViewModel
 import fr.zukan.app.ui.SearchScreen
 import fr.zukan.app.ui.SessionViewModel
 import fr.zukan.app.ui.SettingsScreen
+import fr.zukan.app.ui.ShoppingScreen
 import fr.zukan.app.ui.UpdateDialog
 import fr.zukan.app.ui.UpdateViewModel
 import fr.zukan.app.ui.ZIcon
@@ -76,16 +77,18 @@ private enum class Tab(@StringRes val label: Int, @DrawableRes val icon: Int) {
     COLLECTION(R.string.tab_collection, R.drawable.ic_collection),
     SCAN(R.string.tab_scan, R.drawable.ic_scan),
     SEARCH(R.string.tab_search, R.drawable.ic_search),
+    // Decks module only.
+    SHOPPING(R.string.tab_shopping, R.drawable.ic_checklist),
     SETTINGS(R.string.tab_settings, R.drawable.ic_settings),
 }
 
-/** Four destinations on paper / chocolate, the current one on a gold pill. */
+/** Four or five destinations on paper / chocolate, the current one on a gold pill. */
 @Composable
-private fun ZukanNavigationBar(tab: Tab, onTab: (Tab) -> Unit) {
+private fun ZukanNavigationBar(tab: Tab, tabs: List<Tab>, onTab: (Tab) -> Unit) {
     Column {
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
         NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
-            Tab.entries.forEach { t ->
+            tabs.forEach { t ->
                 NavigationBarItem(
                     selected = tab == t,
                     onClick = { onTab(t) },
@@ -135,16 +138,25 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
         else -> {
             // The collection is the home screen; back from another tab returns to it.
             var tab by rememberSaveable { mutableStateOf(Tab.COLLECTION) }
+            // Shopping lists come from decks: with the Decks module only.
+            val tabs = Tab.entries.filter { it != Tab.SHOPPING || "decks" in state.modules }
+            LaunchedEffect(tabs) { if (tab !in tabs) tab = Tab.COLLECTION }
             BackHandler(enabled = tab != Tab.COLLECTION) { tab = Tab.COLLECTION }
             val snackbar = remember { SnackbarHostState() }
             // Offers a newer app (asks before downloading anything).
             LaunchedEffect(Unit) { updates.checkAutomatically() }
             // Settings shared with the web UI may have changed there.
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { session.refreshAccount() }
-            // Interface language: the account's (shared with the web UI), whatever the phone's.
-            LaunchedEffect(state.serverLanguage) {
+            // Interface language: one picked on the account (shared with the web UI), else the
+            // phone's, saved on the account for card names and pictures.
+            LaunchedEffect(state.serverLanguage, state.languageChosen) {
                 val server = state.serverLanguage?.takeIf { it in AppLanguage.SUPPORTED } ?: return@LaunchedEffect
-                if (server != AppLanguage.chosen(context)) activity?.let { AppLanguage.choose(it, server) }
+                if (state.languageChosen) {
+                    if (server != AppLanguage.chosen(context)) activity?.let { AppLanguage.choose(it, server) }
+                } else {
+                    if (AppLanguage.chosen(context) != null) activity?.let { AppLanguage.choose(it, null) }
+                    if (server != AppLanguage.device()) session.followPhoneLanguage(AppLanguage.device())
+                }
             }
             UpdateDialog(updates, updateState)
             LaunchedEffect(scanState.undo) {
@@ -160,7 +172,7 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
             }
             Scaffold(
                 snackbarHost = { SnackbarHost(snackbar) },
-                bottomBar = { ZukanNavigationBar(tab) { tab = it } },
+                bottomBar = { ZukanNavigationBar(tab, tabs) { tab = it } },
             ) { padding ->
                 Box(Modifier.padding(padding)) {
                     when (tab) {
@@ -187,6 +199,7 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
                             scan.showCard(card)
                             tab = Tab.SCAN
                         }
+                        Tab.SHOPPING -> ShoppingScreen(client?.api)
                         Tab.SETTINGS -> SettingsScreen(session, state, settings, updates, updateState)
                     }
                 }

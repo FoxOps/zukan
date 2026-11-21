@@ -226,7 +226,15 @@ export default function Finance() {
               <div className="stat">
                 <div className="stat-title">{t('Priced cards')}</div>
                 <div className="stat-value text-2xl">{r.quantity ? percent(r.priced / r.quantity).replace('+', '') : '—'}</div>
-                <div className="stat-desc">{r.unpriced > 0 ? t('{{count}} without price', { count: r.unpriced }) : t('All cards have a price')}</div>
+                <div className="stat-desc">
+                  {r.unpriced > 0 ? (
+                    <Link className="link" to={`/collection?${new URLSearchParams({ ...(game ? { game } : {}), noprice: '1' })}`}>
+                      {t('{{count}} without price', { count: r.unpriced })}
+                    </Link>
+                  ) : (
+                    t('All cards have a price')
+                  )}
+                </div>
               </div>
             </div>
           )}

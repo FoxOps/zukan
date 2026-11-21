@@ -61,6 +61,8 @@ class MeOut(UserOut):
     identities: list[IdentityOut]
     sso_account: SsoAccountOut | None = None
     language: UiLanguage
+    # False: the user never picked a language, clients follow the device or browser.
+    language_chosen: bool = False
     # Games shown in the catalog, None for all.
     catalog_games: list[str] | None
     # Main price source id (see GameOut.price_sources): values, sorts, price ranges.
@@ -79,6 +81,9 @@ class SettingsIn(BaseModel):
     """Fields left out are not changed. `catalog_games: null` shows every game."""
 
     language: UiLanguage | None = None
+    # With `language`, defaults to true (the user picked it). False: follow the device or
+    # browser language again (`language`, if given, is the one it detected).
+    language_chosen: bool | None = None
     catalog_games: list[str] | None = None
     # Makes this source the main one (the others stay shown).
     price_source: str | None = None
