@@ -13,6 +13,15 @@ type Kind = 'catalog' | 'prices' | 'images' | 'refresh'
 type Draft = { timezone: string; jobs: Record<Kind, Rule> }
 
 const KINDS: Kind[] = ['catalog', 'prices', 'images', 'refresh']
+const OPEN_KEY = 'tcg.scheduleOpen'
+
+function stored(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
 const KIND_HELP: Record<Kind, string> = {
   catalog: 'New sets and cards (large downloads)',
   prices: 'Card prices',
@@ -212,29 +221,46 @@ export function ScheduleEditor() {
     onError: (e) => toast(e.message, 'error'),
   })
   const zones = useMemo(() => timezones().map((z) => ({ value: z, label: z.replaceAll('_', ' ') })), [])
+  // Closed by default; this browser remembers it open.
+  const [open, setOpen] = useState(() => stored(OPEN_KEY) === '1')
+  const toggle = (value: boolean) => {
+    setOpen(value)
+    try {
+      localStorage.setItem(OPEN_KEY, value ? '1' : '0')
+    } catch {
+      // Storage refused: open for this visit only.
+    }
+  }
 
   if (!draft || !saved.data) return <span className="loading loading-spinner" />
   const upcoming = (changed ? (preview?.upcoming ?? {}) : saved.data.upcoming) as Partial<Record<Kind, string[]>>
   const browser = browserTimezone()
 
+  // Unsaved edits keep it open.
+  const shown = open || changed
+
   return (
-    <div className="card bg-base-200">
+    <div className={`collapse collapse-arrow rounded-box bg-base-200 ${shown ? 'collapse-open' : 'collapse-close'}`}>
+      <button
+        type="button"
+        className="collapse-title flex flex-wrap items-center gap-2 pe-12 text-start"
+        aria-expanded={shown}
+        onClick={() => toggle(!shown)}
+      >
+        <span className="text-lg font-semibold">{t('Automatic updates')}</span>
+        {saved.data.is_default && <span className="badge badge-ghost">{t('Default schedule')}</span>}
+        {changed && <span className="badge badge-warning">{t('Not saved')}</span>}
+      </button>
       <form
-        className="card-body gap-4"
+        className="collapse-content flex flex-col gap-4"
         onSubmit={(e) => {
           e.preventDefault()
           save.mutate()
         }}
       >
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <h2 className="card-title">{t('Automatic updates')}</h2>
-            <p className="text-sm text-base-content/70">
-              {t('When the server refreshes the data of every game. Times already passed today are not caught up.')}
-            </p>
-          </div>
-          {saved.data.is_default && <span className="badge badge-ghost">{t('Default schedule')}</span>}
-        </div>
+        <p className="text-sm text-base-content/70">
+          {t('When the server refreshes the data of every game. Times already passed today are not caught up.')}
+        </p>
 
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span>{t('Time zone')}</span>

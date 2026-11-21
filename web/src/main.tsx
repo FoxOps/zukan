@@ -2,7 +2,7 @@ import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-qu
 import { StrictMode, type ComponentType } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router'
-import { ApiError } from './api/client'
+import { ApiError, serverDown } from './api/client'
 import { Layout } from './components/Layout'
 import ErrorPage from './components/ErrorPage'
 import { ToastProvider } from './components/Toasts'
@@ -22,11 +22,12 @@ function page(load: () => Promise<{ default: ComponentType }>) {
 
 const queryClient = new QueryClient({
   // Failed loads are shown as toasts, except where the page shows them itself
-  // (`meta.inlineError`), expired sessions (the login page opens) and maintenance (503:
-  // the maintenance page opens once the health check confirms it).
+  // (`meta.inlineError`), expired sessions (the login page opens) and a server down or in
+  // maintenance (no answer, 502-504: the maintenance page opens once the health check
+  // confirms it).
   queryCache: new QueryCache({
     onError: (error, query) => {
-      if (error instanceof ApiError && error.status === 503) {
+      if (serverDown(error)) {
         void queryClient.invalidateQueries({ queryKey: ['health'] })
         return
       }
@@ -68,6 +69,7 @@ const router = createBrowserRouter([
       { path: '/admin/groups', lazy: page(() => import('./pages/admin/Groups')) },
       { path: '/admin/jobs', lazy: page(() => import('./pages/admin/Jobs')) },
       { path: '/admin/checks', lazy: page(() => import('./pages/admin/Checks')) },
+      { path: '/admin/server', lazy: page(() => import('./pages/admin/Server')) },
       { path: '*', lazy: page(() => import('./pages/NotFound')) },
     ],
   },

@@ -1,13 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
-import { api, ApiError, onSessionExpired } from '../api/client'
+import { api, ApiError, onSessionExpired, serverDown } from '../api/client'
 import { useAndroidRelease, useHealth, useMe } from '../api/queries'
 import { useServerLanguage } from '../i18n'
 import { LanguageMenu } from './I18n'
-import { ErrorScreen } from './ErrorPage'
-import { MaintenanceBanner } from './Maintenance'
+import { MaintenanceBanner, MaintenanceScreen } from './Maintenance'
 import { Logo, Mascot } from './Logo'
 import { applyTheme, savedDark } from '../lib/theme'
 import { useTypeToSearch } from '../lib/typeToSearch'
@@ -28,6 +27,7 @@ const ADMIN_NAV = [
   { to: '/admin/groups', label: 'Groups' },
   { to: '/admin/jobs', label: 'Data sync' },
   { to: '/admin/checks', label: 'Data checks' },
+  { to: '/admin/server', label: 'Server' },
 ]
 
 function useTheme() {
@@ -61,6 +61,9 @@ export function Layout() {
     if (maintenance && role && role !== 'admin') window.location.reload()
   }, [maintenance, role])
 
+  // Server back: reload what failed meanwhile.
+  const backOnline = useCallback(() => void client.invalidateQueries(), [client])
+
   useEffect(
     () =>
       onSessionExpired(() => {
@@ -74,12 +77,15 @@ export function Layout() {
     return <div className="flex h-screen items-center justify-center"><span className="loading loading-spinner loading-lg" /></div>
   }
   if (me.isError) {
-    // Not logged in: the login page. Server down or failing: say so, with a retry.
+    // Not logged in: the login page. Server down or failing: the maintenance page, which
+    // comes back by itself.
     if (me.error instanceof ApiError && (me.error.status === 401 || me.error.status === 403)) {
       return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />
     }
-    return <ErrorScreen title={t('Something went wrong')} text={me.error.message} onRetry={() => me.refetch()} home={false} />
+    return <MaintenanceScreen onBack={backOnline} />
   }
+  // Server stopped answering (restart, update): the maintenance page until it is back.
+  if (health.isError && serverDown(health.error)) return <MaintenanceScreen onBack={backOnline} />
 
   const logout = async () => {
     const { data } = await api.POST('/api/auth/logout', { body: {} })

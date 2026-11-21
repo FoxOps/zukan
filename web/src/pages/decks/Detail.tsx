@@ -17,7 +17,7 @@ import { DeckCount } from './common'
 import { ExportDialog } from './Export'
 import { useFormatName } from './formats'
 import { ImportDialog } from './Import'
-import { Validation } from './issues'
+import { FormatCheck } from './issues'
 
 type Detail = Schemas['DeckDetailOut']
 type Entry = Schemas['DeckEntryOut']
@@ -509,6 +509,7 @@ export default function DeckDetail() {
             <div className="mt-1 text-xs text-base-content/60">
               {t('{{allocated}} of {{requested}} copies allocated, {{missing}} missing from your collection', totals)}
             </div>
+            <FormatCheck validation={validation} />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Select
@@ -532,119 +533,114 @@ export default function DeckDetail() {
         </div>
       </div>
 
-      <AddCards deck={deck} entries={entries} onAdd={add} sections={sections} busy={busy} />
+      <AddCards deck={deck} entries={entries} onAdd={add} sections={sections} busy={busy} view={view.id} />
       <div className="flex justify-end">
         <ViewToggle views={DECK_VIEWS} value={view.id} onChange={chooseView} />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_22rem]">
-        <div className="flex flex-col gap-4">
-          {blocks.length === 0 && (
-            <div className="card bg-base-200">
-              <div className="card-body items-center text-center text-sm text-base-content/70">{t('No card yet: search the catalog above or import a decklist.')}</div>
-            </div>
-          )}
-          {blocks.map((block) => {
-            const count = block.rows.reduce((n, r) => n + r.line.quantity, 0)
-            if (view.id === 'images')
-              return (
-                <section key={block.key} className="flex flex-col gap-2">
-                  <h2 className="font-semibold">
-                    {block.title} ({count})
-                  </h2>
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 2xl:grid-cols-5">
-                    {block.rows.map((row) => {
-                      const { entry: e, line } = row
-                      const status = STATUS[e.status]
-                      const link = cardPage(row)
-                      return (
-                        <div key={rowKey(block, row)} className="flex flex-col gap-1">
-                          <Link to={link} className="group relative">
-                            <CardImage thumb src={line.image ?? e.image} alt={e.name} game={deck.game_id} landscape={e.orientation === 'landscape'} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
-                            <span className="badge badge-neutral absolute bottom-[3%] left-[3%] font-semibold shadow">×{line.quantity}</span>
-                            <span className={`badge badge-sm absolute right-[3%] top-[3%] shadow ${status.badge}`}>
-                              {t(status.label)}
-                              {e.status === 'missing' && ` ${e.missing}`}
-                            </span>
-                          </Link>
-                          <Link to={link} className="link-hover break-words text-sm font-medium">
-                            <ShownName name={e.name} translation={e.translation} />
-                          </Link>
-                          <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/60">
-                            <PrintingBadge line={line} onClick={() => setPrinting({ row, split: false })} />
-                            <span className="tooltip" data-tip={t('{{n}} allocated to other decks', { n: e.allocated_elsewhere })}>
-                              <span className={`badge badge-sm ${e.allocated >= e.requested ? 'badge-success' : 'badge-ghost'}`}>
-                                {t('Here')} {e.allocated} / {e.requested}
-                              </span>
-                            </span>
-                            {lineAllocated(row)}
-                            <Legality entry={e} />
-                          </div>
-                          <div className="flex flex-wrap items-center justify-between gap-1">
-                            {stepper(row)}
-                            {actions(row, block)}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </section>
-              )
+      <div className="flex flex-col gap-4">
+        {blocks.length === 0 && (
+          <div className="card bg-base-200">
+            <div className="card-body items-center text-center text-sm text-base-content/70">{t('No card yet: search the catalog above or import a decklist.')}</div>
+          </div>
+        )}
+        {blocks.map((block) => {
+          const count = block.rows.reduce((n, r) => n + r.line.quantity, 0)
+          if (view.id === 'images')
             return (
-              <div key={block.key} className="overflow-x-auto rounded-box border border-base-300">
-                <table className="table table-sm">
-                  <thead>
-                    <tr>
-                      <th colSpan={4}>
-                        {block.title} ({count})
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {block.rows.map((row) => {
-                      const { entry: e, line } = row
-                      const link = cardPage(row)
-                      const first = firstLine(block.rows, row)
-                      return (
-                        <tr key={rowKey(block, row)} className={`hover:bg-base-200 ${first ? '' : 'border-t-0'}`}>
-                          <td className="w-28">{stepper(row)}</td>
-                          <td>
-                            <div className="flex items-center gap-2">
-                              <Link to={link} className="block w-8 shrink-0" tabIndex={-1} aria-hidden>
-                                <CardImage thumb src={line.image ?? e.image} alt={e.name} game={deck.game_id} landscape={e.orientation === 'landscape'} />
+              <section key={block.key} className="flex flex-col gap-2">
+                <h2 className="font-semibold">
+                  {block.title} ({count})
+                </h2>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 2xl:grid-cols-5">
+                  {block.rows.map((row) => {
+                    const { entry: e, line } = row
+                    const status = STATUS[e.status]
+                    const link = cardPage(row)
+                    return (
+                      <div key={rowKey(block, row)} className="flex flex-col gap-1">
+                        <Link to={link} className="group relative">
+                          <CardImage thumb src={line.image ?? e.image} alt={e.name} game={deck.game_id} landscape={e.orientation === 'landscape'} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
+                          <span className="badge badge-neutral absolute bottom-[3%] left-[3%] font-semibold shadow">×{line.quantity}</span>
+                          <span className={`badge badge-sm absolute right-[3%] top-[3%] shadow ${status.badge}`}>
+                            {t(status.label)}
+                            {e.status === 'missing' && ` ${e.missing}`}
+                          </span>
+                        </Link>
+                        <Link to={link} className="link-hover break-words text-sm font-medium">
+                          <ShownName name={e.name} translation={e.translation} />
+                        </Link>
+                        <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/60">
+                          <PrintingBadge line={line} onClick={() => setPrinting({ row, split: false })} />
+                          <span className="tooltip" data-tip={t('{{n}} allocated to other decks', { n: e.allocated_elsewhere })}>
+                            <span className={`badge badge-sm ${e.allocated >= e.requested ? 'badge-success' : 'badge-ghost'}`}>
+                              {t('Here')} {e.allocated} / {e.requested}
+                            </span>
+                          </span>
+                          {lineAllocated(row)}
+                          <Legality entry={e} />
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-1">
+                          {stepper(row)}
+                          {actions(row, block)}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            )
+          return (
+            <div key={block.key} className="overflow-x-auto rounded-box border border-base-300">
+              <table className="table table-sm">
+                <thead>
+                  <tr>
+                    <th colSpan={4}>
+                      {block.title} ({count})
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {block.rows.map((row) => {
+                    const { entry: e, line } = row
+                    const link = cardPage(row)
+                    const first = firstLine(block.rows, row)
+                    return (
+                      <tr key={rowKey(block, row)} className={`hover:bg-base-200 ${first ? '' : 'border-t-0'}`}>
+                        <td className="w-28">{stepper(row)}</td>
+                        <td>
+                          <div className="flex items-center gap-2">
+                            <Link to={link} className="block w-8 shrink-0" tabIndex={-1} aria-hidden>
+                              <CardImage thumb src={line.image ?? e.image} alt={e.name} game={deck.game_id} landscape={e.orientation === 'landscape'} />
+                            </Link>
+                            <div className="min-w-0">
+                              <Link to={link} className={`link-hover font-medium ${first ? '' : 'text-base-content/60'}`}>
+                                <ShownName name={e.name} translation={e.translation} />
                               </Link>
-                              <div className="min-w-0">
-                                <Link to={link} className={`link-hover font-medium ${first ? '' : 'text-base-content/60'}`}>
-                                  <ShownName name={e.name} translation={e.translation} />
-                                </Link>
-                                <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/60">
-                                  <PrintingBadge line={line} onClick={() => setPrinting({ row, split: false })} />
-                                  {lineAllocated(row)}
-                                  {first && e.mana_cost && (
-                                    <span className="whitespace-nowrap">
-                                      <SymbolText game={game} text={e.mana_cost} />
-                                    </span>
-                                  )}
-                                  {first && !e.mana_cost && e.type_line && deck.game_id !== 'mtg' && <span>{e.type_line}</span>}
-                                  {first && <Legality entry={e} />}
-                                </div>
+                              <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/60">
+                                <PrintingBadge line={line} onClick={() => setPrinting({ row, split: false })} />
+                                {lineAllocated(row)}
+                                {first && e.mana_cost && (
+                                  <span className="whitespace-nowrap">
+                                    <SymbolText game={game} text={e.mana_cost} />
+                                  </span>
+                                )}
+                                {first && !e.mana_cost && e.type_line && deck.game_id !== 'mtg' && <span>{e.type_line}</span>}
+                                {first && <Legality entry={e} />}
                               </div>
                             </div>
-                          </td>
-                          <td>{first && <Stock entry={e} />}</td>
-                          <td className="w-1 whitespace-nowrap text-right">{actions(row, block)}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )
-          })}
-        </div>
-        <div>
-          <Validation validation={validation} />
-        </div>
+                          </div>
+                        </td>
+                        <td>{first && <Stock entry={e} />}</td>
+                        <td className="w-1 whitespace-nowrap text-right">{actions(row, block)}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
+        })}
       </div>
 
       <ImportDialog deckId={deckId} gameId={deck.game_id} sections={sections} open={importing} onClose={() => setImporting(false)} />
