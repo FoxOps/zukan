@@ -25,7 +25,7 @@ const DYNAMIC = [
   'Legend', 'Unit', 'Gear', 'Rune', 'Battlefield', 'Monster', 'Fusion', 'Synchro', 'Xyz', 'Link',
   'Avatar', 'Site', 'Minion', 'Magic', 'Aura',
   // Deck sections (`DeckFormatOut.sections`).
-  'Main deck', 'Sideboard', 'Commander', 'Chosen champion', 'Battlefields', 'Rune deck', 'Main Deck',
+  'Main deck', 'Sideboard', 'Commander', 'Companion', 'Chosen champion', 'Battlefields', 'Rune deck', 'Main Deck',
   'Extra Deck', 'Side Deck', 'Atlas', 'Spellbook', 'Collection',
   'Allocated', 'Banned', 'Not legal', 'Restricted', 'Found', 'Ambiguous', 'Unknown',
   // Collection views and trend periods.

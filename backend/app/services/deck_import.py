@@ -32,7 +32,7 @@ _HEADERS: dict[str, Section | None] = {
     "mainboard": "main",
     "sideboard": "sideboard",
     "side": "sideboard",
-    "companion": "sideboard",
+    "companion": "companion",
     # Cards being considered: not part of the deck.
     # Riftbound.
     "legend": "legend",

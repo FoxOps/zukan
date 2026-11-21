@@ -102,7 +102,7 @@ export function ImportDialog({
           {lines === null ? (
             <div className="mt-3 flex flex-col gap-2">
               <p className="text-sm text-base-content/70">
-                {help[kind] ?? t('One card per line ("4 Lightning Bolt"). "Commander" and "Sideboard" lines start those sections; a set code and number ("(M10) 146") choose the printing.')}
+                {help[kind] ?? t('One card per line ("4 Lightning Bolt"). "Commander", "Companion" and "Sideboard" lines start those sections; a set code and number ("(M10) 146") choose the printing.')}
               </p>
               <textarea
                 className="textarea h-64 w-full font-mono text-sm"
