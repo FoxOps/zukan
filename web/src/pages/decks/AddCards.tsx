@@ -70,9 +70,10 @@ export function AddCards({
     queryKey: ['deck-card-search', deck.game_id, q, setId, colors, colorMode, attrs, owned, page],
     enabled: open && filtered,
     placeholderData: keepPreviousData,
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       call(
         api.GET('/api/cards', {
+          signal,
           params: {
             query: {
               game: deck.game_id,

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import type { Schemas } from '../api/client'
+import { backoff } from '../api/queries'
 import { Logo } from './Logo'
 
 type State = Schemas['MaintenanceOut']
@@ -48,19 +49,27 @@ export function MaintenanceScreen({ onBack = reload }: { onBack?: () => void }) 
   useEffect(() => {
     let stopped = false
     let down = false
-    const timer = setInterval(async () => {
+    let failures = 0
+    let timer: ReturnType<typeof setTimeout>
+    // One check at a time, the next one planned when it ends: 5 s, then less and less
+    // often while the server stays down (30 s at most).
+    const check = async () => {
       const back = await serverBack()
       if (stopped) return
-      if (!back) down = true
-      else if (down) {
+      if (!back) {
+        down = true
+        failures += 1
+      } else if (down) {
         stopped = true
-        clearInterval(timer)
         onBack()
+        return
       }
-    }, 5000)
+      timer = setTimeout(check, backoff(5000, failures, 30_000))
+    }
+    timer = setTimeout(check, 5000)
     return () => {
       stopped = true
-      clearInterval(timer)
+      clearTimeout(timer)
     }
   }, [onBack])
   return (

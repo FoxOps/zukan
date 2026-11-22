@@ -436,7 +436,9 @@ async def list_sets(game_id: str, _: CurrentUser, session: SessionDep) -> list[S
         .order_by(CardSet.release_date.desc().nulls_last(), CardSet.name)
     )
     sets = list(sets)
-    languages = await set_languages(session, (s.id for s in sets))
+    # Only regional sets show a language (`exclusive_lang`): international ones skip the
+    # (whole game) language aggregation.
+    languages = await set_languages(session, (s.id for s in sets if s.lang is not None))
     return [_set_out(s, languages) for s in sets]
 
 
@@ -925,6 +927,9 @@ async def printing_image(
         )
         if path is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "No back image for this printing")
+        # Grids ask for a small copy of a flipped card too (SVG backs are small already).
+        if size == "thumb" and path.suffix != ".svg":
+            path = await images.thumbnail(path)
         return FileResponse(path, headers=_ASSET_HEADERS)
     wanted = lang or user.language
     languages = images.image_languages(printing, wanted)

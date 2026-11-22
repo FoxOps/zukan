@@ -314,9 +314,11 @@ export default function DeckDetail() {
   const { deckId: param } = useParams()
   const deckId = Number(param)
   const { data: me } = useMe()
-  const query = useDeck(deckId)
-  const { data: gameFormats = [] } = useDeckFormats()
-  const formatName = useFormatName()
+  // No module: redirected below, without asking the server for what it would refuse.
+  const enabled = !!me?.modules?.includes('decks')
+  const query = useDeck(deckId, enabled)
+  const { data: gameFormats = [] } = useDeckFormats(enabled)
+  const formatName = useFormatName(enabled)
   const client = useQueryClient()
   const toast = useToast()
   const navigate = useNavigate()
@@ -333,6 +335,14 @@ export default function DeckDetail() {
   const update = useDeckMutation(deckId, (body: Schemas['DeckUpdateIn']) => call(api.PATCH('/api/decks/{deck_id}', { params: { path: { deck_id: deckId } }, body })))
   const setCard = useDeckMutation(deckId, (body: Omit<Schemas['DeckCardIn'], 'add'> & { add?: boolean }) =>
     call(api.PUT('/api/decks/{deck_id}/cards', { params: { path: { deck_id: deckId } }, body: { add: false, ...body } })),
+  )
+  const moveLine = useDeckMutation(deckId, ({ row, to, count }: { row: Row; to: Section; count: number }) =>
+    call(
+      api.POST('/api/decks/{deck_id}/cards/move', {
+        params: { path: { deck_id: deckId } },
+        body: { card_id: row.entry.card_id, section: row.line.section, printing_id: row.line.printing_id, to_printing_id: row.line.printing_id, to_section: to, quantity: count },
+      }),
+    ),
   )
   const allocate = useDeckMutation(deckId, ({ path, cardId }: { path: 'allocate' | 'release'; cardId: number }) =>
     call(
@@ -370,13 +380,9 @@ export default function DeckDetail() {
   // To the main deck: the server puts runes, sites, Extra Deck monsters... in theirs.
   const add = (cardId: number, section: Section, printingId: number | null) =>
     setCard.mutate({ card_id: cardId, section: section === 'main' ? null : section, printing_id: printingId, quantity: 1, add: true })
-  // Copies of a line moved to another section (same printing): added first, so the
-  // allocated copies stay (lowering the deck's total first would release them).
-  const move = async ({ entry, line }: Row, to: Section, count: number) => {
-    const target = entry.lines.find((l) => l.section === to && l.printing_id === line.printing_id)
-    await setCard.mutateAsync({ card_id: entry.card_id, section: to, printing_id: line.printing_id, quantity: (target?.quantity ?? 0) + count })
-    setCard.mutate({ card_id: entry.card_id, section: line.section, printing_id: line.printing_id, quantity: line.quantity - count })
-  }
+  // Copies of a line moved to another section (same printing), in one change on the
+  // server: never twice in the deck, allocations kept.
+  const move = (row: Row, to: Section, count: number) => moveLine.mutate({ row, to, count })
 
   // Rows (card lines) per section in the format's order; main deck rows grouped by card
   // type. Cards of a section the format lacks (format changed) are shown last.
@@ -395,7 +401,7 @@ export default function DeckDetail() {
   const rowKey = (block: { key: string }, { entry, line }: Row) => `${block.key}-${entry.card_id}-${line.printing_id ?? 'any'}`
   // The card's first line in a block shows its copies; its other lines only theirs.
   const firstLine = (rows: Row[], row: Row) => rows.find((r) => r.entry.card_id === row.entry.card_id) === row
-  const busy = setCard.isPending || allocate.isPending
+  const busy = setCard.isPending || moveLine.isPending || allocate.isPending
   const stepper = ({ entry, line }: Row) => {
     const quantity = line.quantity
     const set = (next: number) => put(entry.card_id, line.section, line.printing_id, next)
@@ -508,7 +514,7 @@ export default function DeckDetail() {
               <span>
                 {game?.name ?? deck.game_id} · {formatName(deck.format)}
               </span>
-              <DeckCount deck={deck} />
+              <DeckCount deck={deck} showValue={false} />
             </div>
             <div className="mt-1 text-xs text-base-content/60">
               {t('{{allocated}} of {{requested}} copies allocated, {{missing}} missing from your collection', totals)}

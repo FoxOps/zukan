@@ -865,8 +865,9 @@ export interface paths {
         put?: never;
         /**
          * Move Line
-         * @description Ask for another printing (or any) for copies of a line: the whole line, or some
-         *     copies split off into their own line. Allocations are kept.
+         * @description Ask for another printing (or any) for copies of a line, or move them to another
+         *     section (sideboard...): the whole line, or some copies split off into their own line.
+         *     One change, so the deck never has the copies twice; allocations are kept.
          */
         post: operations["move_line_api_decks__deck_id__cards_move_post"];
         delete?: never;
@@ -2214,8 +2215,8 @@ export interface components {
         };
         /**
          * DeckLineMoveIn
-         * @description Move copies of a line to another printing (or any), merged with that line when
-         *     the deck has it.
+         * @description Move copies of a line to another printing (or any) and/or another section, merged
+         *     with that line when the deck has it. `to_section` None: same section.
          */
         DeckLineMoveIn: {
             /** Card Id */
@@ -2230,6 +2231,8 @@ export interface components {
             printing_id?: number | null;
             /** To Printing Id */
             to_printing_id?: number | null;
+            /** To Section */
+            to_section?: ("commander" | "companion" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard") | null;
             /** Quantity */
             quantity?: number | null;
         };

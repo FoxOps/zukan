@@ -108,8 +108,8 @@ export default function Dashboard() {
           </div>
           <PriceChart
             data={(history.data?.points ?? [])
-              // Days before the first known value carry no information.
-              .slice(Math.max(0, (history.data?.points ?? []).findIndex((p) => Number(p.value) > 0)))
+              // Days before the first known value carry no information (none: nothing to draw).
+              .slice(((first) => (first < 0 ? Infinity : first))((history.data?.points ?? []).findIndex((p) => Number(p.value) > 0)))
               .map((p) => ({ date: p.date, [t('Value')]: Number(p.value) }))}
             series={[t('Value')]}
             height={260}

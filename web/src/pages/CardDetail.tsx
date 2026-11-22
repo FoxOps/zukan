@@ -121,7 +121,8 @@ export default function CardDetail() {
   const [chartSourceId, setChartSourceId] = useState<string | null>(null)
   const url = useUrlState()
   const sortParam = url.get('sort')
-  const sort: PrintingSort = sortParam in PRINTING_SORTS ? (sortParam as PrintingSort) : 'owned'
+  // Own keys only: `__proto__`, `toString`... are no sort.
+  const sort: PrintingSort = Object.hasOwn(PRINTING_SORTS, sortParam) ? (sortParam as PrintingSort) : 'owned'
   const finishLabel = useMemo(() => (code: string) => finishName(game, code), [game])
 
   if (card.isPending) return <span className="loading loading-spinner loading-lg" />

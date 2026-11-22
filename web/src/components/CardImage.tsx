@@ -72,9 +72,10 @@ export function FlipIcon({ className = 'h-4 w-4' }: { className?: string }) {
   )
 }
 
-/** Link to the small copy of a card picture served by the API (other links unchanged). */
+/** Link to the small copy of a card picture (front or back) served by the API (other links
+ * unchanged). */
 function thumbUrl(url: string | null | undefined): string | null | undefined {
-  if (!url || !/^\/api\/printings\/\d+\/image(\?|$)/.test(url) || url.includes('face=back')) return url
+  if (!url || !/^\/api\/printings\/\d+\/image(\?|$)/.test(url) || url.includes('size=')) return url
   return `${url}${url.includes('?') ? '&' : '?'}size=thumb`
 }
 
@@ -88,7 +89,17 @@ export function CardImage({ src, back, alt, className = '', faceClassName = '', 
   const [flipped, setFlipped] = useState(false)
   // The back is only downloaded once someone asks for it.
   const [backWanted, setBackWanted] = useState(false)
-  const [failed, setFailed] = useState(false)
+  // Pictures that did not load, by link: per face, and a new link (other printing or
+  // language) is tried again.
+  const [failed, setFailed] = useState<ReadonlySet<string>>(() => new Set())
+  const fail = (url: string) => setFailed((before) => new Set(before).add(url))
+  // Another card in the same place (list refreshed, other printing): front side up again.
+  const [shownSrc, setShownSrc] = useState(src)
+  if (shownSrc !== src) {
+    setShownSrc(src)
+    setFlipped(false)
+    setBackWanted(false)
+  }
   const flip = () => {
     setBackWanted(true)
     setFlipped((f) => !f)
@@ -103,12 +114,12 @@ export function CardImage({ src, back, alt, className = '', faceClassName = '', 
   // stale dimmed paint after list reloads in Chrome.
   const turnable = back ? 'backface-hidden' : ''
   const face = (url: string | null | undefined, label: string, extra = '') =>
-    url && !failed ? (
+    url && !failed.has(url) ? (
       <img
         src={url}
         alt={label}
         loading="lazy"
-        onError={() => setFailed(true)}
+        onError={() => fail(url)}
         className={`absolute rounded-[4.5%] object-cover ${landscape ? TURNED : 'inset-0 h-full w-full'} ${turnable} ${extra}`}
       />
     ) : (
@@ -124,7 +135,7 @@ export function CardImage({ src, back, alt, className = '', faceClassName = '', 
           onClick={back && flipOnClick ? flip : undefined}
         >
           {face(thumb ? thumbUrl(src) : src, alt)}
-          {back && backWanted && face(back, `${alt} (${t('back')})`, 'rotate-y-180')}
+          {back && backWanted && face(thumb ? thumbUrl(back) : back, `${alt} (${t('back')})`, 'rotate-y-180')}
         </div>
       </div>
       {back && (

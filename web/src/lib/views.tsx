@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useUrlState } from './hooks'
+import { readStored, store } from './storage'
 
 export const listIcon = (
   <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2" aria-hidden>
@@ -23,25 +24,15 @@ export type ViewChoice = {
   icon: ReactNode
 }
 
-function saved(key: string): string | null {
-  try {
-    return localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
 
 /** View in the URL (`?view=`), else the last one used on this browser (`storageKey`),
  * else the first of `views`. */
 export function useView<V extends ViewChoice>(views: V[], storageKey: string): [V, (id: string) => void] {
   const url = useUrlState()
-  const view = views.find((v) => v.id === (url.get('view') || saved(storageKey))) ?? views[0]
+  const view = views.find((v) => v.id === (url.get('view') || readStored(storageKey))) ?? views[0]
   const choose = (id: string) => {
-    try {
-      localStorage.setItem(storageKey, id)
-    } catch {
-      // Storage refused: the URL still keeps it.
-    }
+    // Storage refused: the URL still keeps it.
+    store(storageKey, id)
     url.set({ view: id }, false)
   }
   return [view, choose]

@@ -22,18 +22,53 @@ which also rewrites the stored card paths).
 
 import os
 import shutil
+import tempfile
 from pathlib import Path
 
 CARDS = "cards"
 SETS = "sets"
 SYMBOLS = "symbols"
 RARITY = "rarity"
+
 CACHE = "cache"
 DEFAULT = "default"
 # Top-level folders that are not games.
 NOT_GAMES = (SETS, SYMBOLS, CACHE, DEFAULT)
 # Pictures people may put in place of the shipped ones.
 PICTURE_SUFFIXES = (".svg", ".png", ".webp")
+
+
+def _temp_for(target: Path) -> Path:
+    """A new empty file next to `target`, of its own name: writers of the same target (API
+    and worker processes too) never share one. Ends in `.tmp`, so the image job removes it
+    when a restart leaves it behind."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(dir=target.parent, prefix=f"{target.name}.", suffix=".tmp")
+    # mkstemp makes it private (0600): pictures stay readable as before.
+    os.fchmod(fd, 0o644)
+    os.close(fd)
+    return Path(name)
+
+
+def write_atomic(target: Path, data: bytes) -> None:
+    """Write `target` whole or not at all (readers never see half a file)."""
+    tmp = _temp_for(target)
+    try:
+        tmp.write_bytes(data)
+        tmp.replace(target)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
+def copy_atomic(source: Path, target: Path) -> None:
+    tmp = _temp_for(target)
+    try:
+        shutil.copyfile(source, tmp)
+        tmp.replace(target)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def game_folder(root: Path, game_id: str, kind: str) -> Path:
@@ -76,9 +111,7 @@ def install_defaults(root: Path, shipped: dict[str, dict[str, Path]]) -> int:
                 data = file.read_bytes()
                 if path.is_file() and path.read_bytes() == data:
                     continue
-                tmp = path.with_suffix(path.suffix + ".tmp")
-                tmp.write_bytes(data)
-                tmp.replace(path)
+                write_atomic(path, data)
                 written += 1
     return written
 

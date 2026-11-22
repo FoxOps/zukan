@@ -43,24 +43,30 @@ export function markSignedIn(): void {
 // Auth endpoints whose 401 means "wrong credentials / no session", never "refresh first".
 const NO_REFRESH = /^\/api\/auth\/(login|refresh|logout|oidc\/)/
 
-let refreshing: Promise<boolean> | null = null
+// Outcome of a refresh: done, refused (the session is over), or the refresh's own answer
+// when the server could not tell (429, 5xx; status 0: not reached).
+type Refresh = 'ok' | 'expired' | number
 
-function refreshSession(): Promise<boolean> {
+let refreshing: Promise<Refresh> | null = null
+
+function refreshSession(): Promise<Refresh> {
   // One refresh at a time: concurrent 401s wait for the same rotation.
   refreshing ??= fetch('/api/auth/refresh', {
     method: 'POST',
     headers: { ...CSRF, 'Content-Type': 'application/json' },
     body: '{}',
   })
-    .then((r) => r.ok)
-    .catch(() => false)
+    .then((r): Refresh => (r.ok ? 'ok' : r.status === 401 || r.status === 403 ? 'expired' : r.status))
+    .catch((): Refresh => 0)
     .finally(() => {
       refreshing = null
     })
   return refreshing
 }
 
-/** fetch with CSRF header and a silent token refresh on 401. */
+/** fetch with CSRF header and a silent token refresh on 401. A refresh the server could not
+ * answer (down, overloaded) is not an expired session: the request fails with that status
+ * (network error: no answer) and the user stays signed in. */
 export async function authFetch(input: Request): Promise<Response> {
   const request = new Request(input, { credentials: 'same-origin' })
   request.headers.set('X-TCG-CSRF', '1')
@@ -70,9 +76,10 @@ export async function authFetch(input: Request): Promise<Response> {
   if (response.status !== 401 || NO_REFRESH.test(new URL(request.url).pathname)) {
     return response
   }
-  if (await refreshSession()) {
-    return fetch(retry)
-  }
+  const refresh = await refreshSession()
+  if (refresh === 'ok') return fetch(retry)
+  if (refresh === 0) throw new TypeError('Session refresh failed: server not reached')
+  if (refresh !== 'expired') return new Response(null, { status: refresh, statusText: 'Session refresh failed' })
   if (epoch === sessionEpoch) listeners.forEach((l) => l())
   return response
 }

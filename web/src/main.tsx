@@ -28,7 +28,11 @@ const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
       if (serverDown(error)) {
-        void queryClient.invalidateQueries({ queryKey: ['health'] })
+        // The health check's own failure must not start it again (request loop); several
+        // failures at once share one check (a running one is not restarted).
+        if (query.queryKey[0] !== 'health') {
+          void queryClient.invalidateQueries({ queryKey: ['health'] }, { cancelRefetch: false })
+        }
         return
       }
       if (query.meta?.inlineError || (error instanceof ApiError && error.status === 401)) return

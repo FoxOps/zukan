@@ -2679,3 +2679,49 @@ choice in the pickers.
   servers). Not tried live.
 - [ ] User: try on the next dev image; release Android 0.19.0 with server 0.31.0 (Android 0.18.0
   still ticks whole lines on 0.31.0).
+
+
+### Report server 0.31.0 + Android 0.19.0: dark badges, deck value, frontend audit (user, 2026-11-22)
+Branch `2026-11-22-001-dark-badges-frontend-audit` from `dev`. Server 0.32.0 (move API, behavior
+fixes), Android unchanged (0.19.0). No Dependabot pull request open.
+Audit: `zukan-server-frontend-audit-2026-11-22.md` (15 findings, F01–F15, source `25352cd`), all
+confirmed against the code and fixed.
+- [x] Dark theme badges: `.badge-ghost` / `.badge-neutral` (base-200 / chocolate on base-100) and
+  the plain badge's border were near invisible. `index.css`, dark theme only: filled with base-300,
+  plain badge border base-300; outline, dash and soft badges unchanged.
+- [x] Decks: value badge `badge-info` (blue) on `/decks`; on a deck page `DeckCount showValue={false}`,
+  the "Deck value / Allocated / To get" line alone shows it.
+- [x] F01 health loop: a failed health check no longer invalidates itself; other failures share
+  one check (`cancelRefetch: false`). Health every 15 s, after failures 30 s then 60 s (±20 %);
+  maintenance page polls one at a time, 5 s up to 30 s. Live: 1 health request in 2.5 s on 503
+  (audit: 380).
+- [x] F02 search: pending search uses the latest callback, dropped on unmount or URL change;
+  `useUrlState.set` builds from the current URL. Game change keeps the typed text.
+- [x] F03 logout: checks the answer; failure (not 401) shows "Logging out failed: you are still
+  signed in" and keeps the session; button disabled while pending.
+- [x] F04 refresh: only 401/403 from `/api/auth/refresh` end the session; 429/5xx return that
+  status, no answer is a network error (maintenance check), user stays signed in.
+- [x] F05 images: `layout.write_atomic` / `copy_atomic` (unique `mkstemp` names ending `.tmp`, mode
+  0644; images, symbols, default pictures); per-key in-process lock for card downloads, assets and
+  thumbnails (one download / encode per key); write errors logged, no 500.
+- [x] F06 `CardImage`: failures remembered per link (front and back apart); new card: front up.
+- [x] F07 catalog, collection, quick search and deck search pass React Query's abort signal.
+- [x] F08 `GET /games/{id}/sets`: languages aggregated for regional sets only; `useSets` gcTime.
+- [x] F09 `Select`: labels normalized once, options rendered 100 at a time (more on scroll or
+  keyboard).
+- [x] F10 recharts in `PriceChartLines` (lazy): no data, no chart library; dashboard with only zero
+  values has no data.
+- [x] F11 flipped thumbnails ask `face=back&size=thumb`; the API thumbnails backs (not SVG);
+  `asset_file` never returns `<stem>.thumb.webp` as the full back.
+- [x] F12 `lib/storage.ts` (`readStored`, `store`): theme, regions, stock language, views,
+  schedule editor work with storage refused.
+- [x] F13 decks / binder pages: formats, deck and binder queries only with the module.
+- [x] F14 card page sort: own keys only (`Object.hasOwn`). Live: `?sort=__proto__` renders.
+- [x] F15 `POST /decks/{id}/cards/move`: `to_section` (copies to another section, one transaction,
+  allocations kept, merged; copies past the line maximum stay); `to_printing_id` left out = same
+  printing (null: any). Web section moves use it (was two PUTs).
+- [x] Versions: server 0.32.0. `.env.example`: user agent 0.32.0. No new variable.
+- [x] Verified: 348 backend tests (section move, concurrent writers, back thumbnail), ruff; web tsc,
+  oxlint, i18n (792), build (chart in its own lazy chunk); headless Chromium on vite dev against
+  the local 0.31.0 server: dark badge colors, F01 count, F02 URL, F14.
+- [ ] User: try on the next dev image (dark badges, deck page, moving cards to the sideboard).

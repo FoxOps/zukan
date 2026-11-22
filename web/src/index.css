@@ -150,3 +150,25 @@ h3,
     filter: invert(1);
   }
 }
+
+/* Dark theme: daisyUI's ghost badge is base-200 on base-100 and the plain badge's border is
+   base-200, both near invisible there (neutral is chocolate on chocolate). Filled badges get
+   base-300; outline, dash and soft badges keep their own colors. */
+[data-theme="zukan-dark"] .badge:not(.badge-outline, .badge-dash, .badge-soft) {
+  border-color: var(--badge-color, var(--color-base-300));
+}
+[data-theme="zukan-dark"] :is(.badge-ghost, .badge-neutral):not(.badge-outline, .badge-dash, .badge-soft) {
+  border-color: var(--color-base-300);
+  background-color: var(--color-base-300);
+  color: var(--color-base-content);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .badge:not(.badge-outline, .badge-dash, .badge-soft) {
+    border-color: var(--badge-color, var(--color-base-300));
+  }
+  :root:not([data-theme]) :is(.badge-ghost, .badge-neutral):not(.badge-outline, .badge-dash, .badge-soft) {
+    border-color: var(--color-base-300);
+    background-color: var(--color-base-300);
+    color: var(--color-base-content);
+  }
+}

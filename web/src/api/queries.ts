@@ -72,15 +72,37 @@ export function useSets(gameId: string | null | undefined) {
       call(api.GET('/api/games/{game_id}/sets', { params: { path: { game_id: gameId! } } })),
     enabled: !!gameId,
     staleTime: 10 * 60_000,
+    // Kept as long as it is fresh, also while no page shows it.
+    gcTime: 10 * 60_000,
   })
 }
+
+/** `base` ms doubled per failure up to `max`, ±20 % (no jitter without failures). */
+export function backoff(base: number, failures: number, max: number): number {
+  if (failures === 0) return base
+  return Math.min(base * 2 ** failures, max) * (0.8 + Math.random() * 0.4)
+}
+
+// Health checks failed in a row (reset by an answer).
+let healthFailures = 0
 
 export function useHealth() {
   return useQuery({
     queryKey: ['health'],
-    queryFn: () => call(api.GET('/api/health')),
+    queryFn: async () => {
+      try {
+        const health = await call(api.GET('/api/health'))
+        healthFailures = 0
+        return health
+      } catch (e) {
+        healthFailures += 1
+        throw e
+      }
+    },
     // Also tells when maintenance starts and ends (catalog refresh slowing the server).
-    refetchInterval: 15_000,
+    // Server not answering: checked less and less often (30 s, then every minute), with
+    // jitter so open tabs do not all ask at once.
+    refetchInterval: () => backoff(15_000, healthFailures, 60_000),
   })
 }
 
@@ -117,10 +139,11 @@ export function useBinders(enabled = true) {
   })
 }
 
-export function useBinder(binderId: number) {
+export function useBinder(binderId: number, enabled = true) {
   return useQuery({
     queryKey: ['binder', binderId],
     queryFn: () => call(api.GET('/api/binder/{binder_id}', { params: { path: { binder_id: binderId } } })),
+    enabled,
   })
 }
 
@@ -136,10 +159,11 @@ export function useDecks(enabled = true) {
   })
 }
 
-export function useDeck(deckId: number) {
+export function useDeck(deckId: number, enabled = true) {
   return useQuery({
     queryKey: ['decks', deckId],
     queryFn: () => call(api.GET('/api/decks/{deck_id}', { params: { path: { deck_id: deckId } } })),
+    enabled,
   })
 }
 

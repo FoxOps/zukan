@@ -6,7 +6,9 @@ export function useUrlState() {
   const get = (key: string) => params.get(key) ?? ''
   const getAll = (key: string) => params.getAll(key)
   const set = (changes: Record<string, string | string[] | number | null>, resetPage = true) => {
-    const next = new URLSearchParams(params)
+    // From the URL as it is now, not as this render saw it: a delayed call (search typing)
+    // must not bring back filters changed meanwhile.
+    const next = new URLSearchParams(window.location.search)
     for (const [key, value] of Object.entries(changes)) {
       next.delete(key)
       if (Array.isArray(value)) value.forEach((v) => next.append(key, v))
