@@ -370,8 +370,19 @@ data class ShoppingItemOut(
     @SerialName("set_code") val setCode: String? = null,
     @SerialName("collector_number") val collectorNumber: String? = null,
     val quantity: Int,
+    // All copies bought; servers before 0.31 send only this.
     val bought: Boolean,
-)
+    // Copies ticked as bought, one box per copy.
+    @SerialName("bought_count") private val boughtCopies: Int? = null,
+) {
+    val boughtCount get() = boughtCopies ?: if (bought) quantity else 0
+
+    fun withBought(count: Int) = copy(bought = count >= quantity, boughtCopies = count)
+}
 
 @Serializable
-data class ShoppingItemIn(val bought: Boolean)
+data class ShoppingItemIn(
+    @SerialName("bought_count") val boughtCount: Int,
+    // All copies bought, for servers before 0.31 (they ignore `bought_count`).
+    val bought: Boolean,
+)

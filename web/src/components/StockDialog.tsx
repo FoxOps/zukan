@@ -54,10 +54,13 @@ function StockForm({ game, initial, versions, close }: FormProps) {
   const adjust = useAdjust()
   const [target, setTarget] = useState(initial)
   const finishesOf = (v: StockTarget) => (v.finishes.length ? v.finishes : game.finishes.map((f) => f.code))
-  // Languages the printing exists in (all of the game's when the catalog does not say).
-  const languagesOf = (v: StockTarget) => (v.languages.length ? v.languages : game.languages)
+  // Languages the printing exists in (all of the game's when the catalog does not say, or
+  // when the user owns it in one the sources miss: "Other language").
+  const [allLanguages, setAllLanguages] = useState(false)
+  const languagesOf = (v: StockTarget) => (v.languages.length && !allLanguages ? v.languages : game.languages)
   const finishes = finishesOf(target)
   const languages = languagesOf(target)
+  const hidden = game.languages.length > languages.length
   const [finish, setFinish] = useState(initial.finish && finishes.includes(initial.finish) ? initial.finish : (finishes[0] ?? ''))
   const [condition, setCondition] = useState<(typeof CONDITIONS)[number]['code']>('NM')
   const [language, setLanguage] = useState(() => {
@@ -154,6 +157,11 @@ function StockForm({ game, initial, versions, close }: FormProps) {
                 <LangFlag lang={l} className="h-5" />
               </button>
             ))}
+            {hidden && (
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => setAllLanguages(true)}>
+                {t('Other language…')}
+              </button>
+            )}
           </div>
         </div>
         <label className="fieldset">

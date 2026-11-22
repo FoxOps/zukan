@@ -7,6 +7,7 @@ Editing a decklist or importing one never changes the collection or its availabi
 only allocating does, and allocating never changes owned quantities."""
 
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Response, status
@@ -30,7 +31,7 @@ from app.models import (
     User,
 )
 from app.modules import require_module
-from app.services import deck_export, deck_import, deck_rules, decks, shopping
+from app.services import deck_export, deck_import, deck_rules, deck_value, decks, shopping
 from app.services.deck_rules import FORMATS, GAMES, SECTIONS, Leader, Rules, Section
 
 router = APIRouter(prefix="/decks", tags=["decks"])
@@ -87,6 +88,20 @@ class DeckValidationOut(BaseModel):
     unverified: list[DeckIssueOut]
 
 
+class DeckValueOut(BaseModel):
+    """What the deck is worth (`deck_value`), in the currency of the user's price source
+    for its game."""
+
+    currency: str
+    # Copies allocated to the deck at their own price, the other copies at the cheapest
+    # printing and finish, and both together.
+    allocated: Decimal
+    rest: Decimal
+    total: Decimal
+    # Copies with no price, counted in none of the three.
+    unpriced: int
+
+
 class DeckOut(BaseModel):
     id: int
     game_id: str
@@ -102,6 +117,7 @@ class DeckOut(BaseModel):
     copies: int = 0
     owned: int = 0
     allocated: int = 0
+    value: DeckValueOut | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -553,7 +569,12 @@ def _number_key(number: str | None) -> tuple[int, str]:
     return (int(digits) if digits else 0, number or "")
 
 
-def _deck_out(deck: Deck, report: deck_rules.Report, stock: dict[int, decks.CardStock]) -> DeckOut:
+def _deck_out(
+    deck: Deck,
+    report: deck_rules.Report,
+    stock: dict[int, decks.CardStock],
+    value: deck_value.DeckValue | None = None,
+) -> DeckOut:
     counts: dict[str, int] = {}
     for e in deck.cards:
         counts[e.section] = counts.get(e.section, 0) + e.quantity
@@ -570,6 +591,15 @@ def _deck_out(deck: Deck, report: deck_rules.Report, stock: dict[int, decks.Card
         copies=sum(c.requested for c in stock.values()),
         owned=sum(c.covered for c in stock.values()),
         allocated=sum(min(c.allocated, c.requested) for c in stock.values()),
+        value=DeckValueOut(
+            currency=value.currency,
+            allocated=value.allocated,
+            rest=value.rest,
+            total=value.total,
+            unpriced=value.unpriced,
+        )
+        if value
+        else None,
         created_at=deck.created_at,
         updated_at=deck.updated_at,
     )
@@ -685,8 +715,9 @@ async def _detail(session: SessionDep, user: User, deck_id: int) -> DeckDetailOu
         )
     order = _groups(deck.game_id)
     entries.sort(key=lambda e: (order.index(e.group), e.name.casefold()))
+    values = await deck_value.deck_values(session, user.price_source, [deck], {deck.id: stock})
     return DeckDetailOut(
-        deck=_deck_out(deck, report, stock),
+        deck=_deck_out(deck, report, stock, values[deck.id]),
         groups=list(order),
         entries=entries,
         validation=DeckValidationOut(
@@ -733,8 +764,11 @@ async def list_decks(user: DecksUser, session: SessionDep) -> list[DeckOut]:
     found = list(found)
     printings = await _rule_printings(session, found)
     stocks = await decks.stocks(session, user.id, found)
+    values = await deck_value.deck_values(session, user.price_source, found, stocks)
     return [
-        _deck_out(d, deck_rules.check(d.format, _rule_entries(d, printings)), stocks[d.id])
+        _deck_out(
+            d, deck_rules.check(d.format, _rule_entries(d, printings)), stocks[d.id], values[d.id]
+        )
         for d in found
     ]
 
