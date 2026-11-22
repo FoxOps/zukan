@@ -2216,7 +2216,8 @@ export interface components {
         /**
          * DeckLineMoveIn
          * @description Move copies of a line to another printing (or any) and/or another section, merged
-         *     with that line when the deck has it. `to_section` None: same section.
+         *     with that line when the deck has it. `to_printing_id` left out: same printing (null:
+         *     any); `to_section` None: same section.
          */
         DeckLineMoveIn: {
             /** Card Id */
