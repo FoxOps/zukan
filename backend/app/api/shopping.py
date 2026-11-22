@@ -39,6 +39,9 @@ class ShoppingItemOut(BaseModel):
     set_code: str | None
     collector_number: str | None
     quantity: int
+    # Copies ticked as bought (one box per copy).
+    bought_count: int
+    # All copies bought (what app versions before 0.19 read).
     bought: bool
 
 
@@ -47,7 +50,10 @@ class ShoppingListDetailOut(ShoppingListOut):
 
 
 class ShoppingItemIn(BaseModel):
-    bought: bool
+    # Copies bought, kept between 0 and the item's quantity.
+    bought_count: int | None = None
+    # All copies bought or none (app versions before 0.19), when `bought_count` is not given.
+    bought: bool | None = None
 
 
 def _list_out(found: ShoppingList, copies: int, bought: int) -> ShoppingListOut:
@@ -74,7 +80,7 @@ async def shopping_detail(session: SessionDep, user: User, list_id: int) -> Shop
     out = _list_out(
         found,
         sum(i.quantity for i in found.items),
-        sum(i.quantity for i in found.items if i.bought),
+        sum(i.bought for i in found.items),
     )
     return ShoppingListDetailOut(
         **out.model_dump(),
@@ -88,7 +94,8 @@ async def shopping_detail(session: SessionDep, user: User, list_id: int) -> Shop
                 set_code=i.set_code,
                 collector_number=i.collector_number,
                 quantity=i.quantity,
-                bought=i.bought,
+                bought_count=i.bought,
+                bought=i.bought >= i.quantity,
             )
             for i in found.items
         ],
@@ -103,7 +110,7 @@ async def list_shopping_lists(user: DecksUser, session: SessionDep) -> list[Shop
         select(
             ShoppingList,
             func.coalesce(func.sum(ShoppingItem.quantity), 0),
-            func.coalesce(func.sum(ShoppingItem.quantity).filter(ShoppingItem.bought), 0),
+            func.coalesce(func.sum(ShoppingItem.bought), 0),
         )
         .outerjoin(ShoppingItem)
         .where(ShoppingList.user_id == user.id)
@@ -124,7 +131,7 @@ async def get_shopping_list(
 async def update_shopping_item(
     list_id: int, item_id: int, body: ShoppingItemIn, user: DecksUser, session: SessionDep
 ) -> ShoppingListDetailOut:
-    """Ticks a card as bought, or not."""
+    """Ticks copies of a card as bought, or not."""
     item = await session.scalar(
         select(ShoppingItem)
         .join(ShoppingList)
@@ -136,7 +143,12 @@ async def update_shopping_item(
     )
     if item is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Shopping list item not found")
-    item.bought = body.bought
+    if body.bought_count is not None:
+        item.bought = min(max(body.bought_count, 0), item.quantity)
+    elif body.bought is not None:
+        item.bought = item.quantity if body.bought else 0
+    else:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "bought_count is required")
     await session.commit()
     return await shopping_detail(session, user, list_id)
 

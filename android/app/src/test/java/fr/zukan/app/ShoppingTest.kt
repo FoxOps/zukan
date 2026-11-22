@@ -39,7 +39,7 @@ class ShoppingTest {
         {"id":3,"name":"Burn","deck_id":null,"game_id":"mtg","created_at":"2026-11-21T10:00:00Z",
          "copies":6,"bought":6,"items":[
            {"id":7,"card_id":1,"printing_id":null,"name":"Lightning Bolt","translation":"Foudre",
-            "set_code":"M10","collector_number":"146","quantity":4,"bought":true},
+            "set_code":"M10","collector_number":"146","quantity":4,"bought_count":4,"bought":true},
            {"id":8,"card_id":null,"printing_id":null,"name":"Mountain","translation":null,
             "set_code":null,"collector_number":null,"quantity":2,"bought":true}]}
     """.trimIndent()
@@ -54,13 +54,26 @@ class ShoppingTest {
         server.takeRequest()
 
         json(list)
-        val ticked = api().updateShoppingItem(3, 7, ShoppingItemIn(true))
+        val ticked = api().updateShoppingItem(3, 7, ShoppingItemIn(4, bought = true))
         assertTrue(ticked.complete)
+        assertEquals(4, ticked.items[0].boughtCount)
+        // Servers before 0.31 send no bought_count: all copies or none.
+        assertEquals(2, ticked.items[1].boughtCount)
         assertEquals("Foudre", ticked.items[0].translation)
         val request = server.takeRequest()
         assertEquals("PATCH", request.method)
         assertEquals("/api/shopping-lists/3/items/7", request.url.encodedPath)
-        assertEquals("""{"bought":true}""", request.body?.utf8())
+        assertEquals("""{"bought_count":4,"bought":true}""", request.body?.utf8())
+    }
+
+    @Test
+    fun copiesBought() {
+        val item = fr.zukan.app.data.ShoppingItemOut(id = 1, name = "Shock", quantity = 3, bought = false)
+        assertEquals(0, item.boughtCount)
+        val some = item.withBought(2)
+        assertEquals(2, some.boughtCount)
+        assertFalse(some.bought)
+        assertTrue(item.withBought(3).bought)
     }
 
     @Test

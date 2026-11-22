@@ -1,4 +1,4 @@
-from sqlalchemy import CheckConstraint, ForeignKey, String, false
+from sqlalchemy import CheckConstraint, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -35,7 +35,10 @@ class ShoppingItem(Base):
     catalog) leave room to add bought cards to the collection later."""
 
     __tablename__ = "shopping_item"
-    __table_args__ = (CheckConstraint("quantity > 0", name="quantity_positive"),)
+    __table_args__ = (
+        CheckConstraint("quantity > 0", name="quantity_positive"),
+        CheckConstraint("bought >= 0 AND bought <= quantity", name="bought_in_quantity"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     list_id: Mapped[int] = mapped_column(
@@ -51,6 +54,7 @@ class ShoppingItem(Base):
     set_code: Mapped[str | None] = mapped_column(String(32))
     collector_number: Mapped[str | None] = mapped_column(String(32))
     quantity: Mapped[int]
-    bought: Mapped[bool] = mapped_column(default=False, server_default=false())
+    # Copies ticked as bought, one box per copy (0 to `quantity`).
+    bought: Mapped[int] = mapped_column(default=0, server_default="0")
 
     shopping_list: Mapped[ShoppingList] = relationship(back_populates="items")

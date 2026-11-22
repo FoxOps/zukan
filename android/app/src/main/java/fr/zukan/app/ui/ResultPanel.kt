@@ -95,8 +95,12 @@ fun ResultPanel(
     val printing = candidate.printings.getOrNull(state.printing) ?: return
     val game = games.firstOrNull { it.id == candidate.card.gameId }
     val finishes = printing.finishes.ifEmpty { game?.finishes?.map { it.code } ?: emptyList() }
-    // Languages the printing exists in (all of the game's when the catalog does not say).
-    val languages = printing.languages.ifEmpty { game?.languages ?: listOf("en") }
+    // Languages the printing exists in (all of the game's when the catalog does not say, or
+    // when the user owns it in one the sources miss: "Other language").
+    var allLanguages by remember(printing.id) { mutableStateOf(false) }
+    val gameLanguages = game?.languages ?: listOf("en")
+    val languages = if (allLanguages) gameLanguages else printing.languages.ifEmpty { gameLanguages }
+    val hiddenLanguages = gameLanguages.any { it !in languages }
     // Defaults: the copy opened from the collection, else detected language, else
     // preferred, else English, else the printing's first language (its order says nothing:
     // a French card shown as Portuguese or Russian).
@@ -233,11 +237,12 @@ fun ResultPanel(
                 CONDITIONS.forEach { c -> ConditionChoice(c, selected = c == condition) { condition = c } }
             }
         }
-        if (languages.size > 1) {
+        if (languages.size > 1 || hiddenLanguages) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SectionLabel(stringResource(R.string.language))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     languages.forEach { l -> PillChip(languageName(l), l == language, { language = l }, leading = { LangFlag(l, size = 20) }) }
+                    if (hiddenLanguages) PillChip(stringResource(R.string.other_language), false, { allLanguages = true })
                 }
             }
         }

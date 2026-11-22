@@ -73,15 +73,16 @@ fun ZIcon(@DrawableRes id: Int, contentDescription: String?, modifier: Modifier 
     Icon(painterResource(id), contentDescription, modifier.size(24.dp), tint = tint)
 }
 
-/** Big title, short subtitle and the mascot, on top of each tab. */
+/** Big title, short subtitle and the mascot, on top of each tab (pages inside a tab leave
+ * the mascot out). */
 @Composable
-fun ScreenHeader(title: String, subtitle: String?, modifier: Modifier = Modifier) {
+fun ScreenHeader(title: String, subtitle: String?, modifier: Modifier = Modifier, mascot: Boolean = true) {
     Row(modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.Top) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, style = MaterialTheme.typography.displaySmall, modifier = Modifier.semantics { heading() })
             subtitle?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
-        Image(painterResource(R.drawable.zukan_mascot), contentDescription = null, modifier = Modifier.size(56.dp))
+        if (mascot) Image(painterResource(R.drawable.zukan_mascot), contentDescription = null, modifier = Modifier.size(56.dp))
     }
 }
 

@@ -2640,3 +2640,40 @@ from the app, never automatically; PDF made on the server (`fpdf2`).
   tried live.
 - [ ] User: try on the next dev image (Magic catalog needed for symbols and decks); release Android
   0.18.0 with server 0.30.0 (older apps ignore `language_chosen` and keep the account's language).
+
+
+### Report server 0.30.0 + Android 0.18.0: deck value, one box per copy, other languages (user, 2026-11-22)
+Branch `2026-11-22-000-deck-value-shopping-copies` from `dev`. Server 0.31.0 (migration, API),
+Android 0.19.0. No Dependabot pull request open.
+Decisions (Q&A 2026-11-22): deck value as 3 numbers (allocated copies at their price + the other
+copies at the cheapest price = total); Scryfall languages gaps handled by an "Other language…"
+choice in the pickers.
+- [x] Decks: `DeckOut.value` (`services/deck_value.py`): `allocated` = allocated copies at their
+  item's price (manual, else its printing and finish, as the collection value; never more per card
+  than the deck asks for), `rest` = the other copies at the cheapest finish of the line's printing,
+  or of any printing of the card for lines of any printing, `total`, `unpriced` copies, `currency`
+  of the user's source for the game. List: one price query for all decks. Web: value badge in
+  `DeckCount` (list and header), "Deck value / Allocated / To get (cheapest)" line on the deck page.
+  Android has no deck screens: nothing there.
+- [x] Shopping lists, one box per copy: `shopping_item.bought` is now the number of copies bought
+  (migration `a8c2e5f9b064`, ticked lines become all copies; check 0 ≤ bought ≤ quantity).
+  `PATCH .../items/{id}` takes `{bought_count}` (clamped), or `{bought}` (all / none) from older
+  apps; items send `bought_count` and `bought` (all copies). Files: `[x][ ][ ] 3 Card Name` in
+  .txt / .md (boxes escaped in Markdown), PDF draws a box per copy (10 per row, then wraps).
+- [x] Android: list page rows `[x][ ][ ] 3 Card Name` (4 boxes per row, then wraps); a box ticks
+  the copies up to it or unticks from it, the row ticks all / none; progress counts copies. The
+  app sends `bought` too, for servers before 0.31.
+- [x] Android: no mascot on a shopping list's page (`ScreenHeader(mascot = false)`); the Lists
+  tab keeps it.
+- [x] Magic languages: Scryfall has no French record for any INR card (Captivating Vampire INR 374
+  is English only, at 100, 374 and 484), so the set rule of `learn_language` / scan offers could
+  not help. Web `StockDialog` and Android `ResultPanel`: "Other language…" shows every language of
+  the game. The server already stored any game language on the copy; the printing still learns a
+  language only when its set has it (unchanged, avoids one user's mistake showing to everyone).
+- [x] Versions: server 0.31.0, Android 0.19.0. `.env.example`: user agent 0.31.0. No new variable.
+- [x] Verified: 347 backend tests (new `test_deck_value`; `test_shopping`: copy boxes in files,
+  `bought_count` clamp, legacy `bought`), ruff, alembic upgrade / downgrade / upgrade / check; web
+  tsc / oxlint / i18n / API types; Android assembleDebug + unit tests (`ShoppingTest`: copies, old
+  servers). Not tried live.
+- [ ] User: try on the next dev image; release Android 0.19.0 with server 0.31.0 (Android 0.18.0
+  still ticks whole lines on 0.31.0).

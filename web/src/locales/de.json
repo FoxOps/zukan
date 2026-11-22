@@ -492,6 +492,7 @@
   "Follow a set": "Set verfolgen",
   "Choose a game": "Spiel wählen",
   "Choose a set": "Set wählen",
+  "Other language…": "Andere Sprache…",
   "Any language": "Alle Sprachen",
   "Any finish": "Alle Ausführungen",
   "Only copies in this language and finish check a card off.": "Nur Exemplare in dieser Sprache und Ausführung haken eine Karte ab.",
@@ -803,5 +804,10 @@
   "Copies you have for this deck: set aside for it or free in your collection (copies other decks hold do not count)": "Exemplare, die du für dieses Deck hast: dafür reserviert oder frei in deiner Sammlung (Exemplare anderer Decks zählen nicht)",
   "{{owned}}/{{copies}} cards owned": "{{owned}}/{{copies}} Karten im Besitz",
   "Copies of your collection set aside for this deck": "Exemplare deiner Sammlung, die für dieses Deck reserviert sind",
-  "{{allocated}}/{{copies}} cards in the deck": "{{allocated}}/{{copies}} Karten im Deck"
+  "{{allocated}}/{{copies}} cards in the deck": "{{allocated}}/{{copies}} Karten im Deck",
+  "Deck value": "Deckwert",
+  "Deck value: allocated copies at their price, the others at the cheapest printing": "Deckwert: zugewiesene Exemplare zu ihrem Preis, die anderen zur günstigsten Version",
+  "Copies of your collection set aside for this deck, at their price": "Exemplare deiner Sammlung, die für dieses Deck zurückgelegt sind, zu ihrem Preis",
+  "Copies not allocated yet, at the cheapest printing and finish": "Noch nicht zugewiesene Exemplare, zur günstigsten Version und Ausführung",
+  "To get (cheapest)": "Zu besorgen (günstigste)"
 }

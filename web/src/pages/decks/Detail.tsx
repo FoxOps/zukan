@@ -13,7 +13,7 @@ import { SymbolText } from '../../components/SymbolText'
 import { Select } from '../../components/Select'
 import { useToast } from '../../components/toast'
 import { AddCards } from './AddCards'
-import { DeckCount } from './common'
+import { DeckCount, DeckValue } from './common'
 import { ExportDialog } from './Export'
 import { useFormatName } from './formats'
 import { ImportDialog } from './Import'
@@ -513,6 +513,7 @@ export default function DeckDetail() {
             <div className="mt-1 text-xs text-base-content/60">
               {t('{{allocated}} of {{requested}} copies allocated, {{missing}} missing from your collection', totals)}
             </div>
+            <DeckValue deck={deck} />
             <FormatCheck validation={validation} />
           </div>
           <div className="flex flex-wrap items-center gap-2">

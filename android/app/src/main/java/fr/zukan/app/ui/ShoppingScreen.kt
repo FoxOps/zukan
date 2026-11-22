@@ -5,12 +5,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,12 +20,14 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -50,7 +54,7 @@ import fr.zukan.app.data.ZukanApi
 import fr.zukan.app.data.userMessage
 import kotlinx.coroutines.launch
 
-/** Shopping lists sent from the web (a deck's missing cards): tick cards while buying.
+/** Shopping lists sent from the web (a deck's missing cards): tick copies while buying.
  * Lists are deleted only here, never on their own, even complete. Ticking a card marks it
  * bought on the list; it does not change the collection. */
 @Composable
@@ -134,16 +138,15 @@ private fun ShoppingListDetail(api: ZukanApi?, id: Int, onBack: () -> Unit) {
             .onFailure { error = it.userMessage(context) }
     }
 
-    fun toggle(item: ShoppingItemOut) {
+    fun setBought(item: ShoppingItemOut, count: Int) {
         val current = list ?: return
-        val bought = !item.bought
         // Shown at once; the server's answer (or the old state on failure) follows.
         list = current.copy(
-            items = current.items.map { if (it.id == item.id) it.copy(bought = bought) else it },
-            bought = current.bought + if (bought) item.quantity else -item.quantity,
+            items = current.items.map { if (it.id == item.id) it.withBought(count) else it },
+            bought = current.bought + count - item.boughtCount,
         )
         scope.launch {
-            runCatching { api!!.updateShoppingItem(id, item.id, ShoppingItemIn(bought)) }
+            runCatching { api!!.updateShoppingItem(id, item.id, ShoppingItemIn(count, bought = count >= item.quantity)) }
                 .onSuccess { list = it }
                 .onFailure {
                     list = current
@@ -171,6 +174,7 @@ private fun ShoppingListDetail(api: ZukanApi?, id: Int, onBack: () -> Unit) {
             ScreenHeader(
                 shown?.name ?: "",
                 shown?.let { stringResource(R.string.shopping_progress, it.bought, it.copies) },
+                mascot = false,
             )
         }
         error?.let { message ->
@@ -183,7 +187,7 @@ private fun ShoppingListDetail(api: ZukanApi?, id: Int, onBack: () -> Unit) {
         if (shown == null && error == null) {
             item { Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
         }
-        if (shown != null) items(shown.items, key = { it.id }) { item -> ShoppingItemRow(item) { toggle(item) } }
+        if (shown != null) items(shown.items, key = { it.id }) { item -> ShoppingItemRow(item) { setBought(item, it) } }
     }
 
     if (deleting) {
@@ -206,16 +210,29 @@ private fun ShoppingListDetail(api: ZukanApi?, id: Int, onBack: () -> Unit) {
     }
 }
 
+/** One box per copy ("[x][ ][ ] 3 Card Name"): a box ticks the copies up to it, or unticks
+ * from it; the row ticks all copies, or none once all are bought. */
 @Composable
-private fun ShoppingItemRow(item: ShoppingItemOut, onToggle: () -> Unit) {
+private fun ShoppingItemRow(item: ShoppingItemOut, onBought: (Int) -> Unit) {
+    val count = item.boughtCount
     val done = if (item.bought) TextDecoration.LineThrough else null
     val faded = if (item.bought) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Checkbox, onClick = onToggle),
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Checkbox) { onBought(if (item.bought) 0 else item.quantity) },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Checkbox(checked = item.bought, onCheckedChange = { onToggle() })
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 32.dp) {
+            FlowRow(Modifier.width(BOX_SIZE * minOf(item.quantity, BOXES_PER_ROW)), maxItemsInEachRow = BOXES_PER_ROW) {
+                repeat(item.quantity) { copy ->
+                    Checkbox(
+                        checked = copy < count,
+                        onCheckedChange = { onBought(if (copy < count) copy else copy + 1) },
+                        modifier = Modifier.size(BOX_SIZE),
+                    )
+                }
+            }
+        }
         Text("${item.quantity}", style = MaterialTheme.typography.titleMedium, color = faded, modifier = Modifier.width(28.dp))
         Column(Modifier.weight(1f)) {
             Text(item.name, style = MaterialTheme.typography.bodyLarge, color = faded, textDecoration = done)
@@ -227,3 +244,7 @@ private fun ShoppingItemRow(item: ShoppingItemOut, onToggle: () -> Unit) {
         }
     }
 }
+
+// Copy boxes: a row of the list holds this many before wrapping.
+private const val BOXES_PER_ROW = 4
+private val BOX_SIZE = 32.dp

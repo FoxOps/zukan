@@ -492,6 +492,7 @@
   "Follow a set": "Seguir una expansión",
   "Choose a game": "Elegir un juego",
   "Choose a set": "Elegir una expansión",
+  "Other language…": "Otro idioma…",
   "Any language": "Cualquier idioma",
   "Any finish": "Cualquier acabado",
   "Only copies in this language and finish check a card off.": "Solo los ejemplares en este idioma y acabado marcan una carta.",
@@ -803,5 +804,10 @@
   "Copies you have for this deck: set aside for it or free in your collection (copies other decks hold do not count)": "Copias que tienes para este mazo: reservadas para él o libres en tu colección (las de otros mazos no cuentan)",
   "{{owned}}/{{copies}} cards owned": "{{owned}}/{{copies}} cartas en posesión",
   "Copies of your collection set aside for this deck": "Copias de tu colección reservadas para este mazo",
-  "{{allocated}}/{{copies}} cards in the deck": "{{allocated}}/{{copies}} cartas en el mazo"
+  "{{allocated}}/{{copies}} cards in the deck": "{{allocated}}/{{copies}} cartas en el mazo",
+  "Deck value": "Valor del mazo",
+  "Deck value: allocated copies at their price, the others at the cheapest printing": "Valor del mazo: las copias asignadas a su precio, las demás a la versión más barata",
+  "Copies of your collection set aside for this deck, at their price": "Copias de tu colección reservadas para este mazo, a su precio",
+  "Copies not allocated yet, at the cheapest printing and finish": "Copias aún no asignadas, a la versión y acabado más baratos",
+  "To get (cheapest)": "Por conseguir (más barato)"
 }
