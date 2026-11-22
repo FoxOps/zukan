@@ -32,6 +32,7 @@
     <string name="no_picture">Pas d\'image</string>
     <string name="printing_position">Version %1$d / %2$d</string>
     <string name="condition">État</string>
+    <string name="other_language">Autre langue…</string>
     <string name="language">Langue</string>
     <string name="less">Moins</string>
     <string name="more">Plus</string>

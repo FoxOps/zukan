@@ -1142,7 +1142,7 @@ export interface paths {
         head?: never;
         /**
          * Update Shopping Item
-         * @description Ticks a card as bought, or not.
+         * @description Ticks copies of a card as bought, or not.
          */
         patch: operations["update_shopping_item_api_shopping_lists__list_id__items__item_id__patch"];
         trace?: never;
@@ -2295,6 +2295,7 @@ export interface components {
              * @default 0
              */
             allocated: number;
+            value?: components["schemas"]["DeckValueOut"] | null;
             /**
              * Created At
              * Format: date-time
@@ -2353,6 +2354,23 @@ export interface components {
             issues: components["schemas"]["DeckIssueOut"][];
             /** Unverified */
             unverified: components["schemas"]["DeckIssueOut"][];
+        };
+        /**
+         * DeckValueOut
+         * @description What the deck is worth (`deck_value`), in the currency of the user's price source
+         *     for its game.
+         */
+        DeckValueOut: {
+            /** Currency */
+            currency: string;
+            /** Allocated */
+            allocated: string;
+            /** Rest */
+            rest: string;
+            /** Total */
+            total: string;
+            /** Unpriced */
+            unpriced: number;
         };
         /** DiscrepancyCountOut */
         DiscrepancyCountOut: {
@@ -3346,8 +3364,10 @@ export interface components {
         };
         /** ShoppingItemIn */
         ShoppingItemIn: {
+            /** Bought Count */
+            bought_count?: number | null;
             /** Bought */
-            bought: boolean;
+            bought?: boolean | null;
         };
         /** ShoppingItemOut */
         ShoppingItemOut: {
@@ -3367,6 +3387,8 @@ export interface components {
             collector_number: string | null;
             /** Quantity */
             quantity: number;
+            /** Bought Count */
+            bought_count: number;
             /** Bought */
             bought: boolean;
         };

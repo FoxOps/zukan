@@ -89,11 +89,12 @@ async def test_shopping_files(client, session, alice, catalog):
     assert txt.headers["content-type"].startswith("text/plain")
     assert 'filename="Elves_Bolt.txt"' in txt.headers["content-disposition"]
     assert "Liste d'achats" in txt.text
-    assert "[ ] 4 Llanowar Elves (Elfes de Llanowar) · TST 2" in txt.text
+    assert "[ ][ ][ ][ ] 4 Llanowar Elves (Elfes de Llanowar) · TST 2" in txt.text
     assert "Lightning Bolt" not in txt.text
 
     md = await client.get(url, params={"format": "md"}, headers=alice)
-    assert "- [ ] 4 Llanowar Elves (Elfes de Llanowar) · TST 2" in md.text
+    assert "- [ ] Llanowar Elves (Elfes de Llanowar) · TST 2 (1/4)" in md.text
+    assert "- [ ] Llanowar Elves (Elfes de Llanowar) · TST 2 (4/4)" in md.text
 
     pdf = await client.get(url, params={"format": "pdf"}, headers=alice)
     assert pdf.headers["content-type"] == "application/pdf"
@@ -130,6 +131,22 @@ async def test_shopping_lists(client, session, alice, catalog):
     assert ticked.status_code == 200
     assert ticked.json()["bought"] == 4
     assert ticked.json()["items"][0]["quantity"] == 4
+    assert (ticked.json()["items"][0]["bought_count"], ticked.json()["items"][0]["bought"]) == (
+        4,
+        True,
+    )
+
+    # One box per copy: 2 of the 4 bought, kept between 0 and the quantity.
+    url = f"/api/shopping-lists/{found['id']}/items/{item['id']}"
+    half = await client.patch(url, json={"bought_count": 2}, headers=alice)
+    assert half.json()["bought"] == 2
+    assert (half.json()["items"][0]["bought_count"], half.json()["items"][0]["bought"]) == (
+        2,
+        False,
+    )
+    over = await client.patch(url, json={"bought_count": 9}, headers=alice)
+    assert over.json()["items"][0]["bought_count"] == 4
+    assert (await client.patch(url, json={}, headers=alice)).status_code == 422
 
     # Another user sees nothing and cannot change or delete it.
     await make_user(session, "bob")
@@ -157,6 +174,28 @@ async def test_shopping_lists(client, session, alice, catalog):
     deleted = await client.delete(f"/api/shopping-lists/{found['id']}", headers=alice)
     assert deleted.status_code == 204
     assert (await client.get("/api/shopping-lists", headers=alice)).json() == []
+
+
+def test_copy_boxes():
+    from datetime import date
+
+    from app.services.shopping import ShoppingLine, to_md, to_pdf, to_txt
+
+    lines = [ShoppingLine(1, 2, "Shock", None, "M21", "159", 3, bought=1)]
+    day = date(2026, 11, 22)
+    assert "[x][ ][ ] 3 Shock · M21 159" in to_txt("Burn", lines, "en", day)
+    md = to_md("Burn", lines, "en", day)
+    # Markdown: one task per copy, so apps show a box to tick for each.
+    assert [line for line in md.splitlines() if line.startswith("- ")] == [
+        "- [x] Shock · M21 159 (1/3)",
+        "- [ ] Shock · M21 159 (2/3)",
+        "- [ ] Shock · M21 159 (3/3)",
+    ]
+    single = [ShoppingLine(1, 2, "Shock", None, "M21", "159", 1)]
+    assert "- [ ] Shock · M21 159\n" in to_md("Burn", single, "en", day)
+    # More copies than a row holds still make a PDF.
+    many = [ShoppingLine(1, 2, "Relentless Rats", None, "M11", "106", 24)]
+    assert to_pdf("Rats", many, "en", day).startswith(b"%PDF")
 
 
 async def test_nothing_to_buy(client, session, alice, catalog):
