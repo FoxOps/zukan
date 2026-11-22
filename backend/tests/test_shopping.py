@@ -93,7 +93,8 @@ async def test_shopping_files(client, session, alice, catalog):
     assert "Lightning Bolt" not in txt.text
 
     md = await client.get(url, params={"format": "md"}, headers=alice)
-    assert "- \\[ \\]\\[ \\]\\[ \\]\\[ \\] 4 Llanowar Elves (Elfes de Llanowar) · TST 2" in md.text
+    assert "- [ ] Llanowar Elves (Elfes de Llanowar) · TST 2 (1/4)" in md.text
+    assert "- [ ] Llanowar Elves (Elfes de Llanowar) · TST 2 (4/4)" in md.text
 
     pdf = await client.get(url, params={"format": "pdf"}, headers=alice)
     assert pdf.headers["content-type"] == "application/pdf"
@@ -183,7 +184,15 @@ def test_copy_boxes():
     lines = [ShoppingLine(1, 2, "Shock", None, "M21", "159", 3, bought=1)]
     day = date(2026, 11, 22)
     assert "[x][ ][ ] 3 Shock · M21 159" in to_txt("Burn", lines, "en", day)
-    assert "- \\[x\\]\\[ \\]\\[ \\] 3 Shock · M21 159" in to_md("Burn", lines, "en", day)
+    md = to_md("Burn", lines, "en", day)
+    # Markdown: one task per copy, so apps show a box to tick for each.
+    assert [line for line in md.splitlines() if line.startswith("- ")] == [
+        "- [x] Shock · M21 159 (1/3)",
+        "- [ ] Shock · M21 159 (2/3)",
+        "- [ ] Shock · M21 159 (3/3)",
+    ]
+    single = [ShoppingLine(1, 2, "Shock", None, "M21", "159", 1)]
+    assert "- [ ] Shock · M21 159\n" in to_md("Burn", single, "en", day)
     # More copies than a row holds still make a PDF.
     many = [ShoppingLine(1, 2, "Relentless Rats", None, "M11", "106", 24)]
     assert to_pdf("Rats", many, "en", day).startswith(b"%PDF")

@@ -2659,7 +2659,9 @@ choice in the pickers.
   (migration `a8c2e5f9b064`, ticked lines become all copies; check 0 ≤ bought ≤ quantity).
   `PATCH .../items/{id}` takes `{bought_count}` (clamped), or `{bought}` (all / none) from older
   apps; items send `bought_count` and `bought` (all copies). Files: `[x][ ][ ] 3 Card Name` in
-  .txt / .md (boxes escaped in Markdown), PDF draws a box per copy (10 per row, then wraps).
+  .txt, PDF draws a box per copy (10 per row, then wraps). Markdown (user, after review): one
+  task per copy, `- [x] Card Name · SET 1 (1/3)`, so Markdown apps (Obsidian, GitHub) keep real
+  boxes to tick; a single copy has no `(1/1)`.
 - [x] Android: list page rows `[x][ ][ ] 3 Card Name` (4 boxes per row, then wraps); a box ticks
   the copies up to it or unticks from it, the row ticks all / none; progress counts copies. The
   app sends `bought` too, for servers before 0.31.

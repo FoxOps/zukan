@@ -73,8 +73,14 @@ def _md(text: str) -> str:
 
 
 def to_md(name: str, lines: list[ShoppingLine], lang: str, day: date) -> str:
+    """A task list with one line per copy, so Markdown apps show a box to tick for each."""
     title, sub = _heading(name, lines, lang, day)
-    body = [f"- {_md(_boxes(line))} {line.quantity} {_md(line.label())}" for line in lines]
+    body = [
+        f"- [{'x' if copy < line.bought else ' '}] {_md(line.label())}"
+        + (f" ({copy + 1}/{line.quantity})" if line.quantity > 1 else "")
+        for line in lines
+        for copy in range(line.quantity)
+    ]
     return (
         "\n".join([f"# {_md(title)}", "", f"_{sub}_", "", *(body or [_words(lang)["none"]])]) + "\n"
     )
