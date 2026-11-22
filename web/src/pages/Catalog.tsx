@@ -36,9 +36,10 @@ export default function Catalog() {
   const cards = useQuery({
     queryKey: ['cards', game, q, setId, colors, colorMode, attrs, sort, url.page],
     meta: { inlineError: true },
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       call(
         api.GET('/api/cards', {
+          signal,
           params: {
             query: {
               game: game || undefined,

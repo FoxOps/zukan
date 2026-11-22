@@ -6,6 +6,7 @@ import { api, call, type Schemas } from '../../api/client'
 import { Select } from '../../components/Select'
 import { useToast } from '../../components/toast'
 import { formatDateTime } from '../../lib/format'
+import { readStored, store } from '../../lib/storage'
 
 type Rule = Schemas['ScheduleRule']
 type Mode = Rule['mode']
@@ -15,13 +16,6 @@ type Draft = { timezone: string; jobs: Record<Kind, Rule> }
 const KINDS: Kind[] = ['catalog', 'prices', 'images', 'refresh']
 const OPEN_KEY = 'tcg.scheduleOpen'
 
-function stored(key: string): string | null {
-  try {
-    return localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
 const KIND_HELP: Record<Kind, string> = {
   catalog: 'New sets and cards (large downloads)',
   prices: 'Card prices',
@@ -222,14 +216,11 @@ export function ScheduleEditor() {
   })
   const zones = useMemo(() => timezones().map((z) => ({ value: z, label: z.replaceAll('_', ' ') })), [])
   // Closed by default; this browser remembers it open.
-  const [open, setOpen] = useState(() => stored(OPEN_KEY) === '1')
+  const [open, setOpen] = useState(() => readStored(OPEN_KEY) === '1')
   const toggle = (value: boolean) => {
     setOpen(value)
-    try {
-      localStorage.setItem(OPEN_KEY, value ? '1' : '0')
-    } catch {
-      // Storage refused: open for this visit only.
-    }
+    // Storage refused: open for this visit only.
+    store(OPEN_KEY, value ? '1' : '0')
   }
 
   if (!draft || !saved.data) return <span className="loading loading-spinner" />

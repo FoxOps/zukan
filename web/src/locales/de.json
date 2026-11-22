@@ -809,5 +809,6 @@
   "Deck value: allocated copies at their price, the others at the cheapest printing": "Deckwert: zugewiesene Exemplare zu ihrem Preis, die anderen zur günstigsten Version",
   "Copies of your collection set aside for this deck, at their price": "Exemplare deiner Sammlung, die für dieses Deck zurückgelegt sind, zu ihrem Preis",
   "Copies not allocated yet, at the cheapest printing and finish": "Noch nicht zugewiesene Exemplare, zur günstigsten Version und Ausführung",
-  "To get (cheapest)": "Zu besorgen (günstigste)"
+  "To get (cheapest)": "Zu besorgen (günstigste)",
+  "Logging out failed: you are still signed in. {{reason}}": "Abmelden fehlgeschlagen: Sie sind weiterhin angemeldet. {{reason}}"
 }

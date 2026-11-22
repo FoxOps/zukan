@@ -32,7 +32,8 @@ export default function BinderDetail() {
   const { t } = useTranslation()
   const { binderId } = useParams()
   const { data: me } = useMe()
-  const query = useBinder(Number(binderId))
+  // No module: redirected below, without asking the server for what it would refuse.
+  const query = useBinder(Number(binderId), !!me?.modules?.includes('binder'))
   const binder = query.data?.binder
   const game = useGame(binder?.game_id)
   const adjust = useAdjust()

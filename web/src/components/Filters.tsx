@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, call } from '../api/client'
 import { gameGroups, useSets, useShownGames, type Game, type GameGroup } from '../api/queries'
@@ -7,6 +7,7 @@ import { languageName } from '../lib/format'
 import { TYPE_TO_SEARCH } from '../lib/typeToSearch'
 import { ColorSymbol } from './ColorBadges'
 import { Select } from './Select'
+import { readStored, store } from '../lib/storage'
 
 type GameTabsProps = {
   value: string
@@ -18,21 +19,13 @@ type GameTabsProps = {
 const REGION_KEY = 'zukan.region.'
 
 function rememberedGame(group: GameGroup): string {
-  let id: string | null = null
-  try {
-    id = localStorage.getItem(REGION_KEY + group.id)
-  } catch {
-    // Storage unavailable (private window): the group's first game.
-  }
+  // Nothing saved (or storage refused): the group's first game.
+  const id = readStored(REGION_KEY + group.id)
   return group.games.find((g) => g.id === id)?.id ?? group.games[0].id
 }
 
 function remember(game: Game) {
-  try {
-    localStorage.setItem(REGION_KEY + game.group, game.id)
-  } catch {
-    // Not kept: fine.
-  }
+  store(REGION_KEY + game.group, game.id)
 }
 
 /** One tab per game shown (user settings), the games of one family (Pokémon, Yu-Gi-Oh!)
@@ -95,10 +88,17 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
     setText(value)
   }
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  // The pending search uses the latest callback (current page and filters).
+  const latest = useRef(onChange)
+  useEffect(() => {
+    latest.current = onChange
+  })
+  // Search changed elsewhere, or the page left: the pending text is dropped.
+  useEffect(() => () => clearTimeout(timer.current), [value])
   const type = (next: string) => {
     setText(next)
     clearTimeout(timer.current)
-    timer.current = setTimeout(() => onChange(next), 300)
+    timer.current = setTimeout(() => latest.current(next), 300)
   }
   const clear = () => {
     clearTimeout(timer.current)

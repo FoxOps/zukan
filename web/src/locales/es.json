@@ -809,5 +809,6 @@
   "Deck value: allocated copies at their price, the others at the cheapest printing": "Valor del mazo: las copias asignadas a su precio, las demás a la versión más barata",
   "Copies of your collection set aside for this deck, at their price": "Copias de tu colección reservadas para este mazo, a su precio",
   "Copies not allocated yet, at the cheapest printing and finish": "Copias aún no asignadas, a la versión y acabado más baratos",
-  "To get (cheapest)": "Por conseguir (más barato)"
+  "To get (cheapest)": "Por conseguir (más barato)",
+  "Logging out failed: you are still signed in. {{reason}}": "No se pudo cerrar la sesión: sigues conectado. {{reason}}"
 }

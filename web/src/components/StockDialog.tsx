@@ -6,6 +6,7 @@ import { currentLanguage } from '../i18n'
 import { CONDITIONS, conditionName, finishName, languageName } from '../lib/format'
 import { LangFlag } from './Badges'
 import { Select } from './Select'
+import { readStored, store } from '../lib/storage'
 
 export type StockTarget = {
   printingId: number
@@ -64,7 +65,7 @@ function StockForm({ game, initial, versions, close }: FormProps) {
   const [finish, setFinish] = useState(initial.finish && finishes.includes(initial.finish) ? initial.finish : (finishes[0] ?? ''))
   const [condition, setCondition] = useState<(typeof CONDITIONS)[number]['code']>('NM')
   const [language, setLanguage] = useState(() => {
-    const preferred = [initial.language, localStorage.getItem('tcg.language'), currentLanguage()]
+    const preferred = [initial.language, readStored('tcg.language'), currentLanguage()]
     return preferred.find((l) => l && languages.includes(l)) ?? languages[0] ?? 'en'
   })
   const [quantity, setQuantity] = useState(1)
@@ -80,7 +81,7 @@ function StockForm({ game, initial, versions, close }: FormProps) {
   }
 
   const submit = (sign: 1 | -1) => {
-    localStorage.setItem('tcg.language', language)
+    store('tcg.language', language)
     adjust.mutate(
       { printing_id: target.printingId, finish, condition, language, delta: sign * quantity, source: 'web' },
       { onSuccess: close },

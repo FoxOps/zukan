@@ -52,9 +52,10 @@ export default function Collection() {
   const items = useQuery({
     queryKey: ['collection', filters, url.page],
     meta: { inlineError: true },
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       call(
         api.GET('/api/collection', {
+          signal,
           params: { query: { ...filters, condition: filters.condition as never, page: url.page, page_size: PAGE_SIZE } },
         }),
       ),

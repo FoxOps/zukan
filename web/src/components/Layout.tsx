@@ -2,11 +2,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
-import { api, ApiError, onSessionExpired, serverDown } from '../api/client'
+import { api, ApiError, call, onSessionExpired, serverDown } from '../api/client'
 import { useAndroidRelease, useHealth, useMe } from '../api/queries'
 import { useServerLanguage } from '../i18n'
 import { LanguageMenu } from './I18n'
 import { MaintenanceBanner, MaintenanceScreen } from './Maintenance'
+import { showError } from './toast'
 import { Logo, Mascot } from './Logo'
 import { applyTheme, savedDark } from '../lib/theme'
 import { useTypeToSearch } from '../lib/typeToSearch'
@@ -43,6 +44,7 @@ export function Layout() {
   const navigate = useNavigate()
   const client = useQueryClient()
   const [dark, setDark] = useTheme()
+  const [loggingOut, setLoggingOut] = useState(false)
   const health = useHealth()
   const android = useAndroidRelease()
   useServerLanguage(me.data?.language, me.data?.language_chosen)
@@ -88,7 +90,19 @@ export function Layout() {
   if (health.isError && serverDown(health.error)) return <MaintenanceScreen onBack={backOnline} />
 
   const logout = async () => {
-    const { data } = await api.POST('/api/auth/logout', { body: {} })
+    setLoggingOut(true)
+    let data: unknown
+    try {
+      data = await call(api.POST('/api/auth/logout', { body: {} }))
+    } catch (e) {
+      // 401: no session left, signed out already. Otherwise not confirmed by the server: the
+      // session may still be valid, never claim it ended.
+      if (!(e instanceof ApiError && e.status === 401)) {
+        setLoggingOut(false)
+        showError(t('Logging out failed: you are still signed in. {{reason}}', { reason: (e as Error).message }))
+        return
+      }
+    }
     client.clear()
     const endSession = (data as { end_session_url?: string | null } | undefined)?.end_session_url
     if (endSession) window.location.href = endSession
@@ -126,7 +140,7 @@ export function Layout() {
               <button tabIndex={0} className="btn btn-ghost btn-sm">{me.data.username}</button>
               <ul tabIndex={0} className="menu dropdown-content z-40 w-44 rounded-box bg-base-200 p-2 shadow">
                 <li><NavLink to="/settings">{t('Settings')}</NavLink></li>
-                <li><button onClick={logout}>{t('Log out')}</button></li>
+                <li><button onClick={logout} disabled={loggingOut}>{t('Log out')}</button></li>
               </ul>
             </div>
           </div>

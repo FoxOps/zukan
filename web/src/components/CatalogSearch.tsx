@@ -36,9 +36,10 @@ export function CatalogSearch({ game }: { game: string }) {
     queryKey: ['card-search', scope, q],
     enabled: q.trim().length >= 2,
     placeholderData: keepPreviousData,
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       call(
         api.GET('/api/cards', {
+          signal,
           params: { query: { q, game: scope || undefined, page_size: RESULTS } },
         }),
       ),

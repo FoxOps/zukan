@@ -114,7 +114,7 @@ export default function DecksPage() {
   const { data: me } = useMe()
   const enabled = !!me?.modules?.includes('decks')
   const decks = useDecks(enabled)
-  const formatName = useFormatName()
+  const formatName = useFormatName(enabled)
   const { shown, isShown } = useShownGames()
   const [creating, setCreating] = useState(false)
   if (me && !enabled) return <Navigate to="/settings" replace />

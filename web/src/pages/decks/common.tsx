@@ -3,8 +3,9 @@ import { useDeckFormats, type Deck } from '../../api/queries'
 import { formatMoney } from '../../lib/format'
 
 /** Cards in a deck against its format's size ("98 / 100"), the other sections' cards
- * (sideboard, Extra Deck, runes...), and its rule errors. */
-export function DeckCount({ deck }: { deck: Deck }) {
+ * (sideboard, Extra Deck, runes...), its rule errors and its value (`showValue`: off on the
+ * deck page, whose `DeckValue` line details it). */
+export function DeckCount({ deck, showValue = true }: { deck: Deck; showValue?: boolean }) {
   const { t } = useTranslation()
   const { data: games = [] } = useDeckFormats()
   const format = games.flatMap((g) => g.formats).find((f) => f.id === deck.format)
@@ -42,8 +43,8 @@ export function DeckCount({ deck }: { deck: Deck }) {
           </span>
         </>
       )}
-      {deck.value && deck.copies > 0 && (
-        <span className="badge badge-sm badge-ghost font-mono" title={t('Deck value: allocated copies at their price, the others at the cheapest printing')}>
+      {showValue && deck.value && deck.copies > 0 && (
+        <span className="badge badge-sm badge-info font-mono" title={t('Deck value: allocated copies at their price, the others at the cheapest printing')}>
           {formatMoney(deck.value.total, deck.value.currency)}
         </span>
       )}

@@ -1,4 +1,5 @@
 import gzip
+import io
 import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -7,6 +8,7 @@ from pathlib import Path
 import httpx
 import pytest
 import respx
+from PIL import Image
 from sqlalchemy import func, select, update
 
 from app.core.http import http_client
@@ -454,8 +456,10 @@ async def test_set_icons_and_back_faces_are_served_locally(
     icon = scryfall.get(url__startswith="https://svgs.scryfall.io/sets/").respond(
         content=svg, headers={"content-type": "image/svg+xml"}
     )
+    scan = io.BytesIO()
+    Image.new("RGB", (800, 1100), "navy").save(scan, "PNG")
     back = scryfall.get(url__startswith="https://cards.scryfall.io/").respond(
-        content=b"\x89PNG\r\n\x1a\n0000", headers={"content-type": "image/png"}
+        content=scan.getvalue(), headers={"content-type": "image/png"}
     )
     await sync_mtg(session)
     await make_user(session)
@@ -473,6 +477,12 @@ async def test_set_icons_and_back_faces_are_served_locally(
     assert icon.call_count == 1
     response = await client.get(ours["back_image"], headers=headers)
     assert response.status_code == 200 and back.call_count == 1
+    # Grids ask for a small copy of the back; the full one stays the full one.
+    small = await client.get(f"{ours['back_image']}&size=thumb", headers=headers)
+    assert small.status_code == 200
+    assert Image.open(io.BytesIO(small.content)).size == (400, 550)
+    full = await client.get(ours["back_image"], headers=headers)
+    assert Image.open(io.BytesIO(full.content)).size == (800, 1100) and back.call_count == 1
     elves = await printing(session, "dom", "168")
     no_back = await client.get(f"/api/printings/{elves.id}/image?face=back", headers=headers)
     assert no_back.status_code == 404
