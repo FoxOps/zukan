@@ -38,5 +38,7 @@
   "{{count}} more in games hidden in Settings._one": "{{count}} more in a game hidden in Settings.",
   "{{count}} more in games hidden in Settings._other": "{{count}} more in games hidden in Settings.",
   "{{count}} cards to get_one": "{{count}} card to get",
-  "{{count}} cards to get_other": "{{count}} cards to get"
+  "{{count}} cards to get_other": "{{count}} cards to get",
+  "{{count}} filters in use_one": "{{count}} filter in use",
+  "{{count}} filters in use_other": "{{count}} filters in use"
 }

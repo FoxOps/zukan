@@ -2772,3 +2772,27 @@ and Search keep their state in ViewModels.
   (signature check); an HTTP server now needs `http://` typed.
 - [ ] User: release Android 0.20.0 (works with server ≥ 0.31; older stored tokens are encrypted at
   the first start, nobody is logged out).
+
+### Report server 0.32.0 + Android 0.20.0: Field Journal UI rework (user, 2026-11-23)
+Design direction "01 Field Journal" chosen by the owner (review package of 2026-11-23, brief
+IMPLEMENTATION-PROMPT + SPECIFICATION + FUNCTION-PRESERVATION.csv). Every existing function is kept;
+controls may move. Checklist: `docs/ui-rework/function-preservation.md`.
+Decisions (Q&A 2026-11-23): one branch and one PR; Catalog filter column keeps the real catalog
+filters only (no condition/finish/language there, no backend change); "Dashboard" renamed
+"Overview" (route `/` unchanged); full redesign of every page, inner workflows unchanged; bundled
+Nunito/Inter and original logos (already identical to the design assets).
+- [ ] Shell: 240px chocolate sidebar, 180px signature, groups Collection / Workspace /
+  Administration (admin only, modules gated as before), paper top bar with a labelled catalog
+  search, language, theme, account; mobile drawer + bottom bar (Overview, Collection, Catalog,
+  More); shared PageHeader / Panel / Metric / FilterColumn / EmptyState.
+- [ ] Catalog and Collection: persistent filter column (sheet on mobile, values kept in the URL),
+  search with result count, game attributes in a labelled expandable group, auto-fill image grid,
+  Add copies from catalog tiles, quick +/- separate from Edit.
+- [ ] Card page: breadcrumb, artwork, identity and pricing, one stock action, tabs Printings /
+  Prices / Details; stock and item dialogs restyled, logic unchanged.
+- [ ] Overview: three metrics, two-column panels (top cards, games, value history, recent changes
+  with undo, movers, admin sync status); one empty-state panel for a new account. Finance panels.
+- [ ] Binder, Decks, Import / export, Settings, admin pages, Login, About, errors restyled.
+- [ ] Versions: server 0.33.0, Android unchanged 0.20.0; `.env.example` unchanged.
+- [ ] Verified: web build, oxlint, i18n check, backend web tests; local deploy, desktop/mobile,
+  light/dark, admin and user flows.

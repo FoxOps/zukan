@@ -115,15 +115,6 @@ h3,
   }
 }
 
-/* Chocolate sidebar: the active item is gold, as in the identity guide. */
-.zukan-nav .menu {
-  --menu-active-bg: var(--color-primary);
-  --menu-active-fg: var(--color-primary-content);
-}
-.zukan-nav .menu-title {
-  color: color-mix(in oklab, var(--color-neutral-content) 60%, transparent);
-}
-
 /* Logo variant for the current theme (both <img> are in the page, one is hidden). */
 [data-theme="zukan-dark"] .zukan-logo-light,
 .zukan-logo-dark {
