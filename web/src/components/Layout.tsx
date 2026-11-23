@@ -258,8 +258,8 @@ export function Layout() {
               {t('Android app {{version}}', { version: android.data.version })}
             </a>
           )}
-          <div className="flex gap-2">
-            {health.data?.version && <span>v{health.data.version}</span>}
+          <div className="flex flex-wrap gap-x-2">
+            {health.data?.version && <span className="break-all">v{health.data.version}</span>}
             <Link to="/about" className="link link-hover">{t('About')}</Link>
           </div>
         </div>

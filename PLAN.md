@@ -2781,19 +2781,29 @@ Decisions (Q&A 2026-11-23): one branch and one PR; Catalog filter column keeps t
 filters only (no condition/finish/language there, no backend change); "Dashboard" renamed
 "Overview" (route `/` unchanged); full redesign of every page, inner workflows unchanged; bundled
 Nunito/Inter and original logos (already identical to the design assets).
-- [ ] Shell: 240px chocolate sidebar, 180px signature, groups Collection / Workspace /
+- [x] Shell: 240px chocolate sidebar, 180px signature, groups Collection / Workspace /
   Administration (admin only, modules gated as before), paper top bar with a labelled catalog
   search, language, theme, account; mobile drawer + bottom bar (Overview, Collection, Catalog,
   More); shared PageHeader / Panel / Metric / FilterColumn / EmptyState.
-- [ ] Catalog and Collection: persistent filter column (sheet on mobile, values kept in the URL),
+- [x] Catalog and Collection: persistent filter column (sheet on mobile, values kept in the URL),
   search with result count, game attributes in a labelled expandable group, auto-fill image grid,
   Add copies from catalog tiles, quick +/- separate from Edit.
-- [ ] Card page: breadcrumb, artwork, identity and pricing, one stock action, tabs Printings /
+- [x] Card page: breadcrumb, artwork, identity and pricing, one stock action, tabs Printings /
   Prices / Details; stock and item dialogs restyled, logic unchanged.
-- [ ] Overview: three metrics, two-column panels (top cards, games, value history, recent changes
+- [x] Overview: three metrics, two-column panels (top cards, games, value history, recent changes
   with undo, movers, admin sync status); one empty-state panel for a new account. Finance panels.
-- [ ] Binder, Decks, Import / export, Settings, admin pages, Login, About, errors restyled.
+- [x] Binder, Decks, Import / export, Settings, admin pages, Login, About, errors restyled.
 - [x] Versions: server stays 0.32.0 (not released to main yet), Android unchanged 0.20.0;
   `.env.example` unchanged (no new variable).
-- [ ] Verified: web build, oxlint, i18n check, backend web tests; local deploy, desktop/mobile,
-  light/dark, admin and user flows.
+- [x] User request mid-way: the sidebar is a page-long column on large screens, without its own
+  scrollbar (the phone drawer still scrolls, scrollbar hidden).
+- [x] Settings: Appearance (light/dark) shares the top bar's saved theme (`lib/theme.ts` store).
+  Light `warning` darkened to #8f5f00 (5.1:1 as text); no gold text on cream.
+- [x] Verified: web build, oxlint, i18n check (882 texts, en/fr/de/es), backend 348 tests. Local
+  deploy (branch image `local-field-journal`) with admin and a disposable user (created, then
+  deleted): the user sees no admin group and is sent home from `/admin/*`, modules off hide
+  Binder/Decks, new-account overview panel; catalog Add copies → stock dialog → add, overview
+  shows it, Undo restores; import Check file reports a bad row and imports nothing; logout/login.
+  Desktop 1440 and phone 390: drawer and filter sheet close with Escape, focus goes back, no
+  page-wide horizontal scroll. Light and dark.
+- [ ] User: review on the local deploy; 200% zoom and a screen-reader pass were not done.
