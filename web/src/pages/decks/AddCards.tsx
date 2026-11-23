@@ -107,7 +107,7 @@ export function AddCards({
   )
 
   return (
-    <div className="card bg-base-200">
+    <div className="card rounded-[20px] border border-base-300 bg-base-100">
       <div className="card-body gap-3 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <button type="button" className="flex items-center gap-2 font-semibold" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
@@ -141,21 +141,21 @@ export function AddCards({
             </div>
             <ColorFilter game={game} value={colors} onChange={refine(setColors)} mode={colorMode} onModeChange={refine(setColorMode)} />
             <AdvancedFilters game={game} value={attrs} onChange={refine(setAttrs)} />
-            {setId && <p className="text-xs text-base-content/60">{t('A set is chosen: its printing of the card is added.')}</p>}
+            {setId && <p className="text-xs text-base-content/70">{t('A set is chosen: its printing of the card is added.')}</p>}
             {!filtered ? (
-              <p className="text-sm text-base-content/60">{t('Search by name or choose filters to list cards.')}</p>
+              <p className="text-sm text-base-content/70">{t('Search by name or choose filters to list cards.')}</p>
             ) : results.isError ? (
               <div className="alert alert-error">{results.error.message}</div>
             ) : results.data ? (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-3 text-sm text-base-content/60">
+                  <div className="flex items-center gap-3 text-sm text-base-content/70">
                     {t('{{count}} cards', { count: results.data.total })}
                     {results.isPlaceholderData && <span className="loading loading-spinner loading-xs" aria-label={t('Loading')} />}
                   </div>
                 </div>
                 {cards.length === 0 ? (
-                  <p className="text-sm text-base-content/60">{t('No cards found')}</p>
+                  <p className="text-sm text-base-content/70">{t('No cards found')}</p>
                 ) : view === 'images' ? (
                   <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 2xl:grid-cols-8">
                     {cards.map((card) => (
@@ -199,7 +199,7 @@ export function AddCards({
                             <ShownName name={card.name} translation={card.translation} />
                           </span>
                           {card.set && (
-                            <span className="font-mono text-xs text-base-content/60">
+                            <span className="font-mono text-xs text-base-content/70">
                               {card.set.code} {card.collector_number}
                             </span>
                           )}

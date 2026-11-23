@@ -10,7 +10,7 @@ import { Icon, type IconName } from './Icon'
 import { MaintenanceBanner, MaintenanceScreen } from './Maintenance'
 import { showError } from './toast'
 import { Logo } from './Logo'
-import { applyTheme, savedDark } from '../lib/theme'
+import { useTheme } from '../lib/theme'
 import { TYPE_TO_SEARCH_GLOBAL, useTypeToSearch } from '../lib/typeToSearch'
 
 type NavItem = { to: string; label: string; icon: IconName; end?: boolean; module?: string }
@@ -37,12 +37,6 @@ const ADMIN_NAV: NavItem[] = [
 ]
 // Phones: the four quick places; "More" opens the whole menu.
 const BOTTOM_NAV = COLLECTION_NAV.slice(0, 3)
-
-function useTheme() {
-  const [dark, setDark] = useState(savedDark)
-  useEffect(() => applyTheme(dark, true), [dark])
-  return [dark, setDark] as const
-}
 
 function initials(name: string) {
   const parts = name.split(/[\s._-]+/).filter(Boolean)

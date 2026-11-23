@@ -37,7 +37,7 @@ export function GameTabs({ value, onChange, allowAll = true, regions = true }: G
   const groups = gameGroups(shown)
   const current = groups.find((group) => group.games.some((g) => g.id === value))
   const tab = (active: boolean) =>
-    `btn min-h-11 shrink-0 rounded-xl border-0 px-4 ${active ? 'btn-neutral' : 'btn-ghost font-semibold'}`
+    `btn min-h-11 shrink-0 rounded-xl border-0 px-4 ${active ? 'btn-neutral shadow-[inset_0_-3px_0_var(--color-primary)]' : 'btn-ghost font-semibold'}`
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <div role="tablist" aria-label={t('Games')} className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">

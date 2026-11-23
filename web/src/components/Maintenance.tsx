@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import type { Schemas } from '../api/client'
 import { backoff } from '../api/queries'
 import { Logo } from './Logo'
+import { Eyebrow } from './Page'
 
 type State = Schemas['MaintenanceOut']
 
@@ -13,7 +14,7 @@ export function MaintenanceBanner({ state }: { state: State }) {
   const { t } = useTranslation()
   const admin = state.reason === 'admin'
   return (
-    <div role="alert" className="alert alert-warning alert-soft mb-4">
+    <div role="alert" className="alert alert-warning alert-soft mb-6 rounded-2xl">
       <span>
         {admin
           ? t('Maintenance started by {{name}}: users see a maintenance page until an administrator stops it.', { name: state.by ?? '?' })
@@ -73,22 +74,16 @@ export function MaintenanceScreen({ onBack = reload }: { onBack?: () => void }) 
     }
   }, [onBack])
   return (
-    <div className="hero min-h-[70vh] bg-base-100">
-      <div className="hero-content text-center">
-        <div className="card max-w-lg bg-base-200 shadow-sm">
-          <div className="card-body items-center gap-3">
-            <Logo className="h-12 w-auto" />
-            <p className="text-sm font-semibold uppercase tracking-wide text-primary">{t('A short break')}</p>
-            <h1 className="card-title text-2xl">{t('Zukan is taking a break')}</h1>
-            <p className="text-base-content/70">{t('Maintenance is in progress. Thank you for your patience: please come back in a few moments.')}</p>
-            <div className="card-actions mt-2">
-              <button className="btn btn-primary" onClick={reload}>
-                {t('Try again')}
-              </button>
-            </div>
-            <p className="text-xs text-base-content/50">{t('Nothing to do on your side.')}</p>
-          </div>
-        </div>
+    <div className="flex min-h-[70vh] items-center justify-center bg-base-200 p-4">
+      <div className="flex max-w-lg flex-col items-center gap-3 rounded-[20px] border border-base-300 bg-base-100 px-6 py-10 text-center">
+        <Logo className="w-[180px]" />
+        <Eyebrow>{t('A short break')}</Eyebrow>
+        <h1 className="text-2xl">{t('Zukan is taking a break')}</h1>
+        <p className="text-base-content/70">{t('Maintenance is in progress. Thank you for your patience: please come back in a few moments.')}</p>
+        <button className="btn btn-primary mt-2 min-h-11" onClick={reload}>
+          {t('Try again')}
+        </button>
+        <p className="text-xs text-base-content/70">{t('Nothing to do on your side.')}</p>
       </div>
     </div>
   )

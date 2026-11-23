@@ -27,8 +27,8 @@ export function ShoppingDialog({ deck, open, onClose }: { deck: Schemas['DeckOut
   return (
     <dialog className={`modal ${open ? 'modal-open' : ''}`} onClose={onClose}>
       {open && (
-        <div className="modal-box max-w-2xl animate-in fade-in zoom-in-95 duration-200">
-          <h3 className="text-lg font-bold">{t('Shopping list for {{name}}', { name: deck.name })}</h3>
+        <div className="modal-box rounded-[20px] max-w-2xl animate-in fade-in zoom-in-95 duration-200">
+          <h3 className="text-2xl">{t('Shopping list for {{name}}', { name: deck.name })}</h3>
           <p className="py-1 text-sm text-base-content/70">
             {t('Copies neither set aside for this deck nor free in your collection (copies other decks hold count as missing).')}
           </p>
@@ -47,10 +47,10 @@ export function ShoppingDialog({ deck, open, onClose }: { deck: Schemas['DeckOut
                     <span className="w-6 text-right font-mono">{l.quantity}</span>
                     <span className="min-w-0 flex-1">
                       {l.name}
-                      {l.translation && <span className="text-base-content/60"> ({l.translation})</span>}
+                      {l.translation && <span className="text-base-content/70"> ({l.translation})</span>}
                     </span>
                     {l.set_code && (
-                      <span className="font-mono text-xs text-base-content/60">
+                      <span className="font-mono text-xs text-base-content/70">
                         {l.set_code} {l.collector_number}
                       </span>
                     )}
