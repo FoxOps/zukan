@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.Resources
 import fr.zukan.app.R
 import java.util.Locale
+import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -61,6 +62,8 @@ class ApiClient(
     private val store: TokenStore,
     private val languages: () -> List<String> = ::systemLanguages,
     val generation: Long = store.generation,
+    // Where [close] shuts the pooled connections, null: OkHttp's own threads.
+    private val background: Executor? = null,
     private val onSessionExpired: () -> Unit,
 ) {
     @Volatile
@@ -156,11 +159,13 @@ class ApiClient(
         }
     }
 
-    /** The session of this client ended: no more tokens, and its calls are cancelled. */
+    /** The session of this client ended: no more tokens, and its calls are cancelled. Safe on
+     * the main thread: closing a TLS connection writes to the network (close_notify), which
+     * Android refuses there (NetworkOnMainThreadException), so the pool closes in the background. */
     fun close() {
         closed = true
         http.dispatcher.cancelAll()
-        http.connectionPool.evictAll()
+        (background ?: http.dispatcher.executorService).execute { http.connectionPool.evictAll() }
     }
 
     fun imageUrl(path: String?): String? = path?.let { baseUrl + it.removePrefix("/") }

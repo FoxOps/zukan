@@ -56,7 +56,7 @@ jobs:
         name: Build the Android app
         working-directory: android
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.0" > /dev/null
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-37.2" > /dev/null
           ./gradlew --no-build-cache --no-configuration-cache compileDebugKotlin
       - uses: github/codeql-action/analyze@v4
         with:
