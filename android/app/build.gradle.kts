@@ -10,7 +10,10 @@ val keystorePath: String? = providers.environmentVariable("ANDROID_KEYSTORE_PATH
 
 android {
     namespace = "fr.zukan.app"
-    compileSdk = 37
+    // Compose 1.13 (BOM 2026.11) needs the 37.1+ APIs; targetSdk stays 37.
+    compileSdk {
+        version = release(37) { minorApiLevel = 2 }
+    }
 
     defaultConfig {
         applicationId = "fr.zukan.app"
@@ -18,7 +21,7 @@ android {
         targetSdk = 37
         // CI passes -PversionCode / -PversionName (prod: from the release version).
         versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
-        versionName = providers.gradleProperty("versionName").orNull ?: "0.20.0"
+        versionName = providers.gradleProperty("versionName").orNull ?: "0.20.1"
         resValue("string", "app_name", "Zukan")
         redirectScheme("fr.zukan.app")
     }
