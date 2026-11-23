@@ -2,7 +2,7 @@ package fr.zukan.app
 
 import fr.zukan.app.data.ApiClient
 import fr.zukan.app.data.SslKind
-import fr.zukan.app.data.TokenStore
+import fr.zukan.app.data.TokenSessions
 import fr.zukan.app.data.Tokens
 import fr.zukan.app.data.sslDetail
 import fr.zukan.app.data.sslKind
@@ -108,10 +108,7 @@ class TlsTest {
         val proxy = MockWebServer().also { servers += it }
         proxy.enqueue(MockResponse.Builder().code(301).addHeader("Location", target.at("/zukan/api/health")).build())
         proxy.start(LOOPBACK, 0)
-        val store = object : TokenStore {
-            override var tokens: Tokens? = null
-            override suspend fun saveTokens(value: Tokens?) {}
-        }
+        val store = TokenSessions(null)
         val api = ApiClient(proxy.at("/"), store) {}
         assertEquals(target.at("/zukan/"), api.redirectedBaseUrl())
     }

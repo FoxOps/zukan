@@ -32,10 +32,42 @@ class ZukanApp : Application() {
         store = SessionStore(this)
     }
 
-    fun connect(baseUrl: String): ApiClient {
+    /** The current session ([SessionStore.generation]): what is shown for one account or
+     * server (scanner result, lists, undo) goes when it changes. */
+    val session = MutableStateFlow(0L)
+
+    /** The client of [baseUrl]. Another server ends the current session first: its tokens
+     * never go to the new server, and the old server's calls are cancelled. */
+    suspend fun connect(baseUrl: String): ApiClient {
         val current = client.value
-        if (current != null && current.baseUrl == baseUrl) return current
-        return ApiClient(baseUrl, store) { sessionExpired.value = true }.also { client.value = it }
+        if (current != null && current.baseUrl == baseUrl && current.generation == store.generation) return current
+        if (current != null && current.baseUrl != baseUrl) store.invalidate()
+        return replaceClient(baseUrl)
+    }
+
+    /** Logout, expiry or disconnection: the session's tokens go and its calls stop; the same
+     * server gets a fresh client (none without [baseUrl]). */
+    suspend fun endSession(baseUrl: String? = client.value?.baseUrl) {
+        store.invalidate()
+        if (baseUrl == null) {
+            client.value?.close()
+            client.value = null
+            session.value = store.generation
+        } else {
+            replaceClient(baseUrl)
+        }
+    }
+
+    private fun replaceClient(baseUrl: String): ApiClient {
+        val old = client.value
+        val generation = store.generation
+        val fresh = ApiClient(baseUrl, store, generation = generation) {
+            if (store.generation == generation) sessionExpired.value = true
+        }
+        client.value = fresh
+        session.value = generation
+        old?.close()
+        return fresh
     }
 
     private companion object {

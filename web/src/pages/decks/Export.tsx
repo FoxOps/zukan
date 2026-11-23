@@ -38,8 +38,8 @@ export function ExportDialog({ deck, open, onClose }: { deck: Schemas['DeckOut']
   return (
     <dialog className={`modal ${open ? 'modal-open' : ''}`} onClose={onClose}>
       {open && (
-        <div className="modal-box max-w-2xl animate-in fade-in zoom-in-95 duration-200">
-          <h3 className="text-lg font-bold">{t('Export {{name}}', { name: deck.name })}</h3>
+        <div className="modal-box rounded-[20px] max-w-2xl animate-in fade-in zoom-in-95 duration-200">
+          <h3 className="text-2xl">{t('Export {{name}}', { name: deck.name })}</h3>
           <p className="py-1 text-sm text-base-content/70">
             {deck.game_id.startsWith('pokemon')
               ? t('Pokémon TCG Live format: paste it in the game or on Limitless.')

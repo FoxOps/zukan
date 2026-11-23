@@ -1,6 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Icon } from '../components/Icon'
+import { EmptyState, PageHeader } from '../components/Page'
 import { Link, Navigate, useNavigate } from 'react-router'
 import { api, call, type Schemas } from '../api/client'
 import { gameGroups, gameLabel, useDeckFormats, useDecks, useMe, useShownGames, type Game } from '../api/queries'
@@ -50,13 +52,13 @@ function CreateDialog({ open, onClose }: { open: boolean; onClose: () => void })
     <dialog className={`modal ${open ? 'modal-open' : ''}`} onClose={onClose}>
       {open && (
         <form
-          className="modal-box animate-in fade-in zoom-in-95 duration-200"
+          className="modal-box rounded-[20px] animate-in fade-in zoom-in-95 duration-200"
           onSubmit={(e) => {
             e.preventDefault()
             if (name.trim()) create.mutate()
           }}
         >
-          <h3 className="text-lg font-bold">{t('New deck')}</h3>
+          <h3 className="text-2xl">{t('New deck')}</h3>
           <div className="mt-4 flex flex-col gap-3">
             <label className="fieldset py-0">
               <span className="fieldset-legend">{t('Name')}</span>
@@ -100,8 +102,8 @@ function CreateDialog({ open, onClose }: { open: boolean; onClose: () => void })
 function GameSection({ game, label, children }: { game: Game; label: string; children: ReactNode[] }) {
   return (
     <section className="flex flex-col gap-2" aria-labelledby={`decks-${game.id}`}>
-      <h2 id={`decks-${game.id}`} className="font-semibold">
-        {label} <span className="font-normal text-base-content/60">({children.length})</span>
+      <h2 id={`decks-${game.id}`} className="text-xl">
+        {label} <span className="font-normal text-base-content/70">({children.length})</span>
       </h2>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{children}</div>
     </section>
@@ -114,7 +116,7 @@ export default function DecksPage() {
   const { data: me } = useMe()
   const enabled = !!me?.modules?.includes('decks')
   const decks = useDecks(enabled)
-  const formatName = useFormatName()
+  const formatName = useFormatName(enabled)
   const { shown, isShown } = useShownGames()
   const [creating, setCreating] = useState(false)
   if (me && !enabled) return <Navigate to="/settings" replace />
@@ -126,38 +128,46 @@ export default function DecksPage() {
   ).filter((s) => s.decks.length > 0)
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">
-            {t('Decks')} <span className="badge badge-sm badge-outline align-middle">{t('Beta')}</span>
-          </h1>
-          <p className="text-sm text-base-content/60">{t('Build decks for your games, check format rules and set owned copies aside for each deck.')}</p>
-        </div>
-        <button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
-          {t('New deck')}
-        </button>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        eyebrow={t('Your collection')}
+        title={
+          <>
+            {t('Decks')} <span className="badge badge-outline align-middle">{t('Beta')}</span>
+          </>
+        }
+        subtitle={t('Build decks for your games, check format rules and set owned copies aside for each deck.')}
+        action={
+          all.length > 0 && (
+            <button className="btn btn-primary min-h-11 gap-2" onClick={() => setCreating(true)}>
+              <Icon name="plus" />
+              {t('New deck')}
+            </button>
+          )
+        }
+      />
       {decks.isPending && enabled ? (
         <span className="loading loading-spinner loading-lg m-auto block" />
       ) : list.length === 0 && all.length === 0 ? (
-        <div className="card bg-base-200">
-          <div className="card-body items-center text-center">
-            <p>{t('No deck yet. Create one, then add cards from the catalog or paste a decklist.')}</p>
-            <button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
+        <EmptyState
+          title={t('No deck yet.')}
+          actions={
+            <button className="btn btn-primary min-h-11" onClick={() => setCreating(true)}>
               {t('New deck')}
             </button>
-          </div>
-        </div>
+          }
+        >
+          {t('No deck yet. Create one, then add cards from the catalog or paste a decklist.')}
+        </EmptyState>
       ) : (
         <>
           {sections.map(({ game, label, decks: gameDecks }) => (
             <GameSection key={game.id} game={game} label={label}>
               {gameDecks.map((d) => (
-                <Link key={d.id} to={`/decks/${d.id}`} className="card bg-base-200 transition-colors hover:bg-base-300">
+                <Link key={d.id} to={`/decks/${d.id}`} className="card rounded-2xl border border-base-300 bg-base-100 transition-colors hover:border-base-content/40">
                   <div className="card-body gap-2">
-                    <h3 className="card-title text-base leading-tight">{d.name}</h3>
-                    <div className="text-xs text-base-content/60">
+                    <h3 className="text-lg leading-tight">{d.name}</h3>
+                    <div className="text-xs text-base-content/70">
                       {formatName(d.format)} · {t('Changed {{date}}', { date: formatDate(d.updated_at) })}
                     </div>
                     <DeckCount deck={d} />

@@ -5,6 +5,7 @@ import { CardImage } from '../../components/CardImage'
 import { RarityBadge } from '../../components/RarityBadge'
 import { ShownName } from '../../components/ShownName'
 import { TrendIcons } from '../../components/TrendIcon'
+import { Icon } from '../../components/Icon'
 import { formatMoney } from '../../lib/format'
 import { Stepper, UnitPrice } from './parts'
 import { itemLink, type ViewProps } from './types'
@@ -13,20 +14,23 @@ import { itemLink, type ViewProps } from './types'
 export function ImageView({ items, games, showGame, busy, step, edit }: ViewProps) {
   const { t } = useTranslation()
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
+    <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
       {items.map((item) => {
         const g = games.find((x) => x.id === item.game_id)
         return (
-          <div key={item.id} className="flex flex-col gap-2">
+          <li key={item.id} className="flex min-w-0 flex-col gap-2">
             <Link to={itemLink(item)} className="group relative">
-              <CardImage thumb src={item.image} back={item.back_image} alt={item.name} landscape={item.orientation === 'landscape'} game={item.game_id} setCode={item.set.code} number={item.collector_number} faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]" />
-              <span className="badge badge-neutral absolute bottom-[3%] left-[3%] font-semibold shadow">×{item.quantity}</span>
+              <CardImage thumb src={item.image} back={item.back_image} alt={item.name} landscape={item.orientation === 'landscape'} game={item.game_id} setCode={item.set.code} number={item.collector_number} />
+              <span className="badge badge-sm absolute left-[4%] top-[3%] border-base-300 bg-base-100 font-semibold text-base-content shadow">
+                <Icon name="check" className="h-3 w-3" />
+                {t('{{count}} owned', { count: item.quantity })}
+              </span>
             </Link>
             <div className="flex flex-col gap-1">
-              <Link to={itemLink(item)} className="link-hover break-words font-medium">
+              <Link to={itemLink(item)} className="link-hover break-words font-display text-base font-extrabold">
                 <ShownName name={item.name} translation={item.translation} />
               </Link>
-              <span className="text-xs text-base-content/60">
+              <span className="text-xs text-base-content/70">
                 {item.set.code} {item.collector_number}
                 {showGame && ` · ${g?.name ?? item.game_id}`}
               </span>
@@ -43,12 +47,12 @@ export function ImageView({ items, games, showGame, busy, step, edit }: ViewProp
               <TrendIcons trends={item.trends} />
               <div className="flex items-center justify-between gap-1">
                 <Stepper item={item} busy={busy} step={step} />
-                <button className="btn btn-ghost btn-xs" onClick={() => edit(item)}>{t('Edit')}</button>
+                <button className="btn btn-sm" onClick={() => edit(item)}>{t('Edit')}</button>
               </div>
             </div>
-          </div>
+          </li>
         )
       })}
-    </div>
+    </ul>
   )
 }

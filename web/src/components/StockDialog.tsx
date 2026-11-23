@@ -5,7 +5,9 @@ import { useAdjust } from '../api/stock'
 import { currentLanguage } from '../i18n'
 import { CONDITIONS, conditionName, finishName, languageName } from '../lib/format'
 import { LangFlag } from './Badges'
+import { DialogHeader } from './Page'
 import { Select } from './Select'
+import { readStored, store } from '../lib/storage'
 
 export type StockTarget = {
   printingId: number
@@ -64,7 +66,7 @@ function StockForm({ game, initial, versions, close }: FormProps) {
   const [finish, setFinish] = useState(initial.finish && finishes.includes(initial.finish) ? initial.finish : (finishes[0] ?? ''))
   const [condition, setCondition] = useState<(typeof CONDITIONS)[number]['code']>('NM')
   const [language, setLanguage] = useState(() => {
-    const preferred = [initial.language, localStorage.getItem('tcg.language'), currentLanguage()]
+    const preferred = [initial.language, readStored('tcg.language'), currentLanguage()]
     return preferred.find((l) => l && languages.includes(l)) ?? languages[0] ?? 'en'
   })
   const [quantity, setQuantity] = useState(1)
@@ -80,7 +82,7 @@ function StockForm({ game, initial, versions, close }: FormProps) {
   }
 
   const submit = (sign: 1 | -1) => {
-    localStorage.setItem('tcg.language', language)
+    store('tcg.language', language)
     adjust.mutate(
       { printing_id: target.printingId, finish, condition, language, delta: sign * quantity, source: 'web' },
       { onSuccess: close },
@@ -88,11 +90,13 @@ function StockForm({ game, initial, versions, close }: FormProps) {
   }
 
   return (
-    <div className="modal-box animate-in fade-in zoom-in-95 duration-200">
-      <h3 className="text-lg font-bold">{target.title}</h3>
-      <div className="mt-4 grid grid-cols-2 gap-3">
+    <div className="modal-box max-w-xl rounded-[20px] animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none">
+      <DialogHeader eyebrow={t('Your collection')} title={target.title}>
+        {target.label}
+      </DialogHeader>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {versions.length > 1 && (
-          <label className="fieldset col-span-2 py-0">
+          <label className="fieldset sm:col-span-2 py-0">
             <span className="fieldset-legend">{t('Version')}</span>
             <Select
               className="w-full"
@@ -103,7 +107,7 @@ function StockForm({ game, initial, versions, close }: FormProps) {
             />
           </label>
         )}
-        <div className="fieldset col-span-2">
+        <div className="fieldset sm:col-span-2">
           <span className="fieldset-legend">{t('Finish')}</span>
           <div className="join">
             {finishes.map((f) => (
@@ -119,7 +123,7 @@ function StockForm({ game, initial, versions, close }: FormProps) {
             ))}
           </div>
         </div>
-        <div className="fieldset col-span-2">
+        <div className="fieldset sm:col-span-2">
           <span className="fieldset-legend">
             {t('Condition')}: {conditionName(condition)}
           </span>
@@ -176,15 +180,16 @@ function StockForm({ game, initial, versions, close }: FormProps) {
           />
         </label>
       </div>
-      <div className="modal-action">
-        <form method="dialog">
-          <button className="btn btn-ghost">{t('Cancel')}</button>
-        </form>
-        <button className="btn btn-outline btn-error" disabled={adjust.isPending} onClick={() => submit(-1)}>
+      <div className="modal-action flex-wrap">
+        <button className="btn btn-outline btn-error min-h-11 sm:mr-auto" disabled={adjust.isPending} onClick={() => submit(-1)}>
           {t('Remove')}
         </button>
-        <button className="btn btn-primary" disabled={adjust.isPending || !finish} onClick={() => submit(1)}>
-          {t('Add')}
+        <form method="dialog">
+          <button className="btn min-h-11">{t('Cancel')}</button>
+        </form>
+        <button className="btn btn-primary min-h-11" disabled={adjust.isPending || !finish} onClick={() => submit(1)}>
+          {adjust.isPending && <span className="loading loading-spinner loading-xs" />}
+          {t('Add copies')}
         </button>
       </div>
     </div>

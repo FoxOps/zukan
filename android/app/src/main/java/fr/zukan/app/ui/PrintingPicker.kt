@@ -16,10 +16,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -33,6 +35,7 @@ import coil3.compose.AsyncImage
 import fr.zukan.app.R
 import fr.zukan.app.data.GameOut
 import fr.zukan.app.data.PrintingOut
+import fr.zukan.app.data.runCatchingCancellable
 import kotlinx.coroutines.delay
 
 /** True when `query` appears in the set name, code or collector number (case-insensitive). */
@@ -65,15 +68,21 @@ fun PrintingPicker(
 ) {
     var query by remember { mutableStateOf("") }
     var remote by remember { mutableStateOf<List<PrintingOut>>(emptyList()) }
+    // The server search failed (not "nothing found"): said, with a retry.
+    var failed by remember { mutableStateOf(false) }
+    var retry by remember { mutableIntStateOf(0) }
     val partial = total > printings.size
-    LaunchedEffect(query) {
+    LaunchedEffect(query, retry) {
         val q = query.trim()
+        failed = false
         if (!partial || q.length < 2) {
             remote = emptyList()
             return@LaunchedEffect
         }
         delay(300) // typing: wait for a pause
-        remote = runCatching { search(q) }.getOrDefault(emptyList())
+        runCatchingCancellable { search(q) }
+            .onSuccess { remote = it }
+            .onFailure { remote = emptyList(); failed = true }
     }
     val local = printings.filter { printingMatches(it, query) }
     val known = local.map { it.id }.toSet()
@@ -93,6 +102,17 @@ fun PrintingPicker(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+            if (failed) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.printings_search_failed),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { retry++ }) { Text(stringResource(R.string.try_again)) }
+                }
+            }
             LazyColumn(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 items(shown, key = { it.id }) { printing ->
                     Row(
@@ -103,7 +123,7 @@ fun PrintingPicker(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        CardPicture(printing.image, imageUrl, imageLoader, Modifier.width(40.dp), landscape = printing.orientation == "landscape")
+                        CardPicture(thumbLink(printing.image), imageUrl, imageLoader, Modifier.width(40.dp), landscape = printing.orientation == "landscape")
                         Column(Modifier.weight(1f)) {
                             Text(printing.set.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1)
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {

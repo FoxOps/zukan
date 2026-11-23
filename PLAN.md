@@ -2679,3 +2679,143 @@ choice in the pickers.
   servers). Not tried live.
 - [ ] User: try on the next dev image; release Android 0.19.0 with server 0.31.0 (Android 0.18.0
   still ticks whole lines on 0.31.0).
+
+
+### Report server 0.31.0 + Android 0.19.0: dark badges, deck value, frontend audit (user, 2026-11-22)
+Branch `2026-11-22-001-dark-badges-frontend-audit` from `dev`. Server 0.32.0 (move API, behavior
+fixes), Android unchanged (0.19.0). No Dependabot pull request open.
+Audit: `zukan-server-frontend-audit-2026-11-22.md` (15 findings, F01–F15, source `25352cd`), all
+confirmed against the code and fixed.
+- [x] Dark theme badges: `.badge-ghost` / `.badge-neutral` (base-200 / chocolate on base-100) and
+  the plain badge's border were near invisible. `index.css`, dark theme only: filled with base-300,
+  plain badge border base-300; outline, dash and soft badges unchanged.
+- [x] Decks: value badge `badge-info` (blue) on `/decks`; on a deck page `DeckCount showValue={false}`,
+  the "Deck value / Allocated / To get" line alone shows it.
+- [x] F01 health loop: a failed health check no longer invalidates itself; other failures share
+  one check (`cancelRefetch: false`). Health every 15 s, after failures 30 s then 60 s (±20 %);
+  maintenance page polls one at a time, 5 s up to 30 s. Live: 1 health request in 2.5 s on 503
+  (audit: 380).
+- [x] F02 search: pending search uses the latest callback, dropped on unmount or URL change;
+  `useUrlState.set` builds from the current URL. Game change keeps the typed text.
+- [x] F03 logout: checks the answer; failure (not 401) shows "Logging out failed: you are still
+  signed in" and keeps the session; button disabled while pending.
+- [x] F04 refresh: only 401/403 from `/api/auth/refresh` end the session; 429/5xx return that
+  status, no answer is a network error (maintenance check), user stays signed in.
+- [x] F05 images: `layout.write_atomic` / `copy_atomic` (unique `mkstemp` names ending `.tmp`, mode
+  0644; images, symbols, default pictures); per-key in-process lock for card downloads, assets and
+  thumbnails (one download / encode per key); write errors logged, no 500.
+- [x] F06 `CardImage`: failures remembered per link (front and back apart); new card: front up.
+- [x] F07 catalog, collection, quick search and deck search pass React Query's abort signal.
+- [x] F08 `GET /games/{id}/sets`: languages aggregated for regional sets only; `useSets` gcTime.
+- [x] F09 `Select`: labels normalized once, options rendered 100 at a time (more on scroll or
+  keyboard).
+- [x] F10 recharts in `PriceChartLines` (lazy): no data, no chart library; dashboard with only zero
+  values has no data.
+- [x] F11 flipped thumbnails ask `face=back&size=thumb`; the API thumbnails backs (not SVG);
+  `asset_file` never returns `<stem>.thumb.webp` as the full back.
+- [x] F12 `lib/storage.ts` (`readStored`, `store`): theme, regions, stock language, views,
+  schedule editor work with storage refused.
+- [x] F13 decks / binder pages: formats, deck and binder queries only with the module.
+- [x] F14 card page sort: own keys only (`Object.hasOwn`). Live: `?sort=__proto__` renders.
+- [x] F15 `POST /decks/{id}/cards/move`: `to_section` (copies to another section, one transaction,
+  allocations kept, merged; copies past the line maximum stay); `to_printing_id` left out = same
+  printing (null: any). Web section moves use it (was two PUTs).
+- [x] Versions: server 0.32.0. `.env.example`: user agent 0.32.0. No new variable.
+- [x] Verified: 348 backend tests (section move, concurrent writers, back thumbnail), ruff; web tsc,
+  oxlint, i18n (792), build (chart in its own lazy chunk); headless Chromium on vite dev against
+  the local 0.31.0 server: dark badge colors, F01 count, F02 URL, F14.
+- [ ] User: try on the next dev image (dark badges, deck page, moving cards to the sideboard).
+
+
+### Report server 0.32.0 + Android 0.19.0: Android audit (user, 2026-11-23)
+Branch `2026-11-23-000-android-audit-fixes` from `dev`. Server unchanged (0.32.0), Android 0.20.0.
+No Dependabot pull request open.
+Audit: `zukan-android-audit-2026-11-23.md` (18 findings, A01–A18, source `25352cd`), all confirmed
+against the code (Android unchanged since).
+Decisions (Q&A 2026-11-23): card details as a sheet over the current tab (no jump to Scan); shopping
+boxes 48 dp, one per copy up to 8, then a stepper; HTTPS by default and a warning for an HTTP identity
+provider; tokens encrypted with an Android Keystore key (no permission, nothing asked); Collection
+and Search keep their state in ViewModels.
+- [x] A01/A02/A04 sessions: tokens belong to a session generation; old clients never read a newer
+  session's tokens, calls of an ended session are cancelled; a refresh saves only if its session and
+  refresh token are still current; only 401/403 from the refresh endpoint end the session.
+- [x] Keystore: access/refresh tokens AES-GCM encrypted in DataStore (plain ones migrated).
+- [x] A09 settings updated inside one DataStore transaction.
+- [x] A03/A10 scanner reset on logout / server change; identify and card jobs cancelled, late
+  answers dropped.
+- [x] A05/A06 card details sheet over Collection / Search: copy's condition, language and finish;
+  Remove follows the selected variant; no camera permission needed.
+- [x] A07 Collection / Search ViewModels: one query key, pages committed after success, state kept
+  across tabs; collection refreshed on resume; value 0 for a game without cards.
+- [x] A08/A15 shopping: per-item ordered writes, rollback of the failed item only; 48 dp boxes up to
+  8 copies, stepper above; TalkBack states.
+- [x] A11/A12 camera and OCR: guarded camera start (front camera fallback, error with retry), frames
+  kept open until ML Kit finishes; camera off after 10 s on a result, torch off, viewfinder
+  animation only while identifying.
+- [x] A13 updates: HTTPS only, byte cap, temp file, prompt cancel, APK package / version / signature
+  checked before install.
+- [x] A14 contrast, A15 condition radio state, A16 camera text (en/fr/de/es), A17 Guava 33.8.0 (advisory fixed in 33.7.2),
+  A18 SSO after process death; HTTPS default; HTTP identity provider warning; thumbnails in Search
+  and printing picker; providers and health loaded together.
+- [x] CI: `android-dependencies.yml` submits the resolved release runtime graph (Gradle dependency
+  submission) on `main` and weekly, so Dependabot alerts cover transitive Android dependencies.
+- [x] Versions: Android 0.20.0. Server unchanged; `.env.example` unchanged (no new variable).
+- [x] Verified: Android lintRelease (0 errors; PluralsCandidate, ObsoleteSdkInt and the ScanScreen
+  safe call fixed; left: newer library versions for Dependabot, AppBundleLocaleChanges and
+  ChromeOsAbiSupport as before), 84 unit tests (68 before; new `ApiClientSessionTest` session races,
+  `ListPagerTest`, `SettingsPrefsTest`, shopping item merge, update size caps / HTTPS, ServerUrl
+  HTTPS), assembleDebug, assembleRelease (unsigned, 17.7 MB); Guava 33.8.0 resolved. Not tried on a
+  phone.
+- [ ] User, on a phone: card from the collection (Played copy, Remove takes the PL one) and from
+  search with camera refused; account / server change while scanning (no old result or Undo);
+  camera busy in another app; TalkBack on conditions and shopping boxes; an update download
+  (signature check); an HTTP server now needs `http://` typed.
+- [ ] User: release Android 0.20.0 (works with server ≥ 0.31; older stored tokens are encrypted at
+  the first start, nobody is logged out).
+
+### Report server 0.32.0 + Android 0.20.0: Field Journal UI rework (user, 2026-11-23)
+Design direction "01 Field Journal" chosen by the owner (review package of 2026-11-23, brief
+IMPLEMENTATION-PROMPT + SPECIFICATION + FUNCTION-PRESERVATION.csv). Every existing function is kept;
+controls may move. Checklist: `docs/ui-rework/function-preservation.md`.
+Decisions (Q&A 2026-11-23): one branch and one PR; Catalog filter column keeps the real catalog
+filters only (no condition/finish/language there, no backend change); "Dashboard" renamed
+"Overview" (route `/` unchanged); full redesign of every page, inner workflows unchanged; bundled
+Nunito/Inter and original logos (already identical to the design assets).
+- [x] Shell: 240px chocolate sidebar, 180px signature, groups Collection / Workspace /
+  Administration (admin only, modules gated as before), paper top bar with a labelled catalog
+  search, language, theme, account; mobile drawer + bottom bar (Overview, Collection, Catalog,
+  More); shared PageHeader / Panel / Metric / FilterColumn / EmptyState.
+- [x] Catalog and Collection: persistent filter column (sheet on mobile, values kept in the URL),
+  search with result count, game attributes in a labelled expandable group, auto-fill image grid,
+  Add copies from catalog tiles, quick +/- separate from Edit.
+- [x] Card page: breadcrumb, artwork, identity and pricing, one stock action, tabs Printings /
+  Prices / Details; stock and item dialogs restyled, logic unchanged.
+- [x] Overview: three metrics, two-column panels (top cards, games, value history, recent changes
+  with undo, movers, admin sync status); one empty-state panel for a new account. Finance panels.
+- [x] Binder, Decks, Import / export, Settings, admin pages, Login, About, errors restyled.
+- [x] Versions: server stays 0.32.0 (not released to main yet), Android unchanged 0.20.0;
+  `.env.example` unchanged (no new variable).
+- [x] User requests mid-way: the sidebar never scrolls away on large screens. It is as high as
+  the screen and stays in place: logo band on the top bar's line, whole menu (36px items on
+  large screens, 44px on phones), Android app / version / About at the bottom. A menu too long
+  for a short screen scrolls by itself, no scrollbar shown.
+- [x] User request mid-way (a user's idea): card page links the previous and next card of the
+  set (PBL 042 → PBL 041 / PBL 043), names in the user's language, open tab kept. New
+  `GET /api/printings/{id}/neighbors` (printed collector-number order, ties by id; set pages of
+  the catalog search stop at 200 cards, too few for large sets); `tests/test_neighbors.py`.
+- [x] User report: card pages lose their own catalog search (the top bar's search is on every
+  page; adding copies stays on the card page and on catalog tiles); legality shown as format
+  badges: green ✓ legal, orange ! restricted / limited / semi-limited, red ✕ banned /
+  forbidden and red ✕ when not legal there (Magic and Lorcana `legalities`, Pokémon `legal`, Yu-Gi-Oh!
+  `banlist` with TCG / OCG / GOAT); Overview in two independent columns (no panel stretched
+  next to a long recent-changes list).
+- [x] Settings: Appearance (light/dark) shares the top bar's saved theme (`lib/theme.ts` store).
+  Light `warning` darkened to #8f5f00 (5.1:1 as text); no gold text on cream.
+- [x] Verified: web build, oxlint, i18n check (882 texts, en/fr/de/es), backend 348 tests. Local
+  deploy (branch image `local-field-journal`) with admin and a disposable user (created, then
+  deleted): the user sees no admin group and is sent home from `/admin/*`, modules off hide
+  Binder/Decks, new-account overview panel; catalog Add copies → stock dialog → add, overview
+  shows it, Undo restores; import Check file reports a bad row and imports nothing; logout/login.
+  Desktop 1440 and phone 390: drawer and filter sheet close with Escape, focus goes back, no
+  page-wide horizontal scroll. Light and dark.
+- [ ] User: review on the local deploy; 200% zoom and a screen-reader pass were not done.

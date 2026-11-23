@@ -6,6 +6,9 @@ export type Option = { value: string; label: string; lang?: string }
 
 // Up to this many options a native select is quicker to use; longer lists get a filter box.
 export const SEARCHABLE_FROM = 11
+// Options put in the list at a time (a thousand sets would be a thousand buttons): more as
+// the list scrolls down or the keyboard goes past them.
+const WINDOW = 100
 
 type SelectProps = {
   value: string
@@ -52,14 +55,20 @@ function SearchableSelect({ value, onChange, options, className = '', disabled, 
   const listId = useId()
   const [place, setPlace] = useState<CSSProperties>({})
 
+  // Labels normalized once per list, not on every key typed.
+  const texts = useMemo(() => options.map((o) => normalize(o.label)), [options])
   const shown = useMemo(() => {
     const words = normalize(query).split(/\s+/).filter(Boolean)
     if (!words.length) return options
-    return options.filter((o) => {
-      const text = normalize(o.label)
-      return words.every((w) => text.includes(w))
-    })
-  }, [options, query])
+    return options.filter((_, i) => words.every((w) => texts[i].includes(w)))
+  }, [options, texts, query])
+  const [limit, setLimit] = useState(WINDOW)
+  // Always far enough to show the active option.
+  const rendered = Math.max(limit, Math.ceil((active + 1) / WINDOW) * WINDOW)
+  const more = (e: React.UIEvent<HTMLUListElement>) => {
+    const node = e.currentTarget
+    if (rendered < shown.length && node.scrollTop + node.clientHeight > node.scrollHeight - 200) setLimit(rendered + WINDOW)
+  }
 
   useEffect(() => {
     if (!open) return
@@ -106,6 +115,7 @@ function SearchableSelect({ value, onChange, options, className = '', disabled, 
 
   const show = () => {
     setQuery('')
+    setLimit(WINDOW)
     setActive(Math.max(0, options.findIndex((o) => o.value === value)))
     setOpen(true)
   }
@@ -165,11 +175,12 @@ function SearchableSelect({ value, onChange, options, className = '', disabled, 
             onChange={(e) => {
               setQuery(e.target.value)
               setActive(0)
+              setLimit(WINDOW)
             }}
             onKeyDown={keys}
           />
-          <ul ref={list} id={listId} role="listbox" className="menu max-h-72 min-h-0 w-full flex-nowrap overflow-y-auto p-0">
-            {shown.map((o, i) => (
+          <ul ref={list} id={listId} role="listbox" className="menu max-h-72 min-h-0 w-full flex-nowrap overflow-y-auto p-0" onScroll={more}>
+            {shown.slice(0, rendered).map((o, i) => (
               <li key={o.value} role="option" aria-selected={o.value === value}>
                 <button
                   type="button"

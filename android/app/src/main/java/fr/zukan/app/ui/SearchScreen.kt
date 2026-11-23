@@ -34,6 +34,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,10 +52,10 @@ import fr.zukan.app.data.CardSummaryOut
 import fr.zukan.app.data.GameOut
 import fr.zukan.app.data.SetOut
 import fr.zukan.app.data.ZukanApi
+import fr.zukan.app.data.runCatchingCancellable
 import fr.zukan.app.data.userMessage
 import kotlinx.coroutines.delay
 
-private const val PAGE_SIZE = 30
 
 /**
  * Find a card when it cannot be scanned (damaged, foil glare, unusual layout): name in
@@ -63,6 +64,7 @@ private const val PAGE_SIZE = 30
  */
 @Composable
 fun SearchScreen(
+    model: SearchViewModel,
     api: ZukanApi?,
     defaultGame: String?,
     games: List<GameOut>,
@@ -71,41 +73,23 @@ fun SearchScreen(
     onScan: () -> Unit,
     onPick: (CardSummaryOut) -> Unit,
 ) {
-    var query by rememberSaveable { mutableStateOf("") }
-    var game by rememberSaveable { mutableStateOf(defaultGame) }
-    var set by remember { mutableStateOf<SetOut?>(null) }
-    var colors by rememberSaveable { mutableStateOf(listOf<String>()) }
-    var lang by rememberSaveable { mutableStateOf<String?>(null) }
+    val current by model.query.collectAsStateWithLifecycle()
+    val rows by model.pager.state.collectAsStateWithLifecycle()
+    val query = current.text
+    val game = current.game
+    val set = current.set
+    val colors = current.colors
+    val lang = current.lang
     var showFilters by rememberSaveable { mutableStateOf(false) }
-    var page by remember { mutableIntStateOf(1) }
-    var retry by remember { mutableIntStateOf(0) }
-    var results by remember { mutableStateOf<List<CardSummaryOut>>(emptyList()) }
-    var total by remember { mutableIntStateOf(0) }
-    var loading by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    val context = LocalContext.current
-    val filtered = set != null || colors.isNotEmpty() || lang != null
-    val searching = query.trim().length >= 2 || filtered
+    val results = rows.items
+    val total = rows.total
+    val loading = rows.loading
+    // A failed first page replaces the list; a failed next page shows under it.
+    val error = rows.error?.takeIf { !rows.loaded }
+    val filtered = current.filtered
+    val searching = current.searching
 
-    LaunchedEffect(query, game, set, colors, lang) { page = 1 }
-    LaunchedEffect(query, game, set, colors, lang, page, retry) {
-        if (api == null || !searching) {
-            results = emptyList()
-            total = 0
-            error = null
-            return@LaunchedEffect
-        }
-        if (page == 1) delay(300) // typing debounce
-        loading = true
-        runCatching {
-            api.searchCards(query.trim().ifEmpty { null }, game, set?.id, colors.ifEmpty { null }, lang, page, PAGE_SIZE)
-        }.onSuccess {
-            results = if (page == 1) it.items else results + it.items
-            total = it.total
-            error = null
-        }.onFailure { error = it.userMessage(context) }
-        loading = false
-    }
+    LaunchedEffect(api) { if (api != null) model.start(defaultGame) }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -115,22 +99,18 @@ fun SearchScreen(
         item { ScreenHeader(stringResource(R.string.search_title), stringResource(R.string.search_subtitle)) }
         item {
             Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                PillSearchField(query, { query = it }, stringResource(R.string.search_hint), Modifier.weight(1f))
+                PillSearchField(query, model::setText, stringResource(R.string.search_hint), Modifier.weight(1f))
                 FilterButton(filtered) { showFilters = true }
             }
         }
         item {
-            GameChips(games, game, { g ->
-                game = g
-                set = null
-                colors = emptyList()
-            }, { showFilters = true })
+            GameChips(games, game, model::setGame, { showFilters = true })
         }
         when {
             !searching -> item { SearchIntro(onScan, Modifier.padding(top = 12.dp)) }
             error != null -> item {
                 MessageCard(stringResource(R.string.error_title), error, action = {
-                    OutlinedButton(onClick = { retry++ }) { Text(stringResource(R.string.try_again)) }
+                    OutlinedButton(onClick = model.pager::retry) { Text(stringResource(R.string.try_again)) }
                 })
             }
             results.isEmpty() && loading -> item {
@@ -143,10 +123,16 @@ fun SearchScreen(
             }
         }
         items(results, key = { it.id }) { card -> ResultCard(card, games, imageUrl, imageLoader, onPick) }
-        if (results.size < total) {
+        if (rows.loaded && rows.error != null) {
             item {
-                TextButton(onClick = { page++ }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !loading) {
-                    Text(stringResource(R.string.load_more, total - results.size))
+                Text(rows.error.orEmpty(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        if (rows.more) {
+            item {
+                // After a failure: the same page again (never skipped).
+                TextButton(onClick = { if (rows.error != null) model.pager.retry() else model.pager.more() }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !loading) {
+                    Text(stringResource(if (rows.error != null) R.string.try_again else R.string.load_more, total - results.size))
                 }
             }
         }
@@ -154,7 +140,7 @@ fun SearchScreen(
 
     if (showFilters) {
         SearchFilters(api, games, game, set, colors, lang, onApply = { g, s, c, l ->
-            game = g; set = s; colors = c; lang = l
+            model.setFilters(g, s, c, l)
             showFilters = false
         }, onDismiss = { showFilters = false })
     }
@@ -190,7 +176,7 @@ private fun ResultCard(card: CardSummaryOut, games: List<GameOut>, imageUrl: (St
     val name = shownName(card.name, card.translation)
     Surface(onClick = { onPick(card) }, shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CardPicture(card.image, imageUrl, imageLoader, Modifier.width(52.dp), landscape = card.orientation == "landscape", contentDescription = name.text)
+            CardPicture(thumbLink(card.image), imageUrl, imageLoader, Modifier.width(52.dp), landscape = card.orientation == "landscape", contentDescription = name.text)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(name, style = MaterialTheme.typography.titleMedium, fontSize = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -300,10 +286,20 @@ private fun SearchFilters(
 /** Sets of a game, newest first, filtered by name or code. */
 @Composable
 fun SetPicker(api: ZukanApi?, game: String, onPick: (SetOut?) -> Unit, onDismiss: () -> Unit) {
-    var sets by remember { mutableStateOf<List<SetOut>>(emptyList()) }
+    // null: loading; a failure is said (not shown as a game without sets).
+    var sets by remember { mutableStateOf<List<SetOut>?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var retry by remember { mutableIntStateOf(0) }
     var filter by remember { mutableStateOf("") }
-    LaunchedEffect(game) { sets = runCatching { api?.sets(game) }.getOrNull().orEmpty() }
-    val shown = sets.filter { filter.isBlank() || it.name.contains(filter, true) || it.code.contains(filter, true) }
+    val context = LocalContext.current
+    LaunchedEffect(game, retry) {
+        sets = null
+        error = null
+        runCatchingCancellable { api?.sets(game).orEmpty() }
+            .onSuccess { sets = it }
+            .onFailure { error = it.userMessage(context) }
+    }
+    val shown = sets.orEmpty().filter { filter.isBlank() || it.name.contains(filter, true) || it.code.contains(filter, true) }
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = { onPick(null) }) { Text(stringResource(R.string.any_set)) } },
@@ -312,6 +308,15 @@ fun SetPicker(api: ZukanApi?, game: String, onPick: (SetOut?) -> Unit, onDismiss
         },
         text = {
             LazyColumn(Modifier.heightIn(max = 420.dp)) {
+                when {
+                    error != null -> item {
+                        Column {
+                            Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
+                            TextButton(onClick = { retry++ }) { Text(stringResource(R.string.try_again)) }
+                        }
+                    }
+                    sets == null -> item { Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+                }
                 items(shown, key = { it.id }) { s ->
                     Row(
                         Modifier.fillMaxWidth().clickable { onPick(s) }.padding(vertical = 8.dp),

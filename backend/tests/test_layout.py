@@ -189,3 +189,31 @@ async def test_shipped_pictures_copied_to_default_folder(image_dir):
     original = shipped["yugioh"]["rarity"] / "secret.svg"
     assert (rarity / "secret.svg").read_bytes() == original.read_bytes()
     assert not (rarity / "gone.svg").exists()
+
+
+def test_writers_of_one_file_do_not_collide(tmp_path):
+    """Writers of the same picture at once (two cold requests, API and worker) each use
+    their own temporary file: all succeed, the file is whole, nothing is left behind."""
+    import threading
+
+    target = tmp_path / "mtg" / "cards" / "1" / "2-en.webp"
+    start = threading.Barrier(8)
+    errors: list[BaseException] = []
+
+    def write(n: int) -> None:
+        start.wait()
+        try:
+            layout.write_atomic(target, bytes([n]) * 1000)
+        except BaseException as exc:  # pragma: no cover - reported below
+            errors.append(exc)
+
+    threads = [threading.Thread(target=write, args=(n,)) for n in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert errors == []
+    data = target.read_bytes()
+    assert len(data) == 1000 and len(set(data)) == 1
+    assert [p.name for p in target.parent.iterdir()] == ["2-en.webp"]
+    assert target.stat().st_mode & 0o777 == 0o644

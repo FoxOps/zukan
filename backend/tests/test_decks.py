@@ -1014,6 +1014,45 @@ async def test_printing_lines(client, session, alice, catalog):
     ]
     assert entry(moved.json(), bolt)["allocated"] == 3
 
+    # Copies to another section in one change (same printing), merged with its line; the
+    # card's total and allocations stay. A line the deck lacks: 404.
+    for count in (1, 1):
+        moved = await client.post(
+            f"/api/decks/{deck}/cards/move",
+            json={
+                "card_id": bolt,
+                "printing_id": m10,
+                "to_section": "sideboard",
+                "quantity": count,
+            },
+            headers=alice,
+        )
+        assert moved.status_code == 200, moved.text
+    bolt_entry = entry(moved.json(), bolt)
+    lines = {(ln["section"], ln["set_code"]): ln["quantity"] for ln in bolt_entry["lines"]}
+    assert lines == {
+        ("main", "M10"): 1,
+        ("main", "TST"): 1,
+        ("main", None): 1,
+        ("sideboard", "M10"): 2,
+    }
+    assert bolt_entry["requested"] == 5 and bolt_entry["allocated"] == 3
+    moved = await client.post(
+        f"/api/decks/{deck}/cards/move",
+        json={"card_id": bolt, "section": "sideboard", "printing_id": m10, "to_section": "main"},
+        headers=alice,
+    )
+    lines = entry(moved.json(), bolt)["lines"]
+    assert [(ln["section"], ln["quantity"]) for ln in lines if ln["set_code"] == "M10"] == [
+        ("main", 3)
+    ]
+    missing = await client.post(
+        f"/api/decks/{deck}/cards/move",
+        json={"card_id": bolt, "section": "sideboard", "printing_id": m10, "to_section": "main"},
+        headers=alice,
+    )
+    assert missing.status_code == 404
+
     # Printings of the card for the chooser, with the user's copies.
     printings = await client.get(f"/api/decks/{deck}/cards/{bolt}/printings", headers=alice)
     assert {p["set_code"]: (p["owned"], p["available"]) for p in printings.json()} == {

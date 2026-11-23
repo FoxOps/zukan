@@ -13,8 +13,9 @@ else in Japanese, else in whatever language exists.
 import asyncio
 import io
 import logging
-import shutil
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -105,18 +106,24 @@ def _set_path(printing: Printing, lang: str, relative: str) -> None:
     printing.image_paths = {**printing.image_paths, lang: relative}
 
 
-def _write_atomic(target: Path, data: bytes) -> None:
-    target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.with_suffix(target.suffix + ".tmp")
-    tmp.write_bytes(data)
-    tmp.replace(target)
+# Downloads and encodes running in this process, by target: a second request for the same
+# picture waits for the first one, then finds the file.
+_busy: dict[str, tuple[asyncio.Lock, int]] = {}
 
 
-def _copy_atomic(source: Path, target: Path) -> None:
-    target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.with_suffix(target.suffix + ".tmp")
-    shutil.copyfile(source, tmp)
-    tmp.replace(target)
+@asynccontextmanager
+async def _one_at_a_time(key: str) -> AsyncIterator[None]:
+    lock, users = _busy.get(key, (asyncio.Lock(), 0))
+    _busy[key] = (lock, users + 1)
+    try:
+        async with lock:
+            yield
+    finally:
+        lock, users = _busy[key]
+        if users == 1:
+            del _busy[key]
+        else:
+            _busy[key] = (lock, users - 1)
 
 
 def _shrink(data: bytes, width: int = _REENCODE_WIDTH, quality: int = 85) -> bytes:
@@ -134,19 +141,31 @@ def _shrink(data: bytes, width: int = _REENCODE_WIDTH, quality: int = 85) -> byt
         return out.getvalue()
 
 
+def _thumb_path(path: Path) -> Path:
+    return path.with_name(path.name.split(".")[0] + THUMB_SUFFIX)
+
+
+def _thumb_fresh(path: Path, target: Path) -> bool:
+    return target.is_file() and target.stat().st_mtime >= path.stat().st_mtime
+
+
 def _thumb(path: Path) -> Path:
-    target = path.with_name(path.name.split(".")[0] + THUMB_SUFFIX)
-    if not target.is_file() or target.stat().st_mtime < path.stat().st_mtime:
-        _write_atomic(target, _shrink(path.read_bytes(), THUMB_WIDTH, 80))
+    target = _thumb_path(path)
+    if not _thumb_fresh(path, target):
+        layout.write_atomic(target, _shrink(path.read_bytes(), THUMB_WIDTH, 80))
     return target
 
 
 async def thumbnail(path: Path) -> Path:
-    """Small WebP copy of a cached card image (lists, grids), made once. Falls back to
-    the image itself when it cannot be read."""
+    """Small WebP copy of a cached card image or back face (lists, grids), made once.
+    Falls back to the image itself when it cannot be read."""
     try:
-        return await asyncio.to_thread(_thumb, path)
-    except OSError as exc:
+        target = _thumb_path(path)
+        if _thumb_fresh(path, target):
+            return target
+        async with _one_at_a_time(str(target)):
+            return await asyncio.to_thread(_thumb, path)
+    except (OSError, ValueError) as exc:
         log.warning("No thumbnail for %s: %s", path, exc)
         return path
 
@@ -180,7 +199,11 @@ async def download_image(
             # Kept as the source sent it: browsers may read what Pillow does not.
             log.warning("Image of printing %s not converted to WebP: %s", printing.id, exc)
     relative = _relative_path(game_id, printing, lang, extension)
-    await asyncio.to_thread(_write_atomic, image_root() / relative, data)
+    try:
+        await asyncio.to_thread(layout.write_atomic, image_root() / relative, data)
+    except OSError as exc:
+        log.warning("Image of printing %s/%s not stored: %s", printing.id, lang, exc)
+        return False
     _set_path(printing, lang, relative)
     return True
 
@@ -196,7 +219,8 @@ def asset_file(stem: str) -> Path | None:
     """Cached asset `stem` (relative path without extension), any extension."""
     target = image_root() / stem
     for path in sorted(target.parent.glob(f"{target.name}.*")) if target.parent.is_dir() else []:
-        if path.suffix in _ASSET_EXTENSIONS.values():
+        # Not its small copy (`<stem>.thumb.webp`, grids) nor a download being written.
+        if path.suffix in _ASSET_EXTENSIONS.values() and not path.name.endswith(THUMB_SUFFIX):
             return path
     return None
 
@@ -206,7 +230,17 @@ async def cached_asset(http: httpx.AsyncClient, url: str | None, stem: str) -> P
     clients never load it from the source."""
     if (existing := asset_file(stem)) is not None:
         return existing
-    if not url or time.monotonic() - _asset_failures.get(stem, -_ASSET_RETRY) < _ASSET_RETRY:
+    if not url:
+        return None
+    async with _one_at_a_time(stem):
+        # Downloaded meanwhile by the request this one waited for.
+        if (existing := asset_file(stem)) is not None:
+            return existing
+        return await _download_asset(http, url, stem)
+
+
+async def _download_asset(http: httpx.AsyncClient, url: str, stem: str) -> Path | None:
+    if time.monotonic() - _asset_failures.get(stem, -_ASSET_RETRY) < _ASSET_RETRY:
         return None
     try:
         response, data = await get_limited(
@@ -223,7 +257,11 @@ async def cached_asset(http: httpx.AsyncClient, url: str | None, stem: str) -> P
         _asset_failures[stem] = time.monotonic()
         return None
     path = image_root() / f"{stem}{extension}"
-    await asyncio.to_thread(_write_atomic, path, data)
+    try:
+        await asyncio.to_thread(layout.write_atomic, path, data)
+    except OSError as exc:
+        log.warning("%s not stored: %s", path, exc)
+        return None
     return path
 
 
@@ -249,8 +287,15 @@ async def get_or_fetch(
         card = card or await session.get(Card, printing.card_id)
         if card is None:
             return None
-        downloaded = await download_image(http, card.game_id, printing, lang)
-        await session.commit()
+        async with _one_at_a_time(f"printing-{printing.id}-{lang}"):
+            # Another request may have stored it while this one waited.
+            await session.refresh(printing, ["image_paths"])
+            if (path := cached_file(printing, lang)) is not None:
+                return path
+            if printing.image_paths.get(lang) == "":
+                continue
+            downloaded = await download_image(http, card.game_id, printing, lang)
+            await session.commit()
         if downloaded:
             return cached_file(printing, lang)
     return None
@@ -387,7 +432,7 @@ async def import_image_folder(
             report.missing += 1
             continue
         relative = _relative_path(provider.id, printing, lang, source.suffix.lower())
-        await asyncio.to_thread(_copy_atomic, source, image_root() / relative)
+        await asyncio.to_thread(layout.copy_atomic, source, image_root() / relative)
         _set_path(printing, lang, relative)
         report.stored += 1
     await session.commit()

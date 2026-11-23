@@ -357,6 +357,18 @@ data class ShoppingListOut(
     val items: List<ShoppingItemOut> = emptyList(),
 ) {
     val complete get() = copies > 0 && bought >= copies
+
+    /** Item [itemId] with [count] copies bought, the others as they are. */
+    fun withBought(itemId: Int, count: Int) = withItems(items.map { if (it.id == itemId) it.withBought(count) else it })
+
+    /** Only item [itemId] as [answer] has it: an answer about one item never undoes newer
+     * ticks of the others still on their way. */
+    fun withItemOf(answer: ShoppingListOut, itemId: Int): ShoppingListOut {
+        val fresh = answer.items.firstOrNull { it.id == itemId } ?: return this
+        return withItems(items.map { if (it.id == itemId) fresh else it })
+    }
+
+    private fun withItems(next: List<ShoppingItemOut>) = copy(items = next, bought = next.sumOf { it.boughtCount })
 }
 
 @Serializable

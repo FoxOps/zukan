@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { AdminHeader } from '../../components/AdminHeader'
 import { Navigate } from 'react-router'
 import { api, call, type Schemas } from '../../api/client'
 import { useMe, useProviders } from '../../api/queries'
@@ -32,7 +33,7 @@ function ModuleAccess({ groups }: { groups: Group[] }) {
   const chosen = groups.filter((g) => !g.builtin)
 
   return (
-    <div className="card bg-base-200">
+    <div className="card rounded-[20px] border border-base-300 bg-base-100">
       <div className="card-body gap-4">
         <h2 className="card-title">{t('Module access')}</h2>
         <p className="text-sm text-base-content/70">
@@ -59,7 +60,7 @@ function ModuleAccess({ groups }: { groups: Group[] }) {
               </div>
               {m.mode === 'groups' && (
                 <div className="flex flex-wrap gap-3 pl-1 md:pl-35">
-                  {chosen.length === 0 && <span className="text-xs text-base-content/60">{t('Create a group below first.')}</span>}
+                  {chosen.length === 0 && <span className="text-xs text-base-content/70">{t('Create a group below first.')}</span>}
                   {chosen.map((g) => (
                     <label key={g.id} className="label cursor-pointer gap-2 text-sm text-base-content">
                       <input
@@ -142,7 +143,7 @@ function GroupCard({ group, users, ssoEnabled }: { group: Group; users: Schemas[
   }
 
   return (
-    <div className="card bg-base-200">
+    <div className="card rounded-[20px] border border-base-300 bg-base-100">
       <div className="card-body gap-3">
         <form className="flex flex-col gap-2" onSubmit={save}>
           <div className="flex flex-wrap items-center gap-2">
@@ -154,7 +155,7 @@ function GroupCard({ group, users, ssoEnabled }: { group: Group; users: Schemas[
               <input className="input input-sm w-56 font-semibold" required maxLength={64} value={name} aria-label={t('Group name')} onChange={(e) => setName(e.target.value)} />
             )}
           </div>
-          {group.builtin && <p className="text-xs text-base-content/60">{t('Its members are the administrators.')}</p>}
+          {group.builtin && <p className="text-xs text-base-content/70">{t('Its members are the administrators.')}</p>}
           <label className="fieldset">
             <span className="fieldset-legend">{t('Identity provider groups')}</span>
             <input
@@ -179,7 +180,7 @@ function GroupCard({ group, users, ssoEnabled }: { group: Group; users: Schemas[
 
         <div className="flex flex-col gap-2 border-t border-base-300 pt-3">
           <span className="text-sm font-medium">{t('Members')}</span>
-          {group.members.length === 0 && <span className="text-xs text-base-content/60">{t('No member yet.')}</span>}
+          {group.members.length === 0 && <span className="text-xs text-base-content/70">{t('No member yet.')}</span>}
           <div className="flex flex-wrap gap-2">
             {group.members.map((m) => {
               const locked = m.managed_by_sso || (!!group.builtin && m.id === me.data?.id)
@@ -268,7 +269,7 @@ export default function Groups() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">{t('Groups')}</h1>
+      <AdminHeader title={t('Groups')} />
       {groups.data && <ModuleAccess groups={groups.data} />}
       {groups.isPending && <span className="loading loading-spinner" />}
       <div className="grid gap-4 lg:grid-cols-2">

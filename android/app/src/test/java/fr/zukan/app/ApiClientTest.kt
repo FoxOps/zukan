@@ -1,7 +1,7 @@
 package fr.zukan.app
 
 import fr.zukan.app.data.ApiClient
-import fr.zukan.app.data.TokenStore
+import fr.zukan.app.data.TokenSessions
 import fr.zukan.app.data.Tokens
 import fr.zukan.app.data.serverDetail
 import kotlinx.coroutines.test.runTest
@@ -16,12 +16,7 @@ import org.junit.Test
 
 class ApiClientTest {
     private val server = MockWebServer()
-    private val store = object : TokenStore {
-        override var tokens: Tokens? = Tokens("old-access", "old-refresh")
-        override suspend fun saveTokens(value: Tokens?) {
-            tokens = value
-        }
-    }
+    private val store = TokenSessions(Tokens("old-access", "old-refresh"))
     private var expired = false
 
     @Before

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { AdminHeader } from '../../components/AdminHeader'
 import { Navigate } from 'react-router'
 import { api, call } from '../../api/client'
 import { useMe } from '../../api/queries'
@@ -39,8 +40,8 @@ export default function Server() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">{t('Server')}</h1>
-      <div className="card bg-base-200">
+      <AdminHeader title={t('Server')} />
+      <div className="card rounded-[20px] border border-base-300 bg-base-100">
         <div className="card-body gap-3">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
@@ -84,8 +85,8 @@ export default function Server() {
 
       <dialog className={`modal ${confirming ? 'modal-open' : ''}`} onClose={() => setConfirming(false)}>
         {confirming && (
-          <div className="modal-box">
-            <h3 className="text-lg font-bold">{t('Start maintenance?')}</h3>
+          <div className="modal-box rounded-[20px]">
+            <h3 className="text-2xl">{t('Start maintenance?')}</h3>
             <p className="py-2 text-sm">
               {t('Signed-in users are sent to the maintenance page at once and wait until you stop it, even after a server restart.')}
             </p>

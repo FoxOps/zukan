@@ -8,7 +8,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from sqlalchemy import ColumnElement, case, exists, func, or_, select
+from sqlalchemy import ColumnElement, case, exists, func, or_, select, tuple_
 from sqlalchemy.orm import selectinload
 
 from app import modules
@@ -436,7 +436,9 @@ async def list_sets(game_id: str, _: CurrentUser, session: SessionDep) -> list[S
         .order_by(CardSet.release_date.desc().nulls_last(), CardSet.name)
     )
     sets = list(sets)
-    languages = await set_languages(session, (s.id for s in sets))
+    # Only regional sets show a language (`exclusive_lang`): international ones skip the
+    # (whole game) language aggregation.
+    languages = await set_languages(session, (s.id for s in sets if s.lang is not None))
     return [_set_out(s, languages) for s in sets]
 
 
@@ -900,6 +902,60 @@ async def price_history(
     return [PriceHistoryOut.model_validate(r, from_attributes=True) for r in rows]
 
 
+class NeighborOut(BaseModel):
+    card_id: int
+    printing_id: int
+    name: str
+    collector_number: str | None
+
+
+class NeighborsOut(BaseModel):
+    previous: NeighborOut | None
+    next: NeighborOut | None
+
+
+@router.get("/printings/{printing_id}/neighbors")
+async def printing_neighbors(
+    printing_id: int, user: CurrentUser, session: SessionDep
+) -> NeighborsOut:
+    """The printings just before and after this one in its set, in collector-number order
+    (as printed, ties broken by id): to page through a set from a card's page."""
+    current = await session.get(Printing, printing_id)
+    if current is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Printing not found")
+    key = number_sort_key(Printing.collector_number)
+    here = await session.scalar(select(key).where(Printing.id == printing_id))
+    position = tuple_(key, Printing.id)
+
+    async def neighbor(before: bool) -> NeighborOut | None:
+        query = (
+            select(
+                Printing.card_id,
+                Printing.id,
+                display_name(user.language),
+                Printing.collector_number,
+            )
+            .join(Card, Card.id == Printing.card_id)
+            .where(Printing.set_id == current.set_id)
+            .where(
+                position < tuple_(here, printing_id)
+                if before
+                else position > tuple_(here, printing_id)
+            )
+            .order_by(*([key.desc(), Printing.id.desc()] if before else [key, Printing.id]))
+            .limit(1)
+        )
+        row = (await session.execute(query)).first()
+        if row is None:
+            return None
+        card_id, found_id, card_name, number = row
+        return NeighborOut(
+            card_id=card_id, printing_id=found_id, name=card_name, collector_number=number
+        )
+
+    return NeighborsOut(previous=await neighbor(True), next=await neighbor(False))
+
+
 @router.get("/printings/{printing_id}/image")
 async def printing_image(
     printing_id: int,
@@ -925,6 +981,9 @@ async def printing_image(
         )
         if path is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "No back image for this printing")
+        # Grids ask for a small copy of a flipped card too (SVG backs are small already).
+        if size == "thumb" and path.suffix != ".svg":
+            path = await images.thumbnail(path)
         return FileResponse(path, headers=_ASSET_HEADERS)
     wanted = lang or user.language
     languages = images.image_languages(printing, wanted)

@@ -2,32 +2,30 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { isRouteErrorResponse, Link, useRouteError } from 'react-router'
 import { ApiError } from '../api/client'
+import { Mascot } from './Logo'
 import { MaintenanceScreen } from './Maintenance'
 
 /** A page-sized error in the app's theme, with what can be done about it. */
 export function ErrorScreen({ title, text, onRetry, home = true }: { title: string; text?: string; onRetry?: () => void; home?: boolean }) {
   const { t } = useTranslation()
   return (
-    <div className="hero min-h-[60vh] bg-base-100">
-      <div className="hero-content text-center">
-        <div className="card max-w-md bg-base-200 shadow-sm">
-          <div className="card-body items-center gap-3">
-            <h1 className="card-title text-2xl">{title}</h1>
+    <div className="flex min-h-[60vh] items-center justify-center bg-base-200 p-4">
+      <div className="flex max-w-md flex-col items-center gap-3 rounded-[20px] border border-base-300 bg-base-100 px-6 py-10 text-center">
+            <Mascot className="h-16 w-16 object-contain" />
+            <h1 className="text-2xl">{title}</h1>
             {text && <p className="text-base-content/70">{text}</p>}
-            <div className="card-actions mt-2">
+            <div className="mt-2 flex flex-wrap justify-center gap-2">
               {onRetry && (
-                <button className="btn btn-primary" onClick={onRetry}>
+                <button className="btn btn-primary min-h-11" onClick={onRetry}>
                   {t('Try again')}
                 </button>
               )}
               {home && (
-                <Link to="/" className={`btn ${onRetry ? 'btn-ghost' : 'btn-primary'}`} reloadDocument>
-                  {t('Back to dashboard')}
+                <Link to="/" className={`btn min-h-11 ${onRetry ? '' : 'btn-primary'}`} reloadDocument>
+                  {t('Back to the overview')}
                 </Link>
               )}
             </div>
-          </div>
-        </div>
       </div>
     </div>
   )

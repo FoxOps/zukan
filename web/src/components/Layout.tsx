@@ -2,38 +2,77 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
-import { api, ApiError, onSessionExpired, serverDown } from '../api/client'
+import { api, ApiError, call, onSessionExpired, serverDown } from '../api/client'
 import { useAndroidRelease, useHealth, useMe } from '../api/queries'
 import { useServerLanguage } from '../i18n'
 import { LanguageMenu } from './I18n'
+import { Icon, type IconName } from './Icon'
 import { MaintenanceBanner, MaintenanceScreen } from './Maintenance'
-import { Logo, Mascot } from './Logo'
-import { applyTheme, savedDark } from '../lib/theme'
-import { useTypeToSearch } from '../lib/typeToSearch'
+import { showError } from './toast'
+import { Logo } from './Logo'
+import { useTheme } from '../lib/theme'
+import { TYPE_TO_SEARCH_GLOBAL, useTypeToSearch } from '../lib/typeToSearch'
+
+type NavItem = { to: string; label: string; icon: IconName; end?: boolean; module?: string }
 
 // `module`: shown to users who can use that optional module (turned on or given by a group).
-const NAV: { to: string; label: string; end?: boolean; module?: string }[] = [
-  { to: '/', label: 'Dashboard', end: true },
-  { to: '/collection', label: 'Collection' },
-  { to: '/catalog', label: 'Catalog' },
-  { to: '/binder', label: 'Binder', module: 'binder' },
-  { to: '/decks', label: 'Decks', module: 'decks' },
-  { to: '/finance', label: 'Finance' },
-  { to: '/import', label: 'Import / export' },
-  { to: '/settings', label: 'Settings' },
+const COLLECTION_NAV: NavItem[] = [
+  { to: '/', label: 'Overview', icon: 'home', end: true },
+  { to: '/collection', label: 'Collection', icon: 'collection' },
+  { to: '/catalog', label: 'Catalog', icon: 'search' },
+  { to: '/binder', label: 'Binder', icon: 'binder', module: 'binder' },
+  { to: '/decks', label: 'Decks', icon: 'decks', module: 'decks' },
+  { to: '/finance', label: 'Finance', icon: 'chart' },
 ]
-const ADMIN_NAV = [
-  { to: '/admin/users', label: 'Users' },
-  { to: '/admin/groups', label: 'Groups' },
-  { to: '/admin/jobs', label: 'Data sync' },
-  { to: '/admin/checks', label: 'Data checks' },
-  { to: '/admin/server', label: 'Server' },
+const WORKSPACE_NAV: NavItem[] = [
+  { to: '/import', label: 'Import / export', icon: 'download' },
+  { to: '/settings', label: 'Settings', icon: 'settings' },
 ]
+const ADMIN_NAV: NavItem[] = [
+  { to: '/admin/users', label: 'Users', icon: 'users' },
+  { to: '/admin/groups', label: 'Groups', icon: 'groups' },
+  { to: '/admin/jobs', label: 'Data sync', icon: 'sync' },
+  { to: '/admin/checks', label: 'Data checks', icon: 'checks' },
+  { to: '/admin/server', label: 'Server', icon: 'server' },
+]
+// Phones: the four quick places; "More" opens the whole menu.
+const BOTTOM_NAV = COLLECTION_NAV.slice(0, 3)
 
-function useTheme() {
-  const [dark, setDark] = useState(savedDark)
-  useEffect(() => applyTheme(dark, true), [dark])
-  return [dark, setDark] as const
+function initials(name: string) {
+  const parts = name.split(/[\s._-]+/).filter(Boolean)
+  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? parts[0]?.[1] ?? '')).toUpperCase() || '?'
+}
+
+/** Search box of the top bar: always the catalog (any language), never a filter of the page. */
+function CatalogSearchBox() {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const [text, setText] = useState('')
+  return (
+    <form
+      role="search"
+      className="hidden max-w-md flex-1 md:flex"
+      onSubmit={(e) => {
+        e.preventDefault()
+        const q = text.trim()
+        navigate(q ? `/catalog?q=${encodeURIComponent(q)}` : '/catalog')
+        setText('')
+      }}
+    >
+      <label className="input w-full border-transparent bg-base-200">
+        <Icon name="search" className="h-4 w-4 opacity-70" />
+        <input
+          {...TYPE_TO_SEARCH_GLOBAL}
+          type="search"
+          enterKeyHint="search"
+          aria-label={t('Search the catalog')}
+          placeholder={t('Search the catalog in any language…')}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+      </label>
+    </form>
+  )
 }
 
 export function Layout() {
@@ -43,6 +82,10 @@ export function Layout() {
   const navigate = useNavigate()
   const client = useQueryClient()
   const [dark, setDark] = useTheme()
+  const [loggingOut, setLoggingOut] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuOpener = useRef<HTMLElement | null>(null)
+  const drawer = useRef<HTMLElement>(null)
   const health = useHealth()
   const android = useAndroidRelease()
   useServerLanguage(me.data?.language, me.data?.language_chosen)
@@ -73,6 +116,26 @@ export function Layout() {
     [client, navigate, location],
   )
 
+  // Menu drawer (below the large breakpoint): Escape closes it, the focus goes back to the
+  // button that opened it.
+  const closeMenu = useCallback(() => {
+    setMenuOpen(false)
+    menuOpener.current?.focus()
+  }, [])
+  const openMenu = (e: React.MouseEvent<HTMLElement>) => {
+    menuOpener.current = e.currentTarget
+    setMenuOpen(true)
+  }
+  useEffect(() => {
+    if (!menuOpen) return
+    drawer.current?.querySelector<HTMLElement>('a, button')?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeMenu()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [menuOpen, closeMenu])
+
   if (me.isPending) {
     return <div className="flex h-screen items-center justify-center"><span className="loading loading-spinner loading-lg" /></div>
   }
@@ -88,7 +151,19 @@ export function Layout() {
   if (health.isError && serverDown(health.error)) return <MaintenanceScreen onBack={backOnline} />
 
   const logout = async () => {
-    const { data } = await api.POST('/api/auth/logout', { body: {} })
+    setLoggingOut(true)
+    let data: unknown
+    try {
+      data = await call(api.POST('/api/auth/logout', { body: {} }))
+    } catch (e) {
+      // 401: no session left, signed out already. Otherwise not confirmed by the server: the
+      // session may still be valid, never claim it ended.
+      if (!(e instanceof ApiError && e.status === 401)) {
+        setLoggingOut(false)
+        showError(t('Logging out failed: you are still signed in. {{reason}}', { reason: (e as Error).message }))
+        return
+      }
+    }
     client.clear()
     const endSession = (data as { end_session_url?: string | null } | undefined)?.end_session_url
     if (endSession) window.location.href = endSession
@@ -97,84 +172,179 @@ export function Layout() {
     else navigate('/login?logged_out=1')
   }
 
-  const link = ({ isActive }: { isActive: boolean }) => (isActive ? 'menu-active' : '')
-  const closeDrawer = () => {
-    const toggle = document.getElementById('nav-drawer') as HTMLInputElement | null
-    if (toggle) toggle.checked = false
-  }
+  const allowed = (n: NavItem) => !n.module || me.data.modules?.includes(n.module)
+  const isAdmin = me.data.role === 'admin'
+  const navLink = (n: NavItem) => (
+    <li key={n.to}>
+      <NavLink
+        to={n.to}
+        end={n.end}
+        className={({ isActive }) =>
+          `flex min-h-11 items-center gap-3 rounded-xl px-3.5 py-2.5 text-[15px] lg:min-h-9 lg:py-1.5 ${
+            isActive ? 'bg-primary font-semibold text-primary-content' : 'hover:bg-white/10'
+          }`
+        }
+      >
+        <Icon name={n.icon} />
+        {t(n.label)}
+      </NavLink>
+    </li>
+  )
+  const group = (label: string) => (
+    <li className="mx-3 mb-1 mt-3 text-[10px] font-semibold uppercase tracking-[0.13em] text-neutral-content/70" role="presentation">
+      {label}
+    </li>
+  )
+
+  const themeToggle = (
+    <button
+      type="button"
+      className="btn btn-square btn-ghost min-h-11 min-w-11"
+      onClick={() => setDark(!dark)}
+      aria-label={dark ? t('Use the light theme') : t('Use the dark theme')}
+      title={t('Toggle theme')}
+    >
+      <Icon name={dark ? 'sun' : 'moon'} />
+    </button>
+  )
 
   return (
-    <div className="drawer lg:drawer-open">
-      <input id="nav-drawer" type="checkbox" className="drawer-toggle" />
-      <div className="drawer-content flex min-h-screen flex-col">
-        <header className="navbar sticky top-0 z-30 border-b border-base-300 bg-base-100/90 backdrop-blur">
-          <label htmlFor="nav-drawer" className="btn btn-square btn-ghost lg:hidden" aria-label={t('Menu')}>
-            <svg viewBox="0 0 24 24" className="h-6 w-6 fill-none stroke-current stroke-2"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
-          </label>
-          <Link to="/" className="flex flex-1 items-center gap-2 px-2 font-display text-xl font-extrabold lg:hidden">
-            <Mascot className="h-8 w-8 object-contain" />
-            Zukan
+    // Large screens: the sidebar stays in place, as high as the screen, while the page scrolls
+    // (a menu too long for a short screen scrolls by itself, no scrollbar shown). Elsewhere it
+    // is a drawer over the page.
+    <div className="min-h-screen bg-base-200 lg:flex">
+      {/* Sidebar: fixed column on large screens, a drawer elsewhere. */}
+      {menuOpen && <div className="fixed inset-0 z-40 bg-neutral/60 lg:hidden" onClick={closeMenu} aria-hidden="true" />}
+      <aside
+        ref={drawer}
+        aria-label={t('Main navigation')}
+        // A page opened from the menu closes it.
+        onClick={(e) => (e.target as HTMLElement).closest('a[href^="/"]') && setMenuOpen(false)}
+        className={`fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col overflow-y-auto bg-neutral px-4 text-neutral-content transition-transform [scrollbar-width:none] motion-reduce:transition-none lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:translate-x-0 ${
+          menuOpen ? 'translate-x-0' : '-translate-x-full max-lg:invisible'
+        }`}
+      >
+        {/* The signature stays at the top while the page scrolls, on the top bar's line. */}
+        <div className="sticky top-0 z-10 -mx-4 flex h-16 shrink-0 items-center justify-between bg-neutral px-6 lg:h-[76px]">
+          <Link to="/" aria-label={t('Overview')}>
+            <Logo onDark className="w-[180px] max-w-full" />
           </Link>
-          <div className="ml-auto flex items-center gap-2">
-            <LanguageMenu />
-            <label className="swap swap-rotate btn btn-ghost btn-circle" title={t('Toggle theme')}>
-              <input type="checkbox" checked={dark} onChange={(e) => setDark(e.target.checked)} />
-              <svg className="swap-off h-5 w-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><path d="M12 4V2m0 20v-2m8-8h2M2 12h2m13.66-5.66 1.41-1.41M4.93 19.07l1.41-1.41m0-11.32L4.93 4.93m14.14 14.14-1.41-1.41M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z" /></svg>
-              <svg className="swap-on h-5 w-5 fill-current" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79Z" /></svg>
-            </label>
+          <button type="button" className="btn btn-square btn-ghost btn-sm text-neutral-content lg:hidden" onClick={closeMenu} aria-label={t('Close menu')}>
+            <Icon name="close" />
+          </button>
+        </div>
+        <div className="mb-4 mt-2 px-2.5 text-[11px] text-neutral-content/75">
+          <span lang="ja">図鑑</span> · {t('Your card encyclopedia')}
+        </div>
+        <nav aria-label={t('Main navigation')} className="pb-6">
+          <ul className="flex flex-col gap-1 lg:gap-0.5">
+            {COLLECTION_NAV.filter(allowed).map(navLink)}
+            {group(t('Workspace'))}
+            {WORKSPACE_NAV.map(navLink)}
+            {isAdmin && (
+              <>
+                {group(t('Administration'))}
+                {ADMIN_NAV.map(navLink)}
+              </>
+            )}
+          </ul>
+        </nav>
+        {/* App download, version and About: kept in view at the bottom of the screen, not
+            only at the end of long pages. */}
+        <div className="sticky bottom-0 -mx-4 mt-auto flex flex-col gap-1 border-t border-white/10 bg-neutral px-7 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-xs text-neutral-content/75">
+          <span aria-hidden className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-to-t from-neutral to-transparent" />
+          {/* Phones: the language is chosen here (no room in the top bar). */}
+          <div className="sm:hidden">
+            <LanguageMenu up />
+          </div>
+          {android.data && (
+            <a href={android.data.url} className="link link-hover flex min-h-7 items-center gap-1.5" title={t('Download the Android app')}>
+              <Icon name="download" className="h-4 w-4" />
+              {t('Android app {{version}}', { version: android.data.version })}
+            </a>
+          )}
+          <div className="flex flex-wrap gap-x-2">
+            {health.data?.version && <span className="break-all">v{health.data.version}</span>}
+            <Link to="/about" className="link link-hover">{t('About')}</Link>
+          </div>
+        </div>
+      </aside>
+
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-base-300 bg-base-100 px-3 sm:gap-4 sm:px-6 lg:h-[76px] lg:px-9">
+          <button type="button" className="btn btn-square btn-ghost min-h-11 min-w-11 lg:hidden" onClick={openMenu} aria-label={t('Menu')} aria-expanded={menuOpen}>
+            <Icon name="menu" />
+          </button>
+          <Link to="/" className="lg:hidden" aria-label={t('Overview')}>
+            <Logo className="w-[150px] min-[380px]:w-[180px]" />
+          </Link>
+          <CatalogSearchBox />
+          <div className="ml-auto flex items-center gap-1 sm:gap-2">
+            <div className="hidden sm:block">
+              <LanguageMenu />
+            </div>
+            {themeToggle}
             <div className="dropdown dropdown-end">
-              <button tabIndex={0} className="btn btn-ghost btn-sm">{me.data.username}</button>
-              <ul tabIndex={0} className="menu dropdown-content z-40 w-44 rounded-box bg-base-200 p-2 shadow">
-                <li><NavLink to="/settings">{t('Settings')}</NavLink></li>
-                <li><button onClick={logout}>{t('Log out')}</button></li>
+              <button tabIndex={0} type="button" className="btn btn-ghost min-h-11 gap-2 px-1 sm:px-2" aria-label={t('Account')}>
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-neutral text-xs font-semibold text-neutral-content">
+                  {initials(me.data.username)}
+                </span>
+                <span className="hidden max-w-40 truncate font-semibold md:inline">{me.data.username}</span>
+              </button>
+              <ul tabIndex={0} className="menu dropdown-content z-40 mt-2 w-52 rounded-box border border-base-300 bg-base-100 p-2 shadow">
+                <li className="menu-title truncate">{me.data.username}</li>
+                <li><NavLink to="/settings"><Icon name="settings" className="h-4 w-4" />{t('Settings')}</NavLink></li>
+                <li><Link to="/about"><Icon name="info" className="h-4 w-4" />{t('About')}</Link></li>
+                <li>
+                  <button type="button" onClick={logout} disabled={loggingOut}>
+                    <Icon name="logout" className="h-4 w-4" />
+                    {t('Log out')}
+                  </button>
+                </li>
               </ul>
             </div>
           </div>
         </header>
-        <main className="flex-1 p-4 lg:p-6">
+        <main className="mx-auto w-full max-w-[1480px] flex-1 px-4 pb-28 pt-6 sm:px-6 lg:px-9 lg:pb-10 lg:pt-8">
           {maintenance && <MaintenanceBanner state={maintenance} />}
           <Outlet />
         </main>
         {/* Publishers' notices (Riot Games, Wizards...) in full on the About page. */}
-        <footer className="border-t border-base-300 px-4 py-3 text-xs text-base-content/50 lg:px-6">
+        <footer className="border-t border-base-300 px-4 pb-24 pt-4 text-xs text-base-content/70 sm:px-6 lg:px-9 lg:pb-4">
           {t('Trademarks belong to their owners. Zukan is not affiliated with any game publisher.')}{' '}
           <Link to="/about" className="link">{t('About')}</Link>
         </footer>
       </div>
-      <div className="drawer-side z-40">
-        <label htmlFor="nav-drawer" className="drawer-overlay" aria-label={t('Close menu')} />
-        <aside className="zukan-nav flex min-h-full w-60 flex-col bg-neutral text-neutral-content">
-          <div className="px-5 py-5">
-            <Link to="/" onClick={closeDrawer}><Logo onDark className="w-44" /></Link>
-            <div className="mt-1 text-xs text-neutral-content/60"><span lang="ja">図鑑</span> · {t('card encyclopedia')}</div>
-          </div>
-          <ul className="menu w-full gap-1 px-3" onClick={closeDrawer}>
-            {NAV.filter((n) => !n.module || me.data.modules?.includes(n.module)).map((n) => (
-              <li key={n.to}><NavLink to={n.to} end={n.end} className={link}>{t(n.label)}</NavLink></li>
-            ))}
-            {me.data.role === 'admin' && (
-              <>
-                <li className="menu-title mt-4">{t('Administration')}</li>
-                {ADMIN_NAV.map((n) => (
-                  <li key={n.to}><NavLink to={n.to} className={link}>{t(n.label)}</NavLink></li>
-                ))}
-              </>
-            )}
-          </ul>
-          <div className="mt-auto flex flex-col gap-2 px-6 py-4 text-xs text-neutral-content/50">
-            {android.data && (
-              <a href={android.data.url} className="link link-hover flex items-center gap-1.5 text-neutral-content/70" title={t('Download the Android app')}>
-                <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" /></svg>
-                {t('Android app {{version}}', { version: android.data.version })}
-              </a>
-            )}
-            <div className="flex gap-2">
-              {health.data?.version && <span>v{health.data.version}</span>}
-              <Link to="/about" className="link link-hover" onClick={closeDrawer}>{t('About')}</Link>
-            </div>
-          </div>
-        </aside>
-      </div>
+
+      <nav
+        aria-label={t('Quick navigation')}
+        className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-base-300 bg-base-100 px-2 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-1.5 lg:hidden"
+      >
+        {BOTTOM_NAV.map((n) => (
+          <NavLink
+            key={n.to}
+            to={n.to}
+            end={n.end}
+            className={({ isActive }) =>
+              `flex min-h-[54px] min-w-16 flex-col items-center justify-center gap-1 px-3 text-[11px] font-semibold ${
+                isActive ? 'text-secondary shadow-[inset_0_-3px_0_var(--color-primary)]' : ''
+              }`
+            }
+          >
+            <Icon name={n.icon} className="h-[21px] w-[21px]" />
+            {t(n.label)}
+          </NavLink>
+        ))}
+        <button
+          type="button"
+          className="flex min-h-[54px] min-w-16 flex-col items-center justify-center gap-1 px-3 text-[11px] font-semibold"
+          onClick={openMenu}
+          aria-expanded={menuOpen}
+        >
+          <Icon name="more" className="h-[21px] w-[21px]" />
+          {t('More')}
+        </button>
+      </nav>
     </div>
   )
 }

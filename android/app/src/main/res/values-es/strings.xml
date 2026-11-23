@@ -11,9 +11,9 @@
 
     <!-- Login -->
     <string name="server_address">Dirección del servidor</string>
-    <string name="server_address_hint">cartas.example.org o 192.168.1.10:8000</string>
+    <string name="server_address_hint">cartas.example.org o http://192.168.1.10:8000</string>
     <string name="connect">Conectar</string>
-    <string name="not_encrypted">Sin cifrar (HTTP): úsalo solo en tu red doméstica o con una VPN.</string>
+    <string name="not_encrypted">Sin cifrar (HTTP): tu contraseña y tu sesión pueden leerse en la red. Mejor usa HTTPS o una VPN.</string>
     <string name="change_server">Cambiar de servidor</string>
     <string name="user">Usuario</string>
     <string name="password">Contraseña</string>
@@ -21,7 +21,7 @@
     <string name="sign_in_with">Iniciar sesión con %1$s</string>
 
     <!-- Scan -->
-    <string name="camera_needed">Zukan lee el texto impreso en tus cartas. Las imágenes se quedan en tu teléfono: solo se envía a tu servidor Zukan el texto leído.</string>
+    <string name="camera_needed">Zukan lee en el teléfono el texto impreso en tus cartas. El texto leído se envía a tu servidor Zukan y, para Magic o todos los juegos, también una imagen gris de la carta alrededor de ese texto, para comparar los símbolos de expansión.</string>
     <string name="allow_camera">Permitir la cámara</string>
     <string name="any_game">Todos los juegos</string>
     <string name="point_at_card">Apunta a una carta</string>
@@ -243,11 +243,23 @@
     <string name="shopping_subtitle">Cartas que faltan a tus mazos, enviadas desde la web</string>
     <string name="shopping_empty">Aún no hay listas de compras</string>
     <string name="shopping_empty_help">En la web, abre un mazo, luego Lista de compras y Enviar a la aplicación.</string>
-    <string name="shopping_progress">%1$d / %2$d compradas</string>
+    <string name="shopping_progress">Compradas: %1$d / %2$d</string>
     <string name="shopping_complete">Completa</string>
     <string name="shopping_delete">Eliminar</string>
     <string name="shopping_delete_title">¿Eliminar esta lista?</string>
     <string name="shopping_delete_text">La lista %1$s se elimina para siempre. Tu colección y tus mazos no cambian.</string>
     <string name="cancel">Cancelar</string>
     <string name="phone_language">Idioma del teléfono (%1$s)</string>
+    <string name="card_details">Carta</string>
+    <string name="owned_variant">En tu colección con este acabado, estado e idioma: %1$d</string>
+    <string name="camera_error_title">La cámara no se ha iniciado</string>
+    <string name="camera_failed">Puede que otra app la esté usando. Ciérrala y vuelve a intentarlo, o busca la carta por su nombre.</string>
+    <string name="camera_none">Este dispositivo no tiene una cámara que Zukan pueda usar. Busca las cartas por su nombre.</string>
+    <string name="printings_search_failed">No se han podido buscar las demás impresiones en el servidor.</string>
+    <string name="sso_not_encrypted">%1$s no está cifrado (HTTP): tu contraseña puede leerse en la red.</string>
+    <string name="shopping_item_state">Compradas: %1$d / %2$d</string>
+    <string name="shopping_copy">%1$s, copia %2$d de %3$d</string>
+    <string name="update_too_large">el archivo es más grande de lo anunciado</string>
+    <string name="update_no_space">no hay suficiente espacio libre en el teléfono</string>
+    <string name="update_invalid">este archivo no es una actualización de Zukan</string>
 </resources>

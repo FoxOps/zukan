@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { AdminHeader } from '../../components/AdminHeader'
 import { Navigate } from 'react-router'
 import { api, call } from '../../api/client'
 import { useGames, useMe } from '../../api/queries'
@@ -83,12 +84,12 @@ function NextRun({ at, running, now }: { at: string | undefined; running: boolea
   const { t, i18n } = useTranslation()
   if (!at || running) return null
   const seconds = (new Date(at).getTime() - now) / 1000
-  if (seconds <= 0) return <div className="text-xs text-base-content/60">{t('Next run: within a minute')}</div>
+  if (seconds <= 0) return <div className="text-xs text-base-content/70">{t('Next run: within a minute')}</div>
   const relative = new Intl.RelativeTimeFormat(i18n.language, { numeric: 'auto' })
   const [value, unit]: [number, Intl.RelativeTimeFormatUnit] =
     seconds < 3600 ? [Math.ceil(seconds / 60), 'minute'] : seconds < 48 * 3600 ? [Math.round(seconds / 3600), 'hour'] : [Math.round(seconds / 86400), 'day']
   return (
-    <div className="text-xs text-base-content/60" title={formatDateTime(at)}>
+    <div className="text-xs text-base-content/70" title={formatDateTime(at)}>
       {t('Next run: {{when}}', { when: relative.format(value, unit) })} ({formatDateTime(at)})
     </div>
   )
@@ -177,7 +178,7 @@ export default function Jobs() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">{t('Data sync')}</h1>
+      <AdminHeader title={t('Data sync')} />
       <ScheduleEditor />
       <p className="text-sm text-base-content/70">
         {t('A job started here runs at once, stopping an automatic run of the same job.')}
@@ -185,7 +186,7 @@ export default function Jobs() {
 
       <div className="grid gap-4 md:grid-cols-3">
         {games.map((g) => (
-          <div key={g.id} className="card bg-base-200">
+          <div key={g.id} className="card rounded-[20px] border border-base-300 bg-base-100">
             <div className="card-body gap-3">
               <h2 className="card-title">{g.name}</h2>
               {KINDS.filter((k) => k !== 'prices' || g.has_prices).map((kind) => {
@@ -194,7 +195,7 @@ export default function Jobs() {
                   <div key={kind} className="flex items-center justify-between gap-2">
                     <div>
                       <div className="font-medium">{t(kind)}</div>
-                      <div className="text-xs text-base-content/60">
+                      <div className="text-xs text-base-content/70">
                         {run ? (
                           <>
                             <span className={`badge badge-xs ${STATUS[run.status]}`}>{t(run.status)}</span>{' '}
@@ -237,8 +238,8 @@ export default function Jobs() {
 
       <dialog className={`modal ${resetting ? 'modal-open' : ''}`} onClose={() => setResetting(null)}>
         {resetting && (
-          <div className="modal-box">
-            <h3 className="text-lg font-bold">{t('Reset the {{game}} catalog?', { game: resetting.name })}</h3>
+          <div className="modal-box rounded-[20px]">
+            <h3 className="text-2xl">{t('Reset the {{game}} catalog?', { game: resetting.name })}</h3>
             <p className="py-2 text-sm">
               {t('Every card, set, name, price history and cached image of this game is deleted, then the catalog is synced again from scratch. Printings in collections are kept. Images imported from a folder must be imported again.')}
             </p>
@@ -262,7 +263,7 @@ export default function Jobs() {
         </form>
       </dialog>
 
-      <div className="card bg-base-200">
+      <div className="card rounded-[20px] border border-base-300 bg-base-100">
         <div className="card-body">
           <h2 className="card-title">{t('Import card images')}</h2>
           <p className="text-sm">
@@ -285,9 +286,9 @@ export default function Jobs() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-box border border-base-300">
+      <div className="overflow-x-auto rounded-2xl border border-base-300 bg-base-100" tabIndex={0} role="region" aria-label={t('Table, scroll for more columns')}>
         <table className="table table-sm">
-          <thead>
+          <thead className="bg-neutral text-neutral-content">
             <tr>
               <th>{t('Game')}</th>
               <th>{t('Job')}</th>
@@ -304,7 +305,7 @@ export default function Jobs() {
                 <td>{t(j.kind)}</td>
                 <td className="whitespace-nowrap">
                   <span className={`badge badge-sm ${STATUS[j.status]}`}>{t(j.status)}</span>{' '}
-                  <span className="text-xs text-base-content/60">{t(j.trigger)}</span>
+                  <span className="text-xs text-base-content/70">{t(j.trigger)}</span>
                 </td>
                 <td className="whitespace-nowrap">{formatDateTime(j.started_at)}</td>
                 <td className="whitespace-nowrap font-mono">{chrono(elapsed(j))}</td>

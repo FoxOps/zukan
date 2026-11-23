@@ -7,6 +7,7 @@ import { useGames, type Game } from '../api/queries'
 import { ConditionBadge, FinishBadge, LangFlag } from '../components/Badges'
 import { CardImage } from '../components/CardImage'
 import { GameTabs } from '../components/Filters'
+import { EmptyState, Metric, PageHeader, Panel } from '../components/Page'
 import { Pagination } from '../components/Pagination'
 import { PriceChart } from '../components/PriceChart'
 import { ShownName } from '../components/ShownName'
@@ -33,11 +34,9 @@ function ChangeTile({ change, currency }: { change: Report['changes'][number]; c
   const label = t(PERIOD_LABELS[change.days] ?? `${change.days} d`)
   if (change.past === null || change.past === undefined) {
     return (
-      <div className="stat">
-        <div className="stat-title">{label}</div>
-        <div className="stat-value text-lg text-base-content/40">—</div>
-        <div className="stat-desc">{t('No price history that far back')}</div>
-      </div>
+      <Metric label={label} value={<span className="text-xl text-base-content/70">—</span>}>
+        {t('No price history that far back')}
+      </Metric>
     )
   }
   const past = Number(change.past)
@@ -45,15 +44,12 @@ function ChangeTile({ change, currency }: { change: Report['changes'][number]; c
   const up = diff > 0
   const flat = Math.abs(diff) < 0.005
   return (
-    <div className="stat">
-      <div className="stat-title">{label}</div>
-      <div className={`stat-value text-lg ${flat ? '' : up ? 'text-success' : 'text-error'}`}>
-        {flat ? '=' : up ? '▲' : '▼'} {formatMoney(Math.abs(diff), currency)}
-      </div>
-      <div className="stat-desc">
-        {past > 0 ? percent(diff / past) : ''} · {t('from {{value}}', { value: formatMoney(past, currency) })}
-      </div>
-    </div>
+    <Metric
+      label={label}
+      value={<span className={`text-xl ${flat ? '' : up ? 'text-success' : 'text-error'}`}>{flat ? '=' : up ? '↑' : '↓'} {formatMoney(Math.abs(diff), currency)}</span>}
+    >
+      {past > 0 ? percent(diff / past) : ''} · {t('from {{value}}', { value: formatMoney(past, currency) })}
+    </Metric>
   )
 }
 
@@ -80,9 +76,7 @@ function Breakdown({
   const current = Math.min(page, pages)
   const shown = shares.slice((current - 1) * BREAKDOWN_PAGE, current * BREAKDOWN_PAGE)
   return (
-    <div className="card bg-base-200">
-      <div className="card-body gap-3">
-        <h2 className="card-title text-base">{title}</h2>
+    <Panel title={title}>
         <ul className="flex flex-col gap-2">
           {shown.map((s) => {
             const value = Number(s.value)
@@ -93,20 +87,19 @@ function Breakdown({
                   <span className="min-w-0 truncate">{name}</span>
                   <span className="shrink-0 tabular-nums">
                     <span className="font-medium">{formatMoney(value, currency)}</span>
-                    <span className="ml-2 text-xs text-base-content/60">{total > 0 ? percent(value / total).replace('+', '') : '—'}</span>
+                    <span className="ml-2 text-xs text-base-content/70">{total > 0 ? percent(value / total).replace('+', '') : '—'}</span>
                   </span>
                 </div>
                 <div className="mt-1 h-2 w-full rounded-full bg-base-300">
                   <div className="h-2 rounded-full bg-primary" style={{ width: `${max > 0 ? Math.max((value / max) * 100, value > 0 ? 1 : 0) : 0}%` }} />
                 </div>
-                <div className="text-xs text-base-content/50">{t('{{count}} cards', { count: s.quantity })}</div>
+                <div className="text-xs text-base-content/70">{t('{{count}} cards', { count: s.quantity })}</div>
               </li>
             )
           })}
         </ul>
         <Pagination page={current} pageSize={BREAKDOWN_PAGE} total={shares.length} onChange={setPage} />
-      </div>
-    </div>
+    </Panel>
   )
 }
 
@@ -114,18 +107,18 @@ function TopItems({ report, games }: { report: Report; games: Game[] }) {
   const { t } = useTranslation()
   if (report.top.length === 0) return null
   return (
-    <div className="card bg-base-200">
-      <div className="card-body">
-        <h2 className="card-title">{t('Most valuable cards')}</h2>
-        {report.top_share !== null && report.top_share !== undefined && (
-          <p className="text-sm text-base-content/70">
-            {t('The {{count}} most valuable hold {{share}} of the value.', {
+    <Panel
+      title={t('Most valuable cards')}
+      subtitle={
+        report.top_share !== null && report.top_share !== undefined
+          ? t('The {{count}} most valuable hold {{share}} of the value.', {
               count: report.top.length,
               share: percent(report.top_share).replace('+', ''),
-            })}
-          </p>
-        )}
-        <div className="overflow-x-auto">
+            })
+          : undefined
+      }
+    >
+        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={t('Most valuable cards')}>
           <table className="table table-sm">
             <thead>
               <tr>
@@ -169,8 +162,7 @@ function TopItems({ report, games }: { report: Report; games: Game[] }) {
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
+    </Panel>
   )
 }
 
@@ -195,38 +187,26 @@ export default function Finance() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">{t('Finance')}</h1>
-        <GameTabs value={game} onChange={(id) => url.set({ game: id })} />
-      </div>
+      <PageHeader eyebrow={t('Your collection')} title={t('Finance')} subtitle={t('What your cards are worth, where the value sits and how it moves.')} />
+      <GameTabs value={game} onChange={(id) => url.set({ game: id })} />
 
-      {report.isPending && <span className="loading loading-spinner loading-lg" />}
+      {report.isPending && <span className="loading loading-spinner loading-lg" aria-label={t('Loading')} />}
       {report.isError && <div className="alert alert-error">{report.error.message}</div>}
 
       {r && (
         <>
           {r.quantity === 0 ? (
-            <p className="text-base-content/60">
-              {t('Nothing yet.')} <Link className="link" to="/catalog">{t('Add cards from the catalog')}</Link>
-            </p>
+            <EmptyState title={t('Nothing yet.')} actions={<Link className="btn btn-primary" to="/catalog">{t('Add cards from the catalog')}</Link>} />
           ) : (
-            <div className="stats stats-vertical w-full bg-base-200 shadow sm:stats-horizontal">
-              <div className="stat">
-                <div className="stat-title">{gameOf ? t('{{game}} value', { game: gameOf.name }) : t('Collection value')}</div>
-                <div className="stat-value">{formatMoney(r.value, r.currency)}</div>
-                <div className="stat-desc">
+            <div className="grid gap-4 md:grid-cols-3">
+              <Metric lead label={`${gameOf ? t('{{game}} value', { game: gameOf.name }) : t('Collection value')} · ${r.currency}`} value={formatMoney(r.value, r.currency)}>
                   {t('{{count}} cards', { count: r.quantity })} · {t('{{count}} versions', { count: r.printings })}
-                </div>
-              </div>
-              <div className="stat">
-                <div className="stat-title">{t('Average card')}</div>
-                <div className="stat-value text-2xl">{formatMoney(r.average, r.currency)}</div>
-                <div className="stat-desc">{t('Median: {{value}}', { value: formatMoney(r.median, r.currency) })}</div>
-              </div>
-              <div className="stat">
-                <div className="stat-title">{t('Priced cards')}</div>
-                <div className="stat-value text-2xl">{r.quantity ? percent(r.priced / r.quantity).replace('+', '') : '—'}</div>
-                <div className="stat-desc">
+              </Metric>
+              <Metric label={t('Average card')} value={formatMoney(r.average, r.currency)}>
+                {t('Median: {{value}}', { value: formatMoney(r.median, r.currency) })}
+              </Metric>
+              <Metric label={t('Priced cards')} value={r.quantity ? percent(r.priced / r.quantity).replace('+', '') : '—'}>
+                <span>
                   {r.unpriced > 0 ? (
                     <Link className="link" to={`/collection?${new URLSearchParams({ ...(game ? { game } : {}), noprice: '1' })}`}>
                       {t('{{count}} without price', { count: r.unpriced })}
@@ -234,8 +214,8 @@ export default function Finance() {
                   ) : (
                     t('All cards have a price')
                   )}
-                </div>
-              </div>
+                </span>
+              </Metric>
             </div>
           )}
           {r.other_currencies.length > 0 && (
@@ -248,35 +228,39 @@ export default function Finance() {
 
           {r.quantity > 0 && (
             <>
-              <div className="stats stats-vertical w-full bg-base-200 shadow sm:stats-horizontal">
+              <section aria-label={t('Changes')} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
                 {r.changes.map((c) => (
                   <ChangeTile key={c.days} change={c} currency={r.currency} />
                 ))}
-              </div>
+              </section>
 
-              <div className="card bg-base-200">
-                <div className="card-body">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="card-title">{t('Value over time')}</h2>
-                    <div className="join">
+              <Panel
+                title={t('Value over time')}
+                subtitle={t("Current holdings priced with each day's market prices.")}
+                aside={
+                    <div className="join" role="group" aria-label={t('Period')}>
                       {RANGES.map((d) => (
-                        <button key={d} className={`join-item btn btn-sm ${days === d ? 'btn-active' : ''}`} onClick={() => setDays(d)}>
+                        <button
+                          key={d}
+                          className={`join-item btn btn-sm min-h-9 ${days === d ? 'shadow-[inset_0_-3px_0_var(--color-primary)]' : ''}`}
+                          aria-pressed={days === d}
+                          onClick={() => setDays(d)}
+                        >
                           {t('{{n}} d', { n: d })}
                         </button>
                       ))}
                     </div>
-                  </div>
+                }
+              >
                   <PriceChart
                     data={shown.map((p) => ({ date: p.date, [t('Value')]: Number(p.value) }))}
                     series={[t('Value')]}
                     height={260}
                     currency={r.currency}
                   />
-                  <p className="text-xs text-base-content/60">{t("Current holdings priced with each day's market prices.")}</p>
-                </div>
-              </div>
+              </Panel>
 
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-5 lg:grid-cols-2">
                 {!game && <Breakdown title={t('By game')} shares={r.by_game} total={total} currency={r.currency} label={(s) => gameName(s.key)} />}
                 <Breakdown title={`${t('By card price')} (${r.currency})`} shares={r.by_band} total={total} currency={r.currency} label={(s) => s.label} />
                 <Breakdown title={t('By set')} shares={r.by_set} total={total} currency={r.currency} />

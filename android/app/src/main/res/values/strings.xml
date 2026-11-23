@@ -11,9 +11,9 @@
 
     <!-- Login -->
     <string name="server_address">Server address</string>
-    <string name="server_address_hint">cards.example.org or 192.168.1.10:8000</string>
+    <string name="server_address_hint">cards.example.org or http://192.168.1.10:8000</string>
     <string name="connect">Connect</string>
-    <string name="not_encrypted">Not encrypted (HTTP): use only on your home network or a VPN.</string>
+    <string name="not_encrypted">Not encrypted (HTTP): your password and session can be read on the network. Prefer HTTPS, or use a VPN.</string>
     <string name="change_server">Change server</string>
     <string name="user">User</string>
     <string name="password">Password</string>
@@ -21,7 +21,7 @@
     <string name="sign_in_with">Sign in with %1$s</string>
 
     <!-- Scan -->
-    <string name="camera_needed">Zukan reads the text printed on your cards. Pictures stay on your phone: only the text it reads is sent to your Zukan server.</string>
+    <string name="camera_needed">Zukan reads the text printed on your cards on the phone. What it reads is sent to your Zukan server, and for Magic or any game also a grey picture of the card around that text, to compare set symbols.</string>
     <string name="allow_camera">Allow camera</string>
     <string name="any_game">All games</string>
     <string name="point_at_card">Point at a card</string>
@@ -241,11 +241,23 @@
     <string name="shopping_subtitle">Cards your decks miss, sent from the web</string>
     <string name="shopping_empty">No shopping list yet</string>
     <string name="shopping_empty_help">On the web, open a deck, then Shopping list and Send to the app.</string>
-    <string name="shopping_progress">%1$d / %2$d bought</string>
+    <string name="shopping_progress">Bought: %1$d / %2$d</string>
     <string name="shopping_complete">Complete</string>
     <string name="shopping_delete">Delete</string>
     <string name="shopping_delete_title">Delete this list?</string>
     <string name="shopping_delete_text">The list %1$s is deleted for good. Your collection and decks do not change.</string>
     <string name="cancel">Cancel</string>
     <string name="phone_language">Phone language (%1$s)</string>
+    <string name="card_details">Card</string>
+    <string name="owned_variant">Owned in this finish, condition and language: %1$d</string>
+    <string name="camera_error_title">The camera did not start</string>
+    <string name="camera_failed">Another app may be using it. Close that app, then try again, or search the card by name.</string>
+    <string name="camera_none">This device has no camera Zukan can use. Search cards by name instead.</string>
+    <string name="printings_search_failed">The other printings could not be searched on the server.</string>
+    <string name="sso_not_encrypted">%1$s is not encrypted (HTTP): your password can be read on the network.</string>
+    <string name="shopping_item_state">Bought: %1$d / %2$d</string>
+    <string name="shopping_copy">%1$s, copy %2$d of %3$d</string>
+    <string name="update_too_large">the file is larger than announced</string>
+    <string name="update_no_space">not enough free space on the phone</string>
+    <string name="update_invalid">this file is not an update of Zukan</string>
 </resources>

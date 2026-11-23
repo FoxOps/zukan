@@ -6,11 +6,13 @@ import org.junit.Test
 
 class ServerUrlTest {
     @Test
-    fun homeAddressesDefaultToHttp() {
-        assertEquals("http://192.168.1.10:8000/", ServerUrl.normalize(" 192.168.1.10:8000/ "))
-        assertEquals("http://nas:8000/", ServerUrl.normalize("nas:8000"))
-        assertEquals("http://cards.lan/", ServerUrl.normalize("cards.lan"))
-        assertEquals("http://box.tail1234.ts.net/", ServerUrl.normalize("box.tail1234.ts.net"))
+    fun homeAddressesDefaultToHttpsToo() {
+        assertEquals("https://192.168.1.10:8000/", ServerUrl.normalize(" 192.168.1.10:8000/ "))
+        assertEquals("https://nas:8000/", ServerUrl.normalize("nas:8000"))
+        assertEquals("https://cards.lan/", ServerUrl.normalize("cards.lan"))
+        assertEquals("https://box.tail1234.ts.net/", ServerUrl.normalize("box.tail1234.ts.net"))
+        // Plain HTTP only when typed.
+        assertEquals("http://nas:8000/", ServerUrl.normalize("http://nas:8000"))
     }
 
     @Test

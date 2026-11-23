@@ -216,13 +216,15 @@ class DeckCardIn(BaseModel):
 
 
 class DeckLineMoveIn(BaseModel):
-    """Move copies of a line to another printing (or any), merged with that line when
-    the deck has it."""
+    """Move copies of a line to another printing (or any) and/or another section, merged
+    with that line when the deck has it. `to_printing_id` left out: same printing (null:
+    any); `to_section` None: same section."""
 
     card_id: int
     section: Section = "main"
     printing_id: int | None = None
     to_printing_id: int | None = None
+    to_section: Section | None = None
     # Copies moved, None: the whole line.
     quantity: int | None = Field(default=None, ge=1, le=MAX_COPIES)
 
@@ -849,28 +851,28 @@ async def set_card(
 async def move_line(
     deck_id: int, body: DeckLineMoveIn, user: DecksUser, session: SessionDep
 ) -> DeckDetailOut:
-    """Ask for another printing (or any) for copies of a line: the whole line, or some
-    copies split off into their own line. Allocations are kept."""
+    """Ask for another printing (or any) for copies of a line, or move them to another
+    section (sideboard...): the whole line, or some copies split off into their own line.
+    One change, so the deck never has the copies twice; allocations are kept."""
     deck = await _own(session, user, deck_id, lock=True)
-    await _check_printing(session, body.card_id, body.to_printing_id)
+    to_printing = (
+        body.to_printing_id if "to_printing_id" in body.model_fields_set else body.printing_id
+    )
+    await _check_printing(session, body.card_id, to_printing)
     line = _line(deck, body.card_id, body.section, body.printing_id)
     if line is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Deck line not found")
     moved = min(body.quantity or line.quantity, line.quantity)
-    if body.to_printing_id != body.printing_id:
-        target = _line(deck, body.card_id, body.section, body.to_printing_id)
+    to_section = body.to_section or body.section
+    if (to_section, to_printing) != (body.section, body.printing_id):
+        target = _line(deck, body.card_id, to_section, to_printing)
         current = target.quantity if target else 0
+        # Copies beyond the most a line can ask for stay where they were.
+        moved = min(moved, MAX_COPIES - current)
         await decks.set_line(
             session, deck, body.card_id, body.section, body.printing_id, line.quantity - moved
         )
-        await decks.set_line(
-            session,
-            deck,
-            body.card_id,
-            body.section,
-            body.to_printing_id,
-            min(MAX_COPIES, current + moved),
-        )
+        await decks.set_line(session, deck, body.card_id, to_section, to_printing, current + moved)
         await decks.release_excess(session, deck, [body.card_id])
         deck.updated_at = func.now()
         await session.commit()

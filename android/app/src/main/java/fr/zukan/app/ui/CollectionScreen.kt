@@ -42,6 +42,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,7 +76,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private const val PAGE_SIZE = 50
 
 /** Sort orders of `GET /api/collection`, same as the web UI. */
 enum class CollectionSort(val api: String, @StringRes val label: Int) {
@@ -107,6 +109,7 @@ data class CollectionFilter(
  * tap for details, CSV export. */
 @Composable
 fun CollectionScreen(
+    model: CollectionViewModel,
     api: ZukanApi?,
     games: List<GameOut>,
     mainSource: PriceSourceOut?,
@@ -118,80 +121,40 @@ fun CollectionScreen(
     onAdjust: (ItemOut, Int) -> Unit,
     onOpen: (ItemOut) -> Unit,
 ) {
-    var query by rememberSaveable { mutableStateOf("") }
-    var filter by remember { mutableStateOf(CollectionFilter()) }
+    val current by model.query.collectAsStateWithLifecycle()
+    val rows by model.pager.state.collectAsStateWithLifecycle()
+    val value by model.value.collectAsStateWithLifecycle()
+    val query = current.text
+    val filter = current.filter
     var showFilters by rememberSaveable { mutableStateOf(false) }
     var showSort by rememberSaveable { mutableStateOf(false) }
-    // Pages loaded so far; "Load more" adds the next one.
-    var page by remember { mutableIntStateOf(1) }
-    var reload by remember { mutableIntStateOf(0) }
-    var items by remember { mutableStateOf<List<ItemOut>>(emptyList()) }
-    var total by remember { mutableIntStateOf(0) }
-    var loaded by remember { mutableStateOf(false) }
-    var loadingMore by remember { mutableStateOf(false) }
     var exporting by remember { mutableStateOf(false) }
-    var value by remember { mutableStateOf<ValueOut?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val grid = settings.collectionGrid
+    val items = rows.items
+    val total = rows.total
+    // An error before any page: the message instead of the list; a later page: a toast.
+    val error = rows.error?.takeIf { !rows.loaded }
+    // Rows of the same query reloading stay shown.
+    val loaded = rows.loaded || rows.error != null || items.isNotEmpty()
 
-    suspend fun fetch(number: Int) = api!!.collection(
-        game = filter.game,
-        query = query.trim().ifEmpty { null },
-        setId = filter.set?.id,
-        colors = filter.colors.ifEmpty { null },
-        colorMode = if (filter.exactColors) "exact" else "include",
-        finish = filter.finish,
-        condition = filter.condition,
-        language = filter.language,
-        sort = filter.sort.api,
-        page = number,
-        pageSize = PAGE_SIZE,
-    )
-
-    LaunchedEffect(query, filter, reload) {
-        if (api == null) return@LaunchedEffect
-        if (query.isNotEmpty()) delay(300) // typing debounce
-        runCatching { fetch(1) }
-            .onSuccess {
-                items = it.items
-                total = it.total
-                page = 1
-                error = null
-            }
-            .onFailure { error = it.userMessage(context) }
-        loaded = true
+    LaunchedEffect(api) { if (api != null) model.start() }
+    // Back to the app (not to the tab): copies may have changed on the web meanwhile.
+    val left = remember { booleanArrayOf(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { left[0] = true }
+    LifecycleEventEffect(Lifecycle.Event.ON_START) {
+        if (left[0] && api != null) model.refresh()
+        left[0] = false
     }
-    // Stock changed (here, in the scanner or by an undo): the row follows in place; a card
-    // not shown yet (a new copy) means the list itself changed.
-    LaunchedEffect(stock.version) {
-        if (api == null) return@LaunchedEffect
-        val changed = stock.item
-        if (stock.version > 0) {
-            if (changed != null && items.any { it.id == changed.id }) {
-                items = if (changed.quantity > 0) items.map { if (it.id == changed.id) changed else it } else items.filter { it.id != changed.id }
-                if (changed.quantity <= 0) total--
-            } else {
-                reload++
-            }
-        }
-        value = runCatching { api.collectionValue() }.getOrNull() ?: value
+    // Stock changed (here, in the scanner or by an undo): the list follows.
+    LaunchedEffect(stock.version) { model.onStock(stock) }
+    LaunchedEffect(rows.error, rows.loaded) {
+        val message = rows.error ?: return@LaunchedEffect
+        if (rows.loaded) Toast.makeText(context, message, Toast.LENGTH_LONG).show()
     }
-    val loadMore = {
-        if (api != null && !loadingMore) {
-            loadingMore = true
-            scope.launch {
-                runCatching { fetch(page + 1) }.onSuccess { next ->
-                    val known = items.mapTo(HashSet()) { it.id }
-                    items = items + next.items.filter { it.id !in known }
-                    total = next.total
-                    page++
-                }.onFailure { Toast.makeText(context, it.userMessage(context), Toast.LENGTH_LONG).show() }
-                loadingMore = false
-            }
-        }
-    }
+    val loadMore = { if (rows.error != null) model.pager.retry() else model.pager.more() }
+    val reload = { model.refresh() }
     val export = {
         if (api != null && !exporting) {
             exporting = true
@@ -214,11 +177,11 @@ fun CollectionScreen(
         line { ValueCard(value, filter.game, mainSource, Modifier.padding(top = 12.dp)) }
         line {
             Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                PillSearchField(query, { query = it }, stringResource(R.string.search_collection), Modifier.weight(1f))
+                PillSearchField(query, model::setText, stringResource(R.string.search_collection), Modifier.weight(1f))
                 FilterButton(filter.narrowed) { showFilters = true }
             }
         }
-        line { GameChips(games, filter.game, { filter = filter.withGame(it) }, { showFilters = true }) }
+        line { GameChips(games, filter.game, { model.setFilter(filter.withGame(it)) }, { showFilters = true }) }
         line {
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -252,7 +215,7 @@ fun CollectionScreen(
         when {
             error != null -> line {
                 MessageCard(stringResource(R.string.error_title), error, action = {
-                    OutlinedButton(onClick = { reload++ }) { Text(stringResource(R.string.try_again)) }
+                    OutlinedButton(onClick = reload) { Text(stringResource(R.string.try_again)) }
                 })
             }
             !loaded -> line { Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
@@ -279,7 +242,7 @@ fun CollectionScreen(
         }
         if (items.size < total) {
             line {
-                TextButton(onClick = loadMore, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !loadingMore) {
+                TextButton(onClick = loadMore, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !rows.loading) {
                     Text(stringResource(R.string.load_more, total - items.size))
                 }
             }
@@ -292,7 +255,7 @@ fun CollectionScreen(
             games,
             filter,
             onApply = {
-                filter = it
+                model.setFilter(it)
                 showFilters = false
             },
             onDismiss = { showFilters = false },
@@ -303,7 +266,7 @@ fun CollectionScreen(
             Column {
                 CollectionSort.entries.forEach { option ->
                     ChoiceRow(stringResource(option.label), option == filter.sort, {
-                        filter = filter.copy(sort = option)
+                        model.setFilter(filter.copy(sort = option))
                         showSort = false
                     })
                 }
@@ -337,8 +300,13 @@ private suspend fun shareCsv(context: Context, api: ZukanApi, game: String?) {
 @Composable
 private fun ValueCard(value: ValueOut?, game: String?, mainSource: PriceSourceOut?, modifier: Modifier = Modifier) {
     val shown = game?.let { g -> value?.games?.firstOrNull { it.gameId == g } }
-    val quantity = shown?.quantity ?: value?.quantity ?: 0
-    val amounts = shown?.let { listOf(it.total to it.currency) } ?: value?.games?.map { it.total to it.currency }.orEmpty()
+    // A game without any card: zero, not the whole collection.
+    val quantity = if (game != null) shown?.quantity ?: 0 else value?.quantity ?: 0
+    val amounts = if (game != null) {
+        shown?.let { listOf(it.total to it.currency) }.orEmpty()
+    } else {
+        value?.games?.map { it.total to it.currency }.orEmpty()
+    }
     val currencies = amounts.map { it.second }.distinct()
     Surface(
         shape = RoundedCornerShape(32.dp),

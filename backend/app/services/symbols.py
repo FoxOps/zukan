@@ -69,10 +69,7 @@ def text_symbol_file(game_id: str, key: str) -> Path | None:
 
 
 def _write(path: Path, data: bytes) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_bytes(data)
-    tmp.replace(path)
+    layout.write_atomic(path, data)
 
 
 def _to_png(data: bytes, box: tuple[int, int, int, int] | None) -> bytes:

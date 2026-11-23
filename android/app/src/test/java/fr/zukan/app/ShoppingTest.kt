@@ -2,7 +2,7 @@ package fr.zukan.app
 
 import fr.zukan.app.data.ApiClient
 import fr.zukan.app.data.ShoppingItemIn
-import fr.zukan.app.data.TokenStore
+import fr.zukan.app.data.TokenSessions
 import fr.zukan.app.data.Tokens
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
@@ -17,12 +17,7 @@ import org.junit.Test
 /** Shopping lists (`/api/shopping-lists`) and the account's `language_chosen`. */
 class ShoppingTest {
     private val server = MockWebServer()
-    private val store = object : TokenStore {
-        override var tokens: Tokens? = null
-        override suspend fun saveTokens(value: Tokens?) {
-            tokens = value
-        }
-    }
+    private val store = TokenSessions(null)
 
     @Before
     fun start() = server.start()
@@ -74,6 +69,24 @@ class ShoppingTest {
         assertEquals(2, some.boughtCount)
         assertFalse(some.bought)
         assertTrue(item.withBought(3).bought)
+    }
+
+    @Test
+    fun answerOnlyChangesItsOwnItem() {
+        val shock = fr.zukan.app.data.ShoppingItemOut(id = 1, name = "Shock", quantity = 3, bought = false)
+        val bolt = fr.zukan.app.data.ShoppingItemOut(id = 2, name = "Bolt", quantity = 2, bought = false)
+        val list = fr.zukan.app.data.ShoppingListOut(3, "Deck", gameId = "mtg", createdAt = "2026-11-23", copies = 5, bought = 0, items = listOf(shock, bolt))
+        // Shock ticked to 1, then Bolt to 2 while Shock's answer is on its way.
+        val shown = list.withBought(1, 1).withBought(2, 2)
+        assertEquals(3, shown.bought)
+        // The server's answer for Shock knows nothing of Bolt's tick yet.
+        val answer = list.withBought(1, 1)
+        val merged = shown.withItemOf(answer, 1)
+        assertEquals(1, merged.items.first { it.id == 1 }.boughtCount)
+        assertEquals(2, merged.items.first { it.id == 2 }.boughtCount)
+        assertEquals(3, merged.bought)
+        // A failed write puts back only that item.
+        assertEquals(listOf(0, 2), merged.withBought(1, 0).items.map { it.boughtCount })
     }
 
     @Test

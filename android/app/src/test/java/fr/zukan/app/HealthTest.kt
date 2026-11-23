@@ -2,7 +2,7 @@ package fr.zukan.app
 
 import fr.zukan.app.data.ApiClient
 import fr.zukan.app.data.HealthOut
-import fr.zukan.app.data.TokenStore
+import fr.zukan.app.data.TokenSessions
 import fr.zukan.app.data.Tokens
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
@@ -16,12 +16,7 @@ import org.junit.Test
 /** `/api/health` as servers before 0.20.0 and since (with `maintenance`) answer it. */
 class HealthTest {
     private val server = MockWebServer()
-    private val store = object : TokenStore {
-        override var tokens: Tokens? = null
-        override suspend fun saveTokens(value: Tokens?) {
-            tokens = value
-        }
-    }
+    private val store = TokenSessions(null)
 
     @Before
     fun start() = server.start()

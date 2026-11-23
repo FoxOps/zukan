@@ -443,6 +443,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/printings/{printing_id}/neighbors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Printing Neighbors
+         * @description The printings just before and after this one in its set, in collector-number order
+         *     (as printed, ties broken by id): to page through a set from a card's page.
+         */
+        get: operations["printing_neighbors_api_printings__printing_id__neighbors_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/printings/{printing_id}/image": {
         parameters: {
             query?: never;
@@ -865,8 +886,9 @@ export interface paths {
         put?: never;
         /**
          * Move Line
-         * @description Ask for another printing (or any) for copies of a line: the whole line, or some
-         *     copies split off into their own line. Allocations are kept.
+         * @description Ask for another printing (or any) for copies of a line, or move them to another
+         *     section (sideboard...): the whole line, or some copies split off into their own line.
+         *     One change, so the deck never has the copies twice; allocations are kept.
          */
         post: operations["move_line_api_decks__deck_id__cards_move_post"];
         delete?: never;
@@ -2214,8 +2236,9 @@ export interface components {
         };
         /**
          * DeckLineMoveIn
-         * @description Move copies of a line to another printing (or any), merged with that line when
-         *     the deck has it.
+         * @description Move copies of a line to another printing (or any) and/or another section, merged
+         *     with that line when the deck has it. `to_printing_id` left out: same printing (null:
+         *     any); `to_section` None: same section.
          */
         DeckLineMoveIn: {
             /** Card Id */
@@ -2230,6 +2253,8 @@ export interface components {
             printing_id?: number | null;
             /** To Printing Id */
             to_printing_id?: number | null;
+            /** To Section */
+            to_section?: ("commander" | "companion" | "legend" | "champion" | "avatar" | "main" | "extra" | "atlas" | "battlefields" | "runes" | "sideboard") | null;
             /** Quantity */
             quantity?: number | null;
         };
@@ -3016,6 +3041,22 @@ export interface components {
             risers: components["schemas"]["MoverOut"][];
             /** Fallers */
             fallers: components["schemas"]["MoverOut"][];
+        };
+        /** NeighborOut */
+        NeighborOut: {
+            /** Card Id */
+            card_id: number;
+            /** Printing Id */
+            printing_id: number;
+            /** Name */
+            name: string;
+            /** Collector Number */
+            collector_number: string | null;
+        };
+        /** NeighborsOut */
+        NeighborsOut: {
+            previous: components["schemas"]["NeighborOut"] | null;
+            next: components["schemas"]["NeighborOut"] | null;
         };
         /** OcrLineIn */
         OcrLineIn: {
@@ -4509,6 +4550,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PriceHistoryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    printing_neighbors_api_printings__printing_id__neighbors_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                printing_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NeighborsOut"];
                 };
             };
             /** @description Validation Error */

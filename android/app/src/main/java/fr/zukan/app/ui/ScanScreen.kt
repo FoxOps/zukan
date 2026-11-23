@@ -47,6 +47,8 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -80,6 +82,7 @@ import fr.zukan.app.R
 import fr.zukan.app.data.GameOut
 import fr.zukan.app.data.Settings
 import fr.zukan.app.scan.GlareMeter
+import kotlinx.coroutines.delay
 
 // The scanner of the 2026-10 redesign: a paper header with the game chips, a card-shaped
 // frame over the camera, and one status card at the bottom telling what to do next in
@@ -87,6 +90,9 @@ import fr.zukan.app.scan.GlareMeter
 
 /** Card proportions (63 x 88 mm), shared by every supported game. */
 private const val CARD_RATIO = 63f / 88f
+
+/** A result, not found or error shown this long: the camera stops until the next card. */
+private const val CAMERA_IDLE_MS = 10_000L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -137,23 +143,56 @@ fun ScanScreen(
         return
     }
 
-    // A card opened from the collection or search: no camera behind it (it starts again,
-    // in a moment, when the card is closed).
-    val manual = state.phase == Phase.RESULT && state.result?.candidates?.firstOrNull()?.match == "manual"
+    // A result, not found or error looked at for a while: the camera (and torch) stop until
+    // the next card, instead of filming the table.
+    val capturing = state.phase == Phase.SCANNING || state.phase == Phase.IDENTIFYING
+    var cameraOn by remember { mutableStateOf(true) }
+    LaunchedEffect(capturing) {
+        if (capturing) {
+            cameraOn = true
+        } else {
+            delay(CAMERA_IDLE_MS)
+            cameraOn = false
+        }
+    }
+    // The camera failed to start (busy in another app, none at the back...): retry or search.
+    var cameraError by remember { mutableStateOf<String?>(null) }
+    var cameraAttempt by remember { mutableIntStateOf(0) }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        if (!manual) {
-            CameraPreview(
-                settings.script,
-                paused = state.phase != Phase.SCANNING,
-                onFrame = scan::onFrame,
-                onIdentify = scan::identify,
-                onAsianFrame = scan::onAsianFrame,
-                modifier = Modifier.fillMaxSize(),
-                torch = torch,
-                onTorchAvailable = { torchAvailable = it },
-                glare = { scan.glare },
-                wantPicture = { scan.wantsPicture },
-            )
+        if (cameraOn && cameraError == null) {
+            key(cameraAttempt) {
+                CameraPreview(
+                    settings.script,
+                    paused = state.phase != Phase.SCANNING,
+                    onFrame = scan::onFrame,
+                    onIdentify = scan::identify,
+                    onAsianFrame = scan::onAsianFrame,
+                    modifier = Modifier.fillMaxSize(),
+                    torch = torch && capturing,
+                    onTorchAvailable = { torchAvailable = it },
+                    glare = { scan.glare },
+                    wantPicture = { scan.wantsPicture },
+                    onError = { cameraError = it },
+                )
+            }
+        }
+        cameraError?.let { message ->
+            Column(
+                Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).verticalScroll(rememberScrollState()).padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                MessageCard(stringResource(R.string.camera_error_title), message, action = {
+                    GoldButton(stringResource(R.string.try_again), {
+                        cameraError = null
+                        cameraAttempt++
+                    })
+                })
+                TextButton(onClick = onSearch, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text(stringResource(R.string.search_by_name), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                }
+            }
+            return@Box
         }
         Column(Modifier.fillMaxSize()) {
             ScanHeader(
@@ -180,40 +219,20 @@ fun ScanScreen(
 
         if (state.phase == Phase.RESULT) {
             // Swiped down, closed or tapped outside: just looking, back to the camera.
-            ModalBottomSheet(
-                onDismissRequest = { scan.resume() },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-            ) {
-                Box {
-                    Column {
-                        Row(Modifier.padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                stringResource(R.string.card_found),
-                                style = MaterialTheme.typography.headlineSmall,
-                                modifier = Modifier.weight(1f).semantics { heading() },
-                            )
-                            IconButton(onClick = { scan.resume() }) { ZIcon(R.drawable.ic_close, stringResource(R.string.close)) }
-                        }
-                        ResultPanel(
-                            state = state,
-                            games = games,
-                            settings = settings,
-                            priceSources = priceSources,
-                            imageUrl = imageUrl,
-                            imageLoader = imageLoader,
-                            onCandidate = scan::selectCandidate,
-                            onPrinting = scan::selectPrinting,
-                            searchPrintings = scan::searchPrintings,
-                            onAdjust = scan::adjust,
-                            onClose = { scan.resume() },
-                        )
-                    }
-                    // The tray opens in a window of its own above the screen's snackbar:
-                    // show "Added …", Undo and errors in it too.
-                    SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
-                }
+            CardSheet(stringResource(R.string.card_found), { scan.resume() }, snackbar) {
+                ResultPanel(
+                    state = state,
+                    games = games,
+                    settings = settings,
+                    priceSources = priceSources,
+                    imageUrl = imageUrl,
+                    imageLoader = imageLoader,
+                    onCandidate = { scan.selectCandidate(Panel.SCAN, it) },
+                    onPrinting = { scan.selectPrinting(Panel.SCAN, it) },
+                    searchPrintings = scan::searchPrintings,
+                    onAdjust = { f, c, l, d -> scan.adjust(Panel.SCAN, f, c, l, d) },
+                    onClose = { scan.resume() },
+                )
             }
         }
         if (moreGames) {
@@ -296,15 +315,18 @@ private fun ScanHeader(
 /** Card-shaped frame: the rest of the picture is dimmed so the eye goes to it. */
 @Composable
 private fun Viewfinder(phase: Phase, modifier: Modifier = Modifier) {
-    val pulse by rememberInfiniteTransition(label = "frame").animateFloat(
-        initialValue = 1f,
-        targetValue = 0.35f,
-        animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
-        label = "pulse",
-    )
     val color = when (phase) {
         Phase.SCANNING -> MaterialTheme.colorScheme.primaryContainer
-        Phase.IDENTIFYING -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = pulse)
+        // The pulse runs only while waiting for the server (no endless animation otherwise).
+        Phase.IDENTIFYING -> {
+            val pulse by rememberInfiniteTransition(label = "frame").animateFloat(
+                initialValue = 1f,
+                targetValue = 0.35f,
+                animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
+                label = "pulse",
+            )
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = pulse)
+        }
         Phase.RESULT -> MaterialTheme.colorScheme.secondary
         Phase.NOT_FOUND, Phase.ERROR -> MaterialTheme.colorScheme.error
     }
@@ -357,7 +379,7 @@ private fun StatusCard(
             .joinToString(" · ").ifEmpty { null }
     }
     val title: String
-    val text: String?
+    val text: String
     @DrawableRes val icon: Int?
     when {
         state.phase == Phase.SCANNING -> {
@@ -422,7 +444,7 @@ private fun StatusCard(
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(title, style = MaterialTheme.typography.titleLarge)
-                    text?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    Text(text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (state.phase == Phase.SCANNING && state.stuck) {

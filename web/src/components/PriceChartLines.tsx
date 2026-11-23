@@ -1,0 +1,31 @@
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { formatDate, formatMoney } from '../lib/format'
+
+const COLORS = ['var(--color-primary)', 'var(--color-secondary)', 'var(--color-accent)', 'var(--color-info)']
+
+export type Point = { date: string; [series: string]: number | string | null }
+
+export type ChartProps = { data: Point[]; series: string[]; height: number; currency: string }
+
+/** The chart itself, loaded with the chart library only when there is data to draw
+ * (`PriceChart`). */
+export default function PriceChartLines({ data, series, height, currency }: ChartProps) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.1} />
+        <XAxis dataKey="date" tickFormatter={formatDate} fontSize={12} minTickGap={32} />
+        <YAxis tickFormatter={(v) => formatMoney(v, currency)} fontSize={12} width={72} />
+        <Tooltip
+          labelFormatter={(d) => formatDate(String(d))}
+          formatter={(v) => formatMoney(v as number, currency)}
+          contentStyle={{ background: 'var(--color-base-200)', border: 'none', borderRadius: 8 }}
+        />
+        {series.length > 1 && <Legend />}
+        {series.map((s, i) => (
+          <Line key={s} type="monotone" dataKey={s} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={data.length < 3} connectNulls />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  )
+}

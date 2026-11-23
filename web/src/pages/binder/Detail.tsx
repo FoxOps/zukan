@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Eyebrow, Panel } from '../../components/Page'
 import { Link, Navigate, useNavigate, useParams } from 'react-router'
 import { api, call, type Schemas } from '../../api/client'
 import { useBinder, useGame, useMe } from '../../api/queries'
@@ -32,7 +33,8 @@ export default function BinderDetail() {
   const { t } = useTranslation()
   const { binderId } = useParams()
   const { data: me } = useMe()
-  const query = useBinder(Number(binderId))
+  // No module: redirected below, without asking the server for what it would refuse.
+  const query = useBinder(Number(binderId), !!me?.modules?.includes('binder'))
   const binder = query.data?.binder
   const game = useGame(binder?.game_id)
   const adjust = useAdjust()
@@ -94,17 +96,21 @@ export default function BinderDetail() {
     )
 
   return (
-    <div className="flex flex-col gap-4">
-      <Link to="/binder" className="link-hover w-fit text-sm text-base-content/70">
-        ← {t('Binder')}
-      </Link>
-      <div className="card bg-base-200">
-        <div className="card-body gap-4 lg:flex-row lg:items-center">
+    <div className="flex flex-col gap-6">
+      <nav className="breadcrumbs text-sm" aria-label={t('Breadcrumb')}>
+        <ul>
+          <li><Link to="/binder">{t('Binder')}</Link></li>
+          <li aria-current="page">{binder.set.name}</li>
+        </ul>
+      </nav>
+      <Panel>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
           <div className="flex min-w-0 flex-1 items-start gap-3">
             {binder.set.icon && <SetIcon src={binder.set.icon} game={binder.game_id} className="h-10 w-10" />}
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold leading-tight">{binder.set.name}</h1>
-              <div className="text-sm text-base-content/60">
+              <Eyebrow>{t('Followed set')}</Eyebrow>
+              <h1 className="mt-1 text-3xl leading-tight">{binder.set.name}</h1>
+              <div className="text-sm text-base-content/70">
                 {game?.name ?? binder.game_id} · {binder.set.code}
               </div>
               <div className="mt-1">
@@ -116,12 +122,18 @@ export default function BinderDetail() {
             <BinderProgress binder={binder} />
           </div>
         </div>
-      </div>
+      </Panel>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div role="tablist" className="tabs tabs-box w-fit">
+        <div role="tablist" aria-label={t('Cards shown')} className="flex gap-1">
           {SHOWN.map((s) => (
-            <button key={s.id} role="tab" className={`tab ${shown === s.id ? 'tab-active' : ''}`} onClick={() => setShown(s.id)}>
+            <button
+              key={s.id}
+              role="tab"
+              aria-selected={shown === s.id}
+              className={`btn min-h-11 rounded-xl border-0 px-4 ${shown === s.id ? 'btn-neutral shadow-[inset_0_-3px_0_var(--color-primary)]' : 'btn-ghost'}`}
+              onClick={() => setShown(s.id)}
+            >
               {t(s.label)} ({counts[s.id]})
             </button>
           ))}
@@ -147,14 +159,14 @@ export default function BinderDetail() {
             />
           </>
         )}
-        <button className="btn btn-ghost btn-sm ml-auto text-error" onClick={() => setUnfollowing(true)}>
+        <button className="btn btn-ghost min-h-11 ml-auto text-error" onClick={() => setUnfollowing(true)}>
           {t('Stop following')}
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-box border border-base-300">
+      <div className="overflow-x-auto rounded-2xl border border-base-300 bg-base-100" tabIndex={0} role="region" aria-label={t('Cards of the set')}>
         <table className="table table-sm">
-          <thead>
+          <thead className="bg-neutral text-neutral-content">
             <tr>
               <th className="w-10">
                 <span className="sr-only">{t('Owned')}</span>
@@ -201,7 +213,7 @@ export default function BinderDetail() {
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={numbered ? 6 : 5} className="py-6 text-center text-base-content/60">
+                <td colSpan={numbered ? 6 : 5} className="py-6 text-center text-base-content/70">
                   {t('No card here.')}
                 </td>
               </tr>
@@ -214,8 +226,8 @@ export default function BinderDetail() {
 
       <dialog className={`modal ${removing ? 'modal-open' : ''}`} onClose={() => setRemoving(null)}>
         {removing && (
-          <div className="modal-box animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-bold">{t('Remove a copy of {{name}}?', { name: removing.name })}</h3>
+          <div className="modal-box rounded-[20px] animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-2xl">{t('Remove a copy of {{name}}?', { name: removing.name })}</h3>
             <p className="py-2 text-sm">{t('One copy is removed from your collection.')}</p>
             <ul className="flex flex-col gap-2">
               {removing.items.map((item) => (
@@ -244,8 +256,8 @@ export default function BinderDetail() {
 
       <dialog className={`modal ${unfollowing ? 'modal-open' : ''}`} onClose={() => setUnfollowing(false)}>
         {unfollowing && (
-          <div className="modal-box">
-            <h3 className="text-lg font-bold">{t('Stop following {{set}}?', { set: binder.set.name })}</h3>
+          <div className="modal-box rounded-[20px]">
+            <h3 className="text-2xl">{t('Stop following {{set}}?', { set: binder.set.name })}</h3>
             <p className="py-2 text-sm">{t('Your collection is not changed.')}</p>
             <div className="modal-action">
               <button className="btn btn-ghost" onClick={() => setUnfollowing(false)}>

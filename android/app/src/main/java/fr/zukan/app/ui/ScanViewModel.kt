@@ -15,21 +15,29 @@ import fr.zukan.app.data.IdentifyOut
 import fr.zukan.app.data.ItemOut
 import fr.zukan.app.data.OcrLineIn
 import fr.zukan.app.data.PrintingOut
+import fr.zukan.app.data.runCatchingCancellable
 import fr.zukan.app.data.userMessage
 import fr.zukan.app.scan.GlareMeter
 import fr.zukan.app.scan.ScanPicture
 import fr.zukan.app.scan.ScanStabilizer
 import fr.zukan.app.scan.toJpegBase64
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class Phase { SCANNING, IDENTIFYING, RESULT, NOT_FOUND, ERROR }
+
+/** Where a card is shown: the scanner's result, or a card opened by hand over any tab. */
+enum class Panel { SCAN, DETAILS }
 
 /** Text in view this long without a card sent: "Scan now" is offered. */
 private const val STUCK_MS = 4000L
@@ -46,6 +54,9 @@ data class Undoable(val transactionId: Int, val text: String)
  * reload ([item] null: undo, or unknown). */
 data class StockChange(val version: Int = 0, val item: ItemOut? = null)
 
+/** An owned copy opened from the collection: what the panel starts on. */
+data class Variant(val language: String, val finish: String, val condition: String)
+
 data class ScanState(
     val phase: Phase = Phase.SCANNING,
     val result: IdentifyOut? = null,
@@ -58,9 +69,10 @@ data class ScanState(
     val undo: Undoable? = null,
     // Every stock change, so lists of owned cards follow.
     val stock: StockChange = StockChange(),
-    // A copy opened from the collection: its language and finish come first.
+    // A copy opened from the collection: its language, finish and condition come first.
     val language: String? = null,
     val finish: String? = null,
+    val condition: String? = null,
     // Finish of the last copies added (the next card of a batch is often the same).
     val lastFinish: String? = null,
     // Experimental guess from how light moves on the card ("holo", "reverse").
@@ -73,7 +85,19 @@ data class ScanState(
     val current: CandidateOut? get() = result?.candidates?.getOrNull(candidate)
 }
 
-/** Scan flow: steady OCR text -> identify -> pick printing/variant -> add or remove. */
+/** A card opened from the collection or search: loading, failed, or shown in [card]. */
+data class DetailsState(
+    val cardId: Int,
+    val printingId: Int? = null,
+    val variant: Variant? = null,
+    val card: ScanState? = null,
+    val error: String? = null,
+) {
+    val loading get() = card == null && error == null
+}
+
+/** Scan flow: steady OCR text -> identify -> pick printing/variant -> add or remove; and the
+ * same panel for cards opened by hand ([details]). */
 class ScanViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as ZukanApp
     private val stabilizer = ScanStabilizer()
@@ -84,9 +108,23 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     var glare: GlareMeter? = null
     private val _state = MutableStateFlow(ScanState())
     val state: StateFlow<ScanState> = _state.asStateFlow()
+    private val _details = MutableStateFlow<DetailsState?>(null)
+    val details: StateFlow<DetailsState?> = _details.asStateFlow()
     var game: String? = null
     // Back to the camera after adding copies (setting "after adding").
     var autoNext = false
+
+    // Work of the current session (account and server): cancelled when it ends, so nothing
+    // of the previous account (result, owned copies, undo) shows up afterwards.
+    private var sessionJob = SupervisorJob(viewModelScope.coroutineContext[Job])
+    private val sessionScope get() = CoroutineScope(viewModelScope.coroutineContext + sessionJob)
+
+    private var identifyJob: Job? = null
+    private var detailsJob: Job? = null
+
+    init {
+        viewModelScope.launch { app.session.drop(1).collect { reset() } }
+    }
 
     val scanning get() = _state.value.phase == Phase.SCANNING
 
@@ -97,6 +135,9 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     // Each identify request; an answer to an older one (or after leaving) is dropped.
     @Volatile
     private var request = 0
+
+    // Each card opened by hand; an answer for an older one is dropped.
+    private var detailsRequest = 0
 
     /** Called from the camera analysis thread for every frame: true when the card is
      * steady and new, so the frame is read for identification. */
@@ -166,8 +207,8 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         val guess = glare?.guess()
         glare?.reset()
         _state.update { it.copy(phase = Phase.IDENTIFYING, message = null, error = null, stuck = false) }
-        viewModelScope.launch {
-            runCatching {
+        identifyJob = sessionScope.launch {
+            runCatchingCancellable {
                 val image = picture?.let { withContext(Dispatchers.Default) { runCatching { it.toJpegBase64() }.getOrNull() } }
                 client.api.identify(IdentifyIn(game, sent, image, picture?.box?.takeIf { image != null }))
             }
@@ -183,6 +224,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                             printing = 0,
                             language = null,
                             finish = null,
+                            condition = null,
                             finishGuess = guess,
                             failures = if (result.candidates.isEmpty()) it.failures + 1 else 0,
                             // Missing from the server catalog: fetched from its source.
@@ -192,7 +234,6 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 // Shown on the camera until "Try again" (no scanning against a server that fails).
                 .onFailure { e ->
-                    if (e is CancellationException) throw e
                     _state.update { if (current(id, it)) it.copy(phase = Phase.ERROR, error = e.userMessage(app)) else it }
                 }
         }
@@ -201,43 +242,68 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     /** The answer to request [id] is still awaited: the newest request, not left since. */
     private fun current(id: Int, state: ScanState) = id == request && state.phase == Phase.IDENTIFYING
 
-    /** Show a card picked by hand (search or collection screen) in the result panel,
+    /** Show a card picked by hand (search or collection screen) over the current tab,
      * `printingId` first when given, else the printing the catalog shows. */
-    fun showCard(summary: CardSummaryOut) = showCard(summary.id, summary.printingId)
+    fun openCard(summary: CardSummaryOut) = openCard(summary.id, summary.printingId)
 
-    fun showCard(cardId: Int, printingId: Int? = null, language: String? = null, finish: String? = null) {
+    /** An owned copy of the collection: its printing and variant come first. */
+    fun openItem(item: ItemOut) = openCard(item.cardId, item.printingId, Variant(item.language, item.finish, item.condition))
+
+    fun openCard(cardId: Int, printingId: Int? = null, variant: Variant? = null) {
         val client = app.client.value ?: return
-        viewModelScope.launch {
-            runCatching { client.api.card(cardId) }
+        detailsJob?.cancel()
+        val id = ++detailsRequest
+        _details.value = DetailsState(cardId, printingId, variant)
+        detailsJob = sessionScope.launch {
+            runCatchingCancellable { client.api.card(cardId) }
                 .onSuccess { card ->
                     val first = printingId ?: card.defaultPrintingId
                     val printings = card.printings.sortedBy { if (it.id == first) 0 else 1 }
                     val ref = CardRef(card.id, card.gameId, card.name, card.colors, card.translation)
                     val candidate = CandidateOut(1.0, "manual", ref, printings, printings.size)
-                    _state.update {
-                        ScanState(
-                            phase = Phase.RESULT,
-                            result = IdentifyOut(card.gameId, HintsOut(), listOf(candidate)),
-                            undo = it.undo,
-                            stock = it.stock,
-                            language = language,
-                            finish = finish,
-                            lastFinish = it.lastFinish,
-                        )
-                    }
+                    val shown = ScanState(
+                        phase = Phase.RESULT,
+                        result = IdentifyOut(card.gameId, HintsOut(), listOf(candidate)),
+                        language = variant?.language,
+                        finish = variant?.finish,
+                        condition = variant?.condition,
+                        lastFinish = _state.value.lastFinish,
+                    )
+                    if (id == detailsRequest) _details.update { it?.copy(card = shown, error = null) }
                 }
-                .onFailure { e -> _state.update { it.copy(message = e.userMessage(app)) } }
+                .onFailure { e -> if (id == detailsRequest) _details.update { it?.copy(error = e.userMessage(app)) } }
         }
     }
 
-    fun selectCandidate(index: Int) = _state.update { it.copy(candidate = index, printing = 0) }
+    fun retryDetails() {
+        val d = _details.value ?: return
+        openCard(d.cardId, d.printingId, d.variant)
+    }
+
+    fun closeDetails() {
+        detailsJob?.cancel()
+        detailsRequest++
+        _details.value = null
+    }
+
+    private fun panel(panel: Panel): ScanState? = if (panel == Panel.SCAN) _state.value else _details.value?.card
+
+    private fun updatePanel(panel: Panel, transform: (ScanState) -> ScanState) {
+        if (panel == Panel.SCAN) {
+            _state.update(transform)
+        } else {
+            _details.update { d -> d?.card?.let { d.copy(card = transform(it)) } ?: d }
+        }
+    }
+
+    fun selectCandidate(panel: Panel, index: Int) = updatePanel(panel) { it.copy(candidate = index, printing = 0) }
 
     /** Show `printing`; one found by a search is added to the candidate's printings. */
-    fun selectPrinting(printing: PrintingOut) = _state.update { s ->
-        val result = s.result ?: return@update s
-        val candidate = s.current ?: return@update s
+    fun selectPrinting(panel: Panel, printing: PrintingOut) = updatePanel(panel) { s ->
+        val result = s.result ?: return@updatePanel s
+        val candidate = s.current ?: return@updatePanel s
         val index = candidate.printings.indexOfFirst { it.id == printing.id }
-        if (index >= 0) return@update s.copy(printing = index)
+        if (index >= 0) return@updatePanel s.copy(printing = index)
         val grown = candidate.copy(printings = candidate.printings + printing)
         val candidates = result.candidates.toMutableList().also { it[s.candidate] = grown }
         s.copy(result = result.copy(candidates = candidates), printing = grown.printings.lastIndex)
@@ -247,23 +313,23 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
     suspend fun searchPrintings(cardId: Int, query: String): List<PrintingOut> =
         app.client.value?.api?.printings(cardId, query) ?: emptyList()
 
-    fun adjust(finish: String, condition: String, language: String, delta: Int) {
-        val state = _state.value
+    fun adjust(panel: Panel, finish: String, condition: String, language: String, delta: Int) {
+        val state = panel(panel) ?: return
         val candidate = state.current ?: return
         val printing = candidate.printings.getOrNull(state.printing) ?: return
-        change(AdjustIn(printing.id, finish, condition, language, delta), fromPanel = true)
+        change(AdjustIn(printing.id, finish, condition, language, delta), panel)
     }
 
     /** Quick +1 / -1 from the collection list. */
     fun adjustItem(item: ItemOut, delta: Int) =
-        change(AdjustIn(item.printingId, item.finish, item.condition, item.language, delta, source = "web"), fromPanel = false)
+        change(AdjustIn(item.printingId, item.finish, item.condition, item.language, delta, source = "web"), panel = null)
 
-    private fun change(body: AdjustIn, fromPanel: Boolean) {
+    private fun change(body: AdjustIn, panel: Panel?) {
         val client = app.client.value ?: return
-        val state = _state.value
         val delta = body.delta
-        _state.update { it.copy(busy = true) }
-        viewModelScope.launch {
+        val manual = panel?.let(::panel)?.result?.candidates?.firstOrNull()?.match == "manual"
+        panel?.let { updatePanel(it) { s -> s.copy(busy = true) } }
+        sessionScope.launch {
             try {
                 val out = client.api.adjust(body)
                 val text = if (delta > 0) {
@@ -273,20 +339,23 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 _state.update {
                     it.copy(
-                        busy = false,
                         undo = Undoable(out.transactionId, text),
                         stock = StockChange(it.stock.version + 1, out.item),
-                        lastFinish = if (fromPanel && delta > 0) body.finish else it.lastFinish,
+                        lastFinish = if (panel != null && delta > 0) body.finish else it.lastFinish,
                     )
                 }
-                if (!fromPanel) return@launch
-                if (autoNext && delta > 0 && state.result?.candidates?.firstOrNull()?.match != "manual") {
+                if (panel == null) return@launch
+                updatePanel(panel) { it.copy(busy = false) }
+                if (panel == Panel.SCAN && autoNext && delta > 0 && !manual) {
                     resume()
                 } else {
-                    refreshCurrent()
+                    refreshCurrent(panel)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                _state.update { it.copy(busy = false, message = e.userMessage(app)) }
+                panel?.let { updatePanel(it) { s -> s.copy(busy = false) } }
+                _state.update { it.copy(message = e.userMessage(app)) }
             }
         }
     }
@@ -295,25 +364,25 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
         val client = app.client.value ?: return
         val undo = _state.value.undo ?: return
         _state.update { it.copy(undo = null) }
-        viewModelScope.launch {
-            runCatching { client.api.undo(undo.transactionId) }
+        sessionScope.launch {
+            runCatchingCancellable { client.api.undo(undo.transactionId) }
                 .onSuccess { item ->
                     _state.update {
                         it.copy(message = app.getString(R.string.undone, item.name, item.quantity), stock = StockChange(it.stock.version + 1, item))
                     }
-                    refreshCurrent()
+                    Panel.entries.forEach { refreshCurrent(it) }
                 }
                 .onFailure { e -> _state.update { it.copy(message = e.userMessage(app)) } }
         }
     }
 
-    /** Reload owned copies of the card shown in the panel. */
-    private suspend fun refreshCurrent() {
+    /** Reload owned copies of the card shown in [panel]. */
+    private suspend fun refreshCurrent(panel: Panel) {
         val client = app.client.value ?: return
-        val candidate = _state.value.current ?: return
-        val fresh = runCatching { client.api.card(candidate.card.id) }.getOrNull() ?: return
+        val candidate = panel(panel)?.current ?: return
+        val fresh = runCatchingCancellable { client.api.card(candidate.card.id) }.getOrNull() ?: return
         val byId = fresh.printings.associateBy { it.id }
-        _state.update { s ->
+        updatePanel(panel) { s ->
             val candidates = s.result?.candidates?.map { c ->
                 if (c.card.id == candidate.card.id) c.copy(printings = c.printings.map { byId[it.id] ?: it }) else c
             }
@@ -327,6 +396,8 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
             readingSince = 0L
             request++ // an identify still running is no longer awaited
         }
+        identifyJob?.cancel()
+        identifyJob = null
         if (forgetCard) {
             synchronized(this) {
                 stabilizer.reset()
@@ -336,7 +407,27 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         glare?.reset()
-        _state.update { it.copy(phase = Phase.SCANNING, result = null, error = null, language = null, finish = null, finishGuess = null) }
+        _state.update { it.copy(phase = Phase.SCANNING, result = null, error = null, language = null, finish = null, condition = null, finishGuess = null) }
+    }
+
+    /** Another account or server: its work stops and nothing it showed stays. */
+    private fun reset() {
+        sessionJob.cancel()
+        sessionJob = SupervisorJob(viewModelScope.coroutineContext[Job])
+        identifyJob = null
+        detailsJob = null
+        synchronized(this) {
+            request++
+            detailsRequest++
+            readingSince = 0L
+            stabilizer.reset()
+            asianStabilizer.reset()
+            recent.clear()
+            recentAsian = null
+        }
+        glare?.reset()
+        _state.value = ScanState()
+        _details.value = null
     }
 
     fun consumeMessage() = _state.update { it.copy(message = null) }

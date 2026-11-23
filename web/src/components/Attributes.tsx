@@ -4,8 +4,10 @@
 // place of its plain attribute.
 
 import { Fragment, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Game } from '../api/queries'
 import { HIDDEN } from '../lib/attributes'
+import { Legality, LEGALITY_KEYS } from './Legality'
 import { costSymbols, thresholdSymbols } from '../lib/symbols'
 import { SymbolText } from './SymbolText'
 
@@ -65,8 +67,15 @@ function inline(v: Value, game?: Game, key?: string): ReactNode {
 }
 
 export function Attributes({ data, game }: { data: Record<string, unknown>; game?: Game }) {
+  const { t } = useTranslation()
+  const legality = LEGALITY_KEYS.filter((k) => data[k] && typeof data[k] === 'object')
   const entries = withSymbols(data as Record<string, Value>).filter(
-    ([k, v]) => !HIDDEN.has(k) && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0),
+    ([k, v]) =>
+      !HIDDEN.has(k) &&
+      !(LEGALITY_KEYS as readonly string[]).includes(k) &&
+      v !== null &&
+      v !== '' &&
+      !(Array.isArray(v) && v.length === 0),
   )
   const texts = entries.filter(([, v]) => typeof v === 'string' && v.length > 40)
   const facts = entries.filter(
@@ -76,6 +85,12 @@ export function Attributes({ data, game }: { data: Record<string, unknown>; game
 
   return (
     <div className="flex flex-col gap-3">
+      {legality.map((k) => (
+        <div key={k} className="flex flex-col gap-1.5">
+          <div className="text-sm font-semibold">{t('Legality')}</div>
+          <Legality attribute={k} value={data[k]} />
+        </div>
+      ))}
       {facts.length > 0 && (
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
           {facts.map(([k, v]) => (
