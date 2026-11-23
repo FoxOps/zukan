@@ -12,16 +12,16 @@
     "gen:api": "cd ../backend && .venv/bin/python -c \"import json; from app.main import create_app; print(json.dumps(create_app().openapi()))\" > ../web/openapi.json && cd ../web && tools/openapi/node_modules/.bin/openapi-typescript openapi.json -o src/api/schema.d.ts"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.108.0",
+    "@tanstack/react-query": "^5.108.1",
     "flag-icons": "^7.6.0",
-    "i18next": "^27.1.5",
+    "i18next": "^27.2.2",
     "i18next-browser-languagedetector": "^8.3.1",
     "openapi-fetch": "^0.17.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-i18next": "^18.0.2",
-    "react-router": "^8.5.1",
-    "recharts": "^3.10.1"
+    "react-i18next": "^18.0.3",
+    "react-router": "^8.5.2",
+    "recharts": "^3.11.0"
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.11",
