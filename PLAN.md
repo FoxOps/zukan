@@ -2793,6 +2793,7 @@ Nunito/Inter and original logos (already identical to the design assets).
 - [ ] Overview: three metrics, two-column panels (top cards, games, value history, recent changes
   with undo, movers, admin sync status); one empty-state panel for a new account. Finance panels.
 - [ ] Binder, Decks, Import / export, Settings, admin pages, Login, About, errors restyled.
-- [ ] Versions: server 0.33.0, Android unchanged 0.20.0; `.env.example` unchanged.
+- [x] Versions: server stays 0.32.0 (not released to main yet), Android unchanged 0.20.0;
+  `.env.example` unchanged (no new variable).
 - [ ] Verified: web build, oxlint, i18n check, backend web tests; local deploy, desktop/mobile,
   light/dark, admin and user flows.

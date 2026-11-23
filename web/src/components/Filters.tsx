@@ -77,12 +77,12 @@ export function RegionPicker({ value, onChange, label = false }: { value: string
   return (
     <div className="flex flex-col gap-1.5">
       {label && <span className="text-xs font-semibold">{t('Market')}</span>}
-      <div className="join w-fit flex-wrap" role="group" aria-label={t('Market')}>
+      <div className="flex flex-wrap gap-1" role="group" aria-label={t('Market')}>
         {current.games.map((g) => (
           <button
             key={g.id}
             type="button"
-            className={`btn btn-sm join-item ${g.id === value ? 'btn-primary' : 'btn-soft'}`}
+            className={`btn btn-sm min-h-9 ${g.id === value ? 'btn-primary' : ''}`}
             aria-pressed={g.id === value}
             title={g.name}
             onClick={() => pick(g)}
