@@ -2795,8 +2795,10 @@ Nunito/Inter and original logos (already identical to the design assets).
 - [x] Binder, Decks, Import / export, Settings, admin pages, Login, About, errors restyled.
 - [x] Versions: server stays 0.32.0 (not released to main yet), Android unchanged 0.20.0;
   `.env.example` unchanged (no new variable).
-- [x] User request mid-way: the sidebar is a page-long column on large screens, without its own
-  scrollbar (the phone drawer still scrolls, scrollbar hidden).
+- [x] User requests mid-way: the sidebar never scrolls away on large screens. It is as high as
+  the screen and stays in place: logo band on the top bar's line, whole menu (36px items on
+  large screens, 44px on phones), Android app / version / About at the bottom. A menu too long
+  for a short screen scrolls by itself, no scrollbar shown.
 - [x] User request mid-way (a user's idea): card page links the previous and next card of the
   set (PBL 042 → PBL 041 / PBL 043), names in the user's language, open tab kept. New
   `GET /api/printings/{id}/neighbors` (printed collector-number order, ties by id; set pages of
