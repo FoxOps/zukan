@@ -929,7 +929,12 @@ async def printing_neighbors(
 
     async def neighbor(before: bool) -> NeighborOut | None:
         query = (
-            select(Printing.card_id, Printing.id, Card.name, Printing.collector_number)
+            select(
+                Printing.card_id,
+                Printing.id,
+                display_name(user.language),
+                Printing.collector_number,
+            )
             .join(Card, Card.id == Printing.card_id)
             .where(Printing.set_id == current.set_id)
             .where(

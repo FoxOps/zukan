@@ -2797,6 +2797,10 @@ Nunito/Inter and original logos (already identical to the design assets).
   `.env.example` unchanged (no new variable).
 - [x] User request mid-way: the sidebar is a page-long column on large screens, without its own
   scrollbar (the phone drawer still scrolls, scrollbar hidden).
+- [x] User request mid-way (a user's idea): card page links the previous and next card of the
+  set (PBL 042 → PBL 041 / PBL 043), names in the user's language, open tab kept. New
+  `GET /api/printings/{id}/neighbors` (printed collector-number order, ties by id; set pages of
+  the catalog search stop at 200 cards, too few for large sets); `tests/test_neighbors.py`.
 - [x] Settings: Appearance (light/dark) shares the top bar's saved theme (`lib/theme.ts` store).
   Light `warning` darkened to #8f5f00 (5.1:1 as text); no gold text on cream.
 - [x] Verified: web build, oxlint, i18n check (882 texts, en/fr/de/es), backend 348 tests. Local
