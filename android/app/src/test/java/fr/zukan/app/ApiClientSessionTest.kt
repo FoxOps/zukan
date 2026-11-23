@@ -121,4 +121,20 @@ class ApiClientSessionTest {
         if (server.requestCount > 0) assertNull(server.takeRequest().headers["Authorization"])
         assertEquals(alice, store.tokens)
     }
+
+    @Test
+    fun closeShutsPooledConnectionsInTheBackground() = runTest {
+        // Closing a TLS connection writes to the network: never on the caller's (main) thread.
+        val later = mutableListOf<Runnable>()
+        val api = ApiClient(server.url("/").toString(), store, background = { later += it }) {}
+        server.enqueue(json("""{"status":"ok","version":"1"}"""))
+        api.api.health()
+        assertEquals(1, api.http.connectionPool.connectionCount())
+
+        api.close()
+        assertEquals(1, api.http.connectionPool.connectionCount())
+
+        later.forEach(Runnable::run)
+        assertEquals(0, api.http.connectionPool.connectionCount())
+    }
 }

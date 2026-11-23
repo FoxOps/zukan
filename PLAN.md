@@ -2819,3 +2819,23 @@ Nunito/Inter and original logos (already identical to the design assets).
   Desktop 1440 and phone 390: drawer and filter sheet close with Escape, focus goes back, no
   page-wide horizontal scroll. Light and dark.
 - [ ] User: review on the local deploy; 200% zoom and a screen-reader pass were not done.
+
+### Report server 0.32.0 + Android 0.20.0: connecting fails with NetworkOnMainThreadException (user, 2026-11-23)
+Branch `2026-11-23-003-android-connect-main-thread` from `dev`, pull request into `dev`.
+- [x] HIGH: connecting to a server crashed with `android.os.NetworkOnMainThreadException` (since 0.20.0).
+  Cause: `SessionViewModel.connect` replaces the client after the redirect check; `ApiClient.close()`
+  then ran `connectionPool.evictAll()` on the main thread, and closing the pooled TLS connection
+  writes to the network (close_notify). Same path on logout, expiry, disconnection and server change.
+  Fix: `close()` still ends the session and cancels calls at once, the pool closes on OkHttp's
+  background threads. Test `closeShutsPooledConnectionsInTheBackground`.
+- [x] Dependabot #79 (android group: Gradle 9.9.2, Compose BOM 2026.11.01, CameraX 1.7.0, AGP 9.5.2)
+  and #78 (web group: react-query 5.108.1, i18next 27.2.2, react-i18next 18.0.3, react-router 8.5.2,
+  recharts 3.11.0) retargeted to this branch and merged. Compose 1.13 (BOM 2026.11.01) needs the
+  37.1+ APIs: compileSdk 37.2 (`release(37) { minorApiLevel = 2 }`, targetSdk stays 37), CI workflows
+  install `platforms;android-37.2`.
+- [x] Versions: Android 0.20.1, server 0.32.1 (web dependencies ship in the server image);
+  `.env.example`: only the `TCG_USER_AGENT` example follows the version (no new variable).
+- [x] Verified: Android unit tests, lintRelease, assembleDebug (not on a phone: the crash needs an
+  HTTPS server); web build (tsc + vite), i18n check
+  (887 texts), oxlint (only the two fast-refresh warnings fixed by #77).
+- [ ] User: try connect / login / logout / server change on a phone, then release Android 0.20.1.
