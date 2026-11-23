@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
@@ -9,7 +9,7 @@ import { PriceRange } from '../pages/catalog/PriceRange'
 import { TYPE_TO_SEARCH } from '../lib/typeToSearch'
 import { CardImage } from './CardImage'
 import { ShownName } from './ShownName'
-import { StockDialog, type StockTarget } from './StockDialog'
+import { useCardStock } from './CardStock'
 
 type Card = Schemas['CardSummaryOut']
 
@@ -20,15 +20,13 @@ const RESULTS = 10
 export function CatalogSearch({ game }: { game: string }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const client = useQueryClient()
   const { data: games = [] } = useGames()
   const [text, setText] = useState('')
   const [q, setQ] = useState('')
   const [allGames, setAllGames] = useState(false)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
-  const [target, setTarget] = useState<{ target: StockTarget; versions: StockTarget[]; game: string } | null>(null)
-  const box = useRef<HTMLDivElement>(null)
+    const box = useRef<HTMLDivElement>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const scope = allGames ? '' : game
 
@@ -71,24 +69,10 @@ export function CatalogSearch({ game }: { game: string }) {
     clear()
     navigate(cardLink(card))
   }
-  // The card's versions, for the stock dialog (the shown one preselected).
-  const add = async (card: Card) => {
-    const full = await client.fetchQuery({
-      queryKey: ['card', card.id],
-      queryFn: () => call(api.GET('/api/cards/{card_id}', { params: { path: { card_id: card.id } } })),
-    })
-    const versions = full.printings.map((p) => ({
-      printingId: p.id,
-      title: `${p.name || full.name} - ${p.set.code} ${p.collector_number ?? ''}`,
-      finishes: p.finishes,
-      languages: p.languages,
-      label: `${p.set.code} ${p.collector_number ?? ''} · ${p.set.name}${p.set.release_date ? ` (${p.set.release_date.slice(0, 4)})` : ''}`,
-    }))
-    const shown = versions.find((v) => v.printingId === card.printing_id) ?? versions[0]
-    if (shown) {
-      setOpen(false)
-      setTarget({ target: shown, versions, game: card.game_id })
-    }
+  const stock = useCardStock()
+  const add = (card: Card) => {
+    setOpen(false)
+    void stock.add(card)
   }
 
   return (
@@ -119,7 +103,7 @@ export function CatalogSearch({ game }: { game: string }) {
               setActive((i) => (i - 1 + cards.length) % cards.length)
             } else if (e.key === 'Enter' && open && cards[active]) {
               e.preventDefault()
-              if (e.shiftKey) void add(cards[active])
+              if (e.shiftKey) add(cards[active])
               else go(cards[active])
             }
           }}
@@ -169,7 +153,7 @@ export function CatalogSearch({ game }: { game: string }) {
                     <button
                       type="button"
                       className="btn btn-circle btn-primary btn-xs shrink-0"
-                      onClick={() => void add(card)}
+                      onClick={() => add(card)}
                       aria-label={t('Add / remove copies')}
                       title={`${t('Add / remove copies')} (Shift+Enter)`}
                     >
@@ -182,12 +166,7 @@ export function CatalogSearch({ game }: { game: string }) {
           )}
         </div>
       )}
-      <StockDialog
-        game={games.find((g) => g.id === target?.game)}
-        target={target?.target ?? null}
-        versions={target?.versions ?? []}
-        onClose={() => setTarget(null)}
-      />
+      {stock.dialog}
     </div>
   )
 }

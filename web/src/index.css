@@ -115,6 +115,28 @@ h3,
   }
 }
 
+/* Field Journal buttons: plain ones are paper with a sand border (they stay visible on the
+   cream page and on the night one); coloured, ghost, link and outline ones keep daisyUI's. */
+.btn:not(
+    .btn-ghost,
+    .btn-link,
+    .btn-outline,
+    .btn-soft,
+    .btn-dash,
+    .btn-primary,
+    .btn-secondary,
+    .btn-accent,
+    .btn-neutral,
+    .btn-info,
+    .btn-success,
+    .btn-warning,
+    .btn-error,
+    .btn-active
+  ) {
+  --btn-bg: var(--color-base-100);
+  --btn-border: var(--color-base-300);
+}
+
 /* Logo variant for the current theme (both <img> are in the page, one is hidden). */
 [data-theme="zukan-dark"] .zukan-logo-light,
 .zukan-logo-dark {

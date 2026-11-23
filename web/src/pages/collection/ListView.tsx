@@ -12,9 +12,10 @@ import { itemLink, type ViewProps } from './types'
 export function ListView({ items, games, showGame, busy, step, edit }: ViewProps) {
   const { t } = useTranslation()
   return (
-    <div className="overflow-x-auto rounded-box border border-base-300">
-      <table className="table table-sm">
-        <thead>
+    // Scrolls on its own when narrow, so the page never does.
+    <div className="overflow-x-auto rounded-2xl border border-base-300 bg-base-100" tabIndex={0} role="region" aria-label={t('Collection table, scroll for more columns')}>
+      <table className="table">
+        <thead className="bg-neutral text-neutral-content">
           <tr>
             <th>{t('Card')}</th>
             <th>{t('Version')}</th>
@@ -22,7 +23,7 @@ export function ListView({ items, games, showGame, busy, step, edit }: ViewProps
             <th className="text-center">{t('Trend')}</th>
             <th className="text-right">{t('Unit')}</th>
             <th className="text-right">{t('Total')}</th>
-            <th />
+            <th><span className="sr-only">{t('Edit')}</span></th>
           </tr>
         </thead>
         <tbody>
@@ -30,16 +31,16 @@ export function ListView({ items, games, showGame, busy, step, edit }: ViewProps
             const g = games.find((x) => x.id === item.game_id)
             return (
               <tr key={item.id} className="hover:bg-base-200">
-                <td>
-                  <Link to={itemLink(item)} className="link-hover font-medium">
+                <td className="min-w-48">
+                  <Link to={itemLink(item)} className="link-hover font-semibold">
                     <ShownName name={item.name} translation={item.translation} />
                   </Link>
-                  <div className="text-xs text-base-content/60">
+                  <div className="text-xs text-base-content/70">
                     {item.set.code} {item.collector_number} · {item.set.name}
                     {showGame && ` · ${g?.name ?? item.game_id}`}
                   </div>
                   <RarityBadge game={g} rarity={item.rarity} code={item.rarity_code} lang={item.language} className="text-xs text-base-content/70" />
-                  {item.notes && <div className="text-xs italic text-base-content/60">{item.notes}</div>}
+                  {item.notes && <div className="text-xs italic text-base-content/70">{item.notes}</div>}
                 </td>
                 <td className="whitespace-nowrap text-xs">
                   <div className="flex items-center gap-1">
@@ -59,7 +60,7 @@ export function ListView({ items, games, showGame, busy, step, edit }: ViewProps
                 </td>
                 <td className="text-right font-medium whitespace-nowrap">{formatMoney(item.total, item.currency)}</td>
                 <td>
-                  <button className="btn btn-ghost btn-xs" onClick={() => edit(item)}>{t('Edit')}</button>
+                  <button className="btn btn-sm" onClick={() => edit(item)}>{t('Edit')}</button>
                 </td>
               </tr>
             )

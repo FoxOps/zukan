@@ -6,9 +6,9 @@ export function Stepper({ item, busy, step }: { item: Item; busy: boolean; step:
   const { t } = useTranslation()
   return (
     <div className="join justify-center">
-      <button className="btn join-item btn-xs" disabled={busy || item.quantity === 0} onClick={() => step(item, -1)} aria-label={t('Remove one')}>−</button>
-      <span className="join-item btn btn-xs pointer-events-none w-10">{item.quantity}</span>
-      <button className="btn join-item btn-xs" disabled={busy} onClick={() => step(item, 1)} aria-label={t('Add one')}>+</button>
+      <button className="btn join-item btn-sm min-w-9" disabled={busy || item.quantity === 0} onClick={() => step(item, -1)} aria-label={t('Remove one')}>−</button>
+      <span className="join-item btn btn-sm pointer-events-none w-10 tabular-nums" aria-label={t('Quantity')}>{item.quantity}</span>
+      <button className="btn join-item btn-sm min-w-9" disabled={busy} onClick={() => step(item, 1)} aria-label={t('Add one')}>+</button>
     </div>
   )
 }

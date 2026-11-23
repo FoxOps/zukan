@@ -7,6 +7,7 @@ import { useGame } from '../api/queries'
 import { formatMoney } from '../lib/format'
 import { ConditionBadge, FinishBadge, LangFlag } from './Badges'
 import { useToast } from './toast'
+import { DialogHeader } from './Page'
 import { RarityBadge } from './RarityBadge'
 import { ShownName } from './ShownName'
 
@@ -70,28 +71,26 @@ function ItemForm({ item, close }: { item: Item; close: () => void }) {
   })
 
   return (
-    <div className="modal-box animate-in fade-in zoom-in-95 duration-200">
-        <h3 className="text-lg font-bold">
-          <ShownName name={item.name} translation={item.translation} />
-        </h3>
-        <p className="flex flex-wrap items-center gap-1 text-sm text-base-content/60">
+    <div className="modal-box max-w-xl rounded-[20px] animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none">
+        <DialogHeader eyebrow={t('Your collection')} title={<>{t('Edit')} <ShownName name={item.name} translation={item.translation} /></>}>
           {item.set.name} {item.collector_number}
           <RarityBadge game={game} rarity={item.rarity} code={item.rarity_code} lang={item.language} />
           <FinishBadge game={game} finish={item.finish} />
           <ConditionBadge condition={item.condition} />
           <LangFlag lang={item.language} />
-        </p>
-        <div className="mt-4 flex flex-col gap-2">
+          <span>· {t('{{count}} owned', { count: item.quantity })}</span>
+        </DialogHeader>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="fieldset">
             <span className="fieldset-legend">{t('Quantity')}</span>
-            <input type="number" min={0} className="input w-32" value={quantity} onChange={(e) => setQuantity(Math.max(0, Number(e.target.value) || 0))} />
+            <input type="number" min={0} className="input w-full" value={quantity} onChange={(e) => setQuantity(Math.max(0, Number(e.target.value) || 0))} />
           </label>
           <label className="fieldset">
             <span className="fieldset-legend">{t('Manual price ({{currency}})', { currency: item.currency })}</span>
-            <input inputMode="decimal" className="input w-40" placeholder={item.market_price ? t('Market {{price}}', { price: formatMoney(item.market_price, item.currency) }) : t('No market price')} value={price} onChange={(e) => setPrice(e.target.value)} />
+            <input inputMode="decimal" className="input w-full" placeholder={item.market_price ? t('Market {{price}}', { price: formatMoney(item.market_price, item.currency) }) : t('No market price')} value={price} onChange={(e) => setPrice(e.target.value)} />
             <span className="label">{t('Empty = use the market price')}</span>
           </label>
-          <label className="fieldset">
+          <label className="fieldset sm:col-span-2">
             <span className="fieldset-legend">{t('Notes')}</span>
             <textarea className="textarea w-full" maxLength={1000} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </label>
@@ -102,15 +101,16 @@ function ItemForm({ item, close }: { item: Item; close: () => void }) {
               {t('Delete item and its history?')}
             </button>
           ) : (
-            <button className="btn btn-ghost text-error mr-auto" onClick={() => setConfirmDelete(true)}>
+            <button className="btn btn-ghost min-h-11 text-error mr-auto" onClick={() => setConfirmDelete(true)}>
               {t('Delete')}
             </button>
           )}
           <form method="dialog">
-            <button className="btn btn-ghost">{t('Cancel')}</button>
+            <button className="btn min-h-11">{t('Cancel')}</button>
           </form>
-          <button className="btn btn-primary" disabled={save.isPending} onClick={() => save.mutate()}>
-            {t('Save')}
+          <button className="btn btn-primary min-h-11" disabled={save.isPending} onClick={() => save.mutate()}>
+            {save.isPending && <span className="loading loading-spinner loading-xs" />}
+            {t('Save changes')}
           </button>
         </div>
     </div>

@@ -215,7 +215,9 @@ export function Layout() {
   )
 
   return (
-    <div className="min-h-screen bg-base-200">
+    // Large screens: the sidebar is a column of the page, as long as the page (no scrollbar of
+    // its own). Elsewhere it is a drawer over the page.
+    <div className="min-h-screen bg-base-200 lg:flex">
       {/* Sidebar: fixed column on large screens, a drawer elsewhere. */}
       {menuOpen && <div className="fixed inset-0 z-40 bg-neutral/60 lg:hidden" onClick={closeMenu} aria-hidden="true" />}
       <aside
@@ -223,7 +225,7 @@ export function Layout() {
         aria-label={t('Main navigation')}
         // A page opened from the menu closes it.
         onClick={(e) => (e.target as HTMLElement).closest('a[href^="/"]') && setMenuOpen(false)}
-        className={`fixed inset-y-0 left-0 z-50 flex w-60 flex-col overflow-y-auto bg-neutral [scrollbar-width:thin] px-4 py-6 text-neutral-content transition-transform motion-reduce:transition-none lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col overflow-y-auto bg-neutral px-4 py-6 text-neutral-content transition-transform [scrollbar-width:none] motion-reduce:transition-none lg:static lg:z-auto lg:translate-x-0 lg:overflow-visible ${
           menuOpen ? 'translate-x-0' : '-translate-x-full max-lg:invisible'
         }`}
       >
@@ -269,7 +271,7 @@ export function Layout() {
         </div>
       </aside>
 
-      <div className="flex min-h-screen flex-col lg:pl-60">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-base-300 bg-base-100 px-3 sm:gap-4 sm:px-6 lg:h-[76px] lg:px-9">
           <button type="button" className="btn btn-square btn-ghost min-h-11 min-w-11 lg:hidden" onClick={openMenu} aria-label={t('Menu')} aria-expanded={menuOpen}>
             <Icon name="menu" />

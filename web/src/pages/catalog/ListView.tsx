@@ -8,12 +8,13 @@ import { PriceRange } from './PriceRange'
 import { cardLink, type CatalogViewProps } from './types'
 
 /** One row per card: small picture, name, shown version, rarity, colors, prices. */
-export function ListView({ cards, games, showGame }: CatalogViewProps) {
+export function ListView({ cards, games, showGame, add, adding }: CatalogViewProps) {
   const { t } = useTranslation()
   return (
-    <div className="overflow-x-auto rounded-box border border-base-300">
-      <table className="table table-sm">
-        <thead>
+    // Scrolls on its own when narrow, so the page never does.
+    <div className="overflow-x-auto rounded-2xl border border-base-300 bg-base-100" tabIndex={0} role="region" aria-label={t('Catalog table, scroll for more columns')}>
+      <table className="table">
+        <thead className="bg-neutral text-neutral-content">
           <tr>
             <th className="w-12" />
             <th>{t('Card')}</th>
@@ -21,6 +22,8 @@ export function ListView({ cards, games, showGame }: CatalogViewProps) {
             <th>{t('Rarity')}</th>
             <th>{t('Colors')}</th>
             <th className="text-right">{t('Price')}</th>
+            <th className="text-right">{t('Versions')}</th>
+            <th><span className="sr-only">{t('Collection')}</span></th>
           </tr>
         </thead>
         <tbody>
@@ -33,14 +36,11 @@ export function ListView({ cards, games, showGame }: CatalogViewProps) {
                     <CardImage thumb src={card.image} alt={card.name} landscape={card.orientation === 'landscape'} />
                   </Link>
                 </td>
-                <td>
-                  <Link to={cardLink(card)} className="link-hover font-medium">
+                <td className="min-w-40">
+                  <Link to={cardLink(card)} className="link-hover font-semibold">
                     <ShownName name={card.name} translation={card.translation} />
                   </Link>
-                  <div className="text-xs text-base-content/60">
-                    {showGame && `${game?.name ?? card.game_id} · `}
-                    {t('{{count}} printings', { count: card.printing_count })}
-                  </div>
+                  {showGame && <div className="text-xs text-base-content/70">{game?.name ?? card.game_id}</div>}
                 </td>
                 <td className="text-xs">
                   {card.set && (
@@ -48,7 +48,7 @@ export function ListView({ cards, games, showGame }: CatalogViewProps) {
                       <div className="whitespace-nowrap">
                         {card.set.code} {card.collector_number}
                       </div>
-                      <div className="text-base-content/60">{card.set.name}</div>
+                      <div className="text-base-content/70">{card.set.name}</div>
                     </>
                   )}
                 </td>
@@ -58,8 +58,15 @@ export function ListView({ cards, games, showGame }: CatalogViewProps) {
                 <td>
                   <ColorBadges game={game} colors={card.colors} />
                 </td>
-                <td className="text-right whitespace-nowrap font-medium">
+                <td className="whitespace-nowrap text-right font-medium">
                   <PriceRange card={card} />
+                </td>
+                <td className="text-right tabular-nums">{card.printing_count}</td>
+                <td className="text-right">
+                  <button type="button" className="btn btn-sm" disabled={adding === card.id} onClick={() => add(card)} aria-label={`${t('Add copies')}: ${card.name}`}>
+                    {adding === card.id && <span className="loading loading-spinner loading-xs" />}
+                    {t('Add')}
+                  </button>
                 </td>
               </tr>
             )
@@ -69,4 +76,3 @@ export function ListView({ cards, games, showGame }: CatalogViewProps) {
     </div>
   )
 }
-

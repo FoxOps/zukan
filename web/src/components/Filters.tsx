@@ -29,21 +29,20 @@ function remember(game: Game) {
 }
 
 /** One tab per game shown (user settings), the games of one family (Pokémon, Yu-Gi-Oh!)
- * under one tab with their markets below it (International | Asia | China). */
-export function GameTabs({ value, onChange, allowAll = true }: GameTabsProps) {
+ * under one tab; their markets (International | Asia | China) are picked with
+ * `RegionPicker`, below the tabs unless `regions` is false (the page shows it elsewhere). */
+export function GameTabs({ value, onChange, allowAll = true, regions = true }: GameTabsProps & { regions?: boolean }) {
   const { t } = useTranslation()
   const { shown } = useShownGames()
   const groups = gameGroups(shown)
   const current = groups.find((group) => group.games.some((g) => g.id === value))
-  const pick = (game: Game) => {
-    remember(game)
-    onChange(game.id)
-  }
+  const tab = (active: boolean) =>
+    `btn min-h-11 shrink-0 rounded-xl border-0 px-4 ${active ? 'btn-neutral' : 'btn-ghost font-semibold'}`
   return (
-    <div className="flex flex-col gap-2">
-      <div role="tablist" className="tabs tabs-box w-fit">
+    <div className="flex min-w-0 flex-col gap-2">
+      <div role="tablist" aria-label={t('Games')} className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
         {allowAll && shown.length > 1 && (
-          <button role="tab" className={`tab ${value === '' ? 'tab-active' : ''}`} onClick={() => onChange('')}>
+          <button role="tab" aria-selected={value === ''} className={tab(value === '')} onClick={() => onChange('')}>
             {t('All games')}
           </button>
         )}
@@ -51,34 +50,52 @@ export function GameTabs({ value, onChange, allowAll = true }: GameTabsProps) {
           <button
             key={group.id}
             role="tab"
-            className={`tab ${current?.id === group.id ? 'tab-active' : ''}`}
+            aria-selected={current?.id === group.id}
+            className={tab(current?.id === group.id)}
             onClick={() => current?.id !== group.id && onChange(rememberedGame(group))}
           >
             {group.name}
           </button>
         ))}
       </div>
-      {current && current.games.length > 1 && (
-        <div className="join w-fit" role="group" aria-label={t('Market')}>
-          {current.games.map((g) => (
-            <button
-              key={g.id}
-              type="button"
-              className={`btn btn-sm join-item ${g.id === value ? 'btn-primary' : 'btn-soft'}`}
-              aria-pressed={g.id === value}
-              title={g.name}
-              onClick={() => pick(g)}
-            >
-              {t(g.region_label ?? g.name)}
-            </button>
-          ))}
-        </div>
-      )}
+      {regions && <RegionPicker value={value} onChange={onChange} />}
     </div>
   )
 }
 
-export function SearchInput({ value, onChange, placeholder }: { value: string; onChange: (q: string) => void; placeholder: string }) {
+/** Market of the game family selected (International | Asia | China), remembered per family.
+ * Nothing when the family has a single market. */
+export function RegionPicker({ value, onChange, label = false }: { value: string; onChange: (id: string) => void; label?: boolean }) {
+  const { t } = useTranslation()
+  const { shown } = useShownGames()
+  const current = gameGroups(shown).find((group) => group.games.some((g) => g.id === value))
+  if (!current || current.games.length < 2) return null
+  const pick = (game: Game) => {
+    remember(game)
+    onChange(game.id)
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      {label && <span className="text-xs font-semibold">{t('Market')}</span>}
+      <div className="join w-fit flex-wrap" role="group" aria-label={t('Market')}>
+        {current.games.map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            className={`btn btn-sm join-item ${g.id === value ? 'btn-primary' : 'btn-soft'}`}
+            aria-pressed={g.id === value}
+            title={g.name}
+            onClick={() => pick(g)}
+          >
+            {t(g.region_label ?? g.name)}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function SearchInput({ value, onChange, placeholder, className = 'w-full sm:w-72' }: { value: string; onChange: (q: string) => void; placeholder: string; className?: string }) {
   const { t } = useTranslation()
   const [text, setText] = useState(value)
   // Follow the URL when it changes elsewhere (back button, links, game change).
@@ -106,11 +123,12 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
     onChange('')
   }
   return (
-    <label className="input w-full sm:w-72">
+    <label className={`input ${className}`}>
       <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2 opacity-60"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
       <input
         {...TYPE_TO_SEARCH}
         type="text"
+        aria-label={placeholder}
         enterKeyHint="search"
         placeholder={placeholder}
         value={text}
@@ -128,13 +146,13 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
   )
 }
 
-export function SetSelect({ game, value, onChange }: { game: string; value: string; onChange: (id: string) => void }) {
+export function SetSelect({ game, value, onChange, className = 'w-full sm:w-64' }: { game: string; value: string; onChange: (id: string) => void; className?: string }) {
   const { t } = useTranslation()
   const { data: sets = [] } = useSets(game || null)
   if (!game) return null
   return (
     <Select
-      className="w-full sm:w-64"
+      className={className}
       value={value}
       onChange={onChange}
       aria-label={t('Set')}
@@ -169,7 +187,7 @@ export function ColorFilter({ game, value, onChange, mode, onModeChange }: Color
     <div className="flex flex-wrap items-center gap-1">
       {mode && onModeChange && (
         <Select
-          className="select-sm mr-2 w-52"
+          className="select-sm mb-1 w-full max-w-52"
           value={mode}
           onChange={(v) => onModeChange(v as ColorMode)}
           aria-label={t('Color match')}
@@ -229,10 +247,10 @@ export function AdvancedFilters({ game, value, onChange }: { game?: Game; value:
   return (
     <div className="flex flex-wrap items-end gap-3">
       {game.filters.map((f) => (
-        <label key={f.key} className="fieldset py-0">
+        <label key={f.key} className="fieldset w-full max-w-48 py-0">
           <span className="fieldset-legend pb-1 pt-0 text-xs">{t(f.label)}</span>
           <Select
-            className="select-sm w-48"
+            className="select-sm w-full max-w-48"
             value={chosen.get(f.key) ?? ''}
             onChange={(v) => pick(f.key, v)}
             options={[{ value: '', label: t('Any') }, ...(values.data?.[f.key] ?? []).map((v) => ({ value: v, label: v }))]}

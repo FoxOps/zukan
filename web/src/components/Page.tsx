@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { Icon } from './Icon'
 import { Mascot } from './Logo'
@@ -106,6 +107,26 @@ export function EmptyState({ title, children, actions }: { title: ReactNode; chi
       <h2 className="text-2xl">{title}</h2>
       {children && <div className="max-w-lg text-base-content/70">{children}</div>}
       {actions && <div className="mt-2 flex flex-wrap justify-center gap-2">{actions}</div>}
+    </div>
+  )
+}
+
+/** Top of a dialog: eyebrow, title, a line of details and the close button (inside a
+ * `<dialog>`, it closes it). */
+export function DialogHeader({ eyebrow, title, children }: { eyebrow?: ReactNode; title: ReactNode; children?: ReactNode }) {
+  const { t } = useTranslation()
+  return (
+    <div className="mb-5 flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        {eyebrow && <Eyebrow className="mb-1.5">{eyebrow}</Eyebrow>}
+        <h3 className="break-words text-2xl">{title}</h3>
+        {children && <div className="mt-1 flex flex-wrap items-center gap-1 text-sm text-base-content/70">{children}</div>}
+      </div>
+      <form method="dialog">
+        <button className="btn btn-square btn-ghost min-h-11 min-w-11" aria-label={t('Close')}>
+          <Icon name="close" />
+        </button>
+      </form>
     </div>
   )
 }
