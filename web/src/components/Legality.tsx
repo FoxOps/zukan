@@ -16,7 +16,7 @@ const STYLE: Record<Status, { className: string; mark: string; label: string }> 
   legal: { className: 'border-success bg-success/15 text-success', mark: '✓', label: 'Legal' },
   restricted: { className: 'border-warning bg-warning/15 text-warning', mark: '!', label: 'Restricted' },
   banned: { className: 'border-error bg-error/15 text-error', mark: '✕', label: 'Banned' },
-  out: { className: 'border-base-300 text-base-content/70', mark: '–', label: 'Not legal' },
+  out: { className: 'border-error bg-error/15 text-error', mark: '✕', label: 'Not legal' },
 }
 
 function status(key: string, value: unknown): Status {
@@ -47,7 +47,7 @@ function formatName(format: string): string {
 }
 
 /** One badge per format: green legal, orange restricted / limited, red banned / forbidden,
- * plain when not legal there. A mark and the tooltip say it without color too. */
+ * red too when not legal there. A mark and the tooltip say it without color too. */
 export function Legality({ attribute, value }: { attribute: string; value: unknown }) {
   const { t } = useTranslation()
   if (!value || typeof value !== 'object') return null
