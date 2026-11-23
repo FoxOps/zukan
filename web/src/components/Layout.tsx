@@ -180,7 +180,7 @@ export function Layout() {
         to={n.to}
         end={n.end}
         className={({ isActive }) =>
-          `flex min-h-11 items-center gap-3 rounded-xl px-3.5 py-2.5 text-[15px] ${
+          `flex min-h-11 items-center gap-3 rounded-xl px-3.5 py-2.5 text-[15px] lg:min-h-10 lg:py-2 ${
             isActive ? 'bg-primary font-semibold text-primary-content' : 'hover:bg-white/10'
           }`
         }
@@ -191,7 +191,7 @@ export function Layout() {
     </li>
   )
   const group = (label: string) => (
-    <li className="mx-3 mb-2 mt-5 text-[10px] font-semibold uppercase tracking-[0.13em] text-neutral-content/70" role="presentation">
+    <li className="mx-3 mb-1.5 mt-4 text-[10px] font-semibold uppercase tracking-[0.13em] text-neutral-content/70" role="presentation">
       {label}
     </li>
   )
@@ -219,7 +219,7 @@ export function Layout() {
         aria-label={t('Main navigation')}
         // A page opened from the menu closes it.
         onClick={(e) => (e.target as HTMLElement).closest('a[href^="/"]') && setMenuOpen(false)}
-        className={`fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col overflow-y-auto bg-neutral px-4 pb-6 text-neutral-content transition-transform [scrollbar-width:none] motion-reduce:transition-none lg:static lg:z-auto lg:translate-x-0 lg:overflow-visible ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col overflow-y-auto bg-neutral px-4 text-neutral-content transition-transform [scrollbar-width:none] motion-reduce:transition-none lg:static lg:z-auto lg:translate-x-0 lg:overflow-visible ${
           menuOpen ? 'translate-x-0' : '-translate-x-full max-lg:invisible'
         }`}
       >
@@ -235,7 +235,7 @@ export function Layout() {
         <div className="mb-4 mt-2 px-2.5 text-[11px] text-neutral-content/75">
           <span lang="ja">図鑑</span> · {t('Your card encyclopedia')}
         </div>
-        <nav aria-label={t('Main navigation')}>
+        <nav aria-label={t('Main navigation')} className="pb-6">
           <ul className="flex flex-col gap-1">
             {COLLECTION_NAV.filter(allowed).map(navLink)}
             {group(t('Workspace'))}
@@ -248,13 +248,16 @@ export function Layout() {
             )}
           </ul>
         </nav>
-        <div className="mt-auto flex flex-col gap-2 px-3 pt-6 text-xs text-neutral-content/75">
+        {/* App download, version and About: kept in view at the bottom of the screen, not
+            only at the end of long pages. */}
+        <div className="sticky bottom-0 -mx-4 mt-auto flex flex-col gap-1 border-t border-white/10 bg-neutral px-7 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 text-xs text-neutral-content/75">
+          <span aria-hidden className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-to-t from-neutral to-transparent" />
           {/* Phones: the language is chosen here (no room in the top bar). */}
           <div className="sm:hidden">
             <LanguageMenu up />
           </div>
           {android.data && (
-            <a href={android.data.url} className="link link-hover flex min-h-8 items-center gap-1.5" title={t('Download the Android app')}>
+            <a href={android.data.url} className="link link-hover flex min-h-7 items-center gap-1.5" title={t('Download the Android app')}>
               <Icon name="download" className="h-4 w-4" />
               {t('Android app {{version}}', { version: android.data.version })}
             </a>
