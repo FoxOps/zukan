@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,7 +47,10 @@ import coil3.ImageLoader
 import coil3.svg.SvgDecoder
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import fr.zukan.app.data.AppLanguage
+import fr.zukan.app.ui.CardDetailsSheet
 import fr.zukan.app.ui.CollectionScreen
+import fr.zukan.app.ui.CollectionViewModel
+import fr.zukan.app.ui.SearchViewModel
 import fr.zukan.app.ui.ZukanTheme
 import fr.zukan.app.ui.LoginScreen
 import fr.zukan.app.ui.ScanScreen
@@ -63,13 +67,15 @@ class MainActivity : ComponentActivity() {
     private val session: SessionViewModel by viewModels()
     private val scan: ScanViewModel by viewModels()
     private val updates: UpdateViewModel by viewModels()
+    private val collection: CollectionViewModel by viewModels()
+    private val search: SearchViewModel by viewModels()
 
     override fun attachBaseContext(newBase: Context) = super.attachBaseContext(AppLanguage.wrap(newBase))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { ZukanTheme { App(session, scan, updates, application as ZukanApp) } }
+        setContent { ZukanTheme { App(session, scan, updates, collection, search, application as ZukanApp) } }
     }
 }
 
@@ -109,16 +115,25 @@ private fun ZukanNavigationBar(tab: Tab, tabs: List<Tab>, onTab: (Tab) -> Unit) 
 }
 
 @Composable
-private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateViewModel, app: ZukanApp) {
+private fun App(
+    session: SessionViewModel,
+    scan: ScanViewModel,
+    updates: UpdateViewModel,
+    collection: CollectionViewModel,
+    search: SearchViewModel,
+    app: ZukanApp,
+) {
     val state by session.state.collectAsStateWithLifecycle()
     val settings by session.settings.collectAsStateWithLifecycle()
     val scanState by scan.state.collectAsStateWithLifecycle()
+    val details by scan.details.collectAsStateWithLifecycle()
     val client by app.client.collectAsStateWithLifecycle()
     val updateState by updates.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activity = LocalActivity.current
     val undoLabel = stringResource(R.string.undo)
-    // Card images go through the authenticated HTTP client; caches outlive the client.
+    // Card images go through the authenticated HTTP client; caches outlive the client. The
+    // loader of an ended session stops (its pictures are no longer asked for).
     val imageLoader = remember(client) {
         ImageLoader.Builder(context)
             .memoryCache { app.imageMemory }
@@ -129,6 +144,12 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
                 add(SvgDecoder.Factory())
             }
             .build()
+    }
+    // Not on leaving the screen (rotation): the memory cache is shared.
+    val previousLoader = remember { arrayOfNulls<ImageLoader>(1) }
+    LaunchedEffect(imageLoader) {
+        previousLoader[0]?.takeIf { it !== imageLoader }?.shutdown()
+        previousLoader[0] = imageLoader
     }
     val imageUrl = { path: String? -> client?.imageUrl(path) }
 
@@ -143,6 +164,7 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
             LaunchedEffect(tabs) { if (tab !in tabs) tab = Tab.COLLECTION }
             BackHandler(enabled = tab != Tab.COLLECTION) { tab = Tab.COLLECTION }
             val snackbar = remember { SnackbarHostState() }
+            val tabStates = rememberSaveableStateHolder()
             // Offers a newer app (asks before downloading anything).
             LaunchedEffect(Unit) { updates.checkAutomatically() }
             // Settings shared with the web UI may have changed there.
@@ -174,11 +196,15 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
                 bottomBar = { ZukanNavigationBar(tab, tabs) { tab = it } },
             ) { padding ->
                 Box(Modifier.padding(padding)) {
+                    // Each tab keeps its saved state (scroll position, open filters) while
+                    // another one is shown.
+                    tabStates.SaveableStateProvider(tab.name) {
                     when (tab) {
                         Tab.SCAN -> ScanScreen(scan, scanState, state.catalog, settings, state.priceSources, imageUrl, imageLoader, snackbar, onSearch = { tab = Tab.SEARCH }) { game ->
                             session.updateSettings { it.copy(game = game) }
                         }
                         Tab.COLLECTION -> CollectionScreen(
+                            collection,
                             client?.api,
                             // Games shown in the settings, like scan and search.
                             state.catalog,
@@ -189,19 +215,19 @@ private fun App(session: SessionViewModel, scan: ScanViewModel, updates: UpdateV
                             imageLoader,
                             onGrid = { grid -> session.updateSettings { it.copy(collectionGrid = grid) } },
                             onAdjust = { item, delta -> scan.adjustItem(item, delta) },
-                            onOpen = { item ->
-                                scan.showCard(item.cardId, item.printingId, item.language, item.finish)
-                                tab = Tab.SCAN
-                            },
+                            // Over the collection: closing the card goes back to the same place.
+                            onOpen = scan::openItem,
                         )
-                        Tab.SEARCH -> SearchScreen(client?.api, settings.game, state.catalog, imageUrl, imageLoader, onScan = { tab = Tab.SCAN }) { card ->
-                            scan.showCard(card)
-                            tab = Tab.SCAN
-                        }
+                        Tab.SEARCH -> SearchScreen(search, client?.api, settings.game, state.catalog, imageUrl, imageLoader, onScan = { tab = Tab.SCAN }, onPick = scan::openCard)
                         Tab.SHOPPING -> ShoppingScreen(client?.api)
                         Tab.SETTINGS -> SettingsScreen(session, state, settings, updates, updateState)
                     }
+                    }
                 }
+            }
+            // A card opened from the collection or search: no camera, no tab change.
+            details?.let { d ->
+                CardDetailsSheet(scan, d, state.catalog, settings, state.priceSources, imageUrl, imageLoader, snackbar)
             }
         }
     }

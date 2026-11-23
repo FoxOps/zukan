@@ -122,6 +122,14 @@ fun LoginScreen(session: SessionViewModel, state: SessionState) {
                 } else {
                     OutlinedButton(onClick = start, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text(label) }
                 }
+                // The identity provider gets the password: said even when Zukan uses HTTPS.
+                if (!ServerUrl.isSecure(provider.issuer)) {
+                    Text(
+                        stringResource(R.string.sso_not_encrypted, provider.displayName),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
             }
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }

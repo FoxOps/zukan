@@ -3,6 +3,8 @@ package fr.zukan.app.ui
 import android.app.Application
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
@@ -15,11 +17,18 @@ import fr.zukan.app.ZukanApp
 import fr.zukan.app.data.AndroidReleaseOut
 import fr.zukan.app.data.ApkDownloader
 import fr.zukan.app.data.ChecksumException
+import fr.zukan.app.data.InvalidReleaseException
+import fr.zukan.app.data.NoSpaceException
+import fr.zukan.app.data.TooLargeException
 import fr.zukan.app.data.UpdatePolicy
+import fr.zukan.app.data.Versions
 import fr.zukan.app.data.userMessage
 import java.io.File
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -98,15 +107,30 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
             is UpdateState.Failed -> s.release ?: return
             else -> return
         }
+        val previous = download
+        _state.value = UpdateState.Downloading(release, 0f)
         download = viewModelScope.launch {
-            _state.value = UpdateState.Downloading(release, 0f)
+            // A cancelled download cleans up first: it must not delete this one's file.
+            previous?.cancelAndJoin()
             try {
                 val file = downloader.download(release) { p -> _state.value = UpdateState.Downloading(release, p) }
+                // Never handed to the installer unless it is this app, this version, signed
+                // by the same key as the installed one.
+                if (!withContext(Dispatchers.IO) { Installer.matches(app, file, release.version) }) {
+                    file.delete()
+                    throw PackageMismatchException()
+                }
                 _state.value = UpdateState.Ready(release, file)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                val message = if (e is ChecksumException) app.getString(R.string.update_checksum) else e.userMessage(app)
+                val message = when (e) {
+                    is ChecksumException -> app.getString(R.string.update_checksum)
+                    is TooLargeException -> app.getString(R.string.update_too_large)
+                    is NoSpaceException -> app.getString(R.string.update_no_space)
+                    is InvalidReleaseException, is PackageMismatchException -> app.getString(R.string.update_invalid)
+                    else -> e.userMessage(app)
+                }
                 _state.value = UpdateState.Failed(app.getString(R.string.update_failed, message), release)
             }
         }
@@ -119,13 +143,35 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun dismiss() {
+        // Kept: a new download waits for this one's cleanup.
         download?.cancel()
-        download = null
         _state.value = UpdateState.Idle
     }
 }
 
+/** The downloaded APK is not an update of this app. */
+class PackageMismatchException : java.io.IOException("Not an update of this app")
+
 object Installer {
+    /** [apk] is this app ([version], same package) signed with the installed app's keys. */
+    @Suppress("DEPRECATION")
+    fun matches(context: Context, apk: File, version: String): Boolean {
+        val pm = context.packageManager
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
+        val archive = pm.getPackageArchiveInfo(apk.path, flags) ?: return false
+        if (archive.packageName != context.packageName || Versions.compare(archive.versionName ?: "", version) != 0) return false
+        val installed = runCatching { pm.getPackageInfo(context.packageName, flags) }.getOrNull() ?: return false
+        val signers = { info: PackageInfo ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                info.signingInfo?.apkContentsSigners?.map { it.toCharsString() }?.toSet()
+            } else {
+                info.signatures?.map { it.toCharsString() }?.toSet()
+            }
+        }
+        val mine = signers(installed)
+        return !mine.isNullOrEmpty() && signers(archive) == mine
+    }
+
     /** Whether Android lets this app hand APKs to the installer ("Install unknown apps"). */
     fun allowed(context: Context): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.O || context.packageManager.canRequestPackageInstalls()

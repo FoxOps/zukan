@@ -4,6 +4,8 @@ import fr.zukan.app.data.AndroidReleaseOut
 import fr.zukan.app.data.ApiClient
 import fr.zukan.app.data.ApkDownloader
 import fr.zukan.app.data.ChecksumException
+import fr.zukan.app.data.InvalidReleaseException
+import fr.zukan.app.data.TooLargeException
 import fr.zukan.app.data.TokenSessions
 import fr.zukan.app.data.Tokens
 import fr.zukan.app.data.UpdatePolicy
@@ -83,7 +85,7 @@ class UpdatesTest {
         val content = byteArrayOf(1, 2, 3, 4)
         val sha = MessageDigest.getInstance("SHA-256").digest(content).joinToString("") { "%02x".format(it) }
         val dir = Files.createTempDirectory("updates").toFile()
-        val downloader = ApkDownloader(dir)
+        val downloader = ApkDownloader(dir, httpsOnly = false)
         server.enqueue(MockResponse.Builder().body(okio.Buffer().write(content)).build())
         val progress = mutableListOf<Float>()
         val file = downloader.download(release("0.12.0", sha)) { progress.add(it) }
@@ -99,6 +101,51 @@ class UpdatesTest {
         } catch (_: ChecksumException) {
         }
         assertTrue(dir.listFiles().isNullOrEmpty())
+        dir.deleteRecursively()
+    }
+
+    @Test
+    fun stopsAtTheAnnouncedSize() = runTest {
+        val dir = Files.createTempDirectory("updates").toFile()
+        val downloader = ApkDownloader(dir, httpsOnly = false)
+        // Announced 4 bytes, sent 64 KiB (chunked, no Content-Length).
+        server.enqueue(MockResponse.Builder().chunkedBody(okio.Buffer().write(ByteArray(65_536)), 1024).build())
+        try {
+            downloader.download(release("0.12.0")) {}
+            fail("oversized download not stopped")
+        } catch (_: TooLargeException) {
+        }
+        assertTrue(dir.listFiles().isNullOrEmpty())
+        dir.deleteRecursively()
+    }
+
+    @Test
+    fun stopsAtTheAppLimitWithoutSize() = runTest {
+        val dir = Files.createTempDirectory("updates").toFile()
+        val downloader = ApkDownloader(dir, maxBytes = 10_000, httpsOnly = false)
+        server.enqueue(MockResponse.Builder().chunkedBody(okio.Buffer().write(ByteArray(65_536)), 1024).build())
+        val unsized = release("0.12.0").copy(size = 0)
+        try {
+            downloader.download(unsized) {}
+            fail("endless download not stopped")
+        } catch (_: TooLargeException) {
+        }
+        assertTrue(dir.listFiles().isNullOrEmpty())
+        dir.deleteRecursively()
+    }
+
+    @Test
+    fun refusesPlainHttpAndOddVersions() = runTest {
+        val dir = Files.createTempDirectory("updates").toFile()
+        val downloader = ApkDownloader(dir)
+        for (bad in listOf(release("0.12.0"), release("0.12.0").copy(url = "https://github.com/a.apk", version = "../x"))) {
+            try {
+                downloader.download(bad) {}
+                fail("invalid release accepted: $bad")
+            } catch (_: InvalidReleaseException) {
+            }
+        }
+        assertEquals(0, server.requestCount)
         dir.deleteRecursively()
     }
 }

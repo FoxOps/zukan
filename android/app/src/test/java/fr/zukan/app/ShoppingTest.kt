@@ -72,6 +72,24 @@ class ShoppingTest {
     }
 
     @Test
+    fun answerOnlyChangesItsOwnItem() {
+        val shock = fr.zukan.app.data.ShoppingItemOut(id = 1, name = "Shock", quantity = 3, bought = false)
+        val bolt = fr.zukan.app.data.ShoppingItemOut(id = 2, name = "Bolt", quantity = 2, bought = false)
+        val list = fr.zukan.app.data.ShoppingListOut(3, "Deck", gameId = "mtg", createdAt = "2026-11-23", copies = 5, bought = 0, items = listOf(shock, bolt))
+        // Shock ticked to 1, then Bolt to 2 while Shock's answer is on its way.
+        val shown = list.withBought(1, 1).withBought(2, 2)
+        assertEquals(3, shown.bought)
+        // The server's answer for Shock knows nothing of Bolt's tick yet.
+        val answer = list.withBought(1, 1)
+        val merged = shown.withItemOf(answer, 1)
+        assertEquals(1, merged.items.first { it.id == 1 }.boughtCount)
+        assertEquals(2, merged.items.first { it.id == 2 }.boughtCount)
+        assertEquals(3, merged.bought)
+        // A failed write puts back only that item.
+        assertEquals(listOf(0, 2), merged.withBought(1, 0).items.map { it.boughtCount })
+    }
+
+    @Test
     fun delete() = runTest {
         server.enqueue(MockResponse.Builder().code(204).build())
         api().deleteShoppingList(3)

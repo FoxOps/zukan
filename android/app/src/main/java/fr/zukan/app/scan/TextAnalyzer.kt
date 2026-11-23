@@ -17,7 +17,10 @@ import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import fr.zukan.app.data.OcrLineIn
 import fr.zukan.app.data.OcrScript
+import com.google.android.gms.tasks.Task
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicReference
 
 fun recognizer(script: OcrScript): TextRecognizer = TextRecognition.getClient(
     when (script) {
@@ -84,11 +87,18 @@ class TextAnalyzer(
     private var weakFrames = 0
     private var lastFrame = 0L
 
+    // A recognition still running after its timeout: it may still read its frame, so that
+    // frame stays open, and no other frame is read, until it is done.
+    private val stalled = AtomicReference<Task<*>?>(null)
+    @Volatile
+    private var closed = false
+    private var recognizersClosed = false
+
     @OptIn(ExperimentalGetImage::class)
     override fun analyze(proxy: ImageProxy) {
         val image = proxy.image
         val now = android.os.SystemClock.elapsedRealtime()
-        if (paused || image == null || now - lastFrame < MIN_FRAME_MS) {
+        if (closed || stalled.get() != null || paused || image == null || now - lastFrame < MIN_FRAME_MS) {
             proxy.close()
             return
         }
@@ -155,7 +165,16 @@ class TextAnalyzer(
             // A failed recognition only loses this frame.
             Log.w(TAG, "Text recognition failed", e)
         } finally {
-            proxy.close()
+            val task = stalled.get()
+            if (task == null) {
+                proxy.close()
+            } else {
+                task.addOnCompleteListener {
+                    proxy.close()
+                    stalled.set(null)
+                    if (closed) closeRecognizers()
+                }
+            }
         }
     }
 
@@ -213,14 +232,26 @@ class TextAnalyzer(
 
     /** A recognition result; a model that hangs (seen on old phones) loses the frame
      * instead of blocking every later one. */
-    private fun <T> await(task: com.google.android.gms.tasks.Task<T>): T = Tasks.await(task, AWAIT_SECONDS, TimeUnit.SECONDS)
+    private fun <T> await(task: Task<T>): T = try {
+        Tasks.await(task, AWAIT_SECONDS, TimeUnit.SECONDS)
+    } catch (e: TimeoutException) {
+        // Waiting stopped, not the recognition: its frame is closed once it ends.
+        stalled.set(task)
+        throw e
+    }
 
+    /** Stops reading; models are closed once no recognition uses them any more. */
     fun close() {
+        closed = true
+        if (stalled.get() == null) closeRecognizers()
+    }
+
+    private fun closeRecognizers() = synchronized(others) {
+        if (recognizersClosed) return@synchronized
+        recognizersClosed = true
         main.close()
-        synchronized(others) {
-            others.values.forEach { it.close() }
-            others.clear()
-        }
+        others.values.forEach { it.close() }
+        others.clear()
     }
 
     companion object {

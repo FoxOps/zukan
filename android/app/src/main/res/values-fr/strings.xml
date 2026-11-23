@@ -10,9 +10,9 @@
 
     <!-- Connexion -->
     <string name="server_address">Adresse du serveur</string>
-    <string name="server_address_hint">cartes.exemple.fr ou 192.168.1.10:8000</string>
+    <string name="server_address_hint">cartes.exemple.fr ou http://192.168.1.10:8000</string>
     <string name="connect">Se connecter</string>
-    <string name="not_encrypted">Non chiffré (HTTP) : à utiliser uniquement sur votre réseau local ou via un VPN.</string>
+    <string name="not_encrypted">Non chiffré (HTTP) : votre mot de passe et votre session peuvent être lus sur le réseau. Préférez HTTPS, ou passez par un VPN.</string>
     <string name="change_server">Changer de serveur</string>
     <string name="user">Utilisateur</string>
     <string name="password">Mot de passe</string>
@@ -20,7 +20,7 @@
     <string name="sign_in_with">Se connecter avec %1$s</string>
 
     <!-- Scan -->
-    <string name="camera_needed">Zukan lit le texte imprimé sur vos cartes. Les images restent sur votre téléphone : seul le texte lu est envoyé à votre serveur Zukan.</string>
+    <string name="camera_needed">Zukan lit sur le téléphone le texte imprimé sur vos cartes. Le texte lu est envoyé à votre serveur Zukan, et pour Magic ou tous les jeux aussi une image grise de la carte autour de ce texte, pour comparer les symboles d\'extension.</string>
     <string name="allow_camera">Autoriser l\'appareil photo</string>
     <string name="any_game">Tous les jeux</string>
     <string name="point_at_card">Visez une carte</string>
@@ -249,4 +249,16 @@
     <string name="shopping_delete_text">La liste %1$s est supprimée définitivement. Votre collection et vos decks ne changent pas.</string>
     <string name="cancel">Annuler</string>
     <string name="phone_language">Langue du téléphone (%1$s)</string>
+    <string name="card_details">Carte</string>
+    <string name="owned_variant">Possédées dans cette finition, cet état et cette langue : %1$d</string>
+    <string name="camera_error_title">L\'appareil photo n\'a pas démarré</string>
+    <string name="camera_failed">Une autre application l\'utilise peut-être. Fermez-la puis réessayez, ou cherchez la carte par son nom.</string>
+    <string name="camera_none">Cet appareil n\'a pas d\'appareil photo utilisable par Zukan. Cherchez les cartes par leur nom.</string>
+    <string name="printings_search_failed">Les autres impressions n\'ont pas pu être cherchées sur le serveur.</string>
+    <string name="sso_not_encrypted">%1$s n\'est pas chiffré (HTTP) : votre mot de passe peut être lu sur le réseau.</string>
+    <string name="shopping_item_state">%1$d sur %2$d achetées</string>
+    <string name="shopping_copy">%1$s, exemplaire %2$d sur %3$d</string>
+    <string name="update_too_large">le fichier est plus gros qu\'annoncé</string>
+    <string name="update_no_space">pas assez d\'espace libre sur le téléphone</string>
+    <string name="update_invalid">ce fichier n\'est pas une mise à jour de Zukan</string>
 </resources>
