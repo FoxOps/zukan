@@ -3,6 +3,7 @@ package fr.zukan.app.ui
 import android.app.Application
 import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import fr.zukan.app.ZukanApp
 import fr.zukan.app.R
@@ -20,11 +21,16 @@ import fr.zukan.app.data.ServerUrl
 import fr.zukan.app.data.Settings
 import fr.zukan.app.data.TokenOut
 import fr.zukan.app.data.Tokens
+import fr.zukan.app.data.runCatchingCancellable
 import fr.zukan.app.data.userMessage
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -59,31 +65,37 @@ data class SessionState(
     val catalog: List<GameOut> get() = catalogGames?.let { shown -> games.filter { it.id in shown } } ?: games
 }
 
-class SessionViewModel(application: Application) : AndroidViewModel(application) {
+class SessionViewModel(application: Application, private val saved: SavedStateHandle) : AndroidViewModel(application) {
     private val app = application as ZukanApp
     private val sso = SsoLogin(application)
     private val _state = MutableStateFlow(SessionState())
     val state: StateFlow<SessionState> = _state.asStateFlow()
     val settings: StateFlow<Settings> = app.store.settings.stateIn(viewModelScope, SharingStarted.Eagerly, Settings())
-    private var pendingProvider: ProviderOut? = null
 
     init {
         viewModelScope.launch {
-            val saved = app.store.load()
-            _state.update { it.copy(serverUrl = saved.serverUrl) }
-            if (saved.serverUrl.isNotEmpty()) {
-                val client = app.connect(saved.serverUrl)
-                runCatching { client.api.providers() }.onSuccess { p -> _state.update { it.copy(providers = p) } }
-                runCatching { client.api.health() }.onSuccess { h -> _state.update { it.copy(serverVersion = h.version) } }
-                if (app.store.tokens != null) loadAccount(client)
+            val stored = app.store.load()
+            _state.update { it.copy(serverUrl = stored.serverUrl) }
+            if (stored.serverUrl.isNotEmpty()) {
+                val client = app.connect(stored.serverUrl)
+                // Independent: asked together, so a slow server costs one wait, not two.
+                coroutineScope {
+                    val providers = async { runCatchingCancellable { client.api.providers() } }
+                    val health = async { runCatchingCancellable { client.api.health() } }
+                    providers.await().onSuccess { p -> _state.update { it.copy(providers = p) } }
+                    health.await().onSuccess { h -> _state.update { it.copy(serverVersion = h.version) } }
+                }
+                if (app.store.tokensFor(client.generation) != null) loadAccount(client)
             }
             _state.update { it.copy(loading = false) }
         }
         viewModelScope.launch {
             app.sessionExpired.collect { expired ->
                 if (expired) {
-                    _state.update { it.copy(username = null, error = app.getString(R.string.error_session_expired)) }
                     app.sessionExpired.value = false
+                    // A new session: what the scanner and lists showed for the account goes.
+                    app.endSession()
+                    _state.update { it.copy(username = null, error = app.getString(R.string.error_session_expired)) }
                 }
             }
         }
@@ -107,31 +119,51 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         signIn(client, client.api.login(LoginIn(username.trim(), password)))
     }
 
-    suspend fun ssoIntent(provider: ProviderOut): Intent? = try {
-        pendingProvider = provider
-        sso.authorizationIntent(provider).first
-    } catch (e: Exception) {
-        _state.update { it.copy(error = e.userMessage(app)) }
-        null
+    /** The browser login of [provider]; the provider and server are kept with the activity's
+     * saved state, so the answer still completes after Android stopped the app meanwhile. */
+    suspend fun ssoIntent(provider: ProviderOut): Intent? {
+        if (_state.value.busy) return null
+        _state.update { it.copy(busy = true, error = null) }
+        return try {
+            sso.authorizationIntent(provider).first.also {
+                saved[SSO_PROVIDER] = provider.name
+                saved[SSO_SERVER] = _state.value.serverUrl
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            _state.update { it.copy(error = e.userMessage(app)) }
+            null
+        } finally {
+            _state.update { it.copy(busy = false) }
+        }
     }
 
     fun ssoResult(data: Intent?) = work {
-        val provider = pendingProvider ?: error(app.getString(R.string.error_no_login))
+        val name = saved.get<String>(SSO_PROVIDER)
+        val server = saved.get<String>(SSO_SERVER)
+        saved.remove<String>(SSO_PROVIDER)
+        saved.remove<String>(SSO_SERVER)
+        // After the app was stopped: its server and login options load again first.
+        val loaded = _state.first { !it.loading }
+        val provider = loaded.providers?.providers?.firstOrNull { it.name == name }
+        // Started for another server (changed meanwhile): not for this one.
+        if (provider == null || server != loaded.serverUrl) error(app.getString(R.string.error_no_login))
         val result = sso.complete(data)
         val client = requireClient()
         signIn(client, client.api.exchange(provider.name, OidcExchangeIn(result.idToken, result.nonce, result.accessToken)))
     }
 
     fun logout() = work {
-        val client = app.client.value
         val refresh = app.store.tokens?.refresh
-        if (client != null && refresh != null) runCatching { client.api.logout(RefreshIn(refresh)) }
-        app.store.saveTokens(null)
+        // The session ends here first: nothing still running can bring it back.
+        app.endSession()
         _state.update { it.copy(username = null) }
+        if (refresh != null) runCatchingCancellable { app.client.value?.api?.logout(RefreshIn(refresh)) }
     }
 
     fun disconnect() = work {
-        app.store.saveTokens(null)
+        app.endSession(baseUrl = null)
         app.store.update { it.copy(serverUrl = "") }
         _state.update { SessionState(loading = false) }
     }
@@ -141,14 +173,20 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private suspend fun signIn(client: ApiClient, tokens: TokenOut) {
-        app.store.saveTokens(Tokens(tokens.accessToken, tokens.refreshToken))
-        loadAccount(client)
+        // Server changed or session ended while logging in: this login is for nothing shown.
+        if (app.client.value !== client) return
+        // Each login is a session of its own (nothing of the previous account stays shown).
+        app.endSession()
+        val fresh = app.client.value ?: return
+        if (!app.store.replaceIf(fresh.generation, null, Tokens(tokens.accessToken, tokens.refreshToken))) return
+        loadAccount(fresh)
     }
 
     private suspend fun loadAccount(client: ApiClient) {
-        runCatching {
+        runCatchingCancellable {
             val me = client.api.me()
             val games = client.api.games()
+            if (app.client.value !== client) return@runCatchingCancellable
             _state.update { it.copy(username = me.username, games = games, error = null).withMe(me) }
         }.onFailure { e -> _state.update { it.copy(username = null, error = e.userMessage(app)) } }
     }
@@ -161,7 +199,7 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
         val client = app.client.value ?: return
         if (!_state.value.loggedIn) return
         viewModelScope.launch {
-            runCatching { client.api.me() }.onSuccess { me -> _state.update { it.withMe(me) } }
+            runCatchingCancellable { client.api.me() }.onSuccess { me -> if (app.client.value === client) _state.update { it.withMe(me) } }
         }
     }
 
@@ -207,6 +245,8 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
             _state.update { it.copy(busy = true, error = null) }
             try {
                 block()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.userMessage(app)) }
             } finally {
@@ -216,4 +256,9 @@ class SessionViewModel(application: Application) : AndroidViewModel(application)
     }
 
     override fun onCleared() = sso.dispose()
+
+    private companion object {
+        const val SSO_PROVIDER = "sso_provider"
+        const val SSO_SERVER = "sso_server"
+    }
 }

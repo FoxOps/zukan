@@ -2,6 +2,7 @@ package fr.zukan.app.data
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -32,67 +33,87 @@ data class Settings(
     val collectionGrid: Boolean = false,
 )
 
-data class Tokens(val access: String, val refresh: String)
+/** Settings in the stored preferences. */
+object SettingsPrefs {
+    private val server = stringPreferencesKey("server_url")
+    private val game = stringPreferencesKey("game")
+    private val condition = stringPreferencesKey("condition")
+    private val language = stringPreferencesKey("language")
+    // New key in 0.3: everyone starts on AUTO (the old "script" was LATIN for most).
+    private val script = stringPreferencesKey("ocr_script")
+    private val autoNext = booleanPreferencesKey("auto_next")
+    private val glareFinish = booleanPreferencesKey("glare_finish")
+    private val collectionGrid = booleanPreferencesKey("collection_grid")
 
-/** Where the API client reads and stores tokens. */
-interface TokenStore {
-    val tokens: Tokens?
-    suspend fun saveTokens(value: Tokens?)
+    fun read(p: Preferences) = Settings(
+        serverUrl = p[server] ?: "",
+        game = p[game],
+        condition = p[condition] ?: "NM",
+        language = p[language],
+        script = p[script]?.let { runCatching { OcrScript.valueOf(it) }.getOrNull() } ?: OcrScript.AUTO,
+        autoNext = p[autoNext] ?: false,
+        glareFinish = p[glareFinish] ?: false,
+        collectionGrid = p[collectionGrid] ?: false,
+    )
+
+    /** Within one transaction: [transform] sees what is stored now, so two updates made at
+     * the same time each keep the other's change. */
+    fun update(p: MutablePreferences, transform: (Settings) -> Settings) {
+        val s = transform(read(p))
+        p[server] = s.serverUrl
+        if (s.game == null) p.remove(game) else p[game] = s.game
+        p[condition] = s.condition
+        if (s.language == null) p.remove(language) else p[language] = s.language
+        p[script] = s.script.name
+        p[autoNext] = s.autoNext
+        p[glareFinish] = s.glareFinish
+        p[collectionGrid] = s.collectionGrid
+    }
 }
 
-/** Server URL, tokens and scan preferences, stored with DataStore. */
-class SessionStore(private val context: Context) : TokenStore {
+/** Server URL, tokens (encrypted) and scan preferences, stored with DataStore. */
+class SessionStore(private val context: Context, private val cipher: TokenCipher = KeystoreCipher) : TokenSessions() {
     private object Keys {
-        val server = stringPreferencesKey("server_url")
+        // Before 0.20: tokens in plain text, encrypted at the next start.
         val access = stringPreferencesKey("access_token")
         val refresh = stringPreferencesKey("refresh_token")
-        val game = stringPreferencesKey("game")
-        val condition = stringPreferencesKey("condition")
-        val language = stringPreferencesKey("language")
-        // New key in 0.3: everyone starts on AUTO (the old "script" was LATIN for most).
-        val script = stringPreferencesKey("ocr_script")
-        val autoNext = booleanPreferencesKey("auto_next")
-        val glareFinish = booleanPreferencesKey("glare_finish")
-        val collectionGrid = booleanPreferencesKey("collection_grid")
+        val accessSealed = stringPreferencesKey("access_token_enc")
+        val refreshSealed = stringPreferencesKey("refresh_token_enc")
         val lastUpdateCheck = longPreferencesKey("last_update_check")
         val skippedVersion = stringPreferencesKey("skipped_version")
     }
 
-    // Read by OkHttp threads on every request; kept in memory to avoid blocking reads.
-    @Volatile
-    override var tokens: Tokens? = null
-        private set
-
-    val settings: Flow<Settings> = context.dataStore.data.map { p ->
-        Settings(
-            serverUrl = p[Keys.server] ?: "",
-            game = p[Keys.game],
-            condition = p[Keys.condition] ?: "NM",
-            language = p[Keys.language],
-            script = p[Keys.script]?.let { runCatching { OcrScript.valueOf(it) }.getOrNull() } ?: OcrScript.AUTO,
-            autoNext = p[Keys.autoNext] ?: false,
-            glareFinish = p[Keys.glareFinish] ?: false,
-            collectionGrid = p[Keys.collectionGrid] ?: false,
-        )
-    }
+    val settings: Flow<Settings> = context.dataStore.data.map(SettingsPrefs::read)
 
     suspend fun load(): Settings {
         val prefs = context.dataStore.data.first()
-        val access = prefs[Keys.access]
-        val refresh = prefs[Keys.refresh]
-        tokens = if (access != null && refresh != null) Tokens(access, refresh) else null
-        return settings.first()
+        val access = prefs[Keys.accessSealed]?.let(cipher::decrypt)
+        val refresh = prefs[Keys.refreshSealed]?.let(cipher::decrypt)
+        val plainAccess = prefs[Keys.access]
+        val plainRefresh = prefs[Keys.refresh]
+        val tokens = when {
+            access != null && refresh != null -> Tokens(access, refresh)
+            plainAccess != null && plainRefresh != null -> Tokens(plainAccess, plainRefresh).also { persist(it) }
+            // Undecryptable (Keystore key lost): logging in again is all it takes.
+            else -> null
+        }
+        restore(tokens)
+        return SettingsPrefs.read(prefs)
     }
 
-    override suspend fun saveTokens(value: Tokens?) {
-        tokens = value
+    override suspend fun persist(tokens: Tokens?) {
+        val access = tokens?.let { cipher.encrypt(it.access) }
+        val refresh = tokens?.let { cipher.encrypt(it.refresh) }
         context.dataStore.edit { p ->
-            if (value == null) {
-                p.remove(Keys.access)
-                p.remove(Keys.refresh)
+            listOf(Keys.access, Keys.refresh, Keys.accessSealed, Keys.refreshSealed).forEach { p.remove(it) }
+            if (tokens == null) return@edit
+            if (access != null && refresh != null) {
+                p[Keys.accessSealed] = access
+                p[Keys.refreshSealed] = refresh
             } else {
-                p[Keys.access] = value.access
-                p[Keys.refresh] = value.refresh
+                // No working Keystore on this phone: kept as before 0.20 rather than lost.
+                p[Keys.access] = tokens.access
+                p[Keys.refresh] = tokens.refresh
             }
         }
     }
@@ -112,17 +133,6 @@ class SessionStore(private val context: Context) : TokenStore {
     }
 
     suspend fun update(transform: (Settings) -> Settings) {
-        val current = settings.first()
-        val next = transform(current)
-        context.dataStore.edit { p ->
-            p[Keys.server] = next.serverUrl
-            if (next.game == null) p.remove(Keys.game) else p[Keys.game] = next.game
-            p[Keys.condition] = next.condition
-            if (next.language == null) p.remove(Keys.language) else p[Keys.language] = next.language
-            p[Keys.script] = next.script.name
-            p[Keys.autoNext] = next.autoNext
-            p[Keys.glareFinish] = next.glareFinish
-            p[Keys.collectionGrid] = next.collectionGrid
-        }
+        context.dataStore.edit { SettingsPrefs.update(it, transform) }
     }
 }

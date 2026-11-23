@@ -51,15 +51,24 @@ fun acceptLanguage(tags: List<String>): String? =
         .ifEmpty { null }
 
 /**
- * HTTP access to one Zukan server: bearer token on every request, the phone's languages
- * (`Accept-Language`), and a single refresh-token rotation when the access token expires.
+ * HTTP access to one Zukan server for one session of [store] ([generation]): bearer token on
+ * every request, the phone's languages (`Accept-Language`), and a single refresh-token
+ * rotation when the access token expires. Once the session ends (logout, expiry, another
+ * server) the client sends no token any more; [close] also cancels its calls.
  */
 class ApiClient(
     val baseUrl: String,
     private val store: TokenStore,
     private val languages: () -> List<String> = ::systemLanguages,
+    val generation: Long = store.generation,
     private val onSessionExpired: () -> Unit,
 ) {
+    @Volatile
+    private var closed = false
+
+    /** This client's session tokens: none once closed or once another session started. */
+    private fun tokens(): Tokens? = if (closed) null else store.tokensFor(generation)
+
     private val plain: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
@@ -68,7 +77,7 @@ class ApiClient(
     private val refreshApi: ZukanApi = retrofit(plain)
 
     private val bearer = Interceptor { chain ->
-        val token = store.tokens?.access
+        val token = tokens()?.access
         val request = chain.request()
         chain.proceed(if (token == null) request else request.withToken(token))
     }
@@ -101,20 +110,25 @@ class ApiClient(
             if (NO_REFRESH.any { path.endsWith(it) }) return null
             if (response.priorResponse != null) return null // already retried once
             synchronized(this) {
-                val current = store.tokens ?: return null
+                val current = tokens() ?: return null
                 val sent = response.request.header("Authorization")?.removePrefix("Bearer ")
                 // Another request refreshed meanwhile: just retry with the new token.
                 if (sent != current.access) return response.request.withToken(current.access)
-                val renewed = runCatching {
+                val renewed = try {
                     runBlocking { refreshApi.refresh(RefreshIn(current.refresh)) }
-                }.getOrNull()
-                if (renewed == null) {
-                    runBlocking { store.saveTokens(null) }
-                    onSessionExpired()
+                } catch (e: HttpException) {
+                    // Only a refused refresh token ends the session (and only this one).
+                    if (e.code() == 401 || e.code() == 403) {
+                        if (runBlocking { store.replaceIf(generation, current, null) }) onSessionExpired()
+                    }
+                    return null
+                } catch (e: Exception) {
+                    // No network, timeout, server down: the session stays, only this call fails.
                     return null
                 }
                 val tokens = Tokens(renewed.accessToken, renewed.refreshToken)
-                runBlocking { store.saveTokens(tokens) }
+                // Kept only if nothing changed meanwhile (logout, another account or server).
+                if (!runBlocking { store.replaceIf(generation, current, tokens) }) return null
                 return response.request.withToken(tokens.access)
             }
         }
@@ -140,6 +154,13 @@ class ApiClient(
         plain.newCall(request).execute().use { response ->
             ServerUrl.redirectedBase(baseUrl, response.request.url.toString()) ?: baseUrl
         }
+    }
+
+    /** The session of this client ended: no more tokens, and its calls are cancelled. */
+    fun close() {
+        closed = true
+        http.dispatcher.cancelAll()
+        http.connectionPool.evictAll()
     }
 
     fun imageUrl(path: String?): String? = path?.let { baseUrl + it.removePrefix("/") }

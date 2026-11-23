@@ -2725,3 +2725,37 @@ confirmed against the code and fixed.
   oxlint, i18n (792), build (chart in its own lazy chunk); headless Chromium on vite dev against
   the local 0.31.0 server: dark badge colors, F01 count, F02 URL, F14.
 - [ ] User: try on the next dev image (dark badges, deck page, moving cards to the sideboard).
+
+
+### Report server 0.32.0 + Android 0.19.0: Android audit (user, 2026-11-23)
+Branch `2026-11-23-000-android-audit-fixes` from `dev`. Server unchanged (0.32.0), Android 0.20.0.
+No Dependabot pull request open.
+Audit: `zukan-android-audit-2026-11-23.md` (18 findings, A01–A18, source `25352cd`), all confirmed
+against the code (Android unchanged since).
+Decisions (Q&A 2026-11-23): card details as a sheet over the current tab (no jump to Scan); shopping
+boxes 48 dp, one per copy up to 8, then a stepper; HTTPS by default and a warning for an HTTP identity
+provider; tokens encrypted with an Android Keystore key (no permission, nothing asked); Collection
+and Search keep their state in ViewModels.
+- [ ] A01/A02/A04 sessions: tokens belong to a session generation; old clients never read a newer
+  session's tokens, calls of an ended session are cancelled; a refresh saves only if its session and
+  refresh token are still current; only 401/403 from the refresh endpoint end the session.
+- [ ] Keystore: access/refresh tokens AES-GCM encrypted in DataStore (plain ones migrated).
+- [ ] A09 settings updated inside one DataStore transaction.
+- [ ] A03/A10 scanner reset on logout / server change; identify and card jobs cancelled, late
+  answers dropped.
+- [ ] A05/A06 card details sheet over Collection / Search: copy's condition, language and finish;
+  Remove follows the selected variant; no camera permission needed.
+- [ ] A07 Collection / Search ViewModels: one query key, pages committed after success, state kept
+  across tabs; collection refreshed on resume; value 0 for a game without cards.
+- [ ] A08/A15 shopping: per-item ordered writes, rollback of the failed item only; 48 dp boxes up to
+  8 copies, stepper above; TalkBack states.
+- [ ] A11/A12 camera and OCR: guarded camera start (front camera fallback, error with retry), frames
+  kept open until ML Kit finishes; camera off after 10 s on a result, torch off, viewfinder
+  animation only while identifying.
+- [ ] A13 updates: HTTPS only, byte cap, temp file, prompt cancel, APK package / version / signature
+  checked before install.
+- [ ] A14 contrast, A15 condition radio state, A16 camera text (en/fr/de/es), A17 Guava 33.7.2,
+  A18 SSO after process death; HTTPS default; HTTP identity provider warning; thumbnails in Search
+  and printing picker; providers and health loaded together.
+- [ ] Versions: Android 0.20.0. Server unchanged; `.env.example` unchanged (no new variable).
+- [ ] Verified: …

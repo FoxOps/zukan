@@ -4,7 +4,7 @@ import fr.zukan.app.data.AndroidReleaseOut
 import fr.zukan.app.data.ApiClient
 import fr.zukan.app.data.ApkDownloader
 import fr.zukan.app.data.ChecksumException
-import fr.zukan.app.data.TokenStore
+import fr.zukan.app.data.TokenSessions
 import fr.zukan.app.data.Tokens
 import fr.zukan.app.data.UpdatePolicy
 import fr.zukan.app.data.Versions
@@ -71,10 +71,7 @@ class UpdatesTest {
                 |"published_at":"2026-10-27T10:00:00Z","sha256":null,"notes_url":"https://github.com/r"}""".trimMargin(),
             ).build(),
         )
-        val store = object : TokenStore {
-            override var tokens: Tokens? = Tokens("access", "refresh")
-            override suspend fun saveTokens(value: Tokens?) {}
-        }
+        val store = TokenSessions(Tokens("access", "refresh"))
         val out = ApiClient(server.url("/").toString(), store) {}.api.androidRelease()
         assertEquals("0.12.0", out.version)
         assertNull(out.sha256)

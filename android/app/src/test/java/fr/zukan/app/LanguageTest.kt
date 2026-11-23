@@ -1,7 +1,7 @@
 package fr.zukan.app
 
 import fr.zukan.app.data.ApiClient
-import fr.zukan.app.data.TokenStore
+import fr.zukan.app.data.TokenSessions
 import fr.zukan.app.data.Tokens
 import fr.zukan.app.data.acceptLanguage
 import kotlinx.coroutines.test.runTest
@@ -17,12 +17,7 @@ import org.junit.Test
  * from them until the user picks one. */
 class LanguageTest {
     private val server = MockWebServer()
-    private val store = object : TokenStore {
-        override var tokens: Tokens? = null
-        override suspend fun saveTokens(value: Tokens?) {
-            tokens = value
-        }
-    }
+    private val store = TokenSessions(null)
 
     @Before
     fun start() = server.start()

@@ -2,7 +2,7 @@ package fr.zukan.app
 
 import fr.zukan.app.data.ApiClient
 import fr.zukan.app.data.ShoppingItemIn
-import fr.zukan.app.data.TokenStore
+import fr.zukan.app.data.TokenSessions
 import fr.zukan.app.data.Tokens
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
@@ -17,12 +17,7 @@ import org.junit.Test
 /** Shopping lists (`/api/shopping-lists`) and the account's `language_chosen`. */
 class ShoppingTest {
     private val server = MockWebServer()
-    private val store = object : TokenStore {
-        override var tokens: Tokens? = null
-        override suspend fun saveTokens(value: Tokens?) {
-            tokens = value
-        }
-    }
+    private val store = TokenSessions(null)
 
     @Before
     fun start() = server.start()
