@@ -18,7 +18,7 @@ android {
         targetSdk = 37
         // CI passes -PversionCode / -PversionName (prod: from the release version).
         versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
-        versionName = providers.gradleProperty("versionName").orNull ?: "0.19.0"
+        versionName = providers.gradleProperty("versionName").orNull ?: "0.20.0"
         resValue("string", "app_name", "Zukan")
         redirectScheme("fr.zukan.app")
     }
@@ -113,6 +113,10 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.okhttp)
     implementation(libs.coil.svg)
+    constraints {
+        // CameraX brings Guava through media3; versions before 33.7.2 have GHSA-xxph-c9ww-hj94.
+        implementation(libs.guava) { because("GHSA-xxph-c9ww-hj94 (CVE-2026-102554)") }
+    }
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

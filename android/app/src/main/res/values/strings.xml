@@ -241,7 +241,7 @@
     <string name="shopping_subtitle">Cards your decks miss, sent from the web</string>
     <string name="shopping_empty">No shopping list yet</string>
     <string name="shopping_empty_help">On the web, open a deck, then Shopping list and Send to the app.</string>
-    <string name="shopping_progress">%1$d / %2$d bought</string>
+    <string name="shopping_progress">Bought: %1$d / %2$d</string>
     <string name="shopping_complete">Complete</string>
     <string name="shopping_delete">Delete</string>
     <string name="shopping_delete_title">Delete this list?</string>
@@ -255,7 +255,7 @@
     <string name="camera_none">This device has no camera Zukan can use. Search cards by name instead.</string>
     <string name="printings_search_failed">The other printings could not be searched on the server.</string>
     <string name="sso_not_encrypted">%1$s is not encrypted (HTTP): your password can be read on the network.</string>
-    <string name="shopping_item_state">%1$d of %2$d bought</string>
+    <string name="shopping_item_state">Bought: %1$d / %2$d</string>
     <string name="shopping_copy">%1$s, copy %2$d of %3$d</string>
     <string name="update_too_large">the file is larger than announced</string>
     <string name="update_no_space">not enough free space on the phone</string>

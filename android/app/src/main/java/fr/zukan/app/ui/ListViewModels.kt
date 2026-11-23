@@ -56,12 +56,13 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     init {
         viewModelScope.launch {
             app.session.drop(1).collect {
-                started = false
                 seenStock = 0
                 valueJob?.cancel()
                 _value.value = null
                 _query.value = CollectionQuery()
                 pager.clear(CollectionQuery())
+                // Already shown: the new account's collection loads at once.
+                if (started) refresh()
             }
         }
     }

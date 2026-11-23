@@ -174,7 +174,7 @@ object Installer {
 
     /** Whether Android lets this app hand APKs to the installer ("Install unknown apps"). */
     fun allowed(context: Context): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.O || context.packageManager.canRequestPackageInstalls()
+        context.packageManager.canRequestPackageInstalls()
 
     /** Opens the "Install unknown apps" switch of this app. */
     fun openPermission(context: Context) {

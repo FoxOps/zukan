@@ -19,6 +19,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -57,6 +58,8 @@ fun CameraPreview(
     analyzer.paused = paused
     var camera by remember { mutableStateOf<Camera?>(null) }
     val reportError by rememberUpdatedState(onError)
+    val noCamera by rememberUpdatedState(stringResource(R.string.camera_none))
+    val cameraFailed by rememberUpdatedState(stringResource(R.string.camera_failed))
     val reportTorch by rememberUpdatedState(onTorchAvailable)
 
     DisposableEffect(lifecycleOwner, analyzer) {
@@ -87,7 +90,7 @@ fun CameraPreview(
                     else -> null
                 }
                 if (selector == null) {
-                    reportError(context.getString(R.string.camera_none))
+                    reportError(noCamera)
                     return@addListener
                 }
                 camera = provider.bindToLifecycle(lifecycleOwner, selector, preview, analysis).also {
@@ -97,7 +100,7 @@ fun CameraPreview(
             } catch (e: Exception) {
                 // In use by another app, closed by the system, unsupported...
                 Log.w(TAG, "Camera could not start", e)
-                reportError(context.getString(R.string.camera_failed))
+                reportError(cameraFailed)
             }
         }, ContextCompat.getMainExecutor(context))
         onDispose {

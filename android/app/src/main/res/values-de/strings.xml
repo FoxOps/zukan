@@ -241,7 +241,7 @@
     <string name="shopping_subtitle">Fehlende Karten deiner Decks, vom Web gesendet</string>
     <string name="shopping_empty">Noch keine Einkaufsliste</string>
     <string name="shopping_empty_help">Öffne im Web ein Deck, dann Einkaufsliste und An die App senden.</string>
-    <string name="shopping_progress">%1$d / %2$d gekauft</string>
+    <string name="shopping_progress">Gekauft: %1$d / %2$d</string>
     <string name="shopping_complete">Erledigt</string>
     <string name="shopping_delete">Löschen</string>
     <string name="shopping_delete_title">Diese Liste löschen?</string>
@@ -255,7 +255,7 @@
     <string name="camera_none">Dieses Gerät hat keine Kamera, die Zukan nutzen kann. Suche Karten nach Namen.</string>
     <string name="printings_search_failed">Die anderen Drucke konnten nicht auf dem Server gesucht werden.</string>
     <string name="sso_not_encrypted">%1$s ist nicht verschlüsselt (HTTP): dein Passwort kann im Netzwerk mitgelesen werden.</string>
-    <string name="shopping_item_state">%1$d von %2$d gekauft</string>
+    <string name="shopping_item_state">Gekauft: %1$d / %2$d</string>
     <string name="shopping_copy">%1$s, Exemplar %2$d von %3$d</string>
     <string name="update_too_large">die Datei ist größer als angegeben</string>
     <string name="update_no_space">nicht genug freier Speicher auf dem Telefon</string>
