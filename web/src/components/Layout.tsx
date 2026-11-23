@@ -219,11 +219,12 @@ export function Layout() {
         aria-label={t('Main navigation')}
         // A page opened from the menu closes it.
         onClick={(e) => (e.target as HTMLElement).closest('a[href^="/"]') && setMenuOpen(false)}
-        className={`fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col overflow-y-auto bg-neutral px-4 py-6 text-neutral-content transition-transform [scrollbar-width:none] motion-reduce:transition-none lg:static lg:z-auto lg:translate-x-0 lg:overflow-visible ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col overflow-y-auto bg-neutral px-4 pb-6 text-neutral-content transition-transform [scrollbar-width:none] motion-reduce:transition-none lg:static lg:z-auto lg:translate-x-0 lg:overflow-visible ${
           menuOpen ? 'translate-x-0' : '-translate-x-full max-lg:invisible'
         }`}
       >
-        <div className="flex items-start justify-between px-2.5 pb-6">
+        {/* The signature stays at the top while the page scrolls, on the top bar's line. */}
+        <div className="sticky top-0 z-10 -mx-4 flex h-16 shrink-0 items-center justify-between bg-neutral px-6 lg:h-[76px]">
           <Link to="/" aria-label={t('Overview')}>
             <Logo onDark className="w-[180px] max-w-full" />
           </Link>
@@ -231,7 +232,7 @@ export function Layout() {
             <Icon name="close" />
           </button>
         </div>
-        <div className="-mt-3 mb-4 px-2.5 text-[11px] text-neutral-content/75">
+        <div className="mb-4 mt-2 px-2.5 text-[11px] text-neutral-content/75">
           <span lang="ja">図鑑</span> · {t('Your card encyclopedia')}
         </div>
         <nav aria-label={t('Main navigation')}>
