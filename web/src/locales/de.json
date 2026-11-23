@@ -903,5 +903,7 @@
   "Followed set": "Verfolgtes Set",
   "Cards shown": "Angezeigte Karten",
   "Cards of the set": "Karten des Sets",
-  "No card yet.": "Noch keine Karte."
+  "No card yet.": "Noch keine Karte.",
+  "Previous card in the set": "Vorherige Karte im Set",
+  "Next card in the set": "Nächste Karte im Set"
 }

@@ -20,6 +20,7 @@ import { finishName, formatMoney, languageName, normalize } from '../lib/format'
 import { ShownName } from '../components/ShownName'
 import { PriceHistory } from './card/PriceHistory'
 import { PrintingsTable } from './card/PrintingsTable'
+import { SetNeighbors } from './card/SetNeighbors'
 import { PRINTING_SORTS, regionNumbers, sortPrintings, type PrintingOut, type PrintingSort } from './card/printings'
 
 export default function CardDetail() {
@@ -154,6 +155,7 @@ export default function CardDetail() {
         </nav>
         <CatalogSearch game={c.game_id} />
       </div>
+      {selected && <SetNeighbors printingId={selected.id} setCode={selected.set.code} tab={shownTab} />}
 
       <div className="grid gap-8 md:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
         <div className="flex flex-col items-center gap-3 md:items-stretch">
