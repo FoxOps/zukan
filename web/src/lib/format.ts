@@ -17,6 +17,12 @@ function format() {
   return cache.value
 }
 
+/** Share from 0 to 1 as a whole percentage ("96 %" in French). Rounded down: 99.6 % is not
+ * every card. */
+export function formatShare(share: number): string {
+  return new Intl.NumberFormat(currentLanguage(), { style: 'percent', maximumFractionDigits: 0, roundingMode: 'floor' }).format(share)
+}
+
 /** API decimals arrive as strings ("12.50"). Currency: ISO code of the price source. */
 export function formatMoney(value: string | number | null | undefined, currency = 'EUR'): string {
   if (value === null || value === undefined || value === '') return '—'
