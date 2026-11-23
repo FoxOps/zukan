@@ -395,8 +395,6 @@
   "this month": "diesen Monat",
   "printings moved": "Drucke verschoben",
   "No type": "Kein Typ",
-  "Search the catalog to add a card": "Durchsuche den Katalog, um eine Karte hinzuzufügen",
-  "Searching…": "Suche läuft…",
   "No cards found": "Keine Karten gefunden",
   "No price history that far back": "Kein Preisverlauf so weit zurück",
   "from {{value}}": "von {{value}}",
@@ -905,5 +903,10 @@
   "Cards of the set": "Karten des Sets",
   "No card yet.": "Noch keine Karte.",
   "Previous card in the set": "Vorherige Karte im Set",
-  "Next card in the set": "Nächste Karte im Set"
+  "Next card in the set": "Nächste Karte im Set",
+  "Legal": "Legal",
+  "Forbidden": "Verboten",
+  "Limited": "Limitiert",
+  "Semi-Limited": "Semi-limitiert",
+  "Legality": "Legalität"
 }

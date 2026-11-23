@@ -138,119 +138,119 @@ export default function Dashboard() {
             </Metric>
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
-            <TopCards />
-            <Panel title={t('Your games')} aside={<PanelLink to="/settings">{t('Manage')}</PanelLink>}>
-              <ul className="divide-y divide-base-300">
-                {v.games.map((g) => (
-                  <li key={g.game_id} className="flex items-center gap-3 py-3">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-base-200 font-semibold" aria-hidden>
-                      {gameName(g.game_id).slice(0, 1)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <Link to={`/collection?game=${encodeURIComponent(g.game_id)}`} className="link-hover font-semibold">
-                        {gameName(g.game_id)}
-                      </Link>
-                      <div className="text-xs text-base-content/70">
-                        {t('{{count}} cards', { count: g.quantity })}
-                        {g.unpriced > 0 && (
-                          <>
-                            {' · '}
-                            <Link className="link" to={`/collection?game=${encodeURIComponent(g.game_id)}&noprice=1`}>
-                              {t('{{count}} without price', { count: g.unpriced })}
-                            </Link>
-                          </>
-                        )}
-                      </div>
+          {/* Two columns that each keep their own height: no panel stretched next to a longer one. */}
+          <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
+            <div className="flex min-w-0 flex-col gap-5">
+              <TopCards />
+              <Panel
+                title={t('Value over time')}
+                subtitle={t("Current holdings priced with each day's market prices.")}
+                aside={
+                  <>
+                    <Select
+                      className="select-sm w-40"
+                      value={game}
+                      onChange={setGame}
+                      aria-label={t('Game')}
+                      options={[{ value: '', label: t('All games') }, ...shown.map((g) => ({ value: g.id, label: g.name }))]}
+                    />
+                    <div className="join" role="group" aria-label={t('Period')}>
+                      {RANGES.map((r) => (
+                        <button
+                          key={r}
+                          className={`join-item btn btn-sm min-h-9 ${days === r ? 'shadow-[inset_0_-3px_0_var(--color-primary)]' : ''}`}
+                          aria-pressed={days === r}
+                          onClick={() => setDays(r)}
+                        >
+                          {t('{{n}} d', { n: r })}
+                        </button>
+                      ))}
                     </div>
-                    <span className="font-semibold tabular-nums">{formatMoney(g.total, g.currency)}</span>
-                  </li>
-                ))}
-              </ul>
-            </Panel>
-          </div>
-
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
-            <Panel
-              title={t('Value over time')}
-              subtitle={t("Current holdings priced with each day's market prices.")}
-              aside={
-                <>
-                  <Select
-                    className="select-sm w-40"
-                    value={game}
-                    onChange={setGame}
-                    aria-label={t('Game')}
-                    options={[{ value: '', label: t('All games') }, ...shown.map((g) => ({ value: g.id, label: g.name }))]}
-                  />
-                  <div className="join" role="group" aria-label={t('Period')}>
-                    {RANGES.map((r) => (
-                      <button
-                        key={r}
-                        className={`join-item btn btn-sm min-h-9 ${days === r ? 'shadow-[inset_0_-3px_0_var(--color-primary)]' : ''}`}
-                        aria-pressed={days === r}
-                        onClick={() => setDays(r)}
+                  </>
+                }
+              >
+                <PriceChart
+                  data={known(history.data?.points ?? []).map((p) => ({ date: p.date, [t('Value')]: Number(p.value) }))}
+                  series={[t('Value')]}
+                  height={260}
+                  currency={history.data?.currency}
+                />
+                <div className="mt-2 flex justify-end">
+                  <PanelLink to="/finance">{t('Finance')}</PanelLink>
+                </div>
+              </Panel>
+              <Movers />
+            </div>
+            <div className="flex min-w-0 flex-col gap-5">
+              <Panel title={t('Your games')} aside={<PanelLink to="/settings">{t('Manage')}</PanelLink>}>
+                <ul className="divide-y divide-base-300">
+                  {v.games.map((g) => (
+                    <li key={g.game_id} className="flex items-center gap-3 py-3">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-base-200 font-semibold" aria-hidden>
+                        {gameName(g.game_id).slice(0, 1)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <Link to={`/collection?game=${encodeURIComponent(g.game_id)}`} className="link-hover font-semibold">
+                          {gameName(g.game_id)}
+                        </Link>
+                        <div className="text-xs text-base-content/70">
+                          {t('{{count}} cards', { count: g.quantity })}
+                          {g.unpriced > 0 && (
+                            <>
+                              {' · '}
+                              <Link className="link" to={`/collection?game=${encodeURIComponent(g.game_id)}&noprice=1`}>
+                                {t('{{count}} without price', { count: g.unpriced })}
+                              </Link>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <span className="font-semibold tabular-nums">{formatMoney(g.total, g.currency)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Panel>
+              <Panel title={t('Recent changes')} aside={<PanelLink to="/collection?sort=updated">{t('Collection')}</PanelLink>}>
+                {transactions.data?.length === 0 && (
+                  <p className="text-base-content/70">
+                    {t('Nothing yet.')} <Link className="link" to="/catalog">{t('Add cards from the catalog')}</Link>{' '}
+                    {t('or import a CSV.')}
+                  </p>
+                )}
+                <ul className="divide-y divide-base-300">
+                  {transactions.data?.map((tr) => (
+                    <li key={tr.id} className={`flex items-center gap-3 py-2.5 ${tr.undone ? 'opacity-60' : ''}`}>
+                      <span
+                        className={`grid h-9 min-w-10 shrink-0 place-items-center rounded-xl px-1 font-semibold tabular-nums ${tr.delta > 0 ? 'bg-success/15 text-success' : 'bg-error/15 text-error'}`}
                       >
-                        {t('{{n}} d', { n: r })}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              }
-            >
-              <PriceChart
-                data={known(history.data?.points ?? []).map((p) => ({ date: p.date, [t('Value')]: Number(p.value) }))}
-                series={[t('Value')]}
-                height={260}
-                currency={history.data?.currency}
-              />
-              <div className="mt-2 flex justify-end">
-                <PanelLink to="/finance">{t('Finance')}</PanelLink>
-              </div>
-            </Panel>
-
-            <Panel title={t('Recent changes')} aside={<PanelLink to="/collection?sort=updated">{t('Collection')}</PanelLink>}>
-              {transactions.data?.length === 0 && (
-                <p className="text-base-content/70">
-                  {t('Nothing yet.')} <Link className="link" to="/catalog">{t('Add cards from the catalog')}</Link>{' '}
-                  {t('or import a CSV.')}
-                </p>
-              )}
-              <ul className="divide-y divide-base-300">
-                {transactions.data?.map((tr) => (
-                  <li key={tr.id} className={`flex items-center gap-3 py-2.5 ${tr.undone ? 'opacity-60' : ''}`}>
-                    <span
-                      className={`grid h-9 min-w-10 shrink-0 place-items-center rounded-xl px-1 font-semibold tabular-nums ${tr.delta > 0 ? 'bg-success/15 text-success' : 'bg-error/15 text-error'}`}
-                    >
-                      {tr.delta > 0 ? `+${tr.delta}` : `−${-tr.delta}`}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className={`font-semibold ${tr.undone ? 'line-through' : ''}`}>
-                        <ShownName name={tr.name} translation={tr.translation} />
+                        {tr.delta > 0 ? `+${tr.delta}` : `−${-tr.delta}`}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className={`font-semibold ${tr.undone ? 'line-through' : ''}`}>
+                          <ShownName name={tr.name} translation={tr.translation} />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/70">
+                          <span>{tr.set_code}</span>
+                          <FinishBadge game={games.find((g) => g.id === tr.game_id)} finish={tr.finish} size="badge-xs" />
+                          <ConditionBadge condition={tr.condition} size="badge-xs" />
+                          <LangFlag lang={tr.language} className="h-3" />
+                          <span>
+                            · {t(tr.source)} · {formatDateTime(tr.created_at)}
+                          </span>
+                          {tr.undone && <span>· {t('Undone')}</span>}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/70">
-                        <span>{tr.set_code}</span>
-                        <FinishBadge game={games.find((g) => g.id === tr.game_id)} finish={tr.finish} size="badge-xs" />
-                        <ConditionBadge condition={tr.condition} size="badge-xs" />
-                        <LangFlag lang={tr.language} className="h-3" />
-                        <span>
-                          · {t(tr.source)} · {formatDateTime(tr.created_at)}
-                        </span>
-                        {tr.undone && <span>· {t('Undone')}</span>}
-                      </div>
-                    </div>
-                    {!tr.undone && (
-                      <button className="btn btn-ghost btn-sm min-h-9" disabled={undo.isPending} onClick={() => undo.mutate(tr.id)}>
-                        {t('Undo')}
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </Panel>
+                      {!tr.undone && (
+                        <button className="btn btn-ghost btn-sm min-h-9" disabled={undo.isPending} onClick={() => undo.mutate(tr.id)}>
+                          {t('Undo')}
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Panel>
+            </div>
           </div>
-
-          <Movers />
         </>
       )}
       {isAdmin && <SyncStatus games={games} />}

@@ -27,7 +27,7 @@ const DYNAMIC = [
   // Deck sections (`DeckFormatOut.sections`).
   'Main deck', 'Sideboard', 'Commander', 'Companion', 'Chosen champion', 'Battlefields', 'Rune deck', 'Main Deck',
   'Extra Deck', 'Side Deck', 'Atlas', 'Spellbook', 'Collection',
-  'Allocated', 'Banned', 'Not legal', 'Restricted', 'Found', 'Ambiguous', 'Unknown',
+  'Allocated', 'Banned', 'Not legal', 'Restricted', 'Legal', 'Forbidden', 'Limited', 'Semi-Limited', 'Found', 'Ambiguous', 'Unknown',
   // Collection views and trend periods.
   'List', 'Images', '24h', '7d', '30d',
   // Finance periods.

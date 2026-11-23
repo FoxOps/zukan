@@ -31,7 +31,8 @@ routes, permissions and mutations are unchanged (no backend or API change).
 | Collection | +/− and item edit (quantity, manual price, notes, delete) | Stepper on tiles and rows; Edit opens the item dialog | ✓ |
 | Collection | Add from catalog | "Add cards" page action | ✓ |
 | Card | Printing deep links, default redirect, not found | Same routes and redirects in `CardDetail.tsx` | ✓ |
-| Card | Localized names, rules, symbols, legality, attributes | Hero (names) and "Card details" tab | ✓ |
+| Card | Localized names, rules, symbols, legality, attributes | Hero (names) and "Card details" tab; legality as coloured format badges with ✓ / ! / ✕ marks | ✓ |
+| Card | Search another card from a card page (open it or add copies) | Top-bar catalog search on every page (owner's choice, 2026-11-23: the card-page search was a duplicate); copies are added from the card page or catalog tiles | ✓ |
 | Card | Image, back flip, landscape, thumbnails, fallback | `CardImage` unchanged, artwork column | ✓ |
 | Card | Owned copies, finish and price source choice, history | Owned copies metric, finish buttons, Prices tab (source switch, history chart) | ✓ |
 | Card | Current/cheapest/most expensive/lowest offer, market links | Price block in the hero (this printing), Prices tab (others), links in the printings table | ✓ |

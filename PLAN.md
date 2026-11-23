@@ -2803,6 +2803,12 @@ Nunito/Inter and original logos (already identical to the design assets).
   set (PBL 042 → PBL 041 / PBL 043), names in the user's language, open tab kept. New
   `GET /api/printings/{id}/neighbors` (printed collector-number order, ties by id; set pages of
   the catalog search stop at 200 cards, too few for large sets); `tests/test_neighbors.py`.
+- [x] User report: card pages lose their own catalog search (the top bar's search is on every
+  page; adding copies stays on the card page and on catalog tiles); legality shown as format
+  badges: green ✓ legal, orange ! restricted / limited / semi-limited, red ✕ banned /
+  forbidden, plain when not legal (Magic and Lorcana `legalities`, Pokémon `legal`, Yu-Gi-Oh!
+  `banlist` with TCG / OCG / GOAT); Overview in two independent columns (no panel stretched
+  next to a long recent-changes list).
 - [x] Settings: Appearance (light/dark) shares the top bar's saved theme (`lib/theme.ts` store).
   Light `warning` darkened to #8f5f00 (5.1:1 as text); no gold text on cream.
 - [x] Verified: web build, oxlint, i18n check (882 texts, en/fr/de/es), backend 348 tests. Local

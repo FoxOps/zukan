@@ -7,7 +7,6 @@ import { useGame, useMe } from '../api/queries'
 import { Attributes } from '../components/Attributes'
 import { LangFlag } from '../components/Badges'
 import { CardImage } from '../components/CardImage'
-import { CatalogSearch } from '../components/CatalogSearch'
 import { Icon } from '../components/Icon'
 import { Eyebrow, Metric, Panel } from '../components/Page'
 import { RarityBadge } from '../components/RarityBadge'
@@ -153,7 +152,6 @@ export default function CardDetail() {
             <li aria-current="page">{name}</li>
           </ul>
         </nav>
-        <CatalogSearch game={c.game_id} />
       </div>
       {selected && <SetNeighbors printingId={selected.id} setCode={selected.set.code} tab={shownTab} />}
 

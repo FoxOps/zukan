@@ -182,7 +182,7 @@ export function SyncStatus({ games }: { games: Game[] }) {
           </div>
         )}
         {overview.data && overview.data.quotas.length > 0 && (
-          <ul className="flex flex-col gap-2">
+          <ul className="mt-4 flex flex-col gap-2 border-t border-base-300 pt-4">
             {overview.data.quotas.map((q) => (
               <li key={q.source} className="text-sm">
                 <div className="flex justify-between gap-2">

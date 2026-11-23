@@ -395,8 +395,6 @@
   "this month": "este mes",
   "printings moved": "impresiones movidas",
   "No type": "Sin tipo",
-  "Search the catalog to add a card": "Busca en el catálogo para añadir una carta",
-  "Searching…": "Buscando…",
   "No cards found": "No se han encontrado cartas",
   "No price history that far back": "No hay historial de precios tan antiguo",
   "from {{value}}": "desde {{value}}",
@@ -905,5 +903,10 @@
   "Cards of the set": "Cartas de la expansión",
   "No card yet.": "Aún no hay cartas.",
   "Previous card in the set": "Carta anterior de la expansión",
-  "Next card in the set": "Carta siguiente de la expansión"
+  "Next card in the set": "Carta siguiente de la expansión",
+  "Legal": "Legal",
+  "Forbidden": "Prohibida",
+  "Limited": "Limitada",
+  "Semi-Limited": "Semilimitada",
+  "Legality": "Legalidad"
 }
