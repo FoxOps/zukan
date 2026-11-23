@@ -2772,3 +2772,50 @@ and Search keep their state in ViewModels.
   (signature check); an HTTP server now needs `http://` typed.
 - [ ] User: release Android 0.20.0 (works with server ≥ 0.31; older stored tokens are encrypted at
   the first start, nobody is logged out).
+
+### Report server 0.32.0 + Android 0.20.0: Field Journal UI rework (user, 2026-11-23)
+Design direction "01 Field Journal" chosen by the owner (review package of 2026-11-23, brief
+IMPLEMENTATION-PROMPT + SPECIFICATION + FUNCTION-PRESERVATION.csv). Every existing function is kept;
+controls may move. Checklist: `docs/ui-rework/function-preservation.md`.
+Decisions (Q&A 2026-11-23): one branch and one PR; Catalog filter column keeps the real catalog
+filters only (no condition/finish/language there, no backend change); "Dashboard" renamed
+"Overview" (route `/` unchanged); full redesign of every page, inner workflows unchanged; bundled
+Nunito/Inter and original logos (already identical to the design assets).
+- [x] Shell: 240px chocolate sidebar, 180px signature, groups Collection / Workspace /
+  Administration (admin only, modules gated as before), paper top bar with a labelled catalog
+  search, language, theme, account; mobile drawer + bottom bar (Overview, Collection, Catalog,
+  More); shared PageHeader / Panel / Metric / FilterColumn / EmptyState.
+- [x] Catalog and Collection: persistent filter column (sheet on mobile, values kept in the URL),
+  search with result count, game attributes in a labelled expandable group, auto-fill image grid,
+  Add copies from catalog tiles, quick +/- separate from Edit.
+- [x] Card page: breadcrumb, artwork, identity and pricing, one stock action, tabs Printings /
+  Prices / Details; stock and item dialogs restyled, logic unchanged.
+- [x] Overview: three metrics, two-column panels (top cards, games, value history, recent changes
+  with undo, movers, admin sync status); one empty-state panel for a new account. Finance panels.
+- [x] Binder, Decks, Import / export, Settings, admin pages, Login, About, errors restyled.
+- [x] Versions: server stays 0.32.0 (not released to main yet), Android unchanged 0.20.0;
+  `.env.example` unchanged (no new variable).
+- [x] User requests mid-way: the sidebar never scrolls away on large screens. It is as high as
+  the screen and stays in place: logo band on the top bar's line, whole menu (36px items on
+  large screens, 44px on phones), Android app / version / About at the bottom. A menu too long
+  for a short screen scrolls by itself, no scrollbar shown.
+- [x] User request mid-way (a user's idea): card page links the previous and next card of the
+  set (PBL 042 → PBL 041 / PBL 043), names in the user's language, open tab kept. New
+  `GET /api/printings/{id}/neighbors` (printed collector-number order, ties by id; set pages of
+  the catalog search stop at 200 cards, too few for large sets); `tests/test_neighbors.py`.
+- [x] User report: card pages lose their own catalog search (the top bar's search is on every
+  page; adding copies stays on the card page and on catalog tiles); legality shown as format
+  badges: green ✓ legal, orange ! restricted / limited / semi-limited, red ✕ banned /
+  forbidden and red ✕ when not legal there (Magic and Lorcana `legalities`, Pokémon `legal`, Yu-Gi-Oh!
+  `banlist` with TCG / OCG / GOAT); Overview in two independent columns (no panel stretched
+  next to a long recent-changes list).
+- [x] Settings: Appearance (light/dark) shares the top bar's saved theme (`lib/theme.ts` store).
+  Light `warning` darkened to #8f5f00 (5.1:1 as text); no gold text on cream.
+- [x] Verified: web build, oxlint, i18n check (882 texts, en/fr/de/es), backend 348 tests. Local
+  deploy (branch image `local-field-journal`) with admin and a disposable user (created, then
+  deleted): the user sees no admin group and is sent home from `/admin/*`, modules off hide
+  Binder/Decks, new-account overview panel; catalog Add copies → stock dialog → add, overview
+  shows it, Undo restores; import Check file reports a bad row and imports nothing; logout/login.
+  Desktop 1440 and phone 390: drawer and filter sheet close with Escape, focus goes back, no
+  page-wide horizontal scroll. Light and dark.
+- [ ] User: review on the local deploy; 200% zoom and a screen-reader pass were not done.

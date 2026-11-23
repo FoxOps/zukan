@@ -6,6 +6,7 @@ import { api, call, markSignedIn } from '../api/client'
 import { meQuery, useProviders } from '../api/queries'
 import { LanguageMenu } from '../components/I18n'
 import { Logo } from '../components/Logo'
+import { Eyebrow } from '../components/Page'
 
 /** Only same-site paths, never `//host` (open redirect). */
 function safeNext(next: string | null): string {
@@ -76,15 +77,31 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-base-200 p-4">
-      <div className="card w-full max-w-sm bg-base-100 shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="card-body gap-4">
-          <div className="flex items-start justify-between">
-            <h1 className="flex flex-col gap-1">
-              <Logo className="w-56" />
-              <span className="text-sm font-normal text-base-content/60" lang="ja">図鑑</span>
-            </h1>
-            <LanguageMenu signedIn={false} />
+    <div className="grid min-h-screen bg-base-200 lg:grid-cols-2">
+      {/* Brand half: the cream signature on chocolate (large screens only). */}
+      <div className="hidden flex-col justify-center gap-8 bg-neutral px-16 text-neutral-content lg:flex">
+        <Logo onDark className="w-[200px]" />
+        <div>
+          <p className="font-display text-5xl font-extrabold leading-tight">
+            {t('All your cards.')}
+            <br />
+            {t('One familiar place.')}
+          </p>
+          <p className="mt-4 max-w-md text-lg text-neutral-content/80">{t('Explore your games. Organize every printing. Keep your collection close.')}</p>
+        </div>
+      </div>
+      <main className="flex items-center justify-center px-4 py-10">
+        <div className="flex w-full max-w-sm flex-col gap-5">
+          <div className="flex items-center justify-between gap-2">
+            <Logo className="w-[180px] lg:hidden" />
+            <div className="ml-auto">
+              <LanguageMenu signedIn={false} />
+            </div>
+          </div>
+          <div>
+            <Eyebrow>{t('Welcome back')}</Eyebrow>
+            <h1 className="mt-2 text-3xl">{t('Log in to Zukan')}</h1>
+            <p className="mt-1 text-base-content/70">{t('Your collection is waiting.')}</p>
           </div>
           {error && <div role="alert" className="alert alert-error alert-soft">{error}</div>}
           {providers.isError && (
@@ -96,16 +113,16 @@ export default function Login() {
             </div>
           )}
           {local && (
-            <form onSubmit={submit} className="flex flex-col gap-3">
-              <label className="input w-full">
-                <span className="label">{t('User')}</span>
-                <input autoComplete="username" required value={username} onChange={(e) => setUsername(e.target.value)} />
+            <form onSubmit={submit} className="flex flex-col gap-4">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-semibold">{t('User')}</span>
+                <input className="input w-full" autoComplete="username" required value={username} onChange={(e) => setUsername(e.target.value)} />
               </label>
-              <label className="input w-full">
-                <span className="label">{t('Password')}</span>
-                <input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-semibold">{t('Password')}</span>
+                <input className="input w-full" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
               </label>
-              <button className="btn btn-primary" disabled={busy}>
+              <button className="btn btn-primary min-h-11" disabled={busy}>
                 {busy && <span className="loading loading-spinner loading-sm" />}
                 {t('Log in')}
               </button>
@@ -113,12 +130,12 @@ export default function Login() {
           )}
           {local && sso.length > 0 && <div className="divider my-0">{t('or')}</div>}
           {sso.map((p) => (
-            <a key={p.name} className={local ? 'btn btn-outline' : 'btn btn-primary'} href={ssoHref(p.name)}>
+            <a key={p.name} className={`btn min-h-11 ${local ? '' : 'btn-primary'}`} href={ssoHref(p.name)}>
               {!local && sso.length === 1 ? t('Log in') : t('Sign in with {{provider}}', { provider: p.display_name })}
             </a>
           ))}
         </div>
-      </div>
+      </main>
     </div>
   )
 }

@@ -1,6 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Icon } from '../components/Icon'
+import { EmptyState, PageHeader } from '../components/Page'
 import { Link, Navigate, useNavigate } from 'react-router'
 import { api, call } from '../api/client'
 import { gameGroups, gameLabel, useBinders, useGames, useMe, useSets, useShownGames, type Binder } from '../api/queries'
@@ -32,7 +34,7 @@ export function BinderFilters({ binder }: { binder: Binder }) {
   const { t } = useTranslation()
   const { data: games = [] } = useGames()
   const game = games.find((g) => g.id === binder.game_id)
-  if (!binder.language && !binder.finish) return <span className="text-xs text-base-content/60">{t('Any language and finish')}</span>
+  if (!binder.language && !binder.finish) return <span className="text-xs text-base-content/70">{t('Any language and finish')}</span>
   return (
     <span className="flex flex-wrap items-center gap-1 text-xs">
       {binder.language && (
@@ -81,8 +83,8 @@ function FollowDialog({ open, followed, onClose }: { open: boolean; followed: nu
   return (
     <dialog className={`modal ${open ? 'modal-open' : ''}`} onClose={onClose}>
       {open && (
-        <div className="modal-box animate-in fade-in zoom-in-95 duration-200">
-          <h3 className="text-lg font-bold">{t('Follow a set')}</h3>
+        <div className="modal-box rounded-[20px] animate-in fade-in zoom-in-95 duration-200">
+          <h3 className="text-2xl">{t('Follow a set')}</h3>
           <div className="mt-4 flex flex-col gap-3">
             <label className="fieldset py-0">
               <span className="fieldset-legend">{t('Game')}</span>
@@ -139,7 +141,7 @@ function FollowDialog({ open, followed, onClose }: { open: boolean; followed: nu
                     />
                   </label>
                 </div>
-                <p className="text-xs text-base-content/60">{t('Only copies in this language and finish check a card off.')}</p>
+                <p className="text-xs text-base-content/70">{t('Only copies in this language and finish check a card off.')}</p>
               </>
             )}
           </div>
@@ -174,37 +176,43 @@ export default function BinderPage() {
   const list = all.filter((b) => isShown(b.game_id))
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">{t('Binder')}</h1>
-          <p className="text-sm text-base-content/60">{t('Follow sets and check off the cards you own.')}</p>
-        </div>
-        <button className="btn btn-primary btn-sm" onClick={() => setFollowing(true)}>
-          {t('Follow a set')}
-        </button>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        eyebrow={t('Your collection')}
+        title={t('Binder')}
+        subtitle={t('Follow sets and check off the cards you own.')}
+        action={
+          all.length > 0 && (
+            <button className="btn btn-primary min-h-11 gap-2" onClick={() => setFollowing(true)}>
+              <Icon name="plus" />
+              {t('Follow a set')}
+            </button>
+          )
+        }
+      />
       {binders.isPending && enabled ? (
         <span className="loading loading-spinner loading-lg m-auto block" />
       ) : all.length === 0 ? (
-        <div className="card bg-base-200">
-          <div className="card-body items-center text-center">
-            <p>{t('No set followed yet. Follow one to see which of its cards you are missing.')}</p>
-            <button className="btn btn-primary btn-sm" onClick={() => setFollowing(true)}>
+        <EmptyState
+          title={t('No set followed yet.')}
+          actions={
+            <button className="btn btn-primary min-h-11" onClick={() => setFollowing(true)}>
               {t('Follow a set')}
             </button>
-          </div>
-        </div>
+          }
+        >
+          {t('No set followed yet. Follow one to see which of its cards you are missing.')}
+        </EmptyState>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {list.map((b) => (
-            <Link key={b.id} to={`/binder/${b.id}`} className="card bg-base-200 transition-colors hover:bg-base-300">
+            <Link key={b.id} to={`/binder/${b.id}`} className="card rounded-2xl border border-base-300 bg-base-100 transition-colors hover:border-base-content/40">
               <div className="card-body gap-3">
                 <div className="flex items-start gap-3">
                   {b.set.icon && <SetIcon src={b.set.icon} game={b.game_id} className="h-8 w-8" />}
                   <div className="min-w-0">
-                    <h2 className="card-title text-base leading-tight">{b.set.name}</h2>
-                    <div className="text-xs text-base-content/60">
+                    <h2 className="text-lg leading-tight">{b.set.name}</h2>
+                    <div className="text-xs text-base-content/70">
                       {games.find((g) => g.id === b.game_id)?.name ?? b.game_id} · {b.set.code}
                     </div>
                   </div>

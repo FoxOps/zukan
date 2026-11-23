@@ -5,6 +5,8 @@ import { useMe, useShownGames } from '../api/queries'
 import { useInvalidateStock } from '../api/stock'
 import { useToast } from '../components/toast'
 import { Select } from '../components/Select'
+import { Icon } from '../components/Icon'
+import { Eyebrow, PageHeader, Panel } from '../components/Page'
 
 type Report = Schemas['ImportOut']
 
@@ -62,98 +64,41 @@ export default function ImportExport() {
   }
 
   return (
-    <div className="flex max-w-4xl flex-col gap-6">
-      <h1 className="text-2xl font-bold">{t('Import / export')}</h1>
-
-      <div className="card bg-base-200">
-        <div className="card-body">
-          <h2 className="card-title">{t('Export')}</h2>
-          <p className="text-sm">{t('Download your collection as CSV (spreadsheet-friendly, re-importable).')}</p>
-          {extraParts.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <p className="text-sm text-base-content/60">
-                {t('With followed sets or decks, the download is a zip holding one CSV per part, which imports back here.')}
-              </p>
-              <div className="flex flex-wrap gap-x-6">
-                <label className="label cursor-pointer gap-2 text-base-content">
-                  <input type="checkbox" className="checkbox checkbox-sm" checked disabled />
-                  {t('Cards')}
-                </label>
-                {extraParts.map((part) => (
-                  <label key={part} className="label cursor-pointer gap-2 text-base-content">
+    <div className="flex flex-col gap-6">
+      <PageHeader eyebrow={t('Your workspace')} title={t('Import / export')} subtitle={t('Move your cards, followed sets and decks in and out of Zukan.')} />
+      <div className="grid items-start gap-5 lg:grid-cols-2">
+      <Panel bodyClassName="flex flex-col gap-4">
+          <div>
+            <Eyebrow>01 · {t('Import')}</Eyebrow>
+            <h2 className="mt-2 text-xl">{t('Bring your collection')}</h2>
+            <p className="mt-1 text-sm text-base-content/70">{t('A CSV or a Zukan zip. Check the file before importing: if any row is invalid, nothing is imported.')}</p>
+          </div>
                     <input
-                      type="checkbox"
-                      className="checkbox checkbox-sm"
-                      checked={parts.includes(part)}
-                      onChange={(e) => setParts(e.target.checked ? [...parts, part] : parts.filter((p) => p !== part))}
-                    />
-                    {partLabel(part)}
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <Select
-              className="w-56"
-              value={exportGame}
-              onChange={setExportGame}
-              options={[{ value: '', label: t('All games') }, ...shown.map((g) => ({ value: g.id, label: g.name }))]}
-            />
-            <a className="btn btn-primary" href={exportUrl} download>
-              {chosen.length > 1 ? t('Download zip') : t('Download CSV')}
-            </a>
-          </div>
-        </div>
-      </div>
-
-      <div className="card bg-base-200">
-        <div className="card-body gap-4">
-          <h2 className="card-title">{t('Import')}</h2>
-          <div className="prose prose-sm max-w-none">
-            <p>
-              {t('One row per item.')} <code>collector_number</code>{' '}
-              {t('is the printed number, or the printing id for games without numbers (Sorcery, e.g.')}{' '}
-              <code>abundance-b</code>). {t('Commas, semicolons or tabs work. If any row is invalid, nothing is imported.')}
-            </p>
-            <p>
-              {t('Values of the game column:')}{' '}
-              {games.map((g, i) => (
-                <span key={g.id}>
-                  {i > 0 && ', '}
-                  <code>{g.id}</code> ({g.name})
-                </span>
-              ))}
-            </p>
-            <pre className="text-xs">{EXAMPLE}</pre>
-            <p>
-              {t('A zip exported here brings back followed sets and decks too. Decks of the same game and name get the cards added, or replaced with the second option.')}
-            </p>
-          </div>
-          <input
             type="file"
             accept=".csv,.zip,text/csv,text/plain,application/zip"
-            className="file-input w-full max-w-md"
+            aria-label={t('Collection file')}
+            className="file-input w-full"
             onChange={(e) => {
               setFile(e.target.files?.[0] ?? null)
               setReport(null)
             }}
           />
-          <div className="flex flex-wrap gap-4">
-            <label className="label cursor-pointer gap-2">
+          <fieldset className="flex flex-col gap-2">
+            <legend className="sr-only">{t('Import mode')}</legend>
+            <label className="label cursor-pointer gap-2 whitespace-normal text-base-content">
               <input type="radio" className="radio radio-sm" checked={mode === 'add'} onChange={() => setMode('add')} />
               {t('Add quantities to my collection')}
             </label>
-            <label className="label cursor-pointer gap-2">
+            <label className="label cursor-pointer gap-2 whitespace-normal text-base-content">
               <input type="radio" className="radio radio-sm" checked={mode === 'set'} onChange={() => setMode('set')} />
               {t('Replace quantities of listed items')}
             </label>
-          </div>
+          </fieldset>
           <div className="flex gap-2">
-            <button className="btn" disabled={!file || busy} onClick={() => run(true)}>
+            <button className="btn min-h-11" disabled={!file || busy} onClick={() => run(true)}>
               {t('Check file')}
             </button>
-            <button className="btn btn-primary" disabled={!file || busy} onClick={() => run(false)}>
+            <button className="btn btn-primary min-h-11" disabled={!file || busy} onClick={() => run(false)}>
               {busy && <span className="loading loading-spinner loading-sm" />}
               {t('Import')}
             </button>
@@ -184,7 +129,7 @@ export default function ImportExport() {
                     {t('{{count}} problems found in {{rows}} rows.', { count: report.errors.length, rows: report.rows })}{' '}
                     {t('Nothing was imported.')}
                   </div>
-                  <div className="mt-2 max-h-80 overflow-auto">
+                  <div className="mt-2 max-h-80 overflow-auto rounded-xl border border-base-300" tabIndex={0} role="region" aria-label={t('Problems')}>
                     <table className="table table-xs">
                       <thead>
                         <tr>
@@ -208,7 +153,75 @@ export default function ImportExport() {
               )}
             </div>
           )}
-        </div>
+          <details className="rounded-xl border border-base-300 px-4 py-2">
+            <summary className="min-h-9 cursor-pointer content-center text-sm font-semibold">{t('CSV format and examples')}</summary>
+<div className="prose prose-sm max-w-none text-base-content">
+            <p>
+              {t('One row per item.')} <code>collector_number</code>{' '}
+              {t('is the printed number, or the printing id for games without numbers (Sorcery, e.g.')}{' '}
+              <code>abundance-b</code>). {t('Commas, semicolons or tabs work. If any row is invalid, nothing is imported.')}
+            </p>
+            <p>
+              {t('Values of the game column:')}{' '}
+              {games.map((g, i) => (
+                <span key={g.id}>
+                  {i > 0 && ', '}
+                  <code>{g.id}</code> ({g.name})
+                </span>
+              ))}
+            </p>
+            <pre className="text-xs">{EXAMPLE}</pre>
+            <p>
+              {t('A zip exported here brings back followed sets and decks too. Decks of the same game and name get the cards added, or replaced with the second option.')}
+            </p>
+          </div>
+          </details>
+      </Panel>
+      <Panel bodyClassName="flex flex-col gap-4">
+          <div>
+            <Eyebrow>02 · {t('Export')}</Eyebrow>
+            <h2 className="mt-2 text-xl">{t('Take your data with you')}</h2>
+            <p className="mt-1 text-sm text-base-content/70">{t('Download your collection as CSV (spreadsheet-friendly, re-importable).')}</p>
+          </div>
+          {extraParts.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <p className="text-sm text-base-content/70">
+                {t('With followed sets or decks, the download is a zip holding one CSV per part, which imports back here.')}
+              </p>
+              <div className="flex flex-wrap gap-x-6">
+                <label className="label cursor-pointer gap-2 text-base-content">
+                  <input type="checkbox" className="checkbox checkbox-sm" checked disabled />
+                  {t('Cards')}
+                </label>
+                {extraParts.map((part) => (
+                  <label key={part} className="label cursor-pointer gap-2 text-base-content">
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-sm"
+                      checked={parts.includes(part)}
+                      onChange={(e) => setParts(e.target.checked ? [...parts, part] : parts.filter((p) => p !== part))}
+                    />
+                    {partLabel(part)}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Select
+              className="w-56"
+              aria-label={t('Game')}
+              value={exportGame}
+              onChange={setExportGame}
+              options={[{ value: '', label: t('All games') }, ...shown.map((g) => ({ value: g.id, label: g.name }))]}
+            />
+            <a className="btn btn-primary min-h-11 gap-2" href={exportUrl} download>
+              <Icon name="download" />
+              {chosen.length > 1 ? t('Download zip') : t('Download CSV')}
+            </a>
+          </div>
+      </Panel>
+
       </div>
     </div>
   )

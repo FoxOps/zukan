@@ -184,7 +184,7 @@ export function FormatCheck({ validation }: { validation: Schemas['DeckValidatio
       )}
       {validation.unverified.length > 0 && (
         <details className="text-xs text-base-content/70">
-          <summary className="w-fit cursor-pointer text-base-content/60">{t('Not verified ({{n}})', { n: validation.unverified.length })}</summary>
+          <summary className="w-fit cursor-pointer text-base-content/70">{t('Not verified ({{n}})', { n: validation.unverified.length })}</summary>
           <ul className="mt-1 flex flex-col gap-1">
             {validation.unverified.map((issue, i) => (
               <li key={i}>? {text(issue)}</li>

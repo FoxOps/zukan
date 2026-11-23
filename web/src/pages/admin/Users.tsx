@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { AdminHeader } from '../../components/AdminHeader'
 import { Navigate } from 'react-router'
 import { api, call, type Schemas } from '../../api/client'
 import { useMe, useProviders } from '../../api/queries'
@@ -82,10 +83,10 @@ export default function Users() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">{t('Users')}</h1>
-      <div className="overflow-x-auto rounded-box border border-base-300">
+      <AdminHeader title={t('Users')} />
+      <div className="overflow-x-auto rounded-2xl border border-base-300 bg-base-100" tabIndex={0} role="region" aria-label={t('Table, scroll for more columns')}>
         <table className="table">
-          <thead>
+          <thead className="bg-neutral text-neutral-content">
             <tr>
               <th>{t('User')}</th>
               <th>{t('Role')}</th>
@@ -102,7 +103,7 @@ export default function Users() {
                 <tr key={u.id}>
                   <td>
                     <div className="font-medium">{u.username}</div>
-                    <div className="text-xs text-base-content/60">{u.email}</div>
+                    <div className="text-xs text-base-content/70">{u.email}</div>
                   </td>
                   {/* Set at every login when the Administrators group is linked to identity provider groups. */}
                   <td title={u.role_managed_by_sso ? t('Role managed by the SSO provider') : undefined}>

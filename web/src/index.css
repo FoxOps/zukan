@@ -52,8 +52,8 @@
   --color-info-content: #ffffff;
   --color-success: #3c7255;
   --color-success-content: #fff6e5;
-  --color-warning: #c98a00;
-  --color-warning-content: #211a17;
+  --color-warning: #8f5f00;
+  --color-warning-content: #fff6e5;
   --color-error: #ad3b35;
   --color-error-content: #ffffff;
   --radius-selector: 0.75rem;
@@ -115,13 +115,26 @@ h3,
   }
 }
 
-/* Chocolate sidebar: the active item is gold, as in the identity guide. */
-.zukan-nav .menu {
-  --menu-active-bg: var(--color-primary);
-  --menu-active-fg: var(--color-primary-content);
-}
-.zukan-nav .menu-title {
-  color: color-mix(in oklab, var(--color-neutral-content) 60%, transparent);
+/* Field Journal buttons: plain ones are paper with a sand border (they stay visible on the
+   cream page and on the night one); coloured, ghost, link and outline ones keep daisyUI's. */
+.btn:not(
+    .btn-ghost,
+    .btn-link,
+    .btn-outline,
+    .btn-soft,
+    .btn-dash,
+    .btn-primary,
+    .btn-secondary,
+    .btn-accent,
+    .btn-neutral,
+    .btn-info,
+    .btn-success,
+    .btn-warning,
+    .btn-error,
+    .btn-active
+  ) {
+  --btn-bg: var(--color-base-100);
+  --btn-border: var(--color-base-300);
 }
 
 /* Logo variant for the current theme (both <img> are in the page, one is hidden). */

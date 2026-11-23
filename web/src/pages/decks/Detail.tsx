@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type CSSProperties, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { EmptyState, Eyebrow, Panel } from '../../components/Page'
 import { Link, Navigate, useNavigate, useParams } from 'react-router'
 import { api, call, type Schemas } from '../../api/client'
 import { useDeck, useDeckFormats, useGame, useMe } from '../../api/queries'
@@ -108,8 +109,8 @@ function PrintingDialog({ deckId, gameId, row, split, onClose }: { deckId: numbe
   return (
     <dialog className={`modal ${row ? 'modal-open' : ''}`} onClose={onClose}>
       {row && (
-        <div className="modal-box max-w-3xl animate-in fade-in zoom-in-95 duration-200">
-          <h3 className="text-lg font-bold">{split ? t('Split off one copy of {{name}}', { name: row.entry.name }) : t('Printing of {{name}}', { name: row.entry.name })}</h3>
+        <div className="modal-box rounded-[20px] max-w-3xl animate-in fade-in zoom-in-95 duration-200">
+          <h3 className="text-2xl">{split ? t('Split off one copy of {{name}}', { name: row.entry.name }) : t('Printing of {{name}}', { name: row.entry.name })}</h3>
           <p className="py-1 text-sm text-base-content/70">
             {split
               ? t('One copy gets its own line, asking for the printing chosen.')
@@ -184,8 +185,8 @@ function CopiesDialog({ deckId, entry, onClose }: { deckId: number; entry: Entry
   return (
     <dialog className={`modal ${entry ? 'modal-open' : ''}`} onClose={onClose}>
       {entry && current && (
-        <div className="modal-box max-w-2xl animate-in fade-in zoom-in-95 duration-200">
-          <h3 className="text-lg font-bold">{t('Copies of {{name}}', { name: current.name })}</h3>
+        <div className="modal-box rounded-[20px] max-w-2xl animate-in fade-in zoom-in-95 duration-200">
+          <h3 className="text-2xl">{t('Copies of {{name}}', { name: current.name })}</h3>
           <p className="py-1 text-sm text-base-content/70">
             {t('This deck asks for {{requested}}, {{allocated}} allocated here.', { requested: current.requested, allocated: current.allocated })}{' '}
             {t('Allocating sets a copy aside for this deck: your collection keeps it, other decks no longer see it as available.')}
@@ -193,7 +194,7 @@ function CopiesDialog({ deckId, entry, onClose }: { deckId: number; entry: Entry
           {items.isPending ? (
             <span className="loading loading-spinner m-auto block" />
           ) : (items.data ?? []).length === 0 ? (
-            <p className="py-4 text-center text-sm text-base-content/60">{t('You own no copy of this card.')}</p>
+            <p className="py-4 text-center text-sm text-base-content/70">{t('You own no copy of this card.')}</p>
           ) : (
             <ul className="mt-2 flex flex-col gap-2">
               {(items.data ?? []).map((item) => (
@@ -477,17 +478,21 @@ export default function DeckDetail() {
   const totals = { allocated: entries.reduce((n, e) => n + e.allocated, 0), requested: entries.reduce((n, e) => n + e.requested, 0), missing: entries.reduce((n, e) => n + e.missing, 0) }
 
   return (
-    <div className="flex flex-col gap-4">
-      <Link to="/decks" className="link-hover w-fit text-sm text-base-content/70">
-        ← {t('Decks')}
-      </Link>
-      <div className="card bg-base-200">
-        <div className="card-body gap-3 lg:flex-row lg:items-center">
+    <div className="flex flex-col gap-6">
+      <nav className="breadcrumbs text-sm" aria-label={t('Breadcrumb')}>
+        <ul>
+          <li><Link to="/decks">{t('Decks')}</Link></li>
+          <li aria-current="page">{deck.name}</li>
+        </ul>
+      </nav>
+      <Panel>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
           <div className="min-w-0 flex-1">
+            <Eyebrow>{game?.name ?? deck.game_id}</Eyebrow>
             {renaming === null ? (
-              <h1 className="text-2xl font-bold leading-tight">
+              <h1 className="mt-1 text-3xl leading-tight">
                 {deck.name}{' '}
-                <button className="btn btn-ghost btn-xs align-middle" onClick={() => setRenaming(deck.name)}>
+                <button className="btn btn-ghost btn-sm align-middle" onClick={() => setRenaming(deck.name)}>
                   {t('Rename')}
                 </button>
               </h1>
@@ -510,13 +515,13 @@ export default function DeckDetail() {
                 </button>
               </form>
             )}
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-base-content/60">
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-base-content/70">
               <span>
                 {game?.name ?? deck.game_id} · {formatName(deck.format)}
               </span>
               <DeckCount deck={deck} showValue={false} />
             </div>
-            <div className="mt-1 text-xs text-base-content/60">
+            <div className="mt-1 text-xs text-base-content/70">
               {t('{{allocated}} of {{requested}} copies allocated, {{missing}} missing from your collection', totals)}
             </div>
             <DeckValue deck={deck} />
@@ -545,7 +550,7 @@ export default function DeckDetail() {
             </button>
           </div>
         </div>
-      </div>
+      </Panel>
 
       <AddCards deck={deck} entries={entries} onAdd={add} sections={sections} busy={busy} view={view.id} />
       <div className="flex justify-end">
@@ -554,16 +559,14 @@ export default function DeckDetail() {
 
       <div className="flex flex-col gap-4">
         {blocks.length === 0 && (
-          <div className="card bg-base-200">
-            <div className="card-body items-center text-center text-sm text-base-content/70">{t('No card yet: search the catalog above or import a decklist.')}</div>
-          </div>
+          <EmptyState title={t('No card yet.')}>{t('No card yet: search the catalog above or import a decklist.')}</EmptyState>
         )}
         {blocks.map((block) => {
           const count = block.rows.reduce((n, r) => n + r.line.quantity, 0)
           if (view.id === 'images')
             return (
               <section key={block.key} className="flex flex-col gap-2">
-                <h2 className="font-semibold">
+                <h2 className="text-xl">
                   {block.title} ({count})
                 </h2>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 2xl:grid-cols-5">
@@ -593,7 +596,7 @@ export default function DeckDetail() {
                         <Link to={link} className="link-hover break-words text-sm font-medium">
                           <ShownName name={e.name} translation={e.translation} />
                         </Link>
-                        <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/60">
+                        <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/70">
                           <PrintingBadge line={line} onClick={() => setPrinting({ row, split: false })} />
                           <span className="tooltip" data-tip={t('{{n}} allocated to other decks', { n: e.allocated_elsewhere })}>
                             <span className={`badge badge-sm ${e.allocated >= e.requested ? 'badge-success' : 'badge-ghost'}`}>
@@ -614,9 +617,9 @@ export default function DeckDetail() {
               </section>
             )
           return (
-            <div key={block.key} className="overflow-x-auto rounded-box border border-base-300">
+            <div key={block.key} className="overflow-x-auto rounded-2xl border border-base-300 bg-base-100" tabIndex={0} role="region" aria-label={t('Table, scroll for more columns')}>
               <table className="table table-sm">
-                <thead>
+                <thead className="bg-neutral text-neutral-content">
                   <tr>
                     <th colSpan={4}>
                       {block.title} ({count})
@@ -637,10 +640,10 @@ export default function DeckDetail() {
                               <CardImage thumb src={line.image ?? e.image} alt={e.name} game={deck.game_id} landscape={e.orientation === 'landscape'} />
                             </Link>
                             <div className="min-w-0">
-                              <Link to={link} className={`link-hover font-medium ${first ? '' : 'text-base-content/60'}`}>
+                              <Link to={link} className={`link-hover font-medium ${first ? '' : 'text-base-content/70'}`}>
                                 <ShownName name={e.name} translation={e.translation} />
                               </Link>
-                              <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/60">
+                              <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/70">
                                 <PrintingBadge line={line} onClick={() => setPrinting({ row, split: false })} />
                                 {lineAllocated(row)}
                                 {first && e.mana_cost && (
@@ -674,8 +677,8 @@ export default function DeckDetail() {
 
       <dialog className={`modal ${deleting ? 'modal-open' : ''}`} onClose={() => setDeleting(false)}>
         {deleting && (
-          <div className="modal-box">
-            <h3 className="text-lg font-bold">{t('Delete {{name}}?', { name: deck.name })}</h3>
+          <div className="modal-box rounded-[20px]">
+            <h3 className="text-2xl">{t('Delete {{name}}?', { name: deck.name })}</h3>
             <p className="py-2 text-sm">{t('Its allocated copies become available again; your collection is not changed.')}</p>
             <div className="modal-action">
               <button className="btn btn-ghost" onClick={() => setDeleting(false)}>

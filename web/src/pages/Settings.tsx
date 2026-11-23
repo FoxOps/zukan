@@ -8,6 +8,8 @@ import { useToast } from '../components/toast'
 import { Select } from '../components/Select'
 import { browserLanguage, LANGUAGES, useChangeLanguage, useFollowBrowser } from '../i18n'
 import { moduleInfo } from '../lib/modules'
+import { useTheme } from '../lib/theme'
+import { PageHeader, Panel } from '../components/Page'
 
 type SettingsIn = Schemas['SettingsIn']
 
@@ -39,9 +41,8 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
 
   return (
     <>
-      <div className="card bg-base-200">
-        <div className="card-body gap-4">
-          <h2 className="card-title">{t('Preferences')}</h2>
+      <Panel title={t('Display and language')} bodyClassName="flex flex-col gap-4">
+          <Appearance />
           <label className="fieldset">
             <span className="fieldset-legend">{t('Language')}</span>
             <Select
@@ -57,8 +58,11 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
               {t('Card images are shown in this language when available, else in English, else in Japanese.')}
             </span>
           </label>
+      </Panel>
+
+      <Panel title={t('Price sources')} bodyClassName="flex flex-col gap-4">
           <fieldset className="fieldset">
-            <legend className="fieldset-legend">{t('Price sources')}</legend>
+            <legend className="sr-only">{t('Price sources')}</legend>
             {sources.map((s) => {
               const on = me.price_sources.includes(s.id)
               return (
@@ -94,15 +98,10 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
               </span>
             </label>
           )}
-        </div>
-      </div>
+      </Panel>
 
-      {/* Two columns while this card spans the page width (lg), one in the three-card row (xl). */}
-      <div className="card bg-base-200 lg:col-span-2 xl:col-span-1">
-        <div className="card-body gap-4">
-          <h2 className="card-title">{t('Games shown')}</h2>
-          <p className="text-sm text-base-content/60">{t('The catalog, collection, dashboard, finance, binder and decks only show these games.')}</p>
-          <div className="fieldset block gap-x-8 py-0 sm:columns-2 xl:columns-1">
+      <Panel title={t('Games shown')} subtitle={t('The catalog, collection, dashboard, finance, binder and decks only show these games.')}>
+          <div className="fieldset block gap-x-8 py-0 sm:columns-2">
             {gameGroups(games).map((group) => (
               <div key={group.id} className="flex break-inside-avoid flex-col gap-1 pb-1">
                 {group.games.length > 1 && <span className="label font-medium text-base-content">{group.name}</span>}
@@ -121,9 +120,32 @@ function Preferences({ me }: { me: Schemas['MeOut'] }) {
               </div>
             ))}
           </div>
-        </div>
-      </div>
+      </Panel>
     </>
+  )
+}
+
+/** Light or dark theme, the same choice as the top bar's button. */
+function Appearance() {
+  const { t } = useTranslation()
+  const [dark, setDark] = useTheme()
+  return (
+    <div className="fieldset">
+      <span className="fieldset-legend">{t('Appearance')}</span>
+      <div className="join" role="group" aria-label={t('Appearance')}>
+        {[false, true].map((value) => (
+          <button
+            key={String(value)}
+            type="button"
+            className={`btn join-item min-h-11 ${dark === value ? 'btn-primary' : ''}`}
+            aria-pressed={dark === value}
+            onClick={() => setDark(value)}
+          >
+            {value ? t('Dark theme') : t('Light theme')}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -142,10 +164,7 @@ function Modules({ me }: { me: Schemas['MeOut'] }) {
   if (me.available_modules.length === 0) return null
 
   return (
-    <div className="card bg-base-200">
-      <div className="card-body gap-4">
-        <h2 className="card-title">{t('Modules')}</h2>
-        <p className="text-sm text-base-content/70">{t('Extra features for other ways of collecting. Zukan works the same without them.')}</p>
+    <Panel title={t('Optional modules')} subtitle={t('Extra features for other ways of collecting. Zukan works the same without them.')} bodyClassName="flex flex-col gap-4">
         {me.available_modules.map((id) => {
           const info = moduleInfo(id)
           return (
@@ -160,17 +179,16 @@ function Modules({ me }: { me: Schemas['MeOut'] }) {
                 />
                 <span className="font-medium">{t(info.name)}</span>
               </label>
-              {info.text && <span className="pl-12 text-xs whitespace-normal text-base-content/60">{t(info.text)}</span>}
+              {info.text && <span className="pl-12 text-xs whitespace-normal text-base-content/70">{t(info.text)}</span>}
             </div>
           )
         })}
         {me.role === 'admin' && (
-          <Link to="/admin/groups" className="link link-primary text-sm">
+          <Link to="/admin/groups" className="link link-secondary text-sm">
             {t('Choose who can use each module in Admin › Groups')}
           </Link>
         )}
-      </div>
-    </div>
+    </Panel>
   )
 }
 
@@ -275,16 +293,13 @@ export default function Settings() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">{t('Settings')}</h1>
+      <PageHeader eyebrow={t('Your workspace')} title={t('Settings')} subtitle={t('Your account, games, modules and display preferences.')} />
 
-      {/* Account, preferences and catalog games side by side on wide screens (same height). */}
-      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        <div className="card bg-base-200">
-          <div className="card-body gap-4">
-            <div>
-              <h2 className="card-title">{user.username}</h2>
-              <EmailForm me={user} />
-            </div>
+      <div className="grid items-start gap-5 lg:grid-cols-2">
+        <Preferences me={user} />
+        <Modules me={user} />
+        <Panel title={user.username} bodyClassName="flex flex-col gap-4">
+            <EmailForm me={user} />
             {/* SSO accounts: email and password are edited at the identity provider. */}
             {user.sso ? (
               user.sso_account?.account_url && (
@@ -333,11 +348,7 @@ export default function Settings() {
               </form>
               </>
             )}
-          </div>
-        </div>
-
-        <Preferences me={user} />
-        <Modules me={user} />
+        </Panel>
       </div>
     </div>
   )

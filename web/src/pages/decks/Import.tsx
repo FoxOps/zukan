@@ -97,8 +97,8 @@ export function ImportDialog({
   return (
     <dialog className={`modal ${open ? 'modal-open' : ''}`} onClose={close}>
       {open && (
-        <div className="modal-box max-w-3xl animate-in fade-in zoom-in-95 duration-200">
-          <h3 className="text-lg font-bold">{t('Import a decklist')}</h3>
+        <div className="modal-box rounded-[20px] max-w-3xl animate-in fade-in zoom-in-95 duration-200">
+          <h3 className="text-2xl">{t('Import a decklist')}</h3>
           {lines === null ? (
             <div className="mt-3 flex flex-col gap-2">
               <p className="text-sm text-base-content/70">
@@ -121,7 +121,7 @@ export function ImportDialog({
               </p>
               <div className="max-h-96 overflow-y-auto rounded-box border border-base-300">
                 <table className="table table-sm">
-                  <thead>
+                  <thead className="bg-neutral text-neutral-content">
                     <tr>
                       <th>{t('Line')}</th>
                       <th className="text-right">{t('Qty')}</th>
@@ -190,7 +190,7 @@ export function ImportDialog({
                 </table>
               </div>
               {skipped.length > 0 && (
-                <p className="text-xs text-base-content/60">{t('Lines not understood: {{lines}}', { lines: skipped.join(' · ') })}</p>
+                <p className="text-xs text-base-content/70">{t('Lines not understood: {{lines}}', { lines: skipped.join(' · ') })}</p>
               )}
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" className="checkbox checkbox-sm" checked={replace} onChange={(e) => setReplace(e.target.checked)} />

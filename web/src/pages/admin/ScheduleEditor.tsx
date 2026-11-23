@@ -127,7 +127,7 @@ function RuleEditor({ rule, onChange }: { rule: Rule; onChange: (rule: Rule) => 
                 onChange={(v) => set({ month_day: Number(v) })}
                 options={Array.from({ length: 28 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }))}
               />
-              <span className="text-base-content/60">{t('of each month')}</span>
+              <span className="text-base-content/70">{t('of each month')}</span>
             </label>
           )}
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -271,12 +271,12 @@ export function ScheduleEditor() {
               <div key={kind} className="grid gap-3 py-3 md:grid-cols-[12rem_1fr]">
                 <div>
                   <div className="font-medium">{t(kind)}</div>
-                  <div className="text-xs text-base-content/60">{t(KIND_HELP[kind])}</div>
+                  <div className="text-xs text-base-content/70">{t(KIND_HELP[kind])}</div>
                 </div>
                 <div className="flex flex-col gap-1">
                   <RuleEditor rule={rule} onChange={(r) => setDraft({ ...draft, jobs: { ...draft.jobs, [kind]: r } })} />
                   {next.length > 0 && (
-                    <div className="text-xs text-base-content/60">
+                    <div className="text-xs text-base-content/70">
                       {t('Next: {{times}}', { times: next.map((at) => formatDateTime(at)).join(' · ') })}
                     </div>
                   )}

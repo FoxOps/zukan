@@ -11,6 +11,9 @@ export type CatalogViewProps = {
   games: Game[]
   // Several games listed: say which one each card belongs to.
   showGame: boolean
+  // Opens the stock dialog of a card; `adding`: the card whose versions are loading.
+  add: (card: Card) => void
+  adding: number | null
 }
 
 export type CatalogView = ViewChoice & { component: ComponentType<CatalogViewProps> }

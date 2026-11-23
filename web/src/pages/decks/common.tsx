@@ -60,7 +60,7 @@ export function DeckValue({ deck }: { deck: Deck }) {
   if (!value || deck.copies === 0) return null
   const money = (n: string) => formatMoney(n, value.currency)
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-base-content/60">
+    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-base-content/70">
       <span>
         {t('Deck value')}: <span className="font-mono font-semibold text-base-content">{money(value.total)}</span>
       </span>

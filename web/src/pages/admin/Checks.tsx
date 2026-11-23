@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { AdminHeader } from '../../components/AdminHeader'
 import { Link, Navigate } from 'react-router'
 import { api, call, type Schemas } from '../../api/client'
 import { useGames, useMe } from '../../api/queries'
@@ -37,7 +38,7 @@ export default function Checks() {
   const tab = url.get('tab') === 'stale' ? 'stale' : 'differences'
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-bold">{t('Data checks')}</h1>
+      <AdminHeader title={t('Data checks')} />
       <div role="tablist" className="tabs tabs-box w-fit">
         <button role="tab" className={`tab ${tab === 'differences' ? 'tab-active' : ''}`} onClick={() => url.set({ tab: null, game: null, source: null, field: null, state: null })}>
           {t('Source differences')}
@@ -122,9 +123,9 @@ function Differences() {
         {t('After each catalog refresh, second sources are compared with the main one. They fill missing data; where they disagree, the main source is kept unless you choose otherwise. Choices are kept after every sync.')}
       </p>
 
-      <div className="overflow-x-auto rounded-box border border-base-300">
+      <div className="overflow-x-auto rounded-2xl border border-base-300 bg-base-100" tabIndex={0} role="region" aria-label={t('Table, scroll for more columns')}>
         <table className="table table-sm">
-          <thead>
+          <thead className="bg-neutral text-neutral-content">
             <tr>
               <th>{t('Game')}</th>
               <th>{t('Source')}</th>
@@ -137,7 +138,7 @@ function Differences() {
           <tbody>
             {checks.data?.counts.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-base-content/60">{t('No difference found.')}</td>
+                <td colSpan={6} className="text-base-content/70">{t('No difference found.')}</td>
               </tr>
             )}
             {checks.data?.counts.map((c) => {
@@ -181,7 +182,7 @@ function Differences() {
               <button role="tab" className={`tab ${state === 'open' ? 'tab-active' : ''}`} onClick={() => url.set({ state: null })}>{t('Open')}</button>
               <button role="tab" className={`tab ${state === 'resolved' ? 'tab-active' : ''}`} onClick={() => url.set({ state: 'resolved' })}>{t('Arbitrated')}</button>
             </div>
-            {checks.data && <span className="text-sm text-base-content/60">{t('{{count}} differences', { count: checks.data.total })}</span>}
+            {checks.data && <span className="text-sm text-base-content/70">{t('{{count}} differences', { count: checks.data.total })}</span>}
             {checks.isPlaceholderData && <span className="loading loading-spinner loading-xs" />}
           </div>
           {filtered && (
@@ -192,9 +193,9 @@ function Differences() {
         </div>
         {checks.data && checks.data.total > 0 && (
           <>
-            <div className="overflow-x-auto rounded-box border border-base-300">
+            <div className="overflow-x-auto rounded-2xl border border-base-300 bg-base-100" tabIndex={0} role="region" aria-label={t('Table, scroll for more columns')}>
               <table className="table table-sm">
-                <thead>
+                <thead className="bg-neutral text-neutral-content">
                   <tr>
                     <th>{t('Set')}</th>
                     <th>{t('Card')}</th>
@@ -216,14 +217,14 @@ function Differences() {
                         <td>
                           {d.card_id ? (
                             <Link className="link link-hover" to={`/cards/${d.card_id}`}>
-                              {d.card_name} <span className="text-base-content/60">#{d.collector_number}</span>
+                              {d.card_name} <span className="text-base-content/70">#{d.collector_number}</span>
                             </Link>
                           ) : (
-                            <span className="text-base-content/60">{t('(set)')}</span>
+                            <span className="text-base-content/70">{t('(set)')}</span>
                           )}
                         </td>
                         <td>{t(d.field)}</td>
-                        <td className={d.resolution && d.resolution !== 'primary' ? 'line-through text-base-content/50' : ''}>{d.primary_value}</td>
+                        <td className={d.resolution && d.resolution !== 'primary' ? 'line-through text-base-content/70' : ''}>{d.primary_value}</td>
                         <td className={d.resolution === 'secondary' ? 'font-semibold text-success' : 'text-warning'}>{d.secondary_value}</td>
                         <td className="whitespace-nowrap">
                           {state === 'open' ? (
@@ -329,13 +330,13 @@ function StaleCards() {
               {t('Refresh all stale {{game}} cards', { game: gameName(g) })}
             </button>
           ))}
-        {stale.data && <span className="text-sm text-base-content/60">{t('{{count}} cards', { count: stale.data.total })}</span>}
+        {stale.data && <span className="text-sm text-base-content/70">{t('{{count}} cards', { count: stale.data.total })}</span>}
       </div>
       {stale.data && stale.data.total > 0 && (
         <>
-          <div className="overflow-x-auto rounded-box border border-base-300">
+          <div className="overflow-x-auto rounded-2xl border border-base-300 bg-base-100" tabIndex={0} role="region" aria-label={t('Table, scroll for more columns')}>
             <table className="table table-sm">
-              <thead>
+              <thead className="bg-neutral text-neutral-content">
                 <tr>
                   <th>{t('Card')}</th>
                   {!game && <th>{t('Game')}</th>}
@@ -350,7 +351,7 @@ function StaleCards() {
                   <tr key={c.id}>
                     <td>
                       <Link className="link link-hover" to={`/cards/${c.id}`}>{c.name}</Link>
-                      <div className="text-xs text-base-content/60">{t('{{count}} printings', { count: c.printing_count })}</div>
+                      <div className="text-xs text-base-content/70">{t('{{count}} printings', { count: c.printing_count })}</div>
                     </td>
                     {!game && <td>{gameName(c.game_id)}</td>}
                     <td>
