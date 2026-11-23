@@ -13,7 +13,8 @@ import { Select } from '../components/Select'
 import { useToast } from '../components/toast'
 import { formatDateTime, formatMoney, formatShare } from '../lib/format'
 import { ShownName } from '../components/ShownName'
-import { Movers, SyncStatus, TopCards, useTopItems } from './dashboard/Widgets'
+import { useTopItems } from './dashboard/queries'
+import { Movers, SyncStatus, TopCards } from './dashboard/Widgets'
 
 const RANGES = [30, 90, 365]
 

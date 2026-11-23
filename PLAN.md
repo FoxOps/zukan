@@ -2820,6 +2820,13 @@ Nunito/Inter and original logos (already identical to the design assets).
   page-wide horizontal scroll. Light and dark.
 - [ ] User: review on the local deploy; 200% zoom and a screen-reader pass were not done.
 
+### Docker prod 0.32.0 warnings (user, 2026-11-23)
+Two oxlint `react(only-export-components)` warnings in the CI checks of the Docker prod run
+(component files also exporting a constant or a hook, which breaks fast refresh).
+- [x] `LEGALITY_KEYS` moved from `components/Legality.tsx` to `lib/attributes.ts`;
+  `useTopItems` from `pages/dashboard/Widgets.tsx` to `pages/dashboard/queries.ts`.
+- [x] oxlint 0 warnings, tsc, i18n check, build. No behavior change, no version bump (goes with
+  the next version).
 ### Report server 0.32.0 + Android 0.20.0: connecting fails with NetworkOnMainThreadException (user, 2026-11-23)
 Branch `2026-11-23-003-android-connect-main-thread` from `dev`, pull request into `dev`.
 - [x] HIGH: connecting to a server crashed with `android.os.NetworkOnMainThreadException` (since 0.20.0).
@@ -2837,5 +2844,5 @@ Branch `2026-11-23-003-android-connect-main-thread` from `dev`, pull request int
   `.env.example`: only the `TCG_USER_AGENT` example follows the version (no new variable).
 - [x] Verified: Android unit tests, lintRelease, assembleDebug (not on a phone: the crash needs an
   HTTPS server); web build (tsc + vite), i18n check
-  (887 texts), oxlint (only the two fast-refresh warnings fixed by #77).
+  (887 texts), oxlint 0 warnings (with #77 merged in).
 - [ ] User: try connect / login / logout / server change on a phone, then release Android 0.20.1.
