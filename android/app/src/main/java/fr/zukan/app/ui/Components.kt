@@ -111,7 +111,8 @@ fun PillSearchField(value: String, onValueChange: (String) -> Unit, placeholder:
             unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
             focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
-        modifier = modifier.heightIn(min = 56.dp),
+        // Named for TalkBack once text is typed too (the placeholder goes then).
+        modifier = modifier.heightIn(min = 56.dp).semantics { contentDescription = placeholder },
     )
 }
 

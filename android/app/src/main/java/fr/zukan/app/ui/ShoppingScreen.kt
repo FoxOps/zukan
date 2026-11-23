@@ -20,14 +20,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -40,7 +38,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.selection.triStateToggleable
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -51,8 +54,11 @@ import fr.zukan.app.data.ShoppingItemIn
 import fr.zukan.app.data.ShoppingItemOut
 import fr.zukan.app.data.ShoppingListOut
 import fr.zukan.app.data.ZukanApi
+import fr.zukan.app.data.runCatchingCancellable
 import fr.zukan.app.data.userMessage
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** Shopping lists sent from the web (a deck's missing cards): tick copies while buying.
  * Lists are deleted only here, never on their own, even complete. Ticking a card marks it
@@ -138,20 +144,36 @@ private fun ShoppingListDetail(api: ZukanApi?, id: Int, onBack: () -> Unit) {
             .onFailure { error = it.userMessage(context) }
     }
 
+    // Per item: the count last asked for, the count the server last confirmed, and one
+    // write at a time (taps 1 then 2 must not reach the server as 2 then 1).
+    val wanted = remember { mutableMapOf<Int, Int>() }
+    val confirmed = remember { mutableMapOf<Int, Int>() }
+    val writes = remember { mutableMapOf<Int, Mutex>() }
+
     fun setBought(item: ShoppingItemOut, count: Int) {
         val current = list ?: return
-        // Shown at once; the server's answer (or the old state on failure) follows.
-        list = current.copy(
-            items = current.items.map { if (it.id == item.id) it.withBought(count) else it },
-            bought = current.bought + count - item.boughtCount,
-        )
+        confirmed.getOrPut(item.id) { current.items.firstOrNull { it.id == item.id }?.boughtCount ?: item.boughtCount }
+        wanted[item.id] = count
+        // Shown at once; the server's answer (or this item's last saved count) follows.
+        list = current.withBought(item.id, count)
         scope.launch {
-            runCatching { api!!.updateShoppingItem(id, item.id, ShoppingItemIn(count, bought = count >= item.quantity)) }
-                .onSuccess { list = it }
-                .onFailure {
-                    list = current
-                    error = it.userMessage(context)
-                }
+            writes.getOrPut(item.id) { Mutex() }.withLock {
+                // A newer tap of this item came meanwhile: only that one is sent.
+                if (wanted[item.id] != count) return@withLock
+                runCatchingCancellable { api!!.updateShoppingItem(id, item.id, ShoppingItemIn(count, bought = count >= item.quantity)) }
+                    .onSuccess { answer ->
+                        val saved = answer.items.firstOrNull { it.id == item.id }?.boughtCount ?: count
+                        confirmed[item.id] = saved
+                        if (wanted[item.id] == count) list = list?.withItemOf(answer, item.id)
+                    }
+                    .onFailure {
+                        if (wanted[item.id] == count) {
+                            wanted.remove(item.id)
+                            list = list?.withBought(item.id, confirmed[item.id] ?: item.boughtCount)
+                        }
+                        error = it.userMessage(context)
+                    }
+            }
         }
     }
 
@@ -211,27 +233,46 @@ private fun ShoppingListDetail(api: ZukanApi?, id: Int, onBack: () -> Unit) {
 }
 
 /** One box per copy ("[x][ ][ ] 3 Card Name"): a box ticks the copies up to it, or unticks
- * from it; the row ticks all copies, or none once all are bought. */
+ * from it; the row ticks all copies, or none once all are bought. Above [MAX_BOXES] copies,
+ * a − count + stepper instead of a box per copy. */
 @Composable
 private fun ShoppingItemRow(item: ShoppingItemOut, onBought: (Int) -> Unit) {
     val count = item.boughtCount
     val done = if (item.bought) TextDecoration.LineThrough else null
     val faded = if (item.bought) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+    val progress = stringResource(R.string.shopping_item_state, count, item.quantity)
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Checkbox) { onBought(if (item.bought) 0 else item.quantity) },
+        Modifier.fillMaxWidth().heightIn(min = 56.dp)
+            .triStateToggleable(
+                state = when {
+                    item.bought -> ToggleableState.On
+                    count > 0 -> ToggleableState.Indeterminate
+                    else -> ToggleableState.Off
+                },
+                role = Role.Checkbox,
+            ) { onBought(if (item.bought) 0 else item.quantity) }
+            .semantics { stateDescription = progress },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 32.dp) {
+        if (item.quantity <= MAX_BOXES) {
+            // 48 dp each: neighbouring boxes never share a touch target.
             FlowRow(Modifier.width(BOX_SIZE * minOf(item.quantity, BOXES_PER_ROW)), maxItemsInEachRow = BOXES_PER_ROW) {
                 repeat(item.quantity) { copy ->
+                    val label = stringResource(R.string.shopping_copy, item.name, copy + 1, item.quantity)
                     Checkbox(
                         checked = copy < count,
                         onCheckedChange = { onBought(if (copy < count) copy else copy + 1) },
-                        modifier = Modifier.size(BOX_SIZE),
+                        modifier = Modifier.size(BOX_SIZE).semantics { contentDescription = label },
                     )
                 }
             }
+        } else {
+            QuantityStepper(
+                count,
+                onMinus = { if (count > 0) onBought(count - 1) },
+                onPlus = { if (count < item.quantity) onBought(count + 1) },
+            )
         }
         Text("${item.quantity}", style = MaterialTheme.typography.titleMedium, color = faded, modifier = Modifier.width(28.dp))
         Column(Modifier.weight(1f)) {
@@ -245,6 +286,8 @@ private fun ShoppingItemRow(item: ShoppingItemOut, onBought: (Int) -> Unit) {
     }
 }
 
-// Copy boxes: a row of the list holds this many before wrapping.
+// Copy boxes: a row of the list holds this many before wrapping; more copies than
+// MAX_BOXES get a stepper (a deck line may ask for up to 250).
 private const val BOXES_PER_ROW = 4
-private val BOX_SIZE = 32.dp
+private const val MAX_BOXES = 8
+private val BOX_SIZE = 48.dp

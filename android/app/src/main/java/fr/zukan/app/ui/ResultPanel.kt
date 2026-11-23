@@ -3,6 +3,7 @@ package fr.zukan.app.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -89,6 +90,8 @@ fun ResultPanel(
     onAdjust: (finish: String, condition: String, language: String, delta: Int) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    // Scanner: closing goes back to the camera ("Scan next"); a card opened by hand: "Close".
+    scanNext: Boolean = true,
 ) {
     val result = state.result ?: return
     val candidate = state.current ?: return
@@ -111,7 +114,8 @@ fun ResultPanel(
     val defaultFinish = listOfNotNull(state.finish, guessed, state.lastFinish).firstOrNull { it in finishes } ?: finishes.firstOrNull() ?: ""
 
     var finish by remember(printing.id) { mutableStateOf(defaultFinish) }
-    var condition by remember(printing.id) { mutableStateOf(settings.condition) }
+    // The copy opened from the collection, else the scan setting.
+    var condition by remember(printing.id) { mutableStateOf(state.condition ?: settings.condition) }
     var language by remember(printing.id) { mutableStateOf(defaultLanguage) }
     var quantity by remember(printing.id) { mutableIntStateOf(1) }
     var pickPrinting by remember { mutableStateOf(false) }
@@ -255,15 +259,25 @@ fun ResultPanel(
             { onAdjust(finish, condition, language, quantity) },
             enabled = !state.busy && finish.isNotEmpty(),
         )
+        // Copies of the variant chosen above: what Remove takes from (never another condition
+        // or language of the printing).
+        val ownedHere = printing.owned.filter { it.finish == finish && it.condition == condition && it.language == language }.sumOf { it.quantity }
         OutlinedButton(
-            onClick = { onAdjust(finish, condition, language, -quantity) },
-            enabled = !state.busy && printing.owned.isNotEmpty(),
+            onClick = { onAdjust(finish, condition, language, -minOf(quantity, ownedHere)) },
+            enabled = !state.busy && ownedHere > 0,
             shape = FieldShape,
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
         ) { Text(stringResource(R.string.remove_from_collection), style = MaterialTheme.typography.titleMedium) }
+        if (printing.owned.isNotEmpty()) {
+            Text(
+                stringResource(R.string.owned_variant, ownedHere),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         TextButton(onClick = onClose, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-            ZIcon(R.drawable.ic_scan, null, Modifier.padding(end = 8.dp))
-            Text(stringResource(R.string.scan_next), style = MaterialTheme.typography.titleMedium)
+            if (scanNext) ZIcon(R.drawable.ic_scan, null, Modifier.padding(end = 8.dp))
+            Text(stringResource(if (scanNext) R.string.scan_next else R.string.close), style = MaterialTheme.typography.titleMedium)
         }
     }
 
@@ -304,14 +318,17 @@ private fun PriceStatsGrid(stats: PriceStats, finishName: (String) -> String) {
             Row(Modifier.fillMaxWidth()) {
                 pair.forEachIndexed { column, (title, value, desc) ->
                     val highlight = row == 0 && column == 0 && stats.thisVersion != null
+                    // Gold cell: chocolate text (sand on gold was unreadable in dark mode).
+                    val label = if (highlight) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                    val text = if (highlight) MaterialTheme.colorScheme.onPrimaryContainer else androidx.compose.ui.graphics.Color.Unspecified
                     Column(
                         Modifier.weight(1f)
                             .then(if (highlight) Modifier.background(MaterialTheme.colorScheme.primaryContainer) else Modifier)
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                     ) {
-                        Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text(desc, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+                        Text(title, style = MaterialTheme.typography.labelSmall, color = label)
+                        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = text)
+                        Text(desc, style = MaterialTheme.typography.bodySmall, maxLines = 2, color = text)
                     }
                 }
                 if (pair.size == 1) Spacer(Modifier.weight(1f))
@@ -359,7 +376,8 @@ fun ConditionChoice(code: String, selected: Boolean, onClick: () -> Unit) {
         Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).clip(RoundedCornerShape(12.dp))
             .background(if (selected) color else color.copy(alpha = 0.45f))
             .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(12.dp)) else Modifier)
-            .clickable(role = Role.RadioButton, onClick = onClick)
+            // Selected state told to TalkBack too, not only drawn.
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) { Text(code, color = conditionTextColor(code), fontWeight = FontWeight.Bold) }

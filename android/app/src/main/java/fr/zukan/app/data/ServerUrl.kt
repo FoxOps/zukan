@@ -2,12 +2,11 @@ package fr.zukan.app.data
 
 /** Turn what the user typed ("nas.lan:8000", "https://cards.example.org") into a base URL. */
 object ServerUrl {
-    private val localHost = Regex(
-        """^(localhost|\d{1,3}(\.\d{1,3}){3}|\[[0-9a-fA-F:]+]|[^.]+|.+\.(lan|local|home|internal|ts\.net))(:\d+)?(/.*)?$""",
-    )
     private val scheme = Regex("^(https?)://", RegexOption.IGNORE_CASE)
     private const val HEALTH = "api/health"
 
+    /** HTTPS unless `http://` is typed: passwords and tokens are never sent unencrypted
+     * without the user asking for it (a home network does not protect them). */
     fun normalize(input: String): String {
         var url = input.trim().trimEnd('/')
         if (url.isEmpty()) return url
@@ -15,8 +14,7 @@ object ServerUrl {
         url = if (typed != null) {
             typed.groupValues[1].lowercase() + url.substring(typed.groupValues[1].length)
         } else {
-            // Home network names usually have no certificate; public names should.
-            (if (localHost.matches(url)) "http://" else "https://") + url
+            "https://$url"
         }
         return "$url/"
     }

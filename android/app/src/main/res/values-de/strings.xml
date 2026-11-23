@@ -11,9 +11,9 @@
 
     <!-- Login -->
     <string name="server_address">Serveradresse</string>
-    <string name="server_address_hint">karten.example.org oder 192.168.1.10:8000</string>
+    <string name="server_address_hint">karten.example.org oder http://192.168.1.10:8000</string>
     <string name="connect">Verbinden</string>
-    <string name="not_encrypted">Nicht verschlüsselt (HTTP): nur im Heimnetz oder über ein VPN verwenden.</string>
+    <string name="not_encrypted">Nicht verschlüsselt (HTTP): Passwort und Sitzung können im Netzwerk mitgelesen werden. Nutze besser HTTPS oder ein VPN.</string>
     <string name="change_server">Server wechseln</string>
     <string name="user">Benutzer</string>
     <string name="password">Passwort</string>
@@ -21,7 +21,7 @@
     <string name="sign_in_with">Mit %1$s anmelden</string>
 
     <!-- Scan -->
-    <string name="camera_needed">Zukan liest den Text, der auf deine Karten gedruckt ist. Die Bilder bleiben auf deinem Telefon: Nur der gelesene Text wird an deinen Zukan-Server gesendet.</string>
+    <string name="camera_needed">Zukan liest den auf deine Karten gedruckten Text auf dem Telefon. Der gelesene Text geht an deinen Zukan-Server, bei Magic oder allen Spielen auch ein graues Bild der Karte um diesen Text, um Set-Symbole zu vergleichen.</string>
     <string name="allow_camera">Kamera erlauben</string>
     <string name="any_game">Alle Spiele</string>
     <string name="point_at_card">Richte die Kamera auf eine Karte</string>
@@ -241,11 +241,23 @@
     <string name="shopping_subtitle">Fehlende Karten deiner Decks, vom Web gesendet</string>
     <string name="shopping_empty">Noch keine Einkaufsliste</string>
     <string name="shopping_empty_help">Öffne im Web ein Deck, dann Einkaufsliste und An die App senden.</string>
-    <string name="shopping_progress">%1$d / %2$d gekauft</string>
+    <string name="shopping_progress">Gekauft: %1$d / %2$d</string>
     <string name="shopping_complete">Erledigt</string>
     <string name="shopping_delete">Löschen</string>
     <string name="shopping_delete_title">Diese Liste löschen?</string>
     <string name="shopping_delete_text">Die Liste %1$s wird endgültig gelöscht. Deine Sammlung und Decks ändern sich nicht.</string>
     <string name="cancel">Abbrechen</string>
     <string name="phone_language">Telefonsprache (%1$s)</string>
+    <string name="card_details">Karte</string>
+    <string name="owned_variant">Im Besitz in dieser Ausführung, diesem Zustand und dieser Sprache: %1$d</string>
+    <string name="camera_error_title">Die Kamera ist nicht gestartet</string>
+    <string name="camera_failed">Vielleicht nutzt eine andere App sie. Schließe diese App und versuche es erneut, oder suche die Karte nach Namen.</string>
+    <string name="camera_none">Dieses Gerät hat keine Kamera, die Zukan nutzen kann. Suche Karten nach Namen.</string>
+    <string name="printings_search_failed">Die anderen Drucke konnten nicht auf dem Server gesucht werden.</string>
+    <string name="sso_not_encrypted">%1$s ist nicht verschlüsselt (HTTP): dein Passwort kann im Netzwerk mitgelesen werden.</string>
+    <string name="shopping_item_state">Gekauft: %1$d / %2$d</string>
+    <string name="shopping_copy">%1$s, Exemplar %2$d von %3$d</string>
+    <string name="update_too_large">die Datei ist größer als angegeben</string>
+    <string name="update_no_space">nicht genug freier Speicher auf dem Telefon</string>
+    <string name="update_invalid">diese Datei ist kein Update von Zukan</string>
 </resources>
