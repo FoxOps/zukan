@@ -8,18 +8,12 @@ import { CardImage } from '../../components/CardImage'
 import { Panel, PanelLink } from '../../components/Page'
 import { ShownName } from '../../components/ShownName'
 import { formatDateTime, formatMoney } from '../../lib/format'
+import { useTopItems } from './queries'
 
 type Item = Schemas['ItemOut']
 type Mover = Schemas['MoverOut']
 
 const cardLink = (item: Item) => `/cards/${item.card_id}/${item.printing_id}`
-
-export function useTopItems() {
-  return useQuery({
-    queryKey: ['collection', 'top'],
-    queryFn: () => call(api.GET('/api/collection', { params: { query: { sort: 'price_desc', page_size: 6 } } })),
-  })
-}
 
 /** The copies worth the most (unit price × quantity), as pictures. */
 export function TopCards() {

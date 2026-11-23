@@ -6,8 +6,8 @@
 import { Fragment, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Game } from '../api/queries'
-import { HIDDEN } from '../lib/attributes'
-import { Legality, LEGALITY_KEYS } from './Legality'
+import { HIDDEN, LEGALITY_KEYS } from '../lib/attributes'
+import { Legality } from './Legality'
 import { costSymbols, thresholdSymbols } from '../lib/symbols'
 import { SymbolText } from './SymbolText'
 

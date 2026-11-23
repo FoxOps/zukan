@@ -2819,3 +2819,11 @@ Nunito/Inter and original logos (already identical to the design assets).
   Desktop 1440 and phone 390: drawer and filter sheet close with Escape, focus goes back, no
   page-wide horizontal scroll. Light and dark.
 - [ ] User: review on the local deploy; 200% zoom and a screen-reader pass were not done.
+
+### Docker prod 0.32.0 warnings (user, 2026-11-23)
+Two oxlint `react(only-export-components)` warnings in the CI checks of the Docker prod run
+(component files also exporting a constant or a hook, which breaks fast refresh).
+- [x] `LEGALITY_KEYS` moved from `components/Legality.tsx` to `lib/attributes.ts`;
+  `useTopItems` from `pages/dashboard/Widgets.tsx` to `pages/dashboard/queries.ts`.
+- [x] oxlint 0 warnings, tsc, i18n check, build. No behavior change, no version bump (goes with
+  the next version).

@@ -12,3 +12,10 @@ export const HIDDEN = new Set([
 export function hasVisibleAttributes(data: Record<string, unknown>): boolean {
   return Object.entries(data).some(([k, v]) => !HIDDEN.has(k) && v !== null && v !== '')
 }
+
+/** Attributes holding a card's legality, per game (shown by `Legality`):
+ * - `legalities` (Magic, Lorcana): format → "legal" | "restricted" | "banned" | "not_legal"
+ * - `legal` (Pokémon printings): format → true / false
+ * - `banlist` (Yu-Gi-Oh!): list → "Forbidden" | "Limited" | "Semi-Limited", a list left out
+ *   means unlimited there. */
+export const LEGALITY_KEYS = ['legalities', 'legal', 'banlist'] as const
