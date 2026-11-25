@@ -209,7 +209,7 @@ export default function BinderPage() {
             <Link key={b.id} to={`/binder/${b.id}`} className="card rounded-2xl border border-base-300 bg-base-100 transition-colors hover:border-base-content/40">
               <div className="card-body gap-3">
                 <div className="flex items-start gap-3">
-                  {b.set.icon && <SetIcon src={b.set.icon} game={b.game_id} className="h-8 w-8" />}
+                  {b.set.icon && <SetIcon small src={b.set.icon} game={b.game_id} className="h-8 w-8" />}
                   <div className="min-w-0">
                     <h2 className="text-lg leading-tight">{b.set.name}</h2>
                     <div className="text-xs text-base-content/70">

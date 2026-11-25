@@ -600,6 +600,7 @@ async def search_cards(
     # Cards are shown as printed in the chosen set (set filter or code search).
     shown_sets = {set_id} if set_id is not None else set(code.set_ids if code else ())
     card_names, printing_names = await load_names(session, (c.id for c in cards))
+    stages.mark("names")
     shown_cards = [
         (
             card,
@@ -607,9 +608,11 @@ async def search_cards(
         )
         for card in cards
     ]
+    stages.mark("shown")
     languages = await set_languages(
         session, (shown.printing.set_id for _, shown in shown_cards if shown.printing)
     )
+    stages.mark("set_languages")
     copies = dict(
         (
             await session.execute(
@@ -623,7 +626,7 @@ async def search_cards(
             )
         ).all()
     )
-    stages.mark("decorate")
+    stages.mark("owned")
     stages.send(response)
     items = []
     for card, shown in shown_cards:

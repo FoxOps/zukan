@@ -968,5 +968,8 @@ async def test_search_reports_its_stages(client, session, synced):
         "count",
         "page",
         "prices",
-        "decorate",
+        "names",
+        "shown",
+        "set_languages",
+        "owned",
     ]

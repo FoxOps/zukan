@@ -7,6 +7,7 @@ import { useToast } from '../components/toast'
 import { Select } from '../components/Select'
 import { Icon } from '../components/Icon'
 import { Eyebrow, PageHeader, Panel } from '../components/Page'
+import { useImportErrorText } from './importErrors'
 
 type Report = Schemas['ImportOut']
 
@@ -18,6 +19,7 @@ type Part = 'binder' | 'decks'
 
 export default function ImportExport() {
   const { t } = useTranslation()
+  const errorText = useImportErrorText()
   const partLabel = (part: Part) => (part === 'binder' ? t('Followed sets (Binder)') : t('Decks, their cards and allocated copies'))
   // Files of an export bundle (`services.export_bundle`).
   const fileLabel = (name: string) =>
@@ -126,7 +128,7 @@ export default function ImportExport() {
               ) : (
                 <>
                   <div role="alert" className="alert alert-error alert-soft">
-                    {t('{{count}} problems found in {{rows}} rows.', { count: report.errors.length, rows: report.rows })}{' '}
+                    {t('Problems found: {{problems}} · Rows checked: {{rows}}.', { problems: report.errors.length, rows: report.rows })}{' '}
                     {t('Nothing was imported.')}
                   </div>
                   <div className="mt-2 max-h-80 overflow-auto rounded-xl border border-base-300" tabIndex={0} role="region" aria-label={t('Problems')}>
@@ -143,7 +145,7 @@ export default function ImportExport() {
                           <tr key={i}>
                             {inBundle && <td>{e.file ? fileLabel(e.file) : ''}</td>}
                             <td>{e.line}</td>
-                            <td>{e.message}</td>
+                            <td>{errorText(e)}</td>
                           </tr>
                         ))}
                       </tbody>

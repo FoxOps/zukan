@@ -63,6 +63,9 @@ export default function Catalog() {
         }),
       ),
     placeholderData: keepPreviousData,
+    // Pages seen a moment ago (back, previous page) shown without asking again; stock
+    // changes refresh them (`useInvalidateStock`), settings changes too.
+    staleTime: 30_000,
   })
 
   const active = (setId ? 1 : 0) + (colors.length ? 1 : 0) + attrs.length + (sort ? 1 : 0)

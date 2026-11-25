@@ -86,6 +86,49 @@ function PrintingBadge({ line, onClick }: { line: Line; onClick: () => void }) {
   )
 }
 
+/** A line asking for one printing that holds copies of another one (only those were
+ * owned): what is really set aside, so nobody thinks the asked printing is there. */
+function HeldBadge({ line }: { line: Line }) {
+  const { t } = useTranslation()
+  if (line.printing_id === null) return null
+  const others = (line.held ?? []).filter((h) => h.printing_id !== line.printing_id)
+  if (others.length === 0) return null
+  const held = others.map((h) => `${h.set_code} ${h.collector_number ?? ''}`.trim()).join(', ')
+  const asked = `${line.set_code ?? ''} ${line.collector_number ?? ''}`.trim()
+  return (
+    <span className="tooltip" data-tip={t('Asked for {{asked}}, set aside: {{held}}', { asked, held })}>
+      <span className="badge badge-sm badge-warning badge-soft font-mono">{t('Set aside: {{held}}', { held })}</span>
+    </span>
+  )
+}
+
+/** Why a card lacks copies: owned copies other decks hold (move one, or get one), and
+ * copies the collection does not have. */
+function StatusBadges({ entry, size = 'badge-sm' }: { entry: Entry; size?: string }) {
+  const { t } = useTranslation()
+  if (entry.status !== 'missing') {
+    const status = STATUS[entry.status]
+    return <span className={`badge ${size} ${status.badge}`}>{t(status.label)}</span>
+  }
+  // Older servers: no split, every missing copy is to get.
+  const elsewhere = entry.held_elsewhere ?? 0
+  const toGet = entry.to_get ?? entry.missing - elsewhere
+  return (
+    <>
+      {toGet > 0 && (
+        <span className="tooltip" data-tip={t('Copies your collection does not have')}>
+          <span className={`badge ${size} badge-error`}>{t('To get {{n}}', { n: toGet })}</span>
+        </span>
+      )}
+      {elsewhere > 0 && (
+        <span className="tooltip" data-tip={t('Copies you own that other decks hold: release one there to use it here')}>
+          <span className={`badge ${size} badge-warning`}>{t('In other decks {{n}}', { n: elsewhere })}</span>
+        </span>
+      )}
+    </>
+  )
+}
+
 /** The card's printings, to ask for one in a deck line (all its copies, or one copy split
  * off into its own line), or any printing. */
 function PrintingDialog({ deckId, gameId, row, split, onClose }: { deckId: number; gameId: string; row: Row | null; split: boolean; onClose: () => void }) {
@@ -200,7 +243,7 @@ function CopiesDialog({ deckId, entry, onClose }: { deckId: number; entry: Entry
               {(items.data ?? []).map((item) => (
                 <li key={item.id} className="flex flex-wrap items-center gap-2 rounded-box bg-base-200 px-3 py-2">
                   <span className="block w-8 shrink-0">
-                    <CardImage thumb src={item.image} alt="" game={detail?.deck.game_id} />
+                    <CardImage thumb="small" src={item.image} alt="" game={detail?.deck.game_id} />
                   </span>
                   <span className="font-mono text-xs">
                     {item.set_code} {item.collector_number}
@@ -282,13 +325,9 @@ function RowMenu({ id, actions }: { id: string; actions: { label: string; run: (
 /** Requested / owned / available / allocated here, and the card's state. */
 function Stock({ entry }: { entry: Entry }) {
   const { t } = useTranslation()
-  const status = STATUS[entry.status]
   return (
     <div className="flex flex-wrap items-center justify-end gap-1 text-xs">
-      <span className={`badge badge-sm ${status.badge}`}>
-        {t(status.label)}
-        {entry.status === 'missing' && ` ${entry.missing}`}
-      </span>
+      <StatusBadges entry={entry} />
       <span className="tooltip" data-tip={t('Owned in your collection')}>
         <span className="badge badge-sm badge-ghost">
           {t('Owned')} {entry.owned}
@@ -474,7 +513,8 @@ export default function DeckDetail() {
       </div>
     )
   }
-  const totals = { allocated: entries.reduce((n, e) => n + e.allocated, 0), requested: entries.reduce((n, e) => n + e.requested, 0), missing: entries.reduce((n, e) => n + e.missing, 0) }
+  const sum = (count: (e: Entry) => number) => entries.reduce((n, e) => n + count(e), 0)
+  const totals = { allocated: sum((e) => e.allocated), requested: sum((e) => e.requested), missing: sum((e) => e.missing), elsewhere: sum((e) => e.held_elsewhere ?? 0) }
 
   return (
     <div className="flex flex-col gap-6">
@@ -521,7 +561,8 @@ export default function DeckDetail() {
               <DeckCount deck={deck} showValue={false} />
             </div>
             <div className="mt-1 text-xs text-base-content/70">
-              {t('{{allocated}} of {{requested}} copies allocated, {{missing}} missing from your collection', totals)}
+              {t('Deck requirement: {{requested}} · Assigned here: {{allocated}} · Still needed for this deck: {{missing}}', totals)}
+              {totals.elsewhere > 0 && <> · {t('Held in other decks: {{n}}', { n: totals.elsewhere })}</>}
             </div>
             <DeckValue deck={deck} />
             <FormatCheck validation={validation} />
@@ -569,7 +610,6 @@ export default function DeckDetail() {
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 2xl:grid-cols-5">
                   {block.rows.map((row) => {
                     const { entry: e, line } = row
-                    const status = STATUS[e.status]
                     const link = cardPage(row)
                     return (
                       <div key={rowKey(block, row)} className="flex flex-col gap-1">
@@ -585,9 +625,8 @@ export default function DeckDetail() {
                             faceClassName="transition-transform group-hover:-translate-y-1 group-hover:scale-[1.02]"
                           />
                           <span className="badge badge-neutral absolute bottom-[3%] left-[3%] font-semibold shadow">×{line.quantity}</span>
-                          <span className={`badge badge-sm absolute right-[3%] top-[3%] shadow ${status.badge}`}>
-                            {t(status.label)}
-                            {e.status === 'missing' && ` ${e.missing}`}
+                          <span className="absolute right-[3%] top-[3%] flex flex-col items-end gap-1 shadow-none [&_.badge]:shadow">
+                            <StatusBadges entry={e} />
                           </span>
                         </Link>
                         <Link to={link} className="link-hover break-words text-sm font-medium">
@@ -595,6 +634,7 @@ export default function DeckDetail() {
                         </Link>
                         <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/70">
                           <PrintingBadge line={line} onClick={() => setPrinting({ row, split: false })} />
+                          <HeldBadge line={line} />
                           <span className="tooltip" data-tip={t('{{n}} allocated to other decks', { n: e.allocated_elsewhere })}>
                             <span className={`badge badge-sm ${e.allocated >= e.requested ? 'badge-success' : 'badge-ghost'}`}>
                               {t('Here')} {e.allocated} / {e.requested}
@@ -634,7 +674,7 @@ export default function DeckDetail() {
                         <td>
                           <div className="flex items-center gap-2">
                             <Link to={link} className="block w-8 shrink-0" tabIndex={-1} aria-hidden>
-                              <CardImage thumb src={line.image ?? e.image} alt={e.name} game={deck.game_id} landscape={e.orientation === 'landscape'} />
+                              <CardImage thumb="small" src={line.image ?? e.image} alt={e.name} game={deck.game_id} landscape={e.orientation === 'landscape'} />
                             </Link>
                             <div className="min-w-0">
                               <Link to={link} className={`link-hover font-medium ${first ? '' : 'text-base-content/70'}`}>
@@ -642,6 +682,7 @@ export default function DeckDetail() {
                               </Link>
                               <div className="flex flex-wrap items-center gap-1 text-xs text-base-content/70">
                                 <PrintingBadge line={line} onClick={() => setPrinting({ row, split: false })} />
+                                <HeldBadge line={line} />
                                 {lineAllocated(row)}
                                 {first && e.mana_cost && (
                                   <span className="whitespace-nowrap">

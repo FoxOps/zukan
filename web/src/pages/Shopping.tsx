@@ -122,7 +122,7 @@ export default function ShoppingPage() {
                   {gameName(l.game_id)} · {t('Changed {{date}}', { date: formatDate(l.updated_at) })}
                 </div>
                 <progress className="progress progress-primary w-full" value={l.bought} max={Math.max(l.copies, 1)} aria-label={t('Bought')} />
-                <div className="text-sm">{t('{{bought}} of {{copies}} copies bought', { bought: l.bought, copies: l.copies })}</div>
+                <div className="text-sm">{t('Copies bought: {{bought}}/{{copies}}', { bought: l.bought, copies: l.copies })}</div>
               </div>
             </Link>
           ))}

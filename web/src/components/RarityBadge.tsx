@@ -1,4 +1,5 @@
 import type { Game } from '../api/queries'
+import { smallIcon } from '../lib/icons'
 
 type Props = {
   game?: Game
@@ -20,7 +21,7 @@ export function RarityBadge({ game, rarity, code, lang, className = '' }: Props)
     <span className={`inline-flex items-center gap-1 whitespace-nowrap ${className}`}>
       {icon && (
         <img
-          src={icon}
+          src={smallIcon(icon)}
           alt=""
           aria-hidden
           // Japanese and Chinese pictograms are black letters ("RR"): light on dark themes.
