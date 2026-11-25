@@ -10,7 +10,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
@@ -18,7 +18,7 @@ from sqlalchemy.orm import selectinload
 from app.api.catalog import back_image_link, load_names, orientation, show_card, show_printing
 from app.api.collection import copy_image
 from app.api.deps import SessionDep
-from app.api.shopping import ShoppingListDetailOut, shopping_detail
+from app.api.shopping import ShoppingSyncOut, sync_out
 from app.models import (
     Card,
     CollectionItem,
@@ -26,7 +26,6 @@ from app.models import (
     DeckAllocation,
     DeckCard,
     Printing,
-    ShoppingItem,
     ShoppingList,
     User,
 )
@@ -200,6 +199,8 @@ class DeckDetailOut(BaseModel):
     groups: list[str]
     entries: list[DeckEntryOut]
     validation: DeckValidationOut
+    # The deck's shopping list, None: none yet (the button makes one).
+    shopping_list_id: int | None = None
 
 
 class DeckCardIn(BaseModel):
@@ -727,6 +728,11 @@ async def _detail(session: SessionDep, user: User, deck_id: int) -> DeckDetailOu
             issues=[_issue_out(i) for i in report.issues],
             unverified=[_issue_out(i) for i in report.unverified],
         ),
+        shopping_list_id=await session.scalar(
+            select(ShoppingList.id).where(
+                ShoppingList.user_id == user.id, ShoppingList.deck_id == deck.id
+            )
+        ),
     )
 
 
@@ -1092,21 +1098,6 @@ def _filename(name: str, extension: str) -> str:
     return f"{safe or 'deck'}.{extension}"
 
 
-class ShoppingLineOut(BaseModel):
-    card_id: int | None
-    printing_id: int | None
-    name: str
-    translation: str | None
-    set_code: str | None
-    collector_number: str | None
-    quantity: int
-
-
-class ShoppingOut(BaseModel):
-    # Cards to get, in the decklist's order; empty when the deck has every copy.
-    lines: list[ShoppingLineOut]
-
-
 async def _shopping_lines(
     session: SessionDep, user: User, deck: Deck
 ) -> list[shopping.ShoppingLine]:
@@ -1150,79 +1141,35 @@ async def _shopping_lines(
                 continue
             merged[e.printing_id] = shopping.ShoppingLine(
                 card_id=card_id,
-                printing_id=e.printing_id,
                 name=card.name,
                 translation=translation if translation != card.name else None,
-                set_code=e.printing.set.code.upper() if e.printing else None,
-                collector_number=e.printing.collector_number if e.printing else None,
                 quantity=quantity,
+                editions=(
+                    [
+                        shopping.Edition(
+                            e.printing_id, e.printing.set.code.upper(), e.printing.collector_number
+                        )
+                    ]
+                    if e.printing
+                    else []
+                ),
             )
         result.extend(merged.values())
     return result
 
 
-@router.get("/{deck_id}/shopping")
-async def deck_shopping(deck_id: int, user: DecksUser, session: SessionDep) -> ShoppingOut:
-    """The cards the deck misses: copies neither allocated to it nor free in the
-    collection (copies other decks hold count as missing)."""
+@router.post("/{deck_id}/shopping-list")
+async def sync_shopping_list(deck_id: int, user: DecksUser, session: SessionDep) -> ShoppingSyncOut:
+    """Create list / Update list: the deck's shopping list made or rebuilt from the
+    copies it misses (neither allocated to it nor free in the collection), or deleted
+    when it misses nothing (`services.shopping.sync_source`)."""
     deck = await _own(session, user, deck_id)
     lines = await _shopping_lines(session, user, deck)
-    return ShoppingOut(
-        lines=[
-            ShoppingLineOut(**{k: v for k, v in line.__dict__.items() if k != "bought"})
-            for line in lines
-        ]
+    state, found = await shopping.sync_source(
+        session, user.id, game_id=deck.game_id, name=deck.name, lines=lines, deck_id=deck.id
     )
-
-
-SHOPPING_TYPES = {
-    "txt": "text/plain; charset=utf-8",
-    "md": "text/markdown; charset=utf-8",
-    "pdf": "application/pdf",
-}
-
-
-@router.get(
-    "/{deck_id}/shopping/download",
-    response_class=Response,
-    responses={200: {"content": {t: {} for t in SHOPPING_TYPES.values()}}},
-)
-async def download_shopping(
-    deck_id: int,
-    user: DecksUser,
-    session: SessionDep,
-    format: Literal["txt", "md", "pdf"] = "txt",
-) -> Response:
-    """The cards the deck misses as a check list file, in the user's language."""
-    deck = await _own(session, user, deck_id)
-    lines = await _shopping_lines(session, user, deck)
-    render = {"txt": shopping.to_txt, "md": shopping.to_md, "pdf": shopping.to_pdf}[format]
-    content = render(deck.name, lines, user.language, date.today())
-    return Response(
-        content,
-        media_type=SHOPPING_TYPES[format],
-        headers={
-            "Content-Disposition": f'attachment; filename="{_filename(deck.name, format)}"',
-            "Cache-Control": "private, no-store",
-        },
-    )
-
-
-@router.post("/{deck_id}/shopping-list", status_code=status.HTTP_201_CREATED)
-async def send_shopping_list(
-    deck_id: int, user: DecksUser, session: SessionDep
-) -> ShoppingListDetailOut:
-    """Saves the cards the deck misses as a shopping list for the Android app: a copy,
-    later deck changes do not change it."""
-    deck = await _own(session, user, deck_id)
-    lines = await _shopping_lines(session, user, deck)
-    if not lines:
-        raise HTTPException(status.HTTP_409_CONFLICT, "The deck misses no card")
-    found = ShoppingList(user_id=user.id, deck_id=deck.id, game_id=deck.game_id, name=deck.name)
-    found.items = [ShoppingItem(position=i, **line.__dict__) for i, line in enumerate(lines)]
-    session.add(found)
     await session.commit()
-    return await shopping_detail(session, user, found.id)
+    return await sync_out(session, user, state, found)
 
 
 @router.post("/import/preview")

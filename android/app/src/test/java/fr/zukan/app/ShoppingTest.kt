@@ -62,6 +62,29 @@ class ShoppingTest {
     }
 
     @Test
+    fun editionsAndSource() = runTest {
+        json("""
+            {"id":4,"name":"Wants","source":"binder","deck_id":null,"binder_id":2,"game_id":"mtg",
+             "created_at":"2026-11-25T10:00:00Z","updated_at":"2026-11-25T11:00:00Z","copies":3,"bought":1,"items":[
+               {"id":9,"card_id":1,"printing_id":null,"name":"Lightning Bolt","set_code":"M10 146 / 2X2 117",
+                "collector_number":null,"editions":[{"printing_id":5,"set_code":"M10","collector_number":"146"},
+                {"printing_id":6,"set_code":"2X2","collector_number":"117"}],"language":"fr","finish":"foil",
+                "quantity":2,"bought_count":1,"bought":false,"manual":true},
+               {"id":10,"card_id":2,"name":"Mountain","editions":[],"quantity":1,"bought_count":0,"bought":false}]}
+        """.trimIndent())
+        val found = api().shoppingList(4)
+        assertEquals("binder", found.source)
+        assertEquals(2, found.binderId)
+        assertEquals("M10 146 / 2X2 117", found.items[0].editionsLabel)
+        assertEquals("fr", found.items[0].language)
+        assertEquals("foil", found.items[0].finish)
+        assertEquals("", found.items[1].editionsLabel)
+        // Servers before 0.33: no editions, the set and number fields only.
+        val old = fr.zukan.app.data.ShoppingItemOut(id = 1, name = "Shock", setCode = "M21", collectorNumber = "159", quantity = 1, bought = false)
+        assertEquals("M21 159", old.editionsLabel)
+    }
+
+    @Test
     fun copiesBought() {
         val item = fr.zukan.app.data.ShoppingItemOut(id = 1, name = "Shock", quantity = 3, bought = false)
         assertEquals(0, item.boughtCount)

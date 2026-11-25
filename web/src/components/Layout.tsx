@@ -20,6 +20,7 @@ const COLLECTION_NAV: NavItem[] = [
   { to: '/', label: 'Overview', icon: 'home', end: true },
   { to: '/collection', label: 'Collection', icon: 'collection' },
   { to: '/catalog', label: 'Catalog', icon: 'search' },
+  { to: '/shopping', label: 'Shopping list', icon: 'cart' },
   { to: '/binder', label: 'Binder', icon: 'binder', module: 'binder' },
   { to: '/decks', label: 'Decks', icon: 'decks', module: 'decks' },
   { to: '/finance', label: 'Finance', icon: 'chart' },

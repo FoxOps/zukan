@@ -22,9 +22,10 @@ from app.api.catalog import (
     show_printing,
 )
 from app.api.deps import SessionDep
-from app.models import BinderSet, CardSet, CollectionItem, Printing
+from app.api.shopping import ShoppingSyncOut, sync_out
+from app.models import BinderSet, CardSet, CollectionItem, Printing, ShoppingList, User
 from app.modules import require_module
-from app.services import binder
+from app.services import binder, shopping
 
 router = APIRouter(prefix="/binder", tags=["binder"])
 
@@ -87,6 +88,8 @@ class BinderRowOut(BaseModel):
 class BinderDetailOut(BaseModel):
     binder: BinderOut
     rows: list[BinderRowOut]
+    # The followed set's shopping list, None: none yet (the button makes one).
+    shopping_list_id: int | None = None
 
 
 async def _binders_out(
@@ -251,4 +254,73 @@ async def binder_detail(binder_id: int, user: BinderUser, session: SessionDep) -
                 ],
             )
         )
-    return BinderDetailOut(binder=(await _binders_out(session, user.id, [found]))[0], rows=rows)
+    return BinderDetailOut(
+        binder=(await _binders_out(session, user.id, [found]))[0],
+        rows=rows,
+        shopping_list_id=await session.scalar(
+            select(ShoppingList.id).where(
+                ShoppingList.user_id == user.id, ShoppingList.binder_id == found.id
+            )
+        ),
+    )
+
+
+async def _shopping_lines(
+    session: SessionDep, user: User, found: BinderSet
+) -> list[shopping.ShoppingLine]:
+    """The set's Missing checklist: one copy of each printing with no matching copy, in
+    collector number order, in the binder's language and finish."""
+    owned = select(CollectionItem.printing_id).where(
+        CollectionItem.user_id == user.id, binder.counts(found.language, found.finish)
+    )
+    printings = list(
+        await session.scalars(
+            select(Printing)
+            .where(Printing.set_id == found.set_id, Printing.id.not_in(owned))
+            .order_by(number_sort_key(Printing.collector_number), Printing.id)
+            .options(selectinload(Printing.set), selectinload(Printing.card))
+        )
+    )
+    card_names, printing_names = await load_names(session, {p.card_id for p in printings})
+    lines = []
+    for printing in printings:
+        shown, _ = show_printing(
+            printing, card_names, printing_names, user.language, printing.card.name
+        )
+        lines.append(
+            shopping.ShoppingLine(
+                card_id=printing.card_id,
+                name=printing.card.name,
+                translation=shown.name if shown.name != printing.card.name else None,
+                quantity=1,
+                editions=[
+                    shopping.Edition(
+                        printing.id, printing.set.code.upper(), printing.collector_number
+                    )
+                ],
+                language=found.language,
+                finish=found.finish,
+            )
+        )
+    return lines
+
+
+@router.post("/{binder_id}/shopping-list")
+async def sync_shopping_list(
+    binder_id: int, user: BinderUser, session: SessionDep
+) -> ShoppingSyncOut:
+    """Create list / Update list: the followed set's shopping list made or rebuilt from
+    its missing printings, or deleted when none is missing
+    (`services.shopping.sync_source`)."""
+    found = await _own(session, user.id, binder_id)
+    lines = await _shopping_lines(session, user, found)
+    state, made = await shopping.sync_source(
+        session,
+        user.id,
+        game_id=found.set.game_id,
+        name=found.set.name,
+        lines=lines,
+        binder_id=found.id,
+    )
+    await session.commit()
+    return await sync_out(session, user, state, made)

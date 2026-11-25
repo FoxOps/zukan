@@ -83,7 +83,7 @@ private enum class Tab(@StringRes val label: Int, @DrawableRes val icon: Int) {
     COLLECTION(R.string.tab_collection, R.drawable.ic_collection),
     SCAN(R.string.tab_scan, R.drawable.ic_scan),
     SEARCH(R.string.tab_search, R.drawable.ic_search),
-    // Decks module only.
+    // Every account (servers before 0.33: Decks module only, they refuse others).
     SHOPPING(R.string.tab_shopping, R.drawable.ic_checklist),
     SETTINGS(R.string.tab_settings, R.drawable.ic_settings),
 }
@@ -160,7 +160,7 @@ private fun App(
             // The collection is the home screen; back from another tab returns to it.
             var tab by rememberSaveable { mutableStateOf(Tab.COLLECTION) }
             // Shopping lists come from decks: with the Decks module only.
-            val tabs = Tab.entries.filter { it != Tab.SHOPPING || "decks" in state.modules }
+            val tabs = Tab.entries.toList()
             LaunchedEffect(tabs) { if (tab !in tabs) tab = Tab.COLLECTION }
             BackHandler(enabled = tab != Tab.COLLECTION) { tab = Tab.COLLECTION }
             val snackbar = remember { SnackbarHostState() }

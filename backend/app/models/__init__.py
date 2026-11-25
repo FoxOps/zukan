@@ -6,7 +6,7 @@ from app.models.collection import CollectionItem, Condition, PriceSnapshot, Stoc
 from app.models.deck import Deck, DeckAllocation, DeckCard
 from app.models.group import UserGroup, user_group_member
 from app.models.settings import AppSetting
-from app.models.shopping import ShoppingItem, ShoppingList
+from app.models.shopping import ShoppingEdition, ShoppingItem, ShoppingList
 from app.models.sync import JobKind, JobStatus, JobTrigger, SyncRun
 from app.models.usage import ApiUsage, GapCheck
 from app.models.user import (
@@ -41,6 +41,7 @@ __all__ = [
     "PriceSnapshot",
     "Printing",
     "RefreshToken",
+    "ShoppingEdition",
     "ShoppingItem",
     "ShoppingList",
     "Role",

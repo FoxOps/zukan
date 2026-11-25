@@ -12,6 +12,7 @@ import { Eyebrow, Metric, Panel } from '../components/Page'
 import { RarityBadge } from '../components/RarityBadge'
 import { ColorBadges } from '../components/ColorBadges'
 import { StockDialog, type StockTarget } from '../components/StockDialog'
+import { AddToShoppingList } from '../components/Shopping'
 import { Select } from '../components/Select'
 import { hasVisibleAttributes } from '../lib/attributes'
 import { useUrlState } from '../lib/hooks'
@@ -37,6 +38,7 @@ export default function CardDetail() {
   const game = useGame(card.data?.game_id)
   const me = useMe()
   const [target, setTarget] = useState<StockTarget | null>(null)
+  const [shopping, setShopping] = useState(false)
   const [setFilter, setSetFilter] = useState('')
   // Price source of the history chart (default: the main one).
   const [chartSourceId, setChartSourceId] = useState<string | null>(null)
@@ -231,6 +233,10 @@ export default function CardDetail() {
                 {t('Add / remove copies')}
               </button>
             )}
+            <button className="btn min-h-11 gap-2 max-sm:w-full" onClick={() => setShopping(true)}>
+              <Icon name="cart" />
+              {t('Add to shopping list')}
+            </button>
           </div>
           {finishes.length > 1 && stats.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
@@ -369,6 +375,7 @@ export default function CardDetail() {
           />
         </section>
       )}
+      <AddToShoppingList open={shopping} onClose={() => setShopping(false)} cardId={c.id} gameId={c.game_id} printingId={selected?.id ?? null} />
       <StockDialog game={game} target={target} versions={target ? sortPrintings(c.printings, 'newest', undefined).map(stockTarget) : []} onClose={() => setTarget(null)} />
     </div>
   )

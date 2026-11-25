@@ -484,10 +484,13 @@ class Finance:
     by_language: list[Share]
     by_finish: list[Share]
     by_band: list[Share]
-    # Value of the dearest items (line value), dearest first, with the share of the
-    # 10 dearest in the total.
+    # The dearest cards by the price of one copy (item, unit price, line value), with the
+    # share of these 10 items in the total.
     top: list[tuple[CollectionItem, Decimal, Decimal]]
     top_share: float | None
+    # Printings owned in several copies (any finish, condition, language), by their
+    # copies' value: (dearest item of the printing, copies, value).
+    stacks: list[tuple[CollectionItem, int, Decimal]]
 
 
 def _band(price: Decimal) -> int:
@@ -599,8 +602,17 @@ async def finance(
         changes[days] = (past, total) if past is not None and first and day >= first else None
     history = [(day, value) for day, value in history if day >= today - timedelta(days=longest)]
 
-    lines.sort(key=lambda line: -line[2])
+    lines.sort(key=lambda line: (-line[1], -line[2], line[0].id))
     top_share = float(sum(line[2] for line in lines[:10]) / total) if total else None
+    grouped: dict[int, tuple[CollectionItem, int, Decimal]] = {}
+    for item, _, value in lines:
+        if (found := grouped.get(item.printing_id)) is None:
+            grouped[item.printing_id] = (item, item.quantity, value)
+        else:
+            grouped[item.printing_id] = (found[0], found[1] + item.quantity, found[2] + value)
+    stacks = sorted(
+        (g for g in grouped.values() if g[1] >= 2), key=lambda g: (-g[2], -g[1], g[0].id)
+    )[:10]
 
     def ordered(kind: str) -> list[Share]:
         return sorted(shares[kind].values(), key=lambda s: (-s.value, -s.quantity, s.label))
@@ -626,4 +638,5 @@ async def finance(
         by_band=sorted(shares["band"].values(), key=lambda s: int(s.key)),
         top=lines[:10],
         top_share=top_share,
+        stacks=stacks,
     )

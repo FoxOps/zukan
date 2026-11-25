@@ -782,6 +782,28 @@ export interface paths {
         patch: operations["update_binder_api_binder__binder_id__patch"];
         trace?: never;
     };
+    "/api/binder/{binder_id}/shopping-list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync Shopping List
+         * @description Create list / Update list: the followed set's shopping list made or rebuilt from
+         *     its missing printings, or deleted when none is missing
+         *     (`services.shopping.sync_source`).
+         */
+        post: operations["sync_shopping_list_api_binder__binder_id__shopping_list_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/decks/formats": {
         parameters: {
             query?: never;
@@ -1002,47 +1024,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/decks/{deck_id}/shopping": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Deck Shopping
-         * @description The cards the deck misses: copies neither allocated to it nor free in the
-         *     collection (copies other decks hold count as missing).
-         */
-        get: operations["deck_shopping_api_decks__deck_id__shopping_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/decks/{deck_id}/shopping/download": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Download Shopping
-         * @description The cards the deck misses as a check list file, in the user's language.
-         */
-        get: operations["download_shopping_api_decks__deck_id__shopping_download_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/decks/{deck_id}/shopping-list": {
         parameters: {
             query?: never;
@@ -1053,11 +1034,12 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Send Shopping List
-         * @description Saves the cards the deck misses as a shopping list for the Android app: a copy,
-         *     later deck changes do not change it.
+         * Sync Shopping List
+         * @description Create list / Update list: the deck's shopping list made or rebuilt from the
+         *     copies it misses (neither allocated to it nor free in the collection), or deleted
+         *     when it misses nothing (`services.shopping.sync_source`).
          */
-        post: operations["send_shopping_list_api_decks__deck_id__shopping_list_post"];
+        post: operations["sync_shopping_list_api_decks__deck_id__shopping_list_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1117,11 +1099,15 @@ export interface paths {
         /**
          * List Shopping Lists
          * @description The user's shopping lists, newest first (complete ones too: only the user deletes
-         *     them).
+         *     them, or a refresh of a linked list with nothing left to buy).
          */
         get: operations["list_shopping_lists_api_shopping_lists_get"];
         put?: never;
-        post?: never;
+        /**
+         * Create Shopping List
+         * @description A standalone list, empty until cards are added.
+         */
+        post: operations["create_shopping_list_api_shopping_lists_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1139,11 +1125,29 @@ export interface paths {
         get: operations["get_shopping_list_api_shopping_lists__list_id__get"];
         put?: never;
         post?: never;
-        /**
-         * Delete Shopping List
-         * @description Deletes a list (the Android app; the web never does).
-         */
+        /** Delete Shopping List */
         delete: operations["delete_shopping_list_api_shopping_lists__list_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Shopping List */
+        patch: operations["rename_shopping_list_api_shopping_lists__list_id__patch"];
+        trace?: never;
+    };
+    "/api/shopping-lists/{list_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Shopping Item
+         * @description Adds copies of a card of the list's game, at the end of the list.
+         */
+        post: operations["add_shopping_item_api_shopping_lists__list_id__items_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1159,14 +1163,36 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Shopping Item */
+        delete: operations["delete_shopping_item_api_shopping_lists__list_id__items__item_id__delete"];
         options?: never;
         head?: never;
         /**
          * Update Shopping Item
-         * @description Ticks copies of a card as bought, or not.
+         * @description Ticks copies of a card as bought or not, changes its copies or editions.
          */
         patch: operations["update_shopping_item_api_shopping_lists__list_id__items__item_id__patch"];
+        trace?: never;
+    };
+    "/api/shopping-lists/{list_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Shopping List
+         * @description The list as a check list file in the user's language: its editions, copies and
+         *     ticks, one box per copy.
+         */
+        get: operations["download_shopping_list_api_shopping_lists__list_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/scan/identify": {
@@ -1693,6 +1719,8 @@ export interface components {
             binder: components["schemas"]["BinderOut"];
             /** Rows */
             rows: components["schemas"]["BinderRowOut"][];
+            /** Shopping List Id */
+            shopping_list_id?: number | null;
         };
         /** BinderIn */
         BinderIn: {
@@ -1985,6 +2013,8 @@ export interface components {
             /** Entries */
             entries: components["schemas"]["DeckEntryOut"][];
             validation: components["schemas"]["DeckValidationOut"];
+            /** Shopping List Id */
+            shopping_list_id?: number | null;
         };
         /** DeckEntryOut */
         DeckEntryOut: {
@@ -2464,6 +2494,15 @@ export interface components {
             /** Counts */
             counts: components["schemas"]["DiscrepancyCountOut"][];
         };
+        /** EditionOut */
+        EditionOut: {
+            /** Printing Id */
+            printing_id: number | null;
+            /** Set Code */
+            set_code: string | null;
+            /** Collector Number */
+            collector_number: string | null;
+        };
         /** EmailChangeIn */
         EmailChangeIn: {
             /** Email */
@@ -2520,6 +2559,11 @@ export interface components {
             top: components["schemas"]["TopItemOut"][];
             /** Top Share */
             top_share: number | null;
+            /**
+             * Stacks
+             * @default []
+             */
+            stacks: components["schemas"]["StackOut"][];
         };
         /** FinishOut */
         FinishOut: {
@@ -3403,12 +3447,34 @@ export interface components {
             /** Quantity */
             quantity: number;
         };
-        /** ShoppingItemIn */
+        /** ShoppingItemAddIn */
+        ShoppingItemAddIn: {
+            /** Card Id */
+            card_id: number;
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity: number;
+            /**
+             * Printing Ids
+             * @default []
+             */
+            printing_ids: number[];
+        };
+        /**
+         * ShoppingItemIn
+         * @description Fields left out are not changed.
+         */
         ShoppingItemIn: {
             /** Bought Count */
             bought_count?: number | null;
             /** Bought */
             bought?: boolean | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Printing Ids */
+            printing_ids?: number[] | null;
         };
         /** ShoppingItemOut */
         ShoppingItemOut: {
@@ -3416,39 +3482,30 @@ export interface components {
             id: number;
             /** Card Id */
             card_id: number | null;
+            /** Editions */
+            editions: components["schemas"]["EditionOut"][];
             /** Printing Id */
             printing_id: number | null;
-            /** Name */
-            name: string;
-            /** Translation */
-            translation: string | null;
             /** Set Code */
             set_code: string | null;
             /** Collector Number */
             collector_number: string | null;
+            /** Name */
+            name: string;
+            /** Translation */
+            translation: string | null;
+            /** Language */
+            language: string | null;
+            /** Finish */
+            finish: string | null;
             /** Quantity */
             quantity: number;
             /** Bought Count */
             bought_count: number;
             /** Bought */
             bought: boolean;
-        };
-        /** ShoppingLineOut */
-        ShoppingLineOut: {
-            /** Card Id */
-            card_id: number | null;
-            /** Printing Id */
-            printing_id: number | null;
-            /** Name */
-            name: string;
-            /** Translation */
-            translation: string | null;
-            /** Set Code */
-            set_code: string | null;
-            /** Collector Number */
-            collector_number: string | null;
-            /** Quantity */
-            quantity: number;
+            /** Manual */
+            manual: boolean;
         };
         /** ShoppingListDetailOut */
         ShoppingListDetailOut: {
@@ -3456,8 +3513,12 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+            /** Source */
+            source: ("deck" | "binder") | null;
             /** Deck Id */
             deck_id: number | null;
+            /** Binder Id */
+            binder_id: number | null;
             /** Game Id */
             game_id: string;
             /**
@@ -3465,6 +3526,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
             /** Copies */
             copies: number;
             /** Bought */
@@ -3472,14 +3538,25 @@ export interface components {
             /** Items */
             items: components["schemas"]["ShoppingItemOut"][];
         };
+        /** ShoppingListIn */
+        ShoppingListIn: {
+            /** Name */
+            name: string;
+            /** Game Id */
+            game_id: string;
+        };
         /** ShoppingListOut */
         ShoppingListOut: {
             /** Id */
             id: number;
             /** Name */
             name: string;
+            /** Source */
+            source: ("deck" | "binder") | null;
             /** Deck Id */
             deck_id: number | null;
+            /** Binder Id */
+            binder_id: number | null;
             /** Game Id */
             game_id: string;
             /**
@@ -3487,15 +3564,34 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
             /** Copies */
             copies: number;
             /** Bought */
             bought: number;
         };
-        /** ShoppingOut */
-        ShoppingOut: {
-            /** Lines */
-            lines: components["schemas"]["ShoppingLineOut"][];
+        /** ShoppingListUpdateIn */
+        ShoppingListUpdateIn: {
+            /** Name */
+            name: string;
+        };
+        /**
+         * ShoppingSyncOut
+         * @description Create list / Update list of a deck or a followed set: "created" or "updated"
+         *     (`list` given), "deleted" (nothing missing any more, the list is gone) or "nothing"
+         *     (nothing missing, no list made).
+         */
+        ShoppingSyncOut: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "created" | "updated" | "deleted" | "nothing";
+            list: components["schemas"]["ShoppingListDetailOut"] | null;
         };
         /**
          * SsoAccountOut
@@ -3508,6 +3604,14 @@ export interface components {
             display_name: string;
             /** Account Url */
             account_url: string | null;
+        };
+        /** StackOut */
+        StackOut: {
+            item: components["schemas"]["ItemOut"];
+            /** Copies */
+            copies: number;
+            /** Value */
+            value: string;
         };
         /** StaleCardOut */
         StaleCardOut: {
@@ -5225,6 +5329,37 @@ export interface operations {
             };
         };
     };
+    sync_shopping_list_api_binder__binder_id__shopping_list_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                binder_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShoppingSyncOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_formats_api_decks_formats_get: {
         parameters: {
             query?: never;
@@ -5630,7 +5765,7 @@ export interface operations {
             };
         };
     };
-    deck_shopping_api_decks__deck_id__shopping_get: {
+    sync_shopping_list_api_decks__deck_id__shopping_list_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -5647,73 +5782,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ShoppingOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    download_shopping_api_decks__deck_id__shopping_download_get: {
-        parameters: {
-            query?: {
-                format?: "txt" | "md" | "pdf";
-            };
-            header?: never;
-            path: {
-                deck_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain; charset=utf-8": unknown;
-                    "text/markdown; charset=utf-8": unknown;
-                    "application/pdf": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    send_shopping_list_api_decks__deck_id__shopping_list_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                deck_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ShoppingListDetailOut"];
+                    "application/json": components["schemas"]["ShoppingSyncOut"];
                 };
             };
             /** @description Validation Error */
@@ -5815,6 +5884,39 @@ export interface operations {
             };
         };
     };
+    create_shopping_list_api_shopping_lists_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShoppingListIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShoppingListDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_shopping_list_api_shopping_lists__list_id__get: {
         parameters: {
             query?: never;
@@ -5875,6 +5977,108 @@ export interface operations {
             };
         };
     };
+    rename_shopping_list_api_shopping_lists__list_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                list_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShoppingListUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShoppingListDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_shopping_item_api_shopping_lists__list_id__items_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                list_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShoppingItemAddIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShoppingListDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_shopping_item_api_shopping_lists__list_id__items__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                list_id: number;
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShoppingListDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     update_shopping_item_api_shopping_lists__list_id__items__item_id__patch: {
         parameters: {
             query?: never;
@@ -5898,6 +6102,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ShoppingListDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_shopping_list_api_shopping_lists__list_id__download_get: {
+        parameters: {
+            query?: {
+                format?: "txt" | "md" | "pdf";
+            };
+            header?: never;
+            path: {
+                list_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain; charset=utf-8": unknown;
+                    "text/markdown; charset=utf-8": unknown;
+                    "application/pdf": unknown;
                 };
             };
             /** @description Validation Error */

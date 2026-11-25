@@ -108,17 +108,17 @@ function TopItems({ report, games }: { report: Report; games: Game[] }) {
   if (report.top.length === 0) return null
   return (
     <Panel
-      title={t('Most valuable cards')}
+      title={t('Most expensive cards')}
       subtitle={
         report.top_share !== null && report.top_share !== undefined
-          ? t('The {{count}} most valuable hold {{share}} of the value.', {
+          ? t('By the price of one copy. These {{count}} hold {{share}} of the value.', {
               count: report.top.length,
               share: percent(report.top_share).replace('+', ''),
             })
           : undefined
       }
     >
-        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={t('Most valuable cards')}>
+        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={t('Most expensive cards')}>
           <table className="table table-sm">
             <thead>
               <tr>
@@ -162,6 +162,52 @@ function TopItems({ report, games }: { report: Report; games: Game[] }) {
             </tbody>
           </table>
         </div>
+    </Panel>
+  )
+}
+
+/** Printings owned in several copies (any finish, condition, language), by the value of
+ * all their copies: apart from the dearest single cards. */
+function StackItems({ report }: { report: Report }) {
+  const { t } = useTranslation()
+  const stacks = report.stacks ?? []
+  if (stacks.length === 0) return null
+  return (
+    <Panel title={t('Most valuable multiples')} subtitle={t('Printings you own several copies of, by the value of all their copies.')}>
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={t('Most valuable multiples')}>
+        <table className="table table-sm">
+          <thead>
+            <tr>
+              <th className="w-10" />
+              <th>{t('Card')}</th>
+              <th>{t('Version')}</th>
+              <th className="text-right">{t('Copies')}</th>
+              <th className="text-right">{t('Value')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {stacks.map(({ item, copies, value }) => (
+              <tr key={item.printing_id}>
+                <td>
+                  <Link to={`/cards/${item.card_id}/${item.printing_id}`} className="block w-9" tabIndex={-1} aria-hidden>
+                    <CardImage thumb src={item.image} alt="" landscape={item.orientation === 'landscape'} />
+                  </Link>
+                </td>
+                <td>
+                  <Link to={`/cards/${item.card_id}/${item.printing_id}`} className="link-hover font-medium">
+                    <ShownName name={item.name} translation={item.translation} />
+                  </Link>
+                </td>
+                <td className="whitespace-nowrap text-xs">
+                  {item.set.code} {item.collector_number}
+                </td>
+                <td className="text-right tabular-nums">{copies}</td>
+                <td className="text-right font-medium tabular-nums">{formatMoney(value, report.currency)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </Panel>
   )
 }
@@ -287,6 +333,7 @@ export default function Finance() {
               </div>
 
               <TopItems report={r} games={games} />
+              <StackItems report={r} />
               <Movers />
             </>
           )}

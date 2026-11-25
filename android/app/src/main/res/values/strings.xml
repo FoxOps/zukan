@@ -238,9 +238,9 @@
     <!-- Shopping lists (Decks module) -->
     <string name="tab_shopping">Lists</string>
     <string name="shopping_title">Shopping lists</string>
-    <string name="shopping_subtitle">Cards your decks miss, sent from the web</string>
+    <string name="shopping_subtitle">Your own lists, and those of your decks and followed sets</string>
     <string name="shopping_empty">No shopping list yet</string>
-    <string name="shopping_empty_help">On the web, open a deck, then Shopping list and Send to the app.</string>
+    <string name="shopping_empty_help">On the web, open Shopping list to make one, or use Create list on a deck or a followed set.</string>
     <string name="shopping_progress">Bought: %1$d / %2$d</string>
     <string name="shopping_complete">Complete</string>
     <string name="shopping_delete">Delete</string>
@@ -257,6 +257,10 @@
     <string name="sso_not_encrypted">%1$s is not encrypted (HTTP): your password can be read on the network.</string>
     <string name="shopping_item_state">Bought: %1$d / %2$d</string>
     <string name="shopping_copy">%1$s, copy %2$d of %3$d</string>
+    <string name="shopping_source_deck">Deck</string>
+    <string name="shopping_source_binder">Followed set</string>
+    <string name="shopping_source_own">Own list</string>
+    <string name="shopping_any_edition">Any edition</string>
     <string name="update_too_large">the file is larger than announced</string>
     <string name="update_no_space">not enough free space on the phone</string>
     <string name="update_invalid">this file is not an update of Zukan</string>

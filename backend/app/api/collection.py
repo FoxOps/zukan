@@ -606,7 +606,16 @@ class ChangeOut(BaseModel):
 
 class TopItemOut(BaseModel):
     item: ItemOut
+    # Price of one copy (the ranking), and of the item's copies.
     unit: Decimal
+    value: Decimal
+
+
+class StackOut(BaseModel):
+    # The printing's dearest item (card, set, number shown).
+    item: ItemOut
+    # Copies of the printing owned (any finish, condition, language), and their value.
+    copies: int
     value: Decimal
 
 
@@ -629,9 +638,12 @@ class FinanceOut(BaseModel):
     by_language: list[ShareOut]
     by_finish: list[ShareOut]
     by_band: list[ShareOut]
+    # The dearest cards by the price of one copy.
     top: list[TopItemOut]
-    # Share of the 10 dearest items in the value (0.4 = 40 %).
+    # Share of those 10 items in the value (0.4 = 40 %).
     top_share: float | None
+    # Printings owned in several copies, by their copies' value.
+    stacks: list[StackOut] = []
 
 
 @router.get("/finance")
@@ -653,7 +665,14 @@ async def finance(user: CurrentUser, session: SessionDep, game: str | None = Non
     described = {
         out.id: out
         for out in await _items_out(
-            session, [item for item, _, _ in report.top], user.language, user.price_source
+            session,
+            list(
+                {
+                    i.id: i for i in [*(t[0] for t in report.top), *(s[0] for s in report.stacks)]
+                }.values()
+            ),
+            user.language,
+            user.price_source,
         )
     }
 
@@ -687,6 +706,10 @@ async def finance(user: CurrentUser, session: SessionDep, game: str | None = Non
             for item, unit, value in report.top
         ],
         top_share=report.top_share,
+        stacks=[
+            StackOut(item=described[item.id], copies=copies, value=value)
+            for item, copies, value in report.stacks
+        ],
     )
 
 
