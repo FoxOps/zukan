@@ -2846,3 +2846,64 @@ Branch `2026-11-23-003-android-connect-main-thread` from `dev`, pull request int
   HTTPS server); web build (tsc + vite), i18n check
   (887 texts), oxlint 0 warnings (with #77 merged in).
 - [ ] User: try connect / login / logout / server change on a phone, then release Android 0.20.1.
+
+### Report server 0.32.0 + Android 0.20.0: undo speed, Finance singles, shopping lists for everyone (user, 2026-11-25)
+Branch `2026-11-25-000-shopping-lists-core` from `dev`, pull request into `dev`. No Dependabot PR open.
+- [x] Overview "Last modifications": Undo waited for every panel of the page to load again
+  (value, value history, movers, top cards) before the row changed and the buttons came back.
+  The server undo was already fast (one item). Now the row is struck out at once (optimistic,
+  rolled back on error), the panels refresh in the background, only the row being undone is busy.
+- [x] Finance: "Most expensive cards" ranks by the price of one copy (singles), no longer by
+  the item's total value. New "Most valuable multiples": printings owned in 2+ copies (any
+  finish, condition, language), by the value of all their copies (`FinanceOut.stacks`, top 10).
+- [x] Shopping lists, a core feature (spec `zukan-shopping-list-prompt.md`). User choices: a
+  list stays as a standalone list when its deck is deleted or its set unfollowed; cards are
+  added from the list page and from the card page; Finance multiples grouped per printing; on
+  refresh, fewer copies missing removes ticked copies first.
+  - Every signed-in user, no module: `Shopping list` in the web menu next to Catalog, `/api/
+    shopping-lists` on `CurrentUser`, Android Lists tab always shown. Owner checks on every
+    route (404 for others' lists, items and files).
+  - Standalone lists: `POST /api/shopping-lists {name, game_id}` (may stay empty), rename,
+    add a card (`POST …/items {card_id, quantity, printing_ids}`), change copies / editions /
+    ticks (`PATCH …/items/{id}`), remove (`DELETE …/items/{id}`), delete the list.
+  - Editions: new `shopping_edition` table (accepted printings with their set and number kept);
+    none = any edition. "2 Lightning Bolt from A or B" = two copies in any mix.
+  - Linked lists: one per owner and source (partial unique indexes on `(user_id, deck_id)` /
+    `(user_id, binder_id)`; a second request at the same time waits on the index then updates).
+    `POST /api/decks/{id}/shopping-list` (Decks module) and new `POST /api/binder/{id}/shopping-list`
+    (Binder module) answer `{status: created|updated|deleted|nothing, list}`:
+    no list + nothing missing → "Nothing to buy", no list; no list → made and opened on the web;
+    list + missing → rebuilt, same id and name; list + nothing missing → deleted.
+    `DeckDetailOut` / `BinderDetailOut.shopping_list_id` pick Create list / Update list.
+  - Deck lines: Decks' own `line_missing` result (states, printing lines, allocations across
+    decks stay in Decks). Followed set lines: the whole Missing checklist, one copy per printing
+    with no matching copy, with the set's language and finish (`shopping_item.language/finish`).
+  - Refresh (`services.shopping.refresh`): same requirement (card, editions, language, finish)
+    keeps its ticks; `source_quantity` (asked at the last refresh) lowered by n removes n ticked
+    copies first; new copies unticked; manual extras removed; refreshing again changes nothing.
+  - Exports of any saved list: `GET /api/shopping-lists/{id}/download?format=txt|md|pdf`, with
+    editions, language / finish, copies and ticks, one box per copy (one Markdown task per copy).
+    The deck's preview / download endpoints and its dialog are gone (one button now).
+  - Migration `b3d7f1a9c206`: ids, items and ticks kept; each item's printing becomes its
+    edition; a deck with several lists (ambiguous source) → all of them standalone. Downgrade
+    puts the first edition back.
+  - API compatibility with released Android (0.19–0.20): `printing_id`, `set_code`,
+    `collector_number`, `bought`, `bought_count` still sent (several editions: `set_code` holds
+    "M10 146 / 2X2 117"); the app ignores the new fields.
+  - Web: `/shopping` (lists with progress and source), `/shopping/:id` (rename, catalog search,
+    copies −/+, edition picker, a box per copy, Update list, .txt/.md/.pdf, delete); deck page and
+    followed set page: one Create list / Update list button; card page: Add to shopping list
+    (existing list of the game or a new one, copies, editions, default the printing shown).
+  - Android: Lists tab for every account; editions, language / finish and source shown; an open
+    list reloads on resume and closes when gone on the server.
+- [x] Versions: server 0.33.0, Android 0.21.0 (0.32.1 / 0.20.1 already on main);
+  `.env.example`: only the `TCG_USER_AGENT` example follows the version.
+- [x] Verified: backend tests (incl. new `test_shopping.py`: acceptance checks 1–4, concurrent
+  double sync, isolation, 403 without module; Finance singles / multiples), Alembic upgrade →
+  `alembic check` → downgrade → upgrade on legacy rows; web tsc + build, oxlint, i18n check
+  (917 texts, en/fr/de/es); Android unit tests. Local run (branch server + built web, seeded
+  catalog, French UI, no module): new list, add from search and from the card page, two editions,
+  one ticked copy in .md/.txt; deck Create list → opens it, Update list keeps it, all owned →
+  list removed and back to the lists; Overview Undo strikes the row at once.
+- [ ] User: try on the local deploy and a phone; Android older than 0.21 without the Decks module
+  still hides the Lists tab (the server now allows it).

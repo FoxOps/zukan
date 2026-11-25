@@ -56,13 +56,15 @@ import fr.zukan.app.data.ShoppingListOut
 import fr.zukan.app.data.ZukanApi
 import fr.zukan.app.data.runCatchingCancellable
 import fr.zukan.app.data.userMessage
+import retrofit2.HttpException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/** Shopping lists sent from the web (a deck's missing cards): tick copies while buying.
- * Lists are deleted only here, never on their own, even complete. Ticking a card marks it
- * bought on the list; it does not change the collection. */
+/** Shopping lists made on the web (the user's own, or a deck's or a followed set's
+ * missing cards): tick copies while buying. A list goes when deleted here or on the web,
+ * or when its source on the web has nothing left to buy. Ticking a card marks it bought
+ * on the list; it does not change the collection. */
 @Composable
 fun ShoppingScreen(api: ZukanApi?) {
     var openId by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -115,8 +117,13 @@ private fun ShoppingListRow(list: ShoppingListOut, onClick: () -> Unit) {
         Row(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(list.name, style = MaterialTheme.typography.titleMedium)
+                val source = when (list.source) {
+                    "deck" -> stringResource(R.string.shopping_source_deck)
+                    "binder" -> stringResource(R.string.shopping_source_binder)
+                    else -> stringResource(R.string.shopping_source_own)
+                }
                 Text(
-                    stringResource(R.string.shopping_progress, list.bought, list.copies) + " · " + list.createdAt.take(10),
+                    stringResource(R.string.shopping_progress, list.bought, list.copies) + " · " + source + " · " + list.createdAt.take(10),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -137,11 +144,16 @@ private fun ShoppingListDetail(api: ZukanApi?, id: Int, onBack: () -> Unit) {
     var deleting by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // Changes made on the web meanwhile (cards, copies, an update of its source).
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { reload++ }
     LaunchedEffect(api, id, reload) {
         if (api == null) return@LaunchedEffect
         runCatching { api.shoppingList(id) }
             .onSuccess { list = it; error = null }
-            .onFailure { error = it.userMessage(context) }
+            .onFailure {
+                // Deleted on the web, or by an update of its source with nothing left to buy.
+                if (it is HttpException && it.code() == 404) onBack() else error = it.userMessage(context)
+            }
     }
 
     // Per item: the count last asked for, the count the server last confirmed, and one
@@ -279,9 +291,18 @@ private fun ShoppingItemRow(item: ShoppingItemOut, onBought: (Int) -> Unit) {
             Text(item.name, style = MaterialTheme.typography.bodyLarge, color = faded, textDecoration = done)
             item.translation?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textDecoration = done) }
         }
-        val printing = listOfNotNull(item.setCode, item.collectorNumber).joinToString(" ")
-        if (printing.isNotEmpty()) {
-            Text(printing, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(horizontalAlignment = Alignment.End) {
+            val printing = item.editionsLabel
+            Text(
+                printing.ifEmpty { stringResource(R.string.shopping_any_edition) },
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            val wanted = listOfNotNull(item.language?.uppercase(), item.finish).joinToString(" · ")
+            if (wanted.isNotEmpty()) {
+                Text(wanted, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }

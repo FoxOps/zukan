@@ -521,7 +521,15 @@ async def test_finance(client, session, alice):
         ("1 – 5", 4),
         ("20 – 100", 1),
     ]
-    assert report["top"][0]["value"] == "30.00" and report["top_share"] == 1.0
+    # Single cards by the price of one copy; copies of a printing together apart.
+    assert [(t["unit"], t["item"]["quantity"], t["value"]) for t in report["top"]] == [
+        ("30.00", 1, "30.00"),
+        ("2.50", 4, "10.00"),
+    ]
+    assert report["top_share"] == 1.0
+    assert [(s["item"]["printing_id"], s["copies"], s["value"]) for s in report["stacks"]] == [
+        (abundance, 5, "40.00")
+    ]
     assert report["by_condition"][0]["key"] == "NM"
 
     # One game; another game without cards is just empty.
@@ -531,3 +539,12 @@ async def test_finance(client, session, alice):
         await client.get("/api/collection/finance", params={"game": "mtg"}, headers=alice)
     ).json()
     assert (empty["value"], empty["quantity"], empty["top"]) == ("0", 0, [])
+
+    # 20 cheap copies are worth more than the foil, but the foil is the dearest card.
+    await adjust(client, alice, abundance, 16)
+    report = (await client.get("/api/collection/finance", headers=alice)).json()
+    assert [(t["unit"], t["value"]) for t in report["top"]] == [
+        ("30.00", "30.00"),
+        ("2.50", "50.00"),
+    ]
+    assert [(s["copies"], s["value"]) for s in report["stacks"]] == [(21, "80.00")]

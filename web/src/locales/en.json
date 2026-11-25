@@ -17,8 +17,6 @@
   "{{count}} without price_other": "{{count}} without price",
   "{{count}} differences_one": "{{count}} difference",
   "{{count}} differences_other": "{{count}} differences",
-  "The {{count}} most valuable hold {{share}} of the value._one": "The most valuable card holds {{share}} of the value.",
-  "The {{count}} most valuable hold {{share}} of the value._other": "The {{count}} most valuable hold {{share}} of the value.",
   "{{count}} versions_one": "{{count}} version",
   "{{count}} versions_other": "{{count}} versions",
   "{{count}} weeks_one": "{{count}} week",
@@ -37,12 +35,12 @@
   "{{count}} issues_other": "{{count}} issues",
   "{{count}} more in games hidden in Settings._one": "{{count}} more in a game hidden in Settings.",
   "{{count}} more in games hidden in Settings._other": "{{count}} more in games hidden in Settings.",
-  "{{count}} cards to get_one": "{{count}} card to get",
-  "{{count}} cards to get_other": "{{count}} cards to get",
   "{{count}} filters in use_one": "{{count}} filter in use",
   "{{count}} filters in use_other": "{{count}} filters in use",
   "{{count}} games_one": "{{count}} game",
   "{{count}} games_other": "{{count}} games",
   "Review {{count}} cards without price_one": "Review {{count}} card without price",
-  "Review {{count}} cards without price_other": "Review {{count}} cards without price"
+  "Review {{count}} cards without price_other": "Review {{count}} cards without price",
+  "By the price of one copy. These {{count}} hold {{share}} of the value._one": "By the price of one copy. This card holds {{share}} of the value.",
+  "By the price of one copy. These {{count}} hold {{share}} of the value._other": "By the price of one copy. These {{count}} hold {{share}} of the value."
 }

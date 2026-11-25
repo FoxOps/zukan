@@ -1,3 +1,4 @@
+import { SourceListButton } from '../../components/Shopping'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -159,7 +160,8 @@ export default function BinderDetail() {
             />
           </>
         )}
-        <button className="btn btn-ghost min-h-11 ml-auto text-error" onClick={() => setUnfollowing(true)}>
+        <SourceListButton className="min-h-11 ml-auto" source="binder" sourceId={binder.id} listId={query.data.shopping_list_id} />
+        <button className="btn btn-ghost min-h-11 text-error" onClick={() => setUnfollowing(true)}>
           {t('Stop following')}
         </button>
       </div>
