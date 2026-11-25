@@ -239,9 +239,9 @@
     <!-- Shopping lists (Decks module) -->
     <string name="tab_shopping">Listes</string>
     <string name="shopping_title">Listes d\'achats</string>
-    <string name="shopping_subtitle">Cartes manquantes de vos decks, envoyées depuis le web</string>
+    <string name="shopping_subtitle">Vos propres listes, et celles de vos decks et sets suivis</string>
     <string name="shopping_empty">Aucune liste d\'achats</string>
-    <string name="shopping_empty_help">Sur le web, ouvrez un deck, puis Liste d\'achats et Envoyer à l\'application.</string>
+    <string name="shopping_empty_help">Sur le web, ouvrez Liste d\'achats pour en créer une, ou utilisez Créer la liste sur un deck ou un set suivi.</string>
     <string name="shopping_progress">Achetées : %1$d / %2$d</string>
     <string name="shopping_complete">Terminée</string>
     <string name="shopping_delete">Supprimer</string>
@@ -258,6 +258,10 @@
     <string name="sso_not_encrypted">%1$s n\'est pas chiffré (HTTP) : votre mot de passe peut être lu sur le réseau.</string>
     <string name="shopping_item_state">Achetées : %1$d / %2$d</string>
     <string name="shopping_copy">%1$s, exemplaire %2$d sur %3$d</string>
+    <string name="shopping_source_deck">Deck</string>
+    <string name="shopping_source_binder">Set suivi</string>
+    <string name="shopping_source_own">Liste perso</string>
+    <string name="shopping_any_edition">N\'importe quelle édition</string>
     <string name="update_too_large">le fichier est plus gros qu\'annoncé</string>
     <string name="update_no_space">pas assez d\'espace libre sur le téléphone</string>
     <string name="update_invalid">ce fichier n\'est pas une mise à jour de Zukan</string>

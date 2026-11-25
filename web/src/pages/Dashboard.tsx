@@ -1,8 +1,8 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { api, call } from '../api/client'
+import { api, call, type Schemas } from '../api/client'
 import { useGames, useMe, useShownGames } from '../api/queries'
 import { ConditionBadge, FinishBadge, LangFlag } from '../components/Badges'
 import { useInvalidateStock } from '../api/stock'
@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [game, setGame] = useState('')
   const toast = useToast()
   const invalidate = useInvalidateStock()
+  const client = useQueryClient()
 
   const value = useQuery({ queryKey: ['value'], queryFn: () => call(api.GET('/api/collection/value')) })
   const history = useQuery({
@@ -53,11 +54,22 @@ export default function Dashboard() {
   const undo = useMutation({
     mutationFn: (id: number) =>
       call(api.POST('/api/collection/transactions/{transaction_id}/undo', { params: { path: { transaction_id: id } } })),
+    // Struck out at once: the row does not wait for the value, history and movers of the
+    // page to load again (they follow in the background).
+    onMutate: async (id) => {
+      await client.cancelQueries({ queryKey: ['transactions'], exact: true })
+      const before = client.getQueryData<Schemas['TransactionOut'][]>(['transactions'])
+      client.setQueryData<Schemas['TransactionOut'][]>(['transactions'], (old) => old?.map((tr) => (tr.id === id ? { ...tr, undone: true } : tr)))
+      return { before }
+    },
     onSuccess: () => {
       toast(t('Change undone'), 'info')
-      return invalidate()
+      void invalidate()
     },
-    onError: (e) => toast(e.message, 'error'),
+    onError: (e, _id, context) => {
+      if (context?.before) client.setQueryData(['transactions'], context.before)
+      toast(e.message, 'error')
+    },
   })
 
   const gameName = (id: string) => games.find((g) => g.id === id)?.name ?? id
@@ -242,7 +254,7 @@ export default function Dashboard() {
                         </div>
                       </div>
                       {!tr.undone && (
-                        <button className="btn btn-ghost btn-sm min-h-9" disabled={undo.isPending} onClick={() => undo.mutate(tr.id)}>
+                        <button className="btn btn-ghost btn-sm min-h-9" disabled={undo.isPending && undo.variables === tr.id} onClick={() => undo.mutate(tr.id)}>
                           {t('Undo')}
                         </button>
                       )}

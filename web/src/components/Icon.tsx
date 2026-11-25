@@ -14,6 +14,7 @@ const PATHS = {
   checks: 'm4 12 5 5L20 6M4 20h16',
   server: 'M4 4h16v6H4ZM4 14h16v6H4ZM8 7h.01M8 17h.01',
   plus: 'M12 4v16M4 12h16',
+  cart: 'M3 3h2l2.4 12h11.2L21 7H6.2M10 20a1 1 0 1 1-2 0 1 1 0 0 1 2 0M19 20a1 1 0 1 1-2 0 1 1 0 0 1 2 0',
   minus: 'M4 12h16',
   arrow: 'M4 12h16m-6-6 6 6-6 6',
   chevron: 'm9 5 7 7-7 7',

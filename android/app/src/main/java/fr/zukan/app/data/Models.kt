@@ -341,14 +341,17 @@ data class CardOut(
 @Serializable
 data class ErrorOut(val detail: kotlinx.serialization.json.JsonElement? = null)
 
-/** A deck's missing cards sent from the web (Decks module): ticked while buying, deleted
- * only here. Ticking does not change the collection. */
+/** A shopping list, for every account (servers 0.33+; before, Decks module only): the
+ * user's own list, or one made on the web from a deck or a followed set. Ticked while
+ * buying; ticking does not change the collection. */
 @Serializable
 data class ShoppingListOut(
     val id: Int,
-    // The deck's name when the list was made.
     val name: String,
+    // "deck", "binder" (a followed set), or null: the user's own list (servers 0.33+).
+    val source: String? = null,
     @SerialName("deck_id") val deckId: Int? = null,
+    @SerialName("binder_id") val binderId: Int? = null,
     @SerialName("game_id") val gameId: String,
     @SerialName("created_at") val createdAt: String,
     // Copies to get, and those ticked as bought.
@@ -381,6 +384,11 @@ data class ShoppingItemOut(
     val translation: String? = null,
     @SerialName("set_code") val setCode: String? = null,
     @SerialName("collector_number") val collectorNumber: String? = null,
+    // Accepted editions, empty: any (servers 0.33+; before, only the fields above).
+    val editions: List<ShoppingEditionOut> = emptyList(),
+    // Copies must be in this language / finish (followed sets); null: any.
+    val language: String? = null,
+    val finish: String? = null,
     val quantity: Int,
     // All copies bought; servers before 0.31 send only this.
     val bought: Boolean,
@@ -389,8 +397,23 @@ data class ShoppingItemOut(
 ) {
     val boughtCount get() = boughtCopies ?: if (bought) quantity else 0
 
+    /** "M10 146 / 2X2 117", empty for any edition. */
+    val editionsLabel: String
+        get() = if (editions.isNotEmpty()) {
+            editions.map { listOfNotNull(it.setCode, it.collectorNumber).joinToString(" ") }.filter { it.isNotEmpty() }.joinToString(" / ")
+        } else {
+            listOfNotNull(setCode, collectorNumber).joinToString(" ")
+        }
+
     fun withBought(count: Int) = copy(bought = count >= quantity, boughtCopies = count)
 }
+
+@Serializable
+data class ShoppingEditionOut(
+    @SerialName("printing_id") val printingId: Int? = null,
+    @SerialName("set_code") val setCode: String? = null,
+    @SerialName("collector_number") val collectorNumber: String? = null,
+)
 
 @Serializable
 data class ShoppingItemIn(
