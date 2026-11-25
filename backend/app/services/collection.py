@@ -26,7 +26,13 @@ from app.services import decks
 
 
 class StockError(Exception):
-    """Invalid stock change (unknown variant, quantity below zero...)."""
+    """Invalid stock change (unknown variant, quantity below zero...). `code` and
+    `params`: for clients to say it in their language (`message` is English)."""
+
+    def __init__(self, message: str, code: str | None = None, **params: str | int):
+        super().__init__(message)
+        self.code = code
+        self.params = params
 
 
 @dataclass(frozen=True)
@@ -66,11 +72,24 @@ def check_variant(game_id: str, printing: Printing, variant: Variant) -> None:
     provider = get_provider(game_id)
     finishes = printing.finishes or [f.code for f in provider.finishes]
     if variant.finish not in finishes:
-        raise StockError(f"Finish {variant.finish!r} does not exist for this printing")
+        raise StockError(
+            f"Finish {variant.finish!r} does not exist for this printing",
+            "finish_unknown",
+            finish=variant.finish,
+        )
     if variant.language not in provider.languages:
-        raise StockError(f"Language {variant.language!r} is not supported for {provider.name}")
+        raise StockError(
+            f"Language {variant.language!r} is not supported for {provider.name}",
+            "language_unsupported",
+            language=variant.language,
+            game=provider.name,
+        )
     if variant.condition not in Condition.__members__:
-        raise StockError(f"Unknown condition {variant.condition!r}")
+        raise StockError(
+            f"Unknown condition {variant.condition!r}",
+            "condition_unknown",
+            condition=variant.condition,
+        )
 
 
 async def learn_language(session: AsyncSession, printing: Printing, lang: str) -> None:
@@ -144,7 +163,7 @@ async def adjust(
             .returning(CollectionItem.id)
         )
         if item_id is None:
-            raise StockError("Not enough copies to remove")
+            raise StockError("Not enough copies to remove", "not_enough_copies")
         await decks.fit_allocations(session, [item_id])
     transaction = StockTransaction(user_id=user_id, item_id=item_id, delta=delta, source=source)
     session.add(transaction)

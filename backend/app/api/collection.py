@@ -185,6 +185,10 @@ class ImportErrorOut(BaseModel):
     message: str
     # File of a zip export bundle; None: the CSV.
     file: str | None = None
+    # What went wrong, for clients to say it in their language with `params` (set,
+    # number, game...); None: only `message` (English).
+    code: str | None = None
+    params: dict[str, str | int] = {}
 
 
 class ImportOut(BaseModel):
@@ -811,7 +815,9 @@ async def import_csv(
             imported=bundle.imported,
             dry_run=dry_run,
             errors=[
-                ImportErrorOut(line=e.line, message=e.message, file=e.file)
+                ImportErrorOut(
+                    line=e.line, message=e.message, file=e.file, code=e.code, params=e.params
+                )
                 for e in bundle.errors[:200]
             ],
             counts=bundle.counts,
@@ -825,5 +831,8 @@ async def import_csv(
         rows=report.rows,
         imported=report.imported,
         dry_run=dry_run,
-        errors=[ImportErrorOut(line=e.line, message=e.message) for e in report.errors[:200]],
+        errors=[
+            ImportErrorOut(line=e.line, message=e.message, code=e.code, params=e.params)
+            for e in report.errors[:200]
+        ],
     )

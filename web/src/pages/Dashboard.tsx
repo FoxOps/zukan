@@ -20,6 +20,16 @@ const RANGES = [30, 90, 365]
 
 type Point = { date: string; value: string }
 // Days before the first known value carry no information (none: nothing to draw).
+/** Points of the last `days` days (the history's own window: today and the days before). */
+const lastDays = (points: Point[], days: number) => {
+  const last = points.at(-1)
+  if (!last) return points
+  const start = new Date(`${last.date}T00:00:00Z`)
+  start.setUTCDate(start.getUTCDate() - (days - 1))
+  const from = start.toISOString().slice(0, 10)
+  return points.filter((p) => p.date >= from)
+}
+
 const known = (points: Point[]) => {
   const first = points.findIndex((p) => Number(p.value) > 0)
   return first < 0 ? [] : points.slice(first)
@@ -41,11 +51,15 @@ export default function Dashboard() {
     queryKey: ['value', 'history', days, game],
     queryFn: () => call(api.GET('/api/collection/value/history', { params: { query: { days, game: game || undefined } } })),
   })
-  // Change of the whole collection over 30 days, for the value metric.
+  // Change of the whole collection over 30 days, for the value metric: the last 30 days of
+  // the chart's history when it covers them (all games, 30 days or more), else asked apart.
+  const fromChart = game === '' && days >= 30
   const month = useQuery({
     queryKey: ['value', 'history', 30, ''],
     queryFn: () => call(api.GET('/api/collection/value/history', { params: { query: { days: 30 } } })),
+    enabled: !fromChart,
   })
+  const monthData = fromChart && history.data ? { ...history.data, points: lastDays(history.data.points, 30) } : month.data
   const top = useTopItems()
   const transactions = useQuery({
     queryKey: ['transactions'],
@@ -79,9 +93,9 @@ export default function Dashboard() {
   const empty = v?.quantity === 0 && transactions.data?.length === 0
   const priced = v?.games.reduce((n, g) => n + g.priced, 0) ?? 0
   const unpriced = v?.games.reduce((n, g) => n + g.unpriced, 0) ?? 0
-  const monthPoints = known(month.data?.points ?? [])
+  const monthPoints = known(monthData?.points ?? [])
   const monthChange =
-    monthPoints.length > 1 && month.data?.currency === v?.currency
+    monthPoints.length > 1 && monthData?.currency === v?.currency
       ? Number(monthPoints[monthPoints.length - 1].value) - Number(monthPoints[0].value)
       : null
   const addCards = (

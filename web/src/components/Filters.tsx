@@ -98,11 +98,14 @@ export function RegionPicker({ value, onChange, label = false }: { value: string
 export function SearchInput({ value, onChange, placeholder, className = 'w-full sm:w-72' }: { value: string; onChange: (q: string) => void; placeholder: string; className?: string }) {
   const { t } = useTranslation()
   const [text, setText] = useState(value)
+  // Typed text not searched yet: the magnifier turns into a spinner.
+  const [pending, setPending] = useState(false)
   // Follow the URL when it changes elsewhere (back button, links, game change).
   const [shown, setShown] = useState(value)
   if (shown !== value) {
     setShown(value)
     setText(value)
+    setPending(false)
   }
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   // The pending search uses the latest callback (current page and filters).
@@ -115,16 +118,31 @@ export function SearchInput({ value, onChange, placeholder, className = 'w-full 
   const type = (next: string) => {
     setText(next)
     clearTimeout(timer.current)
-    timer.current = setTimeout(() => latest.current(next), 300)
+    setPending(true)
+    timer.current = setTimeout(() => {
+      setPending(false)
+      latest.current(next)
+    }, 250)
+  }
+  // Enter searches at once (no wait for the pause in typing).
+  const submit = () => {
+    clearTimeout(timer.current)
+    setPending(false)
+    if (text !== value) onChange(text)
   }
   const clear = () => {
     clearTimeout(timer.current)
+    setPending(false)
     setText('')
     onChange('')
   }
   return (
     <label className={`input ${className}`}>
-      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2 opacity-60"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+      {pending ? (
+        <span className="loading loading-spinner h-4 w-4 opacity-60" aria-hidden />
+      ) : (
+        <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2 opacity-60" aria-hidden><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+      )}
       <input
         {...TYPE_TO_SEARCH}
         type="text"
@@ -135,6 +153,7 @@ export function SearchInput({ value, onChange, placeholder, className = 'w-full 
         onChange={(e) => type(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Escape' && text) clear()
+          else if (e.key === 'Enter') submit()
         }}
       />
       {text && (

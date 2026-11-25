@@ -15,8 +15,9 @@ type Props = {
   // Picture wider than tall (Riftbound battlefields): turned a quarter to fill the
   // portrait frame instead of being cropped.
   landscape?: boolean
-  // Small copy of the picture (lists, grids); the card page keeps the full one.
-  thumb?: boolean
+  // Small copy of the picture: `true` for grids (400 px), "small" for list rows (120 px,
+  // up to 40 CSS px on 3x screens); the card page keeps the full one.
+  thumb?: boolean | 'small'
   // Shown on the placeholder when there is no picture.
   game?: string
   setCode?: string | null
@@ -72,11 +73,11 @@ export function FlipIcon({ className = 'h-4 w-4' }: { className?: string }) {
   )
 }
 
-/** Link to the small copy of a card picture (front or back) served by the API (other links
+/** Link to a small copy of a card picture (front or back) served by the API (other links
  * unchanged). */
-function thumbUrl(url: string | null | undefined): string | null | undefined {
+function thumbUrl(url: string | null | undefined, size: 'thumb' | 'small'): string | null | undefined {
   if (!url || !/^\/api\/printings\/\d+\/image(\?|$)/.test(url) || url.includes('size=')) return url
-  return `${url}${url.includes('?') ? '&' : '?'}size=thumb`
+  return `${url}${url.includes('?') ? '&' : '?'}size=${size}`
 }
 
 // A landscape picture as wide as the frame is tall (88/63) and as tall as it is wide (63/88),
@@ -119,6 +120,7 @@ export function CardImage({ src, back, alt, className = '', faceClassName = '', 
         src={url}
         alt={label}
         loading="lazy"
+        decoding="async"
         onError={() => fail(url)}
         className={`absolute rounded-[4.5%] object-cover ${landscape ? TURNED : 'inset-0 h-full w-full'} ${turnable} ${extra}`}
       />
@@ -126,6 +128,7 @@ export function CardImage({ src, back, alt, className = '', faceClassName = '', 
       <CardPlaceholder name={label} game={game} setCode={setCode} number={number} className={`${turnable} ${extra}`} />
     )
   const label = flipped ? t('Show front') : t('Show back')
+  const size = thumb === 'small' ? 'small' : thumb ? 'thumb' : null
 
   return (
     <div className={`relative aspect-[63/88] ${className}`}>
@@ -134,8 +137,8 @@ export function CardImage({ src, back, alt, className = '', faceClassName = '', 
           className={`relative h-full w-full ${back ? 'transition-transform duration-500 transform-3d' : ''} ${flipped ? 'rotate-y-180' : ''} ${back && flipOnClick ? 'cursor-pointer' : ''}`}
           onClick={back && flipOnClick ? flip : undefined}
         >
-          {face(thumb ? thumbUrl(src) : src, alt)}
-          {back && backWanted && face(thumb ? thumbUrl(back) : back, `${alt} (${t('back')})`, 'rotate-y-180')}
+          {face(size ? thumbUrl(src, size) : src, alt)}
+          {back && backWanted && face(size ? thumbUrl(back, size) : back, `${alt} (${t('back')})`, 'rotate-y-180')}
         </div>
       </div>
       {back && (

@@ -55,7 +55,7 @@ export function PrintingsTable({ cardId, gameId, game, printings, selectedId, so
               <td className={p.owned.length ? 'border-l-4 border-success' : 'border-l-4 border-transparent'}>
                 <div className="flex items-center gap-1.5 font-medium">
                   {p.set.icon && (
-                    <SetIcon src={p.set.icon} game={gameId} className={`h-4 w-4 ${gameId === 'mtg' ? '' : 'dark:rounded-sm dark:bg-white/85 dark:p-px'}`} />
+                    <SetIcon small src={p.set.icon} game={gameId} className={`h-4 w-4 ${gameId === 'mtg' ? '' : 'dark:rounded-sm dark:bg-white/85 dark:p-px'}`} />
                   )}
                   <Link
                     to={`/cards/${cardId}/${p.id}`}

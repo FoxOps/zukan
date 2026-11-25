@@ -942,3 +942,34 @@ async def test_full_printing_name_replaces_stored_one(session):
     await writer.write(CatalogBatch(cards=[french("Manoir Kravinoff", False)]))
     await session.commit()
     assert set(await session.scalars(stored)) == {"Manoir Kravinoff"}
+
+
+async def test_load_names_keeps_the_first_name_of_a_language(session, synced):
+    """A card with two names in one language (a wrong one joined later): every page shows
+    the first stored one, as the catalog list (`names.display_name`) does."""
+    card = await session.scalar(select(Card).where(Card.name == "Abundance"))
+    await session.execute(delete(CardName).where(CardName.card_id == card.id))
+    session.add(CardName(card_id=card.id, lang="fr", name="Abondance"))
+    await session.flush()
+    session.add(CardName(card_id=card.id, lang="fr", name="Salamèche"))
+    await session.flush()
+    for _ in range(3):
+        names, _printings = await catalog_api.load_names(session, [card.id])
+        assert names[card.id]["fr"] == "Abondance"
+
+
+async def test_search_reports_its_stages(client, session, synced):
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    response = await client.get("/api/cards", params={"q": "abun"}, headers=headers)
+    timing = response.headers["Server-Timing"]
+    assert [part.split(";")[0] for part in timing.split(", ")] == [
+        "filters",
+        "count",
+        "page",
+        "prices",
+        "names",
+        "shown",
+        "set_languages",
+        "owned",
+    ]

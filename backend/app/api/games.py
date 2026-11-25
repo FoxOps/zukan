@@ -1,6 +1,6 @@
 import time
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
@@ -11,9 +11,13 @@ from app.api.deps import CurrentUser, SessionDep
 from app.games.base import group_of, rarity_icon_file, rarity_of, registry
 from app.models import Card, Printing
 from app.prices.base import game_sources
+from app.services import images
 from app.services.symbols import symbol_file, text_symbol_file, text_symbols
 
 router = APIRouter(prefix="/games", tags=["games"])
+
+# `size=small`: a 64 px copy of bitmap pictograms (16-20 CSS px slots); SVG unchanged.
+IconSize = Literal["full", "small"]
 
 
 class ColorOut(BaseModel):
@@ -144,7 +148,9 @@ async def list_games(_: CurrentUser) -> list[GameOut]:
 
 
 @router.get("/{game_id}/colors/{code}/icon")
-async def color_icon(game_id: str, code: str, _: CurrentUser) -> FileResponse:
+async def color_icon(
+    game_id: str, code: str, _: CurrentUser, size: IconSize = "full"
+) -> FileResponse:
     # Files are looked up with the registry's ids and codes, never the URL's.
     provider = registry().get(game_id)
     color = next((c for c in provider.colors if c.code == code), None) if provider else None
@@ -153,11 +159,13 @@ async def color_icon(game_id: str, code: str, _: CurrentUser) -> FileResponse:
     path = symbol_file(provider.id, color.code)
     if path is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Symbol not downloaded yet")
-    return FileResponse(path, headers=_SYMBOL_HEADERS)
+    return await _symbol_response(path, size)
 
 
 @router.get("/{game_id}/symbols/{key}/icon")
-async def text_symbol_icon(game_id: str, key: str, _: CurrentUser) -> FileResponse:
+async def text_symbol_icon(
+    game_id: str, key: str, _: CurrentUser, size: IconSize = "full"
+) -> FileResponse:
     provider = registry().get(game_id)
     symbol = next((s for s in text_symbols(game_id) if s.key == key), None)
     if provider is None or symbol is None:
@@ -165,12 +173,16 @@ async def text_symbol_icon(game_id: str, key: str, _: CurrentUser) -> FileRespon
     path = text_symbol_file(provider.id, symbol.key)
     if path is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Symbol not downloaded yet")
-    return FileResponse(path, headers=_SYMBOL_HEADERS)
+    return await _symbol_response(path, size)
 
 
 @router.get("/{game_id}/rarities/{code}/icon")
 async def rarity_icon(
-    game_id: str, code: str, _: CurrentUser, lang: Annotated[str | None, Query(max_length=8)] = None
+    game_id: str,
+    code: str,
+    _: CurrentUser,
+    lang: Annotated[str | None, Query(max_length=8)] = None,
+    size: IconSize = "full",
 ) -> FileResponse:
     """The rarity's pictogram; `lang`: the one of cards printed in that language (one of
     the game's languages, others get the plain pictogram)."""
@@ -183,7 +195,7 @@ async def rarity_icon(
         path = rarity_icon_file(provider.id, rarity.code, language)
     if path is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown rarity")
-    return FileResponse(path, headers=_SYMBOL_HEADERS)
+    return await _symbol_response(path, size)
 
 
 def _language_icons(provider: Any, code: str) -> dict[str, str]:
@@ -207,6 +219,12 @@ def _icon_link(url: str, path: Path | None) -> str | None:
         return f"{url}?v={int(path.stat().st_mtime)}"
     except OSError:
         return None
+
+
+async def _symbol_response(path: Path, size: IconSize) -> FileResponse:
+    if size == "small":
+        path = await images.icon(path)
+    return FileResponse(path, headers=_SYMBOL_HEADERS)
 
 
 # SVG files: never run anything they contain.

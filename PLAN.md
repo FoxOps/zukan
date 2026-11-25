@@ -2907,3 +2907,57 @@ Branch `2026-11-25-000-shopping-lists-core` from `dev`, pull request into `dev`.
   list removed and back to the lists; Overview Undo strikes the row at once.
 - [ ] User: try on the local deploy and a phone; Android older than 0.21 without the Decks module
   still hides the Lists tab (the server now allows it).
+
+### Report server 0.33.0 + Android 0.21.0: Japanese Pikachu names, web UI audit (user, 2026-11-25)
+Branch `2026-11-25-001-pokemon-jp-names-web-audit` from `dev`, pull request into `dev`. Server 0.34.0,
+Android unchanged (0.21.0). No Dependabot pull request open.
+Audit: `zukan-web-ui-audit-2026-11-25.md` (source `b595318`, F1–F3, P1–P4, translation table).
+- [x] Japanese Pikachu read "ピカチュウ (Salamèche)" in French. Cause: Korean / Traditional Chinese /
+  Thai / Indonesian cards joined stored printings by set code + number only; promo sets (`sea:M-P`,
+  M-P, SV-P…) number differently per source, so another species' Latin names landed on the stored
+  card (local data: `en:fuecoco` had fr "Pikachu", `en:bulbasaur` "Germignon"). Partial syncs only
+  add names, and `load_names` kept an arbitrary one of several. Fix: `provider.same_card` refuses a
+  join by number when both cards have English names that differ (spelling aside); `load_names`
+  keeps the first stored name of a language (as `names.display_name`).
+- [x] Cleanup: migration `c4e8a2d6f317` drops card-level Latin names (en/fr/de/it/es/pt) of
+  `pokemon-asia` / `pokemon-china` cards; Pokémon `catalog_version` 12 runs the next sync of each
+  Pokémon game in full and writes them again, joins checked. Until that sync, Asian cards show no
+  Latin translation (Japanese / Chinese names unchanged).
+- [x] S10b 028 had a Japanese picture but no `ja`: TCGdex lists no Japanese cards for S10b, its
+  printings come from Traditional Chinese data. pokemon-card.com pictures (`official_jp`) now add
+  `ja` to the printing's languages.
+- [x] F1 decks: entries get `held_elsewhere` (missing copies owned but held by other decks) and
+  `to_get` (not owned at all). Deck rows / tiles: "To get n" (red) and "In other decks n" (orange)
+  instead of "Missing n"; header "Deck requirement · Assigned here · Still needed" + "Held in other
+  decks"; count badge "Assigned here: x/y"; Add cards counts shown on phones too.
+- [x] F3 decks: `DeckLineOut.held` (copies set aside per printing they really are,
+  `decks.line_held`): a line asking for M10 189 holding DOM 168 shows "Set aside: DOM 168".
+- [x] F2 import: `RowError` / `ImportErrorOut` gain `code` + `params` (every CSV / bundle check, stock
+  errors via `StockError.code`); web translates them (`pages/importErrors.ts`), English `message` as
+  fallback. Summary "Problems found: n · Rows checked: n" (no shared plural).
+- [x] P1 images: `size=small` (120 px WebP, `.small.webp`) for list rows (catalog list, Finance, binder,
+  shopping, deck rows, copies dialog, Add cards list); `size=thumb` (400 px) kept for grids and
+  Android. Icons (`/api/sets/{id}/icon`, rarity, color, text symbols) take `size=small` (64 px copy of
+  bitmaps, SVG unchanged). Live: 6 kB instead of 35–40 kB per list thumbnail.
+- [x] P2 search: Enter searches at once (live: fetch 75 ms after the key instead of 250–300 ms),
+  debounce 250 ms, spinner while text is pending; catalog pages fresh 30 s, stock changes refresh
+  them (`cards` added to `useInvalidateStock`). `/api/cards` sends `Server-Timing` (filters, count,
+  page, prices, names, shown, set_languages, owned). Local copy of the test data, "pikachu", warm:
+  count 2–5 ms, page 34–37 ms (printings of 50 cards), prices 13–17 ms, rest ≤ 8 ms each, ~75 ms
+  total: no single stage to fix, no index change.
+- [x] P3 collection edit: the row takes the PATCH answer at once, other views refresh in the
+  background.
+- [x] P4 startup: Overview's 30-day change comes from the chart's history (all games, ≥ 30 days),
+  one request less; Android release asked once the browser is idle. Fonts and chart library not
+  changed (open: needs measuring).
+- [x] Translation table: all rows applied (deck header / badge, "En collection", shopping empty state
+  fr/es/de with the button's name in quotes, "Copies bought: x/y", import summary and rows, missing page).
+- [x] Versions: server 0.34.0 (API additions), Android unchanged; `.env.example`: only the
+  `TCG_USER_AGENT` example follows the version.
+- [x] Verified: backend 357 tests, ruff; Alembic upgrade → check → downgrade → upgrade (legacy rows:
+  Asian Latin names dropped, international kept); web tsc, oxlint, i18n (956 texts), build. Branch
+  server on a copy of the local test data (French UI): two decks one copy (To get 1 / In other decks
+  1), M10-style line holding another printing, French import error, list `size=small`, Enter search,
+  deck page at 390 px without horizontal scroll.
+- [ ] User: after deploy, let the Pokémon Asia sync run (forced by `catalog_version`), then check S10b
+  028 (French: `ピカチュウ (Pikachu)`, `ja` listed).

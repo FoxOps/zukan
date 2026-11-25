@@ -192,7 +192,7 @@ export function AddCards({
                     {cards.map((card) => (
                       <li key={card.id} className="flex items-center gap-2 px-3 py-1.5">
                         <span className="block w-8 shrink-0">
-                          <CardImage thumb src={card.image} alt="" game={deck.game_id} landscape={card.orientation === 'landscape'} />
+                          <CardImage thumb="small" src={card.image} alt="" game={deck.game_id} landscape={card.orientation === 'landscape'} />
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm">
@@ -204,7 +204,7 @@ export function AddCards({
                             </span>
                           )}
                         </span>
-                        <span className="hidden flex-wrap gap-1 sm:flex">
+                        <span className="flex max-w-[45%] flex-wrap justify-end gap-1 sm:max-w-none">
                           <Counts card={card} entry={inDeck(card)} />
                         </span>
                         {addButton(card)}

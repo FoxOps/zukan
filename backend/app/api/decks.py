@@ -138,6 +138,13 @@ class DeckUpdateIn(BaseModel):
     format: FormatId | None = None
 
 
+class HeldOut(BaseModel):
+    printing_id: int
+    set_code: str
+    collector_number: str | None
+    quantity: int
+
+
 class DeckLineOut(BaseModel):
     """Copies of the card asked for in one section, of one printing or any."""
 
@@ -158,6 +165,9 @@ class DeckLineOut(BaseModel):
     allocated: int
     # Owned copies of the printing no deck holds (None: any printing, see the card).
     available: int | None = None
+    # Copies set aside for this line by the printing they are: a line of a printing may
+    # hold copies of another one when its own printing was not owned.
+    held: list[HeldOut] = []
 
 
 class DeckEntryOut(BaseModel):
@@ -188,7 +198,11 @@ class DeckEntryOut(BaseModel):
     allocated_elsewhere: int
     # Collection items with free copies (several: the user picks which to allocate).
     free_items: int
+    # Copies the deck still needs (`held_elsewhere` + `to_get`).
     missing: int
+    # Of those, copies owned but held by other decks, and copies not owned at all.
+    held_elsewhere: int = 0
+    to_get: int = 0
     status: Literal["missing", "owned", "allocated"]
     legal: Literal["legal", "banned", "not_legal", "restricted", "unknown"]
 
@@ -668,13 +682,27 @@ async def _detail(session: SessionDep, user: User, deck_id: int) -> DeckDetailOu
         allocated = decks.line_allocations(
             [(e.printing_id, e.quantity) for e in card_lines], counts.allocated_by_printing
         )
+        held = decks.line_held(
+            [(e.printing_id, e.quantity) for e in card_lines], counts.allocated_by_printing
+        )
+        card_printings = {p.id: p for p in card.printings}
         lines = []
-        for e, line_allocated in zip(card_lines, allocated, strict=True):
+        for e, line_allocated, line_held in zip(card_lines, allocated, held, strict=True):
             line = DeckLineOut(
                 section=e.section,
                 printing_id=e.printing_id,
                 quantity=e.quantity,
                 allocated=line_allocated,
+                held=[
+                    HeldOut(
+                        printing_id=pid,
+                        set_code=card_printings[pid].set.code,
+                        collector_number=card_printings[pid].collector_number,
+                        quantity=n,
+                    )
+                    for pid, n in line_held
+                    if pid in card_printings
+                ],
             )
             if e.printing is not None:
                 line.set_code = e.printing.set.code
@@ -712,6 +740,8 @@ async def _detail(session: SessionDep, user: User, deck_id: int) -> DeckDetailOu
                 allocated_elsewhere=counts.allocated_all - counts.allocated,
                 free_items=counts.free_items,
                 missing=counts.missing,
+                held_elsewhere=counts.held_elsewhere,
+                to_get=counts.to_get,
                 status=counts.status,
                 legal=deck_rules.legality(rule_cards[card_id], fmt) if fmt else "unknown",
             )

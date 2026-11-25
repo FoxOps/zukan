@@ -97,6 +97,9 @@ async def test_pictures_of_japanese_printings(monkeypatch, tmp_path):
         ("m6a", "130"): f"{base}/M6a/050701_P_PIKA.jpg",
         ("sv9", "050"): f"{base}/SV9/040000_P_X.jpg",
     }
+    # Listed by the Japanese site: printed in Japanese (S10b came from Traditional Chinese
+    # data only, its printings lacked "ja").
+    assert all(c.printings[0].languages == ["ja"] for b in batches for c in b.cards)
     assert pages.call_count == 2
     cache = json.loads((tmp_path / "cache" / "pokemon-card-jp.json").read_text())
     assert cache["complete"] and cache["numbers"] == {"50700": "025", "50701": "130"}

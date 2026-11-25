@@ -197,7 +197,7 @@ export default function BinderDetail() {
                   </td>
                   <td>
                     <Link to={link} className={`block w-10 ${owned ? '' : 'opacity-50 grayscale'}`} tabIndex={-1} aria-hidden>
-                      <CardImage thumb src={row.image} alt={row.name} landscape={row.orientation === 'landscape'} />
+                      <CardImage thumb="small" src={row.image} alt={row.name} landscape={row.orientation === 'landscape'} />
                     </Link>
                   </td>
                   {numbered && <td className="whitespace-nowrap font-mono text-xs">{row.collector_number}</td>}
