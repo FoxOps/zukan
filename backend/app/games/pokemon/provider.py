@@ -378,6 +378,21 @@ def translate_latin(card: CardData, latin: Mapping[str, Mapping[str, str]]) -> C
     return card
 
 
+def same_card(stored_key: str, card: CardData) -> bool:
+    """False when `card` (joined by its number) is known by an English name that is not
+    the stored English card's. Cards without an English name, or stored under another
+    language's key, cannot be told apart: joined."""
+    english = card.names.get("en")
+    lang, _, stored = stored_key.partition(":")
+    if not english or lang != "en":
+        return True
+    # Spelling aside: "Pikachu-EX" / "Pikachu EX", "Team Rocket's" / "Team Rocket’s".
+    def plain(name: str) -> str:
+        return re.sub(r"\W", "", normalize_name(name).casefold())
+
+    return plain(english) == plain(stored)
+
+
 def join_asian_set(
     extra: asia.AsianSet,
     lang: str,
@@ -426,6 +441,15 @@ def join_asian_set(
         known = numbers.get(asia.number_key(printing.external_id))
         if known is not None:
             local, key = known
+            if not same_card(key, card):
+                # Another card at this number (promo sets each source numbers its own
+                # way): its names and picture would land on the stored card ("Pikachu"
+                # read "Salamèche" in French).
+                log.info(
+                    "%s %s %s: %r is not stored card %r, not joined",
+                    lang, set_id, printing.external_id, card.names.get("en"), key,
+                )
+                continue
             batch.cards.append(
                 CardData(
                     external_id=key,
@@ -789,7 +813,9 @@ class PokemonProvider:
     # 10: mainland Chinese Trainers, Energies and owners' Pokémon translated (card names
     #     table "zh-hans").
     # 11: Standard / Expanded legality of international printings (Decks module).
-    catalog_version = 11
+    # 12: Asian cards joined by number only when they are the same card (promo sets),
+    #     their Latin names written again (migration c4e8a2d6f317 dropped them).
+    catalog_version = 12
 
     def __init__(self, region: str = INTERNATIONAL):
         self.market = REGIONS[region]

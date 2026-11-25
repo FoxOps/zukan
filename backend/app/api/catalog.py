@@ -290,14 +290,16 @@ async def load_names(session: SessionDep, card_ids: Iterable[int]) -> tuple[Name
         select(CardName.card_id, CardName.printing_id, CardName.lang, CardName.name).where(
             CardName.card_id.in_(set(card_ids))
         )
+        # Several names in one language: the first stored one, as `names.display_name`.
+        .order_by(CardName.id)
     )
     card_names: Names = {}
     printing_names: Names = {}
     for card_id, printing_id, lang, name in rows:
         if printing_id is None:
-            card_names.setdefault(card_id, {})[lang] = name
+            card_names.setdefault(card_id, {}).setdefault(lang, name)
         else:
-            printing_names.setdefault(printing_id, {})[lang] = name
+            printing_names.setdefault(printing_id, {}).setdefault(lang, name)
     return card_names, printing_names
 
 
