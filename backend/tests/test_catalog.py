@@ -956,3 +956,17 @@ async def test_load_names_keeps_the_first_name_of_a_language(session, synced):
     for _ in range(3):
         names, _printings = await catalog_api.load_names(session, [card.id])
         assert names[card.id]["fr"] == "Abondance"
+
+
+async def test_search_reports_its_stages(client, session, synced):
+    await make_user(session)
+    headers = await bearer(client, "alice")
+    response = await client.get("/api/cards", params={"q": "abun"}, headers=headers)
+    timing = response.headers["Server-Timing"]
+    assert [part.split(";")[0] for part in timing.split(", ")] == [
+        "filters",
+        "count",
+        "page",
+        "prices",
+        "decorate",
+    ]

@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Response, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import ColumnElement, case, exists, func, or_, select, tuple_
@@ -15,6 +15,7 @@ from app import modules
 from app.api.deps import CurrentUser, SessionDep
 from app.core.db import get_sessionmaker
 from app.core.http import http_client, shared_http_client
+from app.core.timing import Stages
 from app.games.base import FilterDef, rarity_of, registry
 from app.models import (
     Card,
@@ -287,9 +288,8 @@ Names = dict[int, dict[str, str]]
 async def load_names(session: SessionDep, card_ids: Iterable[int]) -> tuple[Names, Names]:
     """Names per language of the cards, and of their printings (printed names)."""
     rows = await session.execute(
-        select(CardName.card_id, CardName.printing_id, CardName.lang, CardName.name).where(
-            CardName.card_id.in_(set(card_ids))
-        )
+        select(CardName.card_id, CardName.printing_id, CardName.lang, CardName.name)
+        .where(CardName.card_id.in_(set(card_ids)))
         # Several names in one language: the first stored one, as `names.display_name`.
         .order_by(CardName.id)
     )
@@ -418,7 +418,13 @@ _ASSET_HEADERS = {
 
 
 @router.get("/sets/{set_id}/icon")
-async def set_icon(set_id: int, _: CurrentUser, session: SessionDep) -> FileResponse:
+async def set_icon(
+    set_id: int,
+    _: CurrentUser,
+    session: SessionDep,
+    size: Literal["full", "small"] = "full",
+) -> FileResponse:
+    """The set's symbol; `size=small`: a 64 px copy of bitmap symbols (lists)."""
     card_set = await session.get(CardSet, set_id)
     if card_set is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Set not found")
@@ -427,6 +433,8 @@ async def set_icon(set_id: int, _: CurrentUser, session: SessionDep) -> FileResp
     )
     if path is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No icon for this set")
+    if size == "small":
+        path = await images.icon(path)
     return FileResponse(path, headers=_ASSET_HEADERS)
 
 
@@ -446,6 +454,7 @@ async def list_sets(game_id: str, _: CurrentUser, session: SessionDep) -> list[S
 
 @router.get("/cards")
 async def search_cards(
+    response: Response,
     user: CurrentUser,
     session: SessionDep,
     game: str | None = None,
@@ -472,6 +481,7 @@ async def search_cards(
     `owned`: only cards the user has copies of.
     `sort=name` orders by shown name, `sort=number` by collector number in `set_id`
     (ignored without a set); `order` gives the direction."""
+    stages = Stages()
     # Cards without printings cannot be collected (left over by older catalog syncs).
     name = display_name(user.language)
     query = select(Card).where(exists().where(Printing.card_id == Card.id))
@@ -545,7 +555,9 @@ async def search_cards(
             exists().where(Printing.card_id == Card.id, Printing.languages.contains([lang]))
         )
 
+    stages.mark("filters")
     total = await session.scalar(select(func.count()).select_from(query.subquery()))
+    stages.mark("count")
     direction = (lambda c: c.desc()) if order == "desc" else (lambda c: c.asc())
     # Sorting by the shown name costs a name lookup per card: whole catalogs (tens of
     # thousands of cards) are sorted by their Latin name instead (indexed), cards known
@@ -574,6 +586,7 @@ async def search_cards(
             .options(selectinload(Card.printings).selectinload(Printing.set))
         )
     ).all()
+    stages.mark("page")
     cards = [card for card, _ in rows]
     names = {card.id: card_name for card, card_name in rows}
     latest = await collection.user_prices(
@@ -583,6 +596,7 @@ async def search_cards(
     by_printing = {p.id: c.id for c in cards for p in c.printings}
     for (printing_id, _), point in latest.items():
         card_prices.setdefault(by_printing[printing_id], []).append(point.trend)
+    stages.mark("prices")
     # Cards are shown as printed in the chosen set (set filter or code search).
     shown_sets = {set_id} if set_id is not None else set(code.set_ids if code else ())
     card_names, printing_names = await load_names(session, (c.id for c in cards))
@@ -609,6 +623,8 @@ async def search_cards(
             )
         ).all()
     )
+    stages.mark("decorate")
+    stages.send(response)
     items = []
     for card, shown in shown_cards:
         items.append(
@@ -965,11 +981,11 @@ async def printing_image(
     session: SessionDep,
     lang: Annotated[str | None, Query(max_length=8)] = None,
     face: Literal["front", "back"] = "front",
-    size: Literal["full", "thumb"] = "full",
+    size: Literal["full", "thumb", "small"] = "full",
 ) -> FileResponse:
     """Card image in `lang` (default: the user's language), else English, else
     Japanese, else any language there is. `face=back`: the back of double-faced cards.
-    `size=thumb`: a small copy for lists and grids."""
+    `size=thumb`: a small copy for grids (400 px), `size=small` for list rows (120 px)."""
     printing = await session.get(Printing, printing_id)
     if printing is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Printing not found")
@@ -984,8 +1000,8 @@ async def printing_image(
         if path is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "No back image for this printing")
         # Grids ask for a small copy of a flipped card too (SVG backs are small already).
-        if size == "thumb" and path.suffix != ".svg":
-            path = await images.thumbnail(path)
+        if size != "full":
+            path = await images.thumbnail(path, size)
         return FileResponse(path, headers=_ASSET_HEADERS)
     wanted = lang or user.language
     languages = images.image_languages(printing, wanted)
@@ -996,6 +1012,6 @@ async def printing_image(
         path = await images.get_or_fetch(session, shared_http_client(), printing, wanted)
     if path is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No image for this printing")
-    if size == "thumb":
-        path = await images.thumbnail(path)
+    if size != "full":
+        path = await images.thumbnail(path, size)
     return FileResponse(path, headers={"Cache-Control": "private, max-age=604800"})

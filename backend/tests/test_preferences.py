@@ -214,6 +214,17 @@ async def test_sorcery_images_job_caches_every_printing(client, session, alice):
     assert response.status_code == 200
     assert Image.open(io.BytesIO(response.content)).width == images.THUMB_WIDTH
     assert stored.with_name(f"{p.id}-en{images.THUMB_SUFFIX}").is_file()
+    # List rows: smaller still.
+    response = await client.get(
+        f"/api/printings/{p.id}/image", params={"size": "small"}, headers=alice
+    )
+    assert Image.open(io.BytesIO(response.content)).width == images.SMALL_WIDTH
+    assert stored.with_name(f"{p.id}-en{images.SMALL_SUFFIX}").is_file()
+    # Never taken for the picture itself.
+    assert (
+        images.asset_file(str(stored.relative_to(get_settings().image_dir).with_suffix("")))
+        == stored
+    )
 
     # Files of printings gone from the catalog, and stale partial downloads, are removed.
     orphan = stored.with_name("999999-en.webp")

@@ -1378,3 +1378,70 @@ async def test_double_faced_cards_show_their_back(client, session, alice, catalo
     assert entry(detail, delver)["back_image"] == back
     assert entry(detail, delver)["lines"][0]["back_image"] == back
     assert entry(detail, bolt)["back_image"] is None
+
+
+def test_line_held_by_real_printing():
+    from app.services.decks import line_held
+
+    # Line asks for printing 2, only printing 1 allocated: it holds printing 1.
+    assert line_held([(2, 1)], {1: 1}) == [[(1, 1)]]
+    # Own printing first; lines of any printing before substitutes.
+    assert line_held([(2, 2), (None, 1)], {2: 1, 1: 2}) == [[(1, 1), (2, 1)], [(1, 1)]]
+    assert line_held([(None, 2)], {}) == [[]]
+
+
+async def test_shortage_held_by_other_decks_and_other_printing(client, session, alice, catalog):
+    elves, dom = catalog["Llanowar Elves"]
+    other_set = CardSet(game_id="mtg", external_id="m10", code="M10", name="Magic 2010", lang="en")
+    session.add(other_set)
+    await session.flush()
+    m10 = Printing(
+        card_id=elves,
+        set_id=other_set.id,
+        external_id="189",
+        collector_number="189",
+        finishes=["nonfoil"],
+        languages=["en"],
+    )
+    session.add(m10)
+    await session.commit()
+    first = (await new_deck(client, alice, "First"))["deck"]["id"]
+    second = (await new_deck(client, alice, "Second"))["deck"]["id"]
+    await own(client, alice, dom, 1)
+    await put_card(client, alice, first, elves, 1)
+    await put_card(client, alice, second, elves, 2)
+    alloc = await client.post(
+        f"/api/decks/{first}/allocate", json={"card_id": elves, "quantity": 1}, headers=alice
+    )
+    assert alloc.status_code == 200, alloc.text
+    detail = (await client.get(f"/api/decks/{second}", headers=alice)).json()
+    # 2 needed: the owned copy is in the first deck, one more is not owned at all.
+    assert {k: entry(detail, elves)[k] for k in ("missing", "held_elsewhere", "to_get")} == {
+        "missing": 2,
+        "held_elsewhere": 1,
+        "to_get": 1,
+    }
+
+    # The first deck asks for M10 189, only DOM is owned: the line holds the DOM copy.
+    response = await client.put(
+        f"/api/decks/{first}/cards",
+        json={"card_id": elves, "quantity": 0, "section": "main"},
+        headers=alice,
+    )
+    assert response.status_code == 200, response.text
+    response = await client.put(
+        f"/api/decks/{first}/cards",
+        json={"card_id": elves, "quantity": 1, "section": "main", "printing_id": m10.id},
+        headers=alice,
+    )
+    assert response.status_code == 200, response.text
+    detail = (
+        await client.post(
+            f"/api/decks/{first}/allocate", json={"card_id": elves, "quantity": 1}, headers=alice
+        )
+    ).json()
+    line = entry(detail, elves)["lines"][0]
+    assert line["printing_id"] == m10.id and line["allocated"] == 0
+    assert [(h["printing_id"], h["set_code"], h["quantity"]) for h in line["held"]] == [
+        (dom, "TST", 1)
+    ]

@@ -281,26 +281,50 @@ def _rows(
     try:
         missing = required - set(reader.fieldnames or [])
     except csv.Error as exc:
-        report.errors.append(RowError(1, f"Invalid CSV: {exc}", name))
+        report.errors.append(
+            RowError(1, f"Invalid CSV: {exc}", name, "invalid_csv", {"detail": str(exc)})
+        )
         return []
     if missing:
-        report.errors.append(RowError(1, f"Missing columns: {', '.join(sorted(missing))}", name))
+        report.errors.append(
+            RowError(
+                1,
+                f"Missing columns: {', '.join(sorted(missing))}",
+                name,
+                "missing_columns",
+                {"columns": ", ".join(sorted(missing))},
+            )
+        )
         return []
     rows = []
     try:
         for raw in reader:
             if len(rows) >= limit:
-                report.errors.append(RowError(reader.line_num, f"More than {limit} rows", name))
+                report.errors.append(
+                    RowError(
+                        reader.line_num,
+                        f"More than {limit} rows",
+                        name,
+                        "too_many_rows",
+                        {"max": limit},
+                    )
+                )
                 break
             value = {
                 k.strip(): from_spreadsheet_text((v or "").strip()) for k, v in raw.items() if k
             }
             if any("\x00" in v for v in value.values()):
-                report.errors.append(RowError(reader.line_num, "Invalid character (NUL)", name))
+                report.errors.append(
+                    RowError(reader.line_num, "Invalid character (NUL)", name, "nul_character")
+                )
                 continue
             rows.append((reader.line_num, value))
     except csv.Error as exc:
-        report.errors.append(RowError(reader.line_num, f"Invalid CSV: {exc}", name))
+        report.errors.append(
+            RowError(
+                reader.line_num, f"Invalid CSV: {exc}", name, "invalid_csv", {"detail": str(exc)}
+            )
+        )
     return rows
 
 
@@ -340,12 +364,28 @@ async def _parse_binder(session: AsyncSession, text: str, report: BundleReport) 
     for line, value in _rows(name, text, {"game", "set_code"}, report):
         game_id = value["game"].lower()
         if game_id not in registry():
-            report.errors.append(RowError(line, f"Unknown game {value['game']!r}", name))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"Unknown game {value['game']!r}",
+                    name,
+                    "unknown_game",
+                    {"game": value["game"]},
+                )
+            )
             continue
         sets = await _set_of(session, game_id, value)
         if len(sets) != 1:
             problem = "No set" if not sets else "Several sets"
-            report.errors.append(RowError(line, f"{problem} {value['set_code']!r}", name))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"{problem} {value['set_code']!r}",
+                    name,
+                    "set_not_found" if not sets else "set_ambiguous",
+                    {"set": value["set_code"]},
+                )
+            )
             continue
         card_set = sets[0]
         language = value.get("language") or None
@@ -353,7 +393,15 @@ async def _parse_binder(session: AsyncSession, text: str, report: BundleReport) 
         if language and language not in (await set_languages(session, [card_set.id])).get(
             card_set.id, set()
         ):
-            report.errors.append(RowError(line, f"No printing of this set in {language!r}", name))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"No printing of this set in {language!r}",
+                    name,
+                    "set_language_missing",
+                    {"language": language},
+                )
+            )
             continue
         if finish and finish not in set(
             await session.scalars(
@@ -362,10 +410,18 @@ async def _parse_binder(session: AsyncSession, text: str, report: BundleReport) 
                 .distinct()
             )
         ):
-            report.errors.append(RowError(line, f"No printing of this set in {finish!r}", name))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"No printing of this set in {finish!r}",
+                    name,
+                    "set_finish_missing",
+                    {"finish": finish},
+                )
+            )
             continue
         if card_set.id in seen:
-            report.errors.append(RowError(line, "Set listed twice", name))
+            report.errors.append(RowError(line, "Set listed twice", name, "set_twice"))
             continue
         seen.add(card_set.id)
         follows.append(_Follow(line, card_set.id, language, finish))
@@ -391,24 +447,54 @@ async def _parse_decks(
     found: dict[str, _DeckRow] = {}
     name = "decks.csv"
     if name not in files:
-        report.errors.append(RowError(1, "decks.csv is missing", name))
+        report.errors.append(RowError(1, "decks.csv is missing", name, "decks_file_missing"))
         return found
     for line, value in _rows(name, files[name], set(DECK_COLUMNS), report, MAX_DECKS):
         game_id, deck_format = value["game"].lower(), value["format"]
         title = " ".join(value["name"].split())
         if not value["deck"]:
-            report.errors.append(RowError(line, "No deck reference", name))
+            report.errors.append(
+                RowError(line, "No deck reference", name, "deck_reference_missing")
+            )
         elif value["deck"] in found:
-            report.errors.append(RowError(line, f"Deck {value['deck']!r} listed twice", name))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"Deck {value['deck']!r} listed twice",
+                    name,
+                    "deck_twice",
+                    {"deck": value["deck"]},
+                )
+            )
         elif game_id not in deck_rules.GAMES:
-            report.errors.append(RowError(line, f"No decks for game {value['game']!r}", name))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"No decks for game {value['game']!r}",
+                    name,
+                    "game_without_decks",
+                    {"game": value["game"]},
+                )
+            )
         elif deck_format not in deck_rules.GAMES[game_id]:
             report.errors.append(
-                RowError(line, f"{deck_format!r} is not a format of {game_id}", name)
+                RowError(
+                    line,
+                    f"{deck_format!r} is not a format of {game_id}",
+                    name,
+                    "format_unknown",
+                    {"format": deck_format, "game": game_id},
+                )
             )
         elif not 0 < len(title) <= MAX_NAME:
             report.errors.append(
-                RowError(line, f"Deck names have 1 to {MAX_NAME} characters", name)
+                RowError(
+                    line,
+                    f"Deck names have 1 to {MAX_NAME} characters",
+                    name,
+                    "deck_name_length",
+                    {"max": MAX_NAME},
+                )
             )
         else:
             found[value["deck"]] = _DeckRow(line, value["deck"], game_id, title, deck_format)
@@ -421,12 +507,26 @@ async def _parse_decks(
     ):
         deck = found.get(value["deck"])
         if deck is None:
-            report.errors.append(RowError(line, f"Unknown deck {value['deck']!r}", name))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"Unknown deck {value['deck']!r}",
+                    name,
+                    "deck_unknown",
+                    {"deck": value["deck"]},
+                )
+            )
             continue
         sections = {s for s, _ in deck_rules.FORMATS[deck.format].sections}
         if value["section"] not in sections:
             report.errors.append(
-                RowError(line, f"No section {value['section']!r} in {deck.format}", name)
+                RowError(
+                    line,
+                    f"No section {value['section']!r} in {deck.format}",
+                    name,
+                    "section_unknown",
+                    {"section": value["section"], "format": deck.format},
+                )
             )
             continue
         try:
@@ -434,7 +534,15 @@ async def _parse_decks(
         except ValueError:
             quantity = 0
         if not 0 < quantity <= MAX_COPIES:
-            report.errors.append(RowError(line, f"Invalid quantity {value['quantity']!r}", name))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"Invalid quantity {value['quantity']!r}",
+                    name,
+                    "invalid_quantity",
+                    {"quantity": value["quantity"]},
+                )
+            )
             continue
         key = (deck.game_id, value["card_id"])
         if key not in cards:
@@ -444,7 +552,15 @@ async def _parse_decks(
         card = cards[key]
         if card is None:
             label = value.get("name") or value["card_id"]
-            report.errors.append(RowError(line, f"No card {label!r} in {deck.game_id}", name))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"No card {label!r} in {deck.game_id}",
+                    name,
+                    "card_not_found",
+                    {"card": label, "game": deck.game_id},
+                )
+            )
             continue
         printing_id = None
         if value.get("printing_id") or value.get("set_code"):
@@ -459,7 +575,9 @@ async def _parse_decks(
             )
             matches = [p for p in matches if p.card_id == card.id]
             if len(matches) != 1:
-                report.errors.append(RowError(line, "Printing not found for this card", name))
+                report.errors.append(
+                    RowError(line, "Printing not found for this card", name, "printing_not_of_card")
+                )
                 continue
             printing_id = matches[0].id
         line_key = (card.id, value["section"], printing_id)
@@ -474,18 +592,42 @@ async def _parse_decks(
     ):
         deck = found.get(value["deck"])
         if deck is None:
-            report.errors.append(RowError(line, f"Unknown deck {value['deck']!r}", name))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"Unknown deck {value['deck']!r}",
+                    name,
+                    "deck_unknown",
+                    {"deck": value["deck"]},
+                )
+            )
             continue
         try:
             quantity = int(value["quantity"])
         except ValueError:
             quantity = 0
         if not 0 < quantity <= MAX_COPIES:
-            report.errors.append(RowError(line, f"Invalid quantity {value['quantity']!r}", name))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"Invalid quantity {value['quantity']!r}",
+                    name,
+                    "invalid_quantity",
+                    {"quantity": value["quantity"]},
+                )
+            )
             continue
         condition = (value.get("condition") or Condition.NM).upper()
         if condition not in Condition.__members__:
-            report.errors.append(RowError(line, f"Unknown condition {condition!r}", name))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"Unknown condition {condition!r}",
+                    name,
+                    "condition_unknown",
+                    {"condition": condition},
+                )
+            )
             continue
         _, matches = await lookup.resolve(deck.game_id, value)
         if len(matches) != 1:
@@ -499,7 +641,9 @@ async def _parse_decks(
             )
             continue
         if not any(card_id == matches[0].card_id for card_id, _, _ in deck.lines):
-            report.errors.append(RowError(line, "This card is not in the deck", name))
+            report.errors.append(
+                RowError(line, "This card is not in the deck", name, "card_not_in_deck")
+            )
             continue
         deck.allocations.append(
             (line, matches[0], value["finish"], condition, value["language"], quantity)
@@ -525,7 +669,15 @@ async def import_bundle(
     for part in parts_of(files):
         module = PARTS[part]
         if module is not None and module not in modules:
-            report.errors.append(RowError(1, f"The {module} module is not enabled", FILES[part][0]))
+            report.errors.append(
+                RowError(
+                    1,
+                    f"The {module} module is not enabled",
+                    FILES[part][0],
+                    "module_disabled",
+                    {"module": module},
+                )
+            )
     if report.errors:
         return report
     card_rows = []
@@ -533,7 +685,9 @@ async def import_bundle(
         cards_report = ImportReport()
         card_rows = await csv_io.parse_rows(session, files["cards.csv"], set_mode, cards_report)
         report.rows = cards_report.rows
-        report.errors += [RowError(e.line, e.message, "cards.csv") for e in cards_report.errors]
+        report.errors += [
+            RowError(e.line, e.message, "cards.csv", e.code, e.params) for e in cards_report.errors
+        ]
     follows = (
         await _parse_binder(session, files["binder_sets.csv"], report)
         if "binder_sets.csv" in files
@@ -548,7 +702,10 @@ async def import_bundle(
     if card_rows:
         cards_report = ImportReport()
         if not await csv_io.apply_rows(session, user_id, card_rows, set_mode, cards_report):
-            report.errors += [RowError(e.line, e.message, "cards.csv") for e in cards_report.errors]
+            report.errors += [
+                RowError(e.line, e.message, "cards.csv", e.code, e.params)
+                for e in cards_report.errors
+            ]
             return report
         report.imported = cards_report.imported
     for follow in follows:

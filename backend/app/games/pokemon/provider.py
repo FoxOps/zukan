@@ -386,6 +386,7 @@ def same_card(stored_key: str, card: CardData) -> bool:
     lang, _, stored = stored_key.partition(":")
     if not english or lang != "en":
         return True
+
     # Spelling aside: "Pikachu-EX" / "Pikachu EX", "Team Rocket's" / "Team Rocket’s".
     def plain(name: str) -> str:
         return re.sub(r"\W", "", normalize_name(name).casefold())
@@ -447,7 +448,11 @@ def join_asian_set(
                 # read "Salamèche" in French).
                 log.info(
                     "%s %s %s: %r is not stored card %r, not joined",
-                    lang, set_id, printing.external_id, card.names.get("en"), key,
+                    lang,
+                    set_id,
+                    printing.external_id,
+                    card.names.get("en"),
+                    key,
                 )
                 continue
             batch.cards.append(

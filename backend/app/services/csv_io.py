@@ -106,9 +106,16 @@ async def export_csv(session: AsyncSession, user_id: int, game_id: str | None) -
 @dataclass
 class RowError:
     line: int
+    # English, for logs and older clients; clients translate `code` with `params`.
     message: str
     # File of an export bundle (`services.export_bundle`); None: the single CSV.
     file: str | None = None
+    code: str | None = None
+    params: dict[str, str | int] = field(default_factory=dict)
+
+
+def stock_error(line: int, exc: StockError) -> RowError:
+    return RowError(line, str(exc), code=exc.code, params=exc.params)
 
 
 @dataclass
@@ -210,10 +217,19 @@ async def parse_rows(
     try:
         missing = REQUIRED - set(reader.fieldnames or [])
     except csv.Error as exc:
-        report.errors.append(RowError(1, f"Invalid CSV: {exc}"))
+        report.errors.append(
+            RowError(1, f"Invalid CSV: {exc}", code="invalid_csv", params={"detail": str(exc)})
+        )
         return []
     if missing:
-        report.errors.append(RowError(1, f"Missing columns: {', '.join(sorted(missing))}"))
+        report.errors.append(
+            RowError(
+                1,
+                f"Missing columns: {', '.join(sorted(missing))}",
+                code="missing_columns",
+                params={"columns": ", ".join(sorted(missing))},
+            )
+        )
         return []
     lookup = PrintingLookup(session)
     games = registry()
@@ -224,17 +240,38 @@ async def parse_rows(
         except StopIteration:
             break
         except csv.Error as exc:
-            report.errors.append(RowError(reader.line_num, f"Invalid CSV: {exc}"))
+            report.errors.append(
+                RowError(
+                    reader.line_num,
+                    f"Invalid CSV: {exc}",
+                    code="invalid_csv",
+                    params={"detail": str(exc)},
+                )
+            )
             break
         line = reader.line_num
         report.rows += 1
         if report.rows > MAX_ROWS:
-            report.errors.append(RowError(line, f"More than {MAX_ROWS} rows"))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"More than {MAX_ROWS} rows",
+                    code="too_many_rows",
+                    params={"max": MAX_ROWS},
+                )
+            )
             break
         value = {k.strip(): from_spreadsheet_text((v or "").strip()) for k, v in raw.items() if k}
         game_id = value["game"].lower()
         if game_id not in games:
-            report.errors.append(RowError(line, f"Unknown game {value['game']!r}"))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"Unknown game {value['game']!r}",
+                    code="unknown_game",
+                    params={"game": value["game"]},
+                )
+            )
             continue
         try:
             quantity = int(value["quantity"])
@@ -244,7 +281,9 @@ async def parse_rows(
                 else None
             )
         except (ValueError, InvalidOperation):
-            report.errors.append(RowError(line, "Invalid quantity or price"))
+            report.errors.append(
+                RowError(line, "Invalid quantity or price", code="invalid_quantity_or_price")
+            )
             continue
         # Not a number (NaN), infinite, negative, too large or finer than a cent.
         if price is not None and (
@@ -252,16 +291,37 @@ async def parse_rows(
             or not (0 <= price < 10**10)
             or int(price.as_tuple().exponent) < -2
         ):
-            report.errors.append(RowError(line, f"Invalid price {value['manual_price']}"))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"Invalid price {value['manual_price']}",
+                    code="invalid_price",
+                    params={"price": value["manual_price"]},
+                )
+            )
             continue
         if (quantity < 0 if set_mode else quantity == 0) or abs(quantity) > MAX_QUANTITY:
-            report.errors.append(RowError(line, f"Invalid quantity {quantity}"))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"Invalid quantity {quantity}",
+                    code="invalid_quantity",
+                    params={"quantity": quantity},
+                )
+            )
             continue
         if any("\x00" in v for v in value.values()):
-            report.errors.append(RowError(line, "Invalid character (NUL)"))
+            report.errors.append(RowError(line, "Invalid character (NUL)", code="nul_character"))
             continue
         if len(value.get("notes") or "") > MAX_NOTES:
-            report.errors.append(RowError(line, f"Notes longer than {MAX_NOTES} characters"))
+            report.errors.append(
+                RowError(
+                    line,
+                    f"Notes longer than {MAX_NOTES} characters",
+                    code="notes_too_long",
+                    params={"max": MAX_NOTES},
+                )
+            )
             continue
         game_id, matches = await lookup.resolve(game_id, value)
         if len(matches) != 1:
@@ -270,6 +330,8 @@ async def parse_rows(
                 RowError(
                     line,
                     f"{problem} for set {value['set_code']!r} number {value['collector_number']!r}",
+                    code="printing_not_found" if not matches else "printing_ambiguous",
+                    params={"set": value["set_code"], "number": value["collector_number"]},
                 )
             )
             continue
@@ -283,7 +345,7 @@ async def parse_rows(
         try:
             collection.check_variant(game_id, printing, variant)
         except StockError as exc:
-            report.errors.append(RowError(line, str(exc)))
+            report.errors.append(stock_error(line, exc))
             continue
         rows.append(
             _Row(line, printing, game_id, variant, quantity, price, value.get("notes") or None)
@@ -331,7 +393,7 @@ async def apply_rows(
                     session, user_id, row.printing, row.variant, delta, "import", row.game_id
                 )
             except StockError as exc:
-                report.errors.append(RowError(row.line, str(exc)))
+                report.errors.append(stock_error(row.line, exc))
                 await session.rollback()
                 report.imported = 0
                 return False
