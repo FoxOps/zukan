@@ -260,6 +260,10 @@ class OfficialJapaneseSource:
                             external_id=w.printing_ext,
                             set_external_id=w.set_ext,
                             images={"ja": SITE + cache.cards[card_id][2]},
+                            # Listed by the Japanese site: printed in Japanese, also when
+                            # the printing came from another language (TCGdex lists
+                            # no Japanese cards for S10b, only Traditional Chinese ones).
+                            languages=["ja"],
                         )
                     ],
                 )

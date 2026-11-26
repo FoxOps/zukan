@@ -63,7 +63,7 @@ function AddCards({ list, busy, onAdd }: { list: ShoppingDetail; busy: boolean; 
                     {cards.map((card) => (
                       <li key={card.id} className="flex items-center gap-2 px-1 py-1.5">
                         <span className="block w-8 shrink-0">
-                          <CardImage thumb src={card.image} alt="" game={list.game_id} landscape={card.orientation === 'landscape'} />
+                          <CardImage thumb="small" src={card.image} alt="" game={list.game_id} landscape={card.orientation === 'landscape'} />
                         </span>
                         <span className="min-w-0 flex-1 truncate text-sm">
                           <ShownName name={card.name} translation={card.translation} />
@@ -216,7 +216,7 @@ export default function ShoppingDetailPage() {
               </Link>
             )}
             <span>{t('Changed {{date}}', { date: formatDate(list.updated_at) })}</span>
-            <span>· {t('{{bought}} of {{copies}} copies bought', { bought: list.bought, copies: list.copies })}</span>
+            <span>· {t('Copies bought: {{bought}}/{{copies}}', { bought: list.bought, copies: list.copies })}</span>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">

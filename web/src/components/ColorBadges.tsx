@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import type { Game } from '../api/queries'
+import { smallIcon } from '../lib/icons'
 
 type Color = Game['colors'][number]
 
@@ -9,7 +10,7 @@ export function ColorSymbol({ color, size = 'h-5 w-5' }: { color: Color; size?: 
   const { t } = useTranslation()
   const name = t(color.name)
   if (color.icon) {
-    return <img src={color.icon} alt={name} title={name} className={`${size} inline-block object-contain`} />
+    return <img src={smallIcon(color.icon)} alt={name} title={name} className={`${size} inline-block object-contain`} />
   }
   return (
     <span

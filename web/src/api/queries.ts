@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api, call, type Schemas } from './client'
 
@@ -107,9 +108,27 @@ export function useHealth() {
 }
 
 /** Latest Android app on GitHub; undefined data while loading or when there is none. */
+/** True once the browser is idle after the first render (at most 2 s later): secondary
+ * requests wait for the page's own. */
+function useIdle(): boolean {
+  const [idle, setIdle] = useState(false)
+  useEffect(() => {
+    if (typeof requestIdleCallback === 'function') {
+      const id = requestIdleCallback(() => setIdle(true), { timeout: 2000 })
+      return () => cancelIdleCallback(id)
+    }
+    const id = setTimeout(() => setIdle(true), 1000)
+    return () => clearTimeout(id)
+  }, [])
+  return idle
+}
+
 export function useAndroidRelease() {
+  // Only the menu's download link uses it: asked once the page has what it needs.
+  const idle = useIdle()
   return useQuery({
     queryKey: ['android-release'],
+    enabled: idle,
     queryFn: async () => {
       const { data, response } = await api.GET('/api/app/android')
       // No release (or GitHub unreachable): nothing to offer, not an error.

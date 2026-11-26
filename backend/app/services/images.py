@@ -44,9 +44,16 @@ _MAX_IMAGE_BYTES = 15 * 1024 * 1024
 # far smaller for lossless PNGs).
 _REENCODE_TYPES = {".jpg", ".png"}
 _REENCODE_WIDTH = 745
-# Small copies for lists and grids, made on first request next to the full image.
+# Small copies for grids, made on first request next to the full image; smaller ones for
+# list rows (40 CSS px, 3x screens) and icons (16-20 CSS px).
 THUMB_WIDTH = 400
 THUMB_SUFFIX = ".thumb.webp"
+SMALL_WIDTH = 120
+SMALL_SUFFIX = ".small.webp"
+ICON_WIDTH = 64
+ICON_SUFFIX = ".icon.webp"
+_COPY_SUFFIXES = (THUMB_SUFFIX, SMALL_SUFFIX, ICON_SUFFIX)
+_COPIES = {"thumb": (THUMB_WIDTH, THUMB_SUFFIX), "small": (SMALL_WIDTH, SMALL_SUFFIX)}
 # Downloads cut short by a restart, removed by the image job after this long.
 _STALE_TMP_SECONDS = 3600
 _BATCH = 500
@@ -141,33 +148,47 @@ def _shrink(data: bytes, width: int = _REENCODE_WIDTH, quality: int = 85) -> byt
         return out.getvalue()
 
 
-def _thumb_path(path: Path) -> Path:
-    return path.with_name(path.name.split(".")[0] + THUMB_SUFFIX)
+def _copy_path(path: Path, suffix: str) -> Path:
+    return path.with_name(path.name.split(".")[0] + suffix)
 
 
-def _thumb_fresh(path: Path, target: Path) -> bool:
+def _copy_fresh(path: Path, target: Path) -> bool:
     return target.is_file() and target.stat().st_mtime >= path.stat().st_mtime
 
 
-def _thumb(path: Path) -> Path:
-    target = _thumb_path(path)
-    if not _thumb_fresh(path, target):
-        layout.write_atomic(target, _shrink(path.read_bytes(), THUMB_WIDTH, 80))
+def _copy(path: Path, width: int, suffix: str) -> Path:
+    target = _copy_path(path, suffix)
+    if not _copy_fresh(path, target):
+        layout.write_atomic(target, _shrink(path.read_bytes(), width, 80))
     return target
 
 
-async def thumbnail(path: Path) -> Path:
-    """Small WebP copy of a cached card image or back face (lists, grids), made once.
-    Falls back to the image itself when it cannot be read."""
+async def small_copy(path: Path, width: int, suffix: str) -> Path:
+    """WebP copy of a cached picture at most `width` wide, made once next to it. Falls
+    back to the picture itself when it cannot be read; SVG pictures are small already."""
+    if path.suffix == ".svg":
+        return path
     try:
-        target = _thumb_path(path)
-        if _thumb_fresh(path, target):
+        target = _copy_path(path, suffix)
+        if _copy_fresh(path, target):
             return target
         async with _one_at_a_time(str(target)):
-            return await asyncio.to_thread(_thumb, path)
+            return await asyncio.to_thread(_copy, path, width, suffix)
     except (OSError, ValueError) as exc:
-        log.warning("No thumbnail for %s: %s", path, exc)
+        log.warning("No small copy of %s: %s", path, exc)
         return path
+
+
+async def thumbnail(path: Path, size: str = "thumb") -> Path:
+    """Small copy of a cached card image or back face: `thumb` for grids, `small` for
+    list rows."""
+    width, suffix = _COPIES[size]
+    return await small_copy(path, width, suffix)
+
+
+async def icon(path: Path) -> Path:
+    """Copy of a bitmap icon (set symbol, rarity, energy) for 16-20 CSS px slots."""
+    return await small_copy(path, ICON_WIDTH, ICON_SUFFIX)
 
 
 async def download_image(
@@ -219,8 +240,8 @@ def asset_file(stem: str) -> Path | None:
     """Cached asset `stem` (relative path without extension), any extension."""
     target = image_root() / stem
     for path in sorted(target.parent.glob(f"{target.name}.*")) if target.parent.is_dir() else []:
-        # Not its small copy (`<stem>.thumb.webp`, grids) nor a download being written.
-        if path.suffix in _ASSET_EXTENSIONS.values() and not path.name.endswith(THUMB_SUFFIX):
+        # Not one of its small copies (`<stem>.thumb.webp`...) nor a download being written.
+        if path.suffix in _ASSET_EXTENSIONS.values() and not path.name.endswith(_COPY_SUFFIXES):
             return path
     return None
 

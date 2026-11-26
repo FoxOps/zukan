@@ -327,7 +327,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Set Icon */
+        /**
+         * Set Icon
+         * @description The set's symbol; `size=small`: a 64 px copy of bitmap symbols (lists).
+         */
         get: operations["set_icon_api_sets__set_id__icon_get"];
         put?: never;
         post?: never;
@@ -475,7 +478,7 @@ export interface paths {
          * Printing Image
          * @description Card image in `lang` (default: the user's language), else English, else
          *     Japanese, else any language there is. `face=back`: the back of double-faced cards.
-         *     `size=thumb`: a small copy for lists and grids.
+         *     `size=thumb`: a small copy for grids (400 px), `size=small` for list rows (120 px).
          */
         get: operations["printing_image_api_printings__printing_id__image_get"];
         put?: never;
@@ -2062,6 +2065,16 @@ export interface components {
             /** Missing */
             missing: number;
             /**
+             * Held Elsewhere
+             * @default 0
+             */
+            held_elsewhere: number;
+            /**
+             * To Get
+             * @default 0
+             */
+            to_get: number;
+            /**
              * Status
              * @enum {string}
              */
@@ -2316,6 +2329,11 @@ export interface components {
             allocated: number;
             /** Available */
             available?: number | null;
+            /**
+             * Held
+             * @default []
+             */
+            held: components["schemas"]["HeldOut"][];
         };
         /** DeckOut */
         DeckOut: {
@@ -2703,6 +2721,17 @@ export interface components {
             version: string;
             maintenance?: components["schemas"]["MaintenanceOut"] | null;
         };
+        /** HeldOut */
+        HeldOut: {
+            /** Printing Id */
+            printing_id: number;
+            /** Set Code */
+            set_code: string;
+            /** Collector Number */
+            collector_number: string | null;
+            /** Quantity */
+            quantity: number;
+        };
         /** HintsOut */
         HintsOut: {
             /** Name */
@@ -2775,6 +2804,15 @@ export interface components {
             message: string;
             /** File */
             file?: string | null;
+            /** Code */
+            code?: string | null;
+            /**
+             * Params
+             * @default {}
+             */
+            params: {
+                [key: string]: string | number;
+            };
         };
         /** ImportOut */
         ImportOut: {
@@ -4336,7 +4374,9 @@ export interface operations {
     };
     color_icon_api_games__game_id__colors__code__icon_get: {
         parameters: {
-            query?: never;
+            query?: {
+                size?: "full" | "small";
+            };
             header?: never;
             path: {
                 game_id: string;
@@ -4368,7 +4408,9 @@ export interface operations {
     };
     text_symbol_icon_api_games__game_id__symbols__key__icon_get: {
         parameters: {
-            query?: never;
+            query?: {
+                size?: "full" | "small";
+            };
             header?: never;
             path: {
                 game_id: string;
@@ -4402,6 +4444,7 @@ export interface operations {
         parameters: {
             query?: {
                 lang?: string | null;
+                size?: "full" | "small";
             };
             header?: never;
             path: {
@@ -4467,7 +4510,9 @@ export interface operations {
     };
     set_icon_api_sets__set_id__icon_get: {
         parameters: {
-            query?: never;
+            query?: {
+                size?: "full" | "small";
+            };
             header?: never;
             path: {
                 set_id: number;
@@ -4703,7 +4748,7 @@ export interface operations {
             query?: {
                 lang?: string | null;
                 face?: "front" | "back";
-                size?: "full" | "thumb";
+                size?: "full" | "thumb" | "small";
             };
             header?: never;
             path: {

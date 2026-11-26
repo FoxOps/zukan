@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, call, type Schemas } from '../api/client'
@@ -34,6 +34,7 @@ function ItemForm({ item, close }: { item: Item; close: () => void }) {
   const { t } = useTranslation()
   const toast = useToast()
   const invalidate = useInvalidateStock()
+  const client = useQueryClient()
   const game = useGame(item.game_id)
   const [quantity, setQuantity] = useState(item.quantity)
   const [price, setPrice] = useState(item.manual_price ?? '')
@@ -52,10 +53,15 @@ function ItemForm({ item, close }: { item: Item; close: () => void }) {
           },
         }),
       ),
-    onSuccess: () => {
+    onSuccess: (saved) => {
+      // The row changes at once from the server's answer; pages, totals and other views
+      // refresh in the background (sorting or filters may move or drop it).
+      client.setQueriesData<Schemas['ItemPageOut']>({ queryKey: ['collection'] }, (page) =>
+        page?.items && 'page_size' in page ? { ...page, items: page.items.map((i) => (i.id === saved.id ? saved : i)) } : page,
+      )
       toast(t('Saved'))
       close()
-      return invalidate()
+      void invalidate()
     },
     onError: (e) => toast(e.message, 'error'),
   })

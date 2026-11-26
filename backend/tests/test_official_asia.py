@@ -306,3 +306,25 @@ def test_indonesian_species_names_are_english():
         OfficialCard("MA6", "090", None, name="Riset Profesor"), "id", "MA6"
     )
     assert trainer.names == {"id": "Riset Profesor"}
+
+
+def test_another_card_at_the_same_number_is_not_joined():
+    # Korean promo 001 is Charmander where the stored Japanese 001 is Exeggcute: its
+    # names and picture must not land on Exeggcute (Japanese Pikachu read "Salamèche").
+    fetched, keys, langs = _japanese_set()
+    other = official_asia.to_card(
+        OfficialCard("M6a", "001", "https://k/1.png", name="파이리", hp=60, dex=4), "ko", "M6a"
+    )
+    assert other.names["en"] == "Charmander"
+    batch = join_asian_set(_official("M6a", "ko", [other]), "ko", fetched, keys, set(), langs)
+    assert batch.cards == []
+
+
+def test_same_card_spelled_differently_is_joined():
+    from app.games.pokemon.provider import same_card
+
+    card = CardData(external_id="ko:x", name="x", printings=[], names={"en": "Pikachu-EX"})
+    assert same_card("en:pikachu ex", card)
+    assert same_card("ja:ピカチュウ", card)
+    assert not same_card("en:raichu", card)
+    assert same_card("en:raichu", CardData(external_id="ko:y", name="y", printings=[]))

@@ -49,6 +49,16 @@ class CardStock:
         return max(0, self.requested - self.allocated - self.available)
 
     @property
+    def held_elsewhere(self) -> int:
+        """Missing copies the user owns, held by other decks (move one, or get one)."""
+        return min(self.missing, self.allocated_all - self.allocated)
+
+    @property
+    def to_get(self) -> int:
+        """Missing copies the collection does not have at all."""
+        return self.missing - self.held_elsewhere
+
+    @property
     def covered(self) -> int:
         """Copies the user has for the deck: allocated to it, or free in the collection."""
         return self.requested - self.missing
@@ -199,6 +209,40 @@ def line_printings(
             parts.append((None, quantity))
         result.append(parts)
     return result
+
+
+def line_held(
+    lines: list[tuple[int | None, int]], allocated_by_printing: dict[int, int]
+) -> list[list[tuple[int, int]]]:
+    """Copies set aside for each line (printing or None for any, quantity) of one card, by
+    the printing they really are: lines of a printing take its copies first, lines of
+    any printing share what is left, then lines of a printing still short get copies of
+    other printings (`allocate` falls back to them): a line asking for M10 189 may hold
+    DOM 168."""
+    left = {p: n for p, n in allocated_by_printing.items() if n > 0}
+    result: list[dict[int, int]] = [{} for _ in lines]
+    short = [0] * len(lines)
+
+    def take(i: int, printing_id: int, wanted: int) -> int:
+        count = min(wanted, left.get(printing_id, 0))
+        if count > 0:
+            result[i][printing_id] = result[i].get(printing_id, 0) + count
+            left[printing_id] -= count
+        return count
+
+    for i, (printing_id, quantity) in enumerate(lines):
+        if printing_id is not None:
+            short[i] = quantity - take(i, printing_id, quantity)
+    for pass_any in (True, False):
+        for i, (printing_id, quantity) in enumerate(lines):
+            if (printing_id is None) != pass_any:
+                continue
+            wanted = quantity if pass_any else short[i]
+            for other in sorted(left):
+                if wanted <= 0:
+                    break
+                wanted -= take(i, other, wanted)
+    return [sorted(held.items()) for held in result]
 
 
 @dataclass

@@ -33,7 +33,7 @@ export function ListView({ cards, games, showGame, add, adding }: CatalogViewPro
               <tr key={card.id} className="hover:bg-base-200">
                 <td>
                   <Link to={cardLink(card)} className="block w-10" tabIndex={-1} aria-hidden>
-                    <CardImage thumb src={card.image} alt={card.name} landscape={card.orientation === 'landscape'} />
+                    <CardImage thumb="small" src={card.image} alt={card.name} landscape={card.orientation === 'landscape'} />
                   </Link>
                 </td>
                 <td className="min-w-40">

@@ -1,4 +1,5 @@
 import type { Game } from '../api/queries'
+import { smallIcon } from '../lib/icons'
 
 // "{2}", "{W/U}", "{exhaust}": the tokens card texts use for symbols (`GameOut.symbols`).
 const TOKEN = /(\{[^{}\s]{1,16}\})/
@@ -17,7 +18,7 @@ export function SymbolText({ game, text }: { game?: Game; text: string }) {
         if (i % 2 === 0) return part
         const symbol = symbols.find((s) => s.token === part)
         if (!symbol?.icon) return part
-        return <img key={i} src={symbol.icon} alt={part} title={symbol.name} className={SIZE} />
+        return <img key={i} src={smallIcon(symbol.icon)} alt={part} title={symbol.name} className={SIZE} />
       })}
     </>
   )

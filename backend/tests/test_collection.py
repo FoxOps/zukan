@@ -310,6 +310,14 @@ async def test_csv_import_rejects_invalid_files(client, session, alice):
     assert [e["line"] for e in report["errors"]] == [4, 5, 6, 7, 8]
     assert "No printing" in report["errors"][0]["message"]
     assert "chess" in report["errors"][2]["message"]
+    # Codes and values for clients to say it in the reader's language.
+    assert [(e["code"], e["params"]) for e in report["errors"]] == [
+        ("printing_not_found", {"set": "001", "number": "nope"}),
+        ("printing_not_found", {"set": "001", "number": "abundance-b"}),
+        ("unknown_game", {"game": "chess"}),
+        ("finish_unknown", {"finish": "rainbow"}),
+        ("invalid_quantity_or_price", {}),
+    ]
     assert (await client.get("/api/collection", headers=alice)).json()["total"] == 0
 
     missing = (await import_file(client, alice, "game,name\nsorcery,x\n")).json()

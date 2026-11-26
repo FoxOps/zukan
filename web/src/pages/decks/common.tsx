@@ -39,7 +39,7 @@ export function DeckCount({ deck, showValue = true }: { deck: Deck; showValue?: 
             className={`badge badge-sm ${deck.allocated >= deck.copies ? 'badge-success' : 'badge-ghost'}`}
             title={t('Copies of your collection set aside for this deck')}
           >
-            {t('{{allocated}}/{{copies}} cards in the deck', { allocated: deck.allocated, copies: deck.copies })}
+            {t('Assigned here: {{allocated}}/{{copies}}', { allocated: deck.allocated, copies: deck.copies })}
           </span>
         </>
       )}
